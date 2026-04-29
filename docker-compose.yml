@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vtt
+      POSTGRES_PASSWORD: vtt_dev_password
+      POSTGRES_DB: vtt_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vtt']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  coturn:
+    image: coturn/coturn:4
+    network_mode: host
+    volumes:
+      - ./infra/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: '-c /etc/coturn/turnserver.conf'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

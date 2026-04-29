@@ -1,0 +1,22 @@
+{
+  "name": "vtt-platform",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "type-check": "pnpm -r --parallel exec tsc --noEmit",
+    "lint": "pnpm -r --parallel exec eslint src",
+    "test": "pnpm -r --parallel exec vitest run",
+    "dev": "pnpm -r --parallel run dev"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "typescript": "^5.5.4"
+  }
+}
