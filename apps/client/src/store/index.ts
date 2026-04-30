@@ -3,6 +3,7 @@ import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux
 import sessionReducer from './session';
 import roomReducer from './room';
 import sceneReducer from './scene';
+import scenesReducer from './scenes';
 import chatReducer from './chat';
 import initiativeReducer from './initiative';
 import mediaReducer from './media';
@@ -16,6 +17,7 @@ export const store = configureStore({
     session: sessionReducer,
     room: roomReducer,
     scene: sceneReducer,
+    scenes: scenesReducer,
     chat: chatReducer,
     initiative: initiativeReducer,
     media: mediaReducer,

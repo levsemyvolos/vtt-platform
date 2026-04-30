@@ -7,6 +7,8 @@ import GameCanvas from '../../components/GameCanvas/GameCanvas';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import ChatPanel from '../../components/ChatPanel/ChatPanel';
 import DiceRoller from '../../components/DiceRoller/DiceRoller';
+import SceneManager from '../../components/SceneManager/SceneManager';
+import InviteLink from '../../components/InviteLink/InviteLink';
 
 const ROLE_LABEL = {
   GM: 'Ведучий',
@@ -62,10 +64,15 @@ export default function RoomLobby(): JSX.Element | null {
           <h1>{currentRoom.name}</h1>
           <span className="room-system">{currentRoom.gameSystem}</span>
         </div>
-        <span className={`lobby-status status--${currentRoom.status}`}>
-          {currentRoom.status}
-        </span>
+        <div className="lobby-header__right">
+          <span className={`lobby-status status--${currentRoom.status}`}>
+            {currentRoom.status}
+          </span>
+          <InviteLink roomId={currentRoom.id} />
+        </div>
       </header>
+
+      <SceneManager roomId={currentRoom.id} myRole={myRole} />
 
       <section className="members-section">
         <h2>Учасники ({members.length})</h2>
