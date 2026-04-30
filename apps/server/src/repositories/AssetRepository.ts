@@ -1,0 +1,28 @@
+import { PrismaClient, type Asset, type Prisma } from '@prisma/client';
+
+export class AssetRepository {
+  constructor(private readonly db: PrismaClient) {}
+
+  /**
+   * @param id Asset UUID
+   * @returns Asset or null
+   */
+  findById(id: string): Promise<Asset | null> {
+    return this.db.asset.findUnique({ where: { id } });
+  }
+
+  /**
+   * @param data Prisma.AssetCreateInput
+   * @returns created Asset
+   */
+  create(data: Prisma.AssetUncheckedCreateInput): Promise<Asset> {
+    return this.db.asset.create({ data });
+  }
+
+  /**
+   * @param id Asset UUID
+   */
+  async deleteById(id: string): Promise<void> {
+    await this.db.asset.delete({ where: { id } });
+  }
+}

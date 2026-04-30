@@ -91,3 +91,14 @@ export interface AIImageResponse {
   previewUrl: string;
   assetId: string;
 }
+
+export interface AIMusicRequest {
+  prompt: string;
+  roomId: string;
+  durationSec?: number;
+}
+
+export interface AIMusicResponse {
+  previewUrl: string;
+  assetId: string;
+}
