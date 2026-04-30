@@ -47,11 +47,11 @@ export class SessionResyncService {
 
     const initiativeEntries = await this.initiative.listByScene(scene.id);
 
-    // Whisper / secret_roll filter — viewer must see only messages addressed to them.
-    // (For broadcast modes, recipientId is null and everyone passes the filter.)
+    // Whisper / secret_roll filter — mode is checked first because secret_roll
+    // has recipientId=null but is still restricted (visible only to GM and sender).
+    // For ordinary broadcast modes (normal/ic/ooc), all viewers pass.
     const messages = rawMessages
       .filter((m) => {
-        if (m.recipientId === null) return true;
         if (m.mode === 'whisper') {
           return m.senderId === viewerId || m.recipientId === viewerId;
         }
