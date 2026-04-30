@@ -1,6 +1,6 @@
 import { Router, type IRouter } from 'express';
 import type { Request, Response } from 'express';
-import type { CreateRoomRequest, RoomDTO } from '@vtt/shared';
+import type { CreateRoomRequest, RoomDTO, RoomMembersResponse, UserPublic } from '@vtt/shared';
 import type { Room } from '@prisma/client';
 import { RoomService } from '../services/RoomService.js';
 import { RoomRepository } from '../repositories/RoomRepository.js';
@@ -77,3 +77,37 @@ roomsRouter.post(
     }
   },
 );
+
+/**
+ * GET /rooms/:id/members — R6 γ-variant membership resolution.
+ *
+ * gm      = room.owner
+ * players = distinct Character.ownerId for this room (joined with User)
+ * observers = [] (Ф7.2 does not grant Observer any campaign visibility)
+ *
+ * No RoomMember table — persistent membership tracking is R-Persistent-Membership.
+ */
+roomsRouter.get('/:id/members', jwtAuth, async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const room = await roomService.getById(req.params.id);
+    const characters = await prisma.character.findMany({
+      where: { roomId: req.params.id },
+      distinct: ['ownerId'],
+      include: { owner: true },
+    });
+    const gm: UserPublic = {
+      id: room.owner.id,
+      email: room.owner.email,
+      name: room.owner.displayName,
+    };
+    const players: UserPublic[] = characters.map((c) => ({
+      id: c.owner.id,
+      email: c.owner.email,
+      name: c.owner.displayName,
+    }));
+    const body: RoomMembersResponse = { gm, players, observers: [] };
+    res.json(body);
+  } catch (err) {
+    handleError(err, res);
+  }
+});

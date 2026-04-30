@@ -28,6 +28,8 @@ export interface AudioTrackDTO {
   url: string;
   mimeType: string;
   loop: boolean;
+  /** Crossfade duration in milliseconds (1–10000). Default 1500. */
+  fadeMs: number;
   createdAt: string;
 }
 
@@ -60,6 +62,8 @@ export interface AudioFinalizeRequest {
   /** Bind to a scene at creation time; null/undefined = unbound. */
   sceneId?: string | null;
   loop?: boolean;
+  /** Initial crossfade duration in milliseconds (1–10000). Default 1500. */
+  fadeMs?: number;
 }
 
 export interface AudioPatchRequest {
@@ -67,6 +71,8 @@ export interface AudioPatchRequest {
   sceneId?: string | null;
   loop?: boolean;
   title?: string;
+  /** Crossfade duration in milliseconds (1–10000). */
+  fadeMs?: number;
 }
 
 export interface AudioListResponse {

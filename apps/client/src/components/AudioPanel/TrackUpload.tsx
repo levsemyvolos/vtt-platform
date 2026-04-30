@@ -10,15 +10,16 @@ interface TrackUploadProps {
 }
 
 /**
- * GM-only upload form. Uses the presigned-PUT flow inside `uploadAudioTrack`
- * thunk: client-side validation here mirrors the server's MIME/size guards
- * (НФВ 6.3) so we fail early before requesting a signed URL.
+ * GM-only upload form. Presigned-PUT flow (sequence А.7). Client-side
+ * MIME/size validation mirrors the server's guards (НФВ 6.3).
+ * fadeMs slider sets persistent fade-in/out duration (R8, Ф6.2).
  */
 export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.Element {
   const dispatch = useAppDispatch();
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loop, setLoop] = useState(false);
+  const [fadeMs, setFadeMs] = useState(1500);
   const [bindScene, setBindScene] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,10 +48,12 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
           title: title.trim() || file.name,
           sceneId: bindScene ? sceneId : null,
           loop,
+          fadeMs,
         }),
       ).unwrap();
       setTitle('');
       setFile(null);
+      setFadeMs(1500);
     } catch (err) {
       setError(typeof err === 'string' ? err : 'Помилка завантаження');
     } finally {
@@ -81,6 +84,18 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
           onChange={(e) => setLoop(e.target.checked)}
         />
         Loop
+      </label>
+      <label className="audio-upload__fade">
+        Fade {fadeMs} мс
+        <input
+          type="range"
+          min={0}
+          max={5000}
+          step={100}
+          value={fadeMs}
+          onChange={(e) => setFadeMs(Number(e.target.value))}
+          aria-label="Тривалість fade-in/out у мілісекундах"
+        />
       </label>
       <label>
         <input

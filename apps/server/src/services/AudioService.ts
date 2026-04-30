@@ -150,6 +150,7 @@ export class AudioService {
       assetId: asset.id,
       title: req.title.trim().slice(0, 128),
       loop: req.loop ?? false,
+      fadeMs: req.fadeMs != null ? Math.max(0, Math.min(10000, req.fadeMs)) : 1500,
     });
 
     if (sceneId) {
@@ -180,6 +181,7 @@ export class AudioService {
       title?: string;
       loop?: boolean;
       sceneId?: string | null;
+      fadeMs?: number;
     } = {};
     if (typeof patch.title === 'string') {
       const trimmed = patch.title.trim();
@@ -189,6 +191,12 @@ export class AudioService {
     if (typeof patch.loop === 'boolean') update.loop = patch.loop;
     if (patch.sceneId !== undefined) {
       update.sceneId = await this.resolveSceneBinding(existing.roomId, patch.sceneId);
+    }
+    if (typeof patch.fadeMs === 'number') {
+      if (!Number.isInteger(patch.fadeMs) || patch.fadeMs < 0 || patch.fadeMs > 10000) {
+        throw new HttpError(400, 'fadeMs must be an integer in range 0–10000');
+      }
+      update.fadeMs = patch.fadeMs;
     }
 
     const track = await this.tracks.update(trackId, update);
@@ -258,6 +266,7 @@ export class AudioService {
       url,
       mimeType: asset.mimeType,
       loop: track.loop,
+      fadeMs: track.fadeMs,
       createdAt: track.createdAt.toISOString(),
     };
   }

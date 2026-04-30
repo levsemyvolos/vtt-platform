@@ -19,10 +19,13 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import type { InitiativeEntryDTO } from '@vtt/shared';
 import initiativeReducer, { hydrateInitiative } from '../src/store/initiative';
+import membersReducer from '../src/store/members';
 import InitiativeTracker from '../src/components/Sidebar/InitiativeTracker';
 
+const ROOM_ID = 'room-1';
+
 function buildStore(entries: InitiativeEntryDTO[], currentRound = 1) {
-  const store = configureStore({ reducer: { initiative: initiativeReducer } });
+  const store = configureStore({ reducer: { initiative: initiativeReducer, members: membersReducer } });
   store.dispatch(
     hydrateInitiative({ sceneId: 'scene-1', entries, currentRound }),
   );
@@ -39,7 +42,7 @@ describe('InitiativeTracker', () => {
     const store = buildStore(ENTRIES);
     render(
       <Provider store={store}>
-        <InitiativeTracker sceneId="scene-1" myRole="Player" />
+        <InitiativeTracker sceneId="scene-1" myRole="Player" roomId={ROOM_ID} />
       </Provider>,
     );
     expect(screen.getByText('Раунд: 1')).toBeTruthy();
@@ -51,7 +54,7 @@ describe('InitiativeTracker', () => {
     const store = buildStore(ENTRIES);
     render(
       <Provider store={store}>
-        <InitiativeTracker sceneId="scene-1" myRole="Player" />
+        <InitiativeTracker sceneId="scene-1" myRole="Player" roomId={ROOM_ID} />
       </Provider>,
     );
     expect(screen.queryByLabelText('Наступний хід')).toBeNull();
@@ -62,7 +65,7 @@ describe('InitiativeTracker', () => {
     const store = buildStore(ENTRIES);
     render(
       <Provider store={store}>
-        <InitiativeTracker sceneId="scene-1" myRole="GM" />
+        <InitiativeTracker sceneId="scene-1" myRole="GM" roomId={ROOM_ID} />
       </Provider>,
     );
     expect(screen.getByLabelText('Наступний хід')).toBeTruthy();

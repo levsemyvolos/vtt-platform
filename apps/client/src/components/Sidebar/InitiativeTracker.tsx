@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -21,42 +21,79 @@ import {
   removeEntryThunk,
   reorderThunk,
 } from '../../store/initiative';
+import { loadMembers } from '../../store/members';
 
 interface InitiativeTrackerProps {
   sceneId: string;
   myRole: Role;
+  roomId: string;
 }
 
 /**
- * Трек ініціативи (Ф7.3). GM має drag-to-reorder, додавання/видалення позицій
- * та кнопку «Наступний хід»; Player/Observer — лише перегляд.
+ * Трек ініціативи (Ф7.3). GM: drag-to-reorder, додавання через member-picker
+ * або ручний ввід (1d20 + dexMod auto-roll), кнопка «Наступний хід»;
+ * Player/Observer — лише перегляд.
  */
 export default function InitiativeTracker({
   sceneId,
   myRole,
+  roomId,
 }: InitiativeTrackerProps): JSX.Element {
   const dispatch = useAppDispatch();
   const entries = useAppSelector((s) => s.initiative.entries);
   const currentRound = useAppSelector((s) => s.initiative.currentRound);
+  const membersState = useAppSelector((s) => s.members.byRoom[roomId]);
   const isGM = myRole === 'GM';
 
   const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState('');
+  const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [customName, setCustomName] = useState('');
+  const [useCustomName, setUseCustomName] = useState(false);
   const [initiative, setInitiative] = useState<number>(10);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
+  useEffect(() => {
+    if (isGM && roomId && !membersState) {
+      void dispatch(loadMembers(roomId));
+    }
+  }, [isGM, roomId, membersState, dispatch]);
+
+  function rollInitiative(dexMod = 0): number {
+    return Math.floor(Math.random() * 20) + 1 + dexMod;
+  }
+
+  function onOpenAdd(): void {
+    setShowAdd(true);
+    setSelectedMemberId('');
+    setCustomName('');
+    setUseCustomName(false);
+    setInitiative(rollInitiative());
+    setError(null);
+  }
+
   async function onAdd(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
-    if (!name.trim()) return;
+    const name = useCustomName
+      ? customName.trim()
+      : (() => {
+          if (!selectedMemberId) return '';
+          const all = [
+            ...(membersState?.players ?? []),
+            ...(membersState ? [membersState.gm] : []),
+          ].filter(Boolean);
+          return all.find((m) => m!.id === selectedMemberId)?.name ?? '';
+        })();
+    if (!name) {
+      setError('Оберіть учасника або введіть ім\'я');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      await dispatch(addEntryThunk({ sceneId, name: name.trim(), initiative })).unwrap();
-      setName('');
-      setInitiative(10);
+      await dispatch(addEntryThunk({ sceneId, name, initiative })).unwrap();
       setShowAdd(false);
     } catch (err) {
       setError(typeof err === 'string' ? err : 'Помилка');
@@ -94,6 +131,10 @@ export default function InitiativeTracker({
     dispatch(reorderThunk({ sceneId, orderedIds: reordered }));
   }
 
+  const allMembers = membersState
+    ? [membersState.gm, ...membersState.players].filter(Boolean)
+    : [];
+
   return (
     <div className="initiative-tracker">
       <header className="initiative-tracker__header">
@@ -117,11 +158,7 @@ export default function InitiativeTracker({
           <SortableContext items={entries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
             <ul className="initiative-tracker__list">
               {entries.map((entry) => (
-                <SortableEntry
-                  key={entry.id}
-                  entry={entry}
-                  onRemove={onRemove}
-                />
+                <SortableEntry key={entry.id} entry={entry} onRemove={onRemove} />
               ))}
             </ul>
           </SortableContext>
@@ -137,26 +174,59 @@ export default function InitiativeTracker({
       {isGM && (
         <div className="initiative-tracker__actions">
           {!showAdd ? (
-            <button type="button" onClick={() => setShowAdd(true)} aria-label="Додати позицію">
+            <button type="button" onClick={onOpenAdd} aria-label="Додати позицію">
               + Додати
             </button>
           ) : (
             <form onSubmit={onAdd} className="initiative-tracker__form">
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ім'я"
-                aria-label="Ім'я учасника"
-                required
-              />
-              <input
-                type="number"
-                value={initiative}
-                onChange={(e) => setInitiative(Number(e.target.value))}
-                aria-label="Значення ініціативи"
-                required
-              />
+              {allMembers.length > 0 && !useCustomName && (
+                <select
+                  value={selectedMemberId}
+                  onChange={(e) => setSelectedMemberId(e.target.value)}
+                  aria-label="Оберіть учасника"
+                >
+                  <option value="">— учасник —</option>
+                  {allMembers.map((m) => (
+                    <option key={m!.id} value={m!.id}>
+                      {m!.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <label className="initiative-tracker__custom-toggle">
+                <input
+                  type="checkbox"
+                  checked={useCustomName}
+                  onChange={(e) => setUseCustomName(e.target.checked)}
+                />
+                Власне ім'я
+              </label>
+              {useCustomName && (
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  placeholder="Ім'я (NPC, монстр…)"
+                  aria-label="Ім'я учасника"
+                />
+              )}
+              <label>
+                Ініціатива
+                <input
+                  type="number"
+                  value={initiative}
+                  onChange={(e) => setInitiative(Number(e.target.value))}
+                  aria-label="Значення ініціативи"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => setInitiative(rollInitiative())}
+                title="1d20"
+                aria-label="Кинути ініціативу (1d20)"
+              >
+                🎲
+              </button>
               <button type="submit" disabled={busy}>OK</button>
               <button type="button" onClick={() => setShowAdd(false)} disabled={busy}>×</button>
             </form>

@@ -58,6 +58,7 @@ interface UploadArgs {
   title: string;
   sceneId?: string | null;
   loop?: boolean;
+  fadeMs?: number;
 }
 
 /**
@@ -73,7 +74,7 @@ export const uploadAudioTrack = createAsyncThunk<
   AudioTrackDTO,
   UploadArgs,
   { rejectValue: string }
->('audio/upload', async ({ roomId, file, title, sceneId, loop }, { rejectWithValue }) => {
+>('audio/upload', async ({ roomId, file, title, sceneId, loop, fadeMs }, { rejectWithValue }) => {
   try {
     if (file.type !== 'audio/mpeg' && file.type !== 'audio/ogg') {
       return rejectWithValue('Лише MP3 (audio/mpeg) або OGG (audio/ogg)');
@@ -92,6 +93,7 @@ export const uploadAudioTrack = createAsyncThunk<
       title,
       sceneId: sceneId ?? null,
       loop: loop ?? false,
+      ...(fadeMs !== undefined ? { fadeMs } : {}),
     });
     return dto;
   } catch (err) {
@@ -108,6 +110,18 @@ export const bindTrackToScene = createAsyncThunk<
     return await patchAudioTrack(trackId, { sceneId });
   } catch (err) {
     return rejectWithValue(err instanceof Error ? err.message : 'Не вдалося прив\'язати трек');
+  }
+});
+
+export const patchTrackThunk = createAsyncThunk<
+  AudioTrackDTO,
+  { trackId: string; fadeMs?: number; loop?: boolean; title?: string },
+  { rejectValue: string }
+>('audio/patch', async ({ trackId, ...patch }, { rejectWithValue }) => {
+  try {
+    return await patchAudioTrack(trackId, patch);
+  } catch (err) {
+    return rejectWithValue(err instanceof Error ? err.message : 'Помилка оновлення треку');
   }
 });
 
@@ -166,6 +180,7 @@ const audioSlice = createSlice({
       .addCase(uploadAudioTrack.fulfilled, upsert)
       .addCase(bindTrackToScene.fulfilled, upsert)
       .addCase(setTrackLoop.fulfilled, upsert)
+      .addCase(patchTrackThunk.fulfilled, upsert)
       .addCase(removeAudioTrack.fulfilled, (state, action: PayloadAction<string>) => {
         state.tracks = state.tracks.filter((t) => t.id !== action.payload);
       });
