@@ -11,6 +11,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum RoomStatus {
+  lobby
+  active
+  closed
+}
+
 enum MessageMode {
   normal
   ic
@@ -41,8 +47,9 @@ model Room {
   id                  String   @id @default(uuid()) @db.Uuid
   ownerId             String   @db.Uuid
   name                String   @db.VarChar(128)
-  gameSystem          String   @db.VarChar(64) @default("D&D 5e")
-  inviteTokenPlayer   String   @unique @db.VarChar(64)
+  gameSystem          String     @db.VarChar(64) @default("D&D 5e")
+  status              RoomStatus @default(lobby)
+  inviteTokenPlayer   String     @unique @db.VarChar(64)
   inviteTokenObserver String   @unique @db.VarChar(64)
   createdAt           DateTime @default(now()) @db.Timestamptz(6)
 

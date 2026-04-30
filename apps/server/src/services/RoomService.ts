@@ -25,6 +25,14 @@ export class RoomService {
   }
 
   /**
+   * @param ownerId GM user UUID
+   * @returns all rooms owned by that user
+   */
+  async listByOwner(ownerId: string): Promise<Room[]> {
+    return this.rooms.findByOwnerId(ownerId);
+  }
+
+  /**
    * @param roomId Room UUID
    * @returns Room with owner relation
    * @throws HttpError 404 if not found
