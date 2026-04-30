@@ -6,6 +6,7 @@ import BackgroundLayer from './layers/BackgroundLayer';
 import TokenLayer from './layers/TokenLayer';
 import AnnotationLayer from './layers/AnnotationLayer';
 import FogOfWarLayer from './layers/FogOfWarLayer';
+import AddTokenButton from './AddTokenButton';
 
 export interface GameCanvasProps {
   scene: SceneDTO;
@@ -72,6 +73,9 @@ export default function GameCanvas({
 
   return (
     <div ref={containerRef} className="game-canvas" style={{ width: '100%', height: '100%' }}>
+      <div className="canvas-toolbar">
+        <AddTokenButton myRole={myRole} sceneId={scene.id} />
+      </div>
       <Stage
         width={size.width}
         height={size.height}
