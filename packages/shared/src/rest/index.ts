@@ -64,6 +64,23 @@ export interface DiceRollRequest {
   label?: string;
 }
 
+export interface CreateSceneRequest {
+  name: string;
+  gridSize: number;
+  gridWidth?: number;
+  gridHeight?: number;
+  backgroundAssetId?: string;
+}
+
+export interface UpdateSceneRequest {
+  name?: string;
+  gridSize?: number;
+  gridWidth?: number;
+  gridHeight?: number;
+  backgroundAssetId?: string | null;
+  isHidden?: boolean;
+}
+
 export interface AIImageRequest {
   prompt: string;
   roomId: string;
