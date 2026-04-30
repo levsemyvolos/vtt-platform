@@ -1,0 +1,115 @@
+### VTT Platform — Smoke Flow (8 requests)
+### Bible §2.12 row 1 (HTTPS/WSS), §2.14 (Process View).
+### Format: REST Client / IntelliJ HTTP Client. Run sequentially, top to bottom.
+###
+### Variables — override at top:
+@apiBase = https://vtt-server.onrender.com
+@gmEmail = gm@example.com
+@gmPassword = pass-123-pass
+###
+### Steps 1-5, 7-8 are REST. Step 6 (dice via WSS) lives in `socket-smoke.mjs`
+### in this same folder — REST clients cannot drive socket.io frames.
+
+# 1) Login (Ф1) — JWT pair into {{accessToken}}, {{refreshToken}}.
+# @name login
+POST {{apiBase}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{gmEmail}}",
+  "password": "{{gmPassword}}"
+}
+
+###
+
+@accessToken = {{login.response.body.accessToken}}
+
+# 2) Create room (Ф2.1) — owner becomes GM by ownership.
+# @name createRoom
+POST {{apiBase}}/rooms
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Smoke Room",
+  "gameSystem": "D&D 5e"
+}
+
+###
+
+@roomId = {{createRoom.response.body.id}}
+
+# 3) Create scene (Ф3.1) — empty 40x40 scene.
+# @name createScene
+POST {{apiBase}}/rooms/{{roomId}}/scenes
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Smoke Scene",
+  "gridSize": 50,
+  "gridWidth": 40,
+  "gridHeight": 40
+}
+
+###
+
+@sceneId = {{createScene.response.body.id}}
+
+# 4) Activate scene (Ф3.2) — fires SceneService.onSceneActivated → audio:play.
+PATCH {{apiBase}}/scenes/{{sceneId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "isActive": true
+}
+
+###
+
+# 5) Get scene (Ф3.3) — verify projection + tokens[] visible to GM.
+GET {{apiBase}}/scenes/{{sceneId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+# 6) Roll dice via WSS — see ./socket-smoke.mjs (run with the same accessToken).
+
+# 7) Generate AI image (Ф8.2) — Gemini 3.1 Flash Image, persists into Asset.
+POST {{apiBase}}/ai/generate-image
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "roomId": "{{roomId}}",
+  "prompt": "ancient stone bridge over a river, top-down battle map, 1024x1024"
+}
+
+###
+
+# 8) Upload audio track (Ф6.1) — two-phase: presigned PUT, then finalize.
+# 8a — request presigned URL.
+# @name presignAudio
+POST {{apiBase}}/audio
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "roomId": "{{roomId}}",
+  "title": "Tavern Loop",
+  "mimeType": "audio/mpeg",
+  "size": 4194304
+}
+
+###
+
+# 8b — PUT bytes directly to GCS using {{presignAudio.response.body.uploadUrl}}.
+#       Use a real client (curl --upload-file) outside this file:
+#       curl -X PUT -H "Content-Type: audio/mpeg" --upload-file ./tavern.mp3 "<uploadUrl>"
+
+# 8c — finalize: confirms object presence in GCS and links AudioTrack.
+POST {{apiBase}}/audio/{{presignAudio.response.body.audioTrackId}}/finalize
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{}
