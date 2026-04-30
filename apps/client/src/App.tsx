@@ -3,6 +3,7 @@ import type { RoomDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from './store';
 import { setCurrentRoom } from './store/room';
 import { apiFetch } from './api/apiFetch';
+import { useTheme } from './hooks/useTheme';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ObserverEntry from './pages/Auth/ObserverEntry';
@@ -12,6 +13,7 @@ import RoomLobby from './pages/RoomLobby/RoomLobby';
 type AuthView = 'login' | 'register' | 'observer';
 
 export default function App() {
+  useTheme();
   const dispatch = useAppDispatch();
   const { status, currentUser } = useAppSelector((s) => s.session);
   const { currentRoom } = useAppSelector((s) => s.room);

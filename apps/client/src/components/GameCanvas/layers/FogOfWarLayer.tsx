@@ -9,6 +9,8 @@ interface FogOfWarLayerProps {
   gridWidth: number;
   gridHeight: number;
   myRole: Role;
+  /** Theme-aware FoW opacity for non-GM viewers (dark: 0.5, light: 0.7). Default 0.7. */
+  fowAlpha?: number;
 }
 
 /**
@@ -30,8 +32,9 @@ export default function FogOfWarLayer({
   gridWidth,
   gridHeight,
   myRole,
+  fowAlpha = 0.7,
 }: FogOfWarLayerProps): JSX.Element {
-  const opacity = myRole === 'GM' ? 0.55 : 1;
+  const opacity = myRole === 'GM' ? 0.55 : fowAlpha;
 
   const hiddenCells = useMemo<{ x: number; y: number }[]>(() => {
     if (!fogMaskBase64) return [];

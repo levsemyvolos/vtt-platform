@@ -3,6 +3,7 @@ import { Stage } from 'react-konva';
 import type Konva from 'konva';
 import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppSelector } from '../../store';
+import { useTheme } from '../../hooks/useTheme';
 import BackgroundLayer from './layers/BackgroundLayer';
 import TokenLayer from './layers/TokenLayer';
 import AnnotationLayer from './layers/AnnotationLayer';
@@ -47,7 +48,10 @@ export default function GameCanvas({
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [annotationTool, setAnnotationTool] = useState<AnnotationTool>('ping');
 
+  const theme = useTheme();
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
+  const stageBg = theme === 'dark' ? '#0f172a' : '#fafafa';
+  const fowAlpha = theme === 'dark' ? 0.5 : 0.7;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -123,6 +127,7 @@ export default function GameCanvas({
         draggable
         onWheel={handleWheel}
         onClick={handleStageClick}
+        style={{ background: stageBg }}
       >
         <BackgroundLayer
           {...(backgroundUrl !== undefined ? { backgroundUrl } : {})}
@@ -144,6 +149,7 @@ export default function GameCanvas({
           gridWidth={scene.gridWidth}
           gridHeight={scene.gridHeight}
           myRole={myRole}
+          fowAlpha={fowAlpha}
         />
       </Stage>
     </div>
