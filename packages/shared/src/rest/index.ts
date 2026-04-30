@@ -148,3 +148,10 @@ export interface UpdateTokenRequest {
 
 // ---------- Чат 7.2 — музичний супровід (Ф6) ----------
 export * from './audio';
+
+// ---------- Чат 7.5 — room members (R6 γ-variant) ----------
+export interface RoomMembersResponse {
+  gm: UserPublic;
+  players: UserPublic[];
+  observers: UserPublic[];
+}

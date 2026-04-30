@@ -194,6 +194,7 @@ model AudioTrack {
   title     String   @db.VarChar(128)
   assetId   String   @db.Uuid
   loop      Boolean  @default(false)
+  fadeMs    Int      @default(1500)
   createdAt DateTime @default(now()) @db.Timestamptz(6)
 
   room    Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)

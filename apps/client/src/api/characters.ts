@@ -3,8 +3,7 @@ import type {
   CharacterCreateRequest,
   CharacterUpdateRequest,
 } from '@vtt/shared';
-import { apiFetch, ApiError } from './apiFetch';
-import { tokenStore } from './tokenStore';
+import { apiFetch } from './apiFetch';
 
 /** GET /rooms/:roomId/characters — список персонажів кімнати (RBAC-проєкція). */
 export function listCharacters(roomId: string): Promise<CharacterSheetDTO[]> {
@@ -44,27 +43,15 @@ export function deleteCharacter(id: string): Promise<void> {
 }
 
 /**
- * POST /characters/:id/pdf (multipart/form-data, поле "file").
- * Окремий шлях fetch'у потрібен тому, що `apiFetch` примусово виставляє
- * Content-Type: application/json. Тут довіряємо браузеру самому виставити
- * boundary multipart-секції; refresh-flow реалізовано спрощено (без черги).
+ * POST /characters/:id/pdf — raw PDF bytes (Content-Type: application/pdf).
+ * The server uses express.raw({ type: 'application/pdf' }) so we send the file
+ * directly rather than wrapping it in multipart. apiFetch handles the 401-refresh
+ * queue (R7 closed).
  */
-export async function uploadCharacterPdf(
-  id: string,
-  file: File,
-): Promise<CharacterSheetDTO> {
-  const url = `/api/characters/${id}/pdf`;
-  const form = new FormData();
-  form.append('file', file);
-
-  const access = tokenStore.getAccess();
-  const headers: Record<string, string> = {};
-  if (access) headers['Authorization'] = `Bearer ${access}`;
-
-  const res = await fetch(url, { method: 'POST', headers, body: form });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new ApiError(res.status, body.error?.message ?? res.statusText);
-  }
-  return (await res.json()) as CharacterSheetDTO;
+export function uploadCharacterPdf(id: string, file: File): Promise<CharacterSheetDTO> {
+  return apiFetch<CharacterSheetDTO>(`/api/characters/${id}/pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/pdf' },
+    body: file,
+  });
 }

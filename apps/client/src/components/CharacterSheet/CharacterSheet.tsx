@@ -5,10 +5,16 @@ import {
   loadCharacter,
   updateCharacterThunk,
   uploadPdfThunk,
+  createCharacterThunk,
+  loadCharacters,
+  setCurrentCharacter,
 } from '../../store/characters';
+import SpellsList, { type SpellEntry } from './SpellsList';
 
 interface CharacterSheetProps {
-  characterId: string;
+  /** null/undefined = show "New Character" screen so GM/Player can create one. */
+  characterId?: string | null;
+  roomId: string;
   myRole: Role;
 }
 
@@ -29,11 +35,12 @@ interface SheetSkill {
 interface SheetData {
   attributes: SheetAttributes;
   hp: number;
+  maxHp: number;
   ac: number;
   speed: number;
   skills: SheetSkill[];
   inventory: string[];
-  spells: string;
+  spells: SpellEntry[];
 }
 
 const DEFAULT_ATTRIBUTES: SheetAttributes = {
@@ -53,57 +60,87 @@ function modifier(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-function normaliseSheet(raw: unknown): SheetData {
-  const r = (raw ?? {}) as Partial<SheetData>;
+function conMod(attrs: SheetAttributes): number {
+  return modifier(attrs.CON);
+}
+
+function makeDefaultSheet(attrs = DEFAULT_ATTRIBUTES): SheetData {
+  const con = conMod(attrs);
   return {
-    attributes: { ...DEFAULT_ATTRIBUTES, ...(r.attributes ?? {}) },
-    hp: typeof r.hp === 'number' ? r.hp : 10,
-    ac: typeof r.ac === 'number' ? r.ac : 10,
-    speed: typeof r.speed === 'number' ? r.speed : 30,
-    skills: Array.isArray(r.skills) && r.skills.length > 0 ? r.skills : DEFAULT_SKILLS,
-    inventory: Array.isArray(r.inventory) ? r.inventory : [],
-    spells: typeof r.spells === 'string' ? r.spells : '',
+    attributes: { ...attrs },
+    hp: 8 + con,
+    maxHp: 8 + con,
+    ac: 10,
+    speed: 30,
+    skills: [...DEFAULT_SKILLS],
+    inventory: [],
+    spells: [],
   };
 }
 
-function ShortView({
-  name,
-  portraitUrl,
-}: {
-  name: string;
-  portraitUrl?: string;
-}): JSX.Element {
+function normaliseSheet(raw: unknown): SheetData {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const attrs = { ...DEFAULT_ATTRIBUTES, ...((r.attributes ?? {}) as Partial<SheetAttributes>) };
+  const spellsRaw = r.spells;
+  let spells: SpellEntry[] = [];
+  if (Array.isArray(spellsRaw)) {
+    spells = spellsRaw as SpellEntry[];
+  }
+  return {
+    attributes: attrs,
+    hp: typeof r.hp === 'number' ? r.hp : 8 + conMod(attrs),
+    maxHp: typeof r.maxHp === 'number' ? r.maxHp : 8 + conMod(attrs),
+    ac: typeof r.ac === 'number' ? r.ac : 10,
+    speed: typeof r.speed === 'number' ? r.speed : 30,
+    skills: Array.isArray(r.skills) && r.skills.length > 0 ? r.skills as SheetSkill[] : DEFAULT_SKILLS,
+    inventory: Array.isArray(r.inventory) ? r.inventory as string[] : [],
+    spells,
+  };
+}
+
+function ShortView({ name, portraitUrl }: { name: string; portraitUrl?: string }): JSX.Element {
   return (
     <section className="character-sheet character-sheet--short">
       <h3>{name}</h3>
-      {portraitUrl && (
-        <img src={portraitUrl} alt={name} className="character-sheet__portrait" />
-      )}
-      <p className="character-sheet__notice">
-        Аркуш закритий власником — доступне лише ім'я та портрет.
-      </p>
+      {portraitUrl && <img src={portraitUrl} alt={name} className="character-sheet__portrait" />}
+      <p className="character-sheet__notice">Аркуш закритий власником — доступне лише ім'я та портрет.</p>
     </section>
   );
 }
 
 /**
- * Аркуш персонажа D&D 5e (Ф7.5). Редагування доступне лише власнику;
- * GM має read-only перегляд (RBAC: GM не модифікує аркуш без згоди гравця).
+ * Аркуш персонажа D&D 5e (Ф7.5).
+ * Без characterId — показує список персонажів кімнати + кнопку «Новий персонаж».
+ * З characterId — повний редактор (власник) або read-only (GM перегляд).
  */
-export default function CharacterSheet({
-  characterId,
-  myRole,
-}: CharacterSheetProps): JSX.Element {
+export default function CharacterSheet({ characterId, roomId, myRole }: CharacterSheetProps): JSX.Element {
   const dispatch = useAppDispatch();
   const current = useAppSelector((s) => s.characters.current);
+  const allChars = useAppSelector((s) => s.characters.items);
   const myUserId = useAppSelector((s) => s.session.currentUser?.id);
 
-  useEffect(() => {
-    void dispatch(loadCharacter(characterId));
-  }, [characterId, dispatch]);
-
   const [name, setName] = useState('');
-  const [sheet, setSheet] = useState<SheetData>(() => normaliseSheet(undefined));
+  const [sheet, setSheet] = useState<SheetData>(() => makeDefaultSheet());
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load characters list for character picker when no specific characterId given
+  useEffect(() => {
+    if (!characterId) {
+      void dispatch(loadCharacters(roomId));
+    }
+  }, [characterId, roomId, dispatch]);
+
+  // Load single character when characterId is provided
+  useEffect(() => {
+    if (characterId) {
+      void dispatch(loadCharacter(characterId));
+    } else {
+      dispatch(setCurrentCharacter(null));
+    }
+  }, [characterId, dispatch]);
 
   useEffect(() => {
     if (!current) return;
@@ -115,8 +152,102 @@ export default function CharacterSheet({
     if (!current || !myUserId) return false;
     return current.ownerId === myUserId;
   }, [current, myUserId]);
+
   const readOnly = !isOwner;
 
+  // ---- No character selected — show list + create ----
+  if (!characterId) {
+    const myChars = allChars.filter((c) => c.ownerId === myUserId);
+    const otherChars = myRole === 'GM' ? allChars.filter((c) => c.ownerId !== myUserId) : [];
+
+    return (
+      <section className="character-sheet character-sheet--list">
+        <h3>Персонажі</h3>
+        {myChars.length > 0 && (
+          <>
+            <h4>Мої</h4>
+            <ul className="character-sheet__list">
+              {myChars.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => dispatch(setCurrentCharacter(c))}
+                  >
+                    {c.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {otherChars.length > 0 && (
+          <>
+            <h4>Гравці (GM перегляд)</h4>
+            <ul className="character-sheet__list">
+              {otherChars.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => dispatch(setCurrentCharacter(c))}
+                  >
+                    {c.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {myRole !== 'Observer' && (
+          creating ? (
+            <form
+              className="character-sheet__create-form"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setBusy(true);
+                setError(null);
+                try {
+                  await dispatch(
+                    createCharacterThunk({
+                      roomId,
+                      req: { name: newName.trim(), sheetData: makeDefaultSheet() },
+                    }),
+                  ).unwrap();
+                  setNewName('');
+                  setCreating(false);
+                } catch {
+                  setError('Помилка створення персонажа');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Ім'я персонажа"
+                aria-label="Ім'я нового персонажа"
+                required
+              />
+              <button type="submit" disabled={busy}>Створити</button>
+              <button type="button" onClick={() => setCreating(false)} disabled={busy}>Скасувати</button>
+              {error && <p className="character-sheet__error">{error}</p>}
+            </form>
+          ) : (
+            <button
+              type="button"
+              className="character-sheet__new-btn"
+              onClick={() => setCreating(true)}
+              aria-label="Новий персонаж"
+            >
+              + Новий персонаж
+            </button>
+          )
+        )}
+      </section>
+    );
+  }
+
+  // ---- Loading ----
   if (!current) return <p>Завантаження аркуша…</p>;
   if (current.kind === 'short') {
     return (
@@ -193,6 +324,14 @@ export default function CharacterSheet({
           />
         </label>
         <label>
+          Max HP
+          <input
+            type="number"
+            value={sheet.maxHp}
+            onChange={(e) => setSheet((s) => ({ ...s, maxHp: Number(e.target.value) }))}
+          />
+        </label>
+        <label>
           AC
           <input
             type="number"
@@ -255,15 +394,11 @@ export default function CharacterSheet({
         )}
       </fieldset>
 
-      <fieldset className="character-sheet__spells" disabled={readOnly}>
-        <legend>Spells</legend>
-        <textarea
-          value={sheet.spells}
-          onChange={(e) => setSheet((s) => ({ ...s, spells: e.target.value }))}
-          rows={4}
-          aria-label="Заклинання"
-        />
-      </fieldset>
+      <SpellsList
+        spells={sheet.spells}
+        readOnly={readOnly}
+        onChange={(spells) => setSheet((s) => ({ ...s, spells }))}
+      />
 
       <section className="character-sheet__pdf">
         <h4>PDF</h4>

@@ -63,8 +63,16 @@ async function parseError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, body.error?.message ?? res.statusText);
 }
 
-function buildHeaders(extra?: HeadersInit): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+/**
+ * Build request headers. When `body` is a FormData instance the browser must
+ * set Content-Type (including the multipart boundary) automatically — omit it.
+ * For Blob/File bodies the caller must pass an explicit Content-Type header.
+ */
+function buildHeaders(body: BodyInit | null | undefined, extra?: HeadersInit): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (!(body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
   const access = tokenStore.getAccess();
   if (access) headers['Authorization'] = `Bearer ${access}`;
   if (extra && !(extra instanceof Headers) && !Array.isArray(extra)) {
@@ -77,7 +85,7 @@ export async function apiFetch<TRes = unknown>(
   url: string,
   options: RequestInit = {},
 ): Promise<TRes> {
-  const headers = buildHeaders(options.headers);
+  const headers = buildHeaders(options.body, options.headers);
   const res = await fetch(url, { ...options, headers });
 
   if (res.status === 401) {

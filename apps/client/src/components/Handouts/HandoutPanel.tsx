@@ -8,6 +8,7 @@ import {
   loadHandouts,
   revokeHandoutThunk,
 } from '../../store/handouts';
+import { loadMembers } from '../../store/members';
 
 interface HandoutPanelProps {
   roomId: string;
@@ -17,15 +18,23 @@ interface HandoutPanelProps {
 /**
  * Панель handouts (Ф7.4). GM керує створенням / grant / revoke / delete;
  * Player бачить лише видані йому матеріали; Observer не бачить панелі взагалі.
+ * Grant використовує member-picker з GET /rooms/:id/members (R6 γ-variant).
  */
 export default function HandoutPanel({ roomId, myRole }: HandoutPanelProps): JSX.Element | null {
   const dispatch = useAppDispatch();
   const items = useAppSelector((s) => s.handouts.items);
+  const membersState = useAppSelector((s) => s.members.byRoom[roomId]);
 
   useEffect(() => {
     if (myRole === 'Observer') return;
     void dispatch(loadHandouts(roomId));
   }, [roomId, myRole, dispatch]);
+
+  useEffect(() => {
+    if (myRole === 'GM' && !membersState) {
+      void dispatch(loadMembers(roomId));
+    }
+  }, [myRole, roomId, membersState, dispatch]);
 
   if (myRole === 'Observer') return null;
   if (myRole === 'GM') return <GmView roomId={roomId} items={items} />;
@@ -84,7 +93,7 @@ function GmView({ roomId, items }: GmViewProps): JSX.Element {
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Текст"
+            placeholder="Текст (Markdown)"
             aria-label="Тіло handout"
             rows={4}
             required
@@ -101,27 +110,41 @@ function GmView({ roomId, items }: GmViewProps): JSX.Element {
       {error && <p className="handout-panel__error">{error}</p>}
       <ul className="handout-panel__list">
         {items.map((h) => (
-          <GmHandoutCard key={h.id} handout={h} />
+          <GmHandoutCard key={h.id} handout={h} roomId={roomId} />
         ))}
       </ul>
     </section>
   );
 }
 
-function GmHandoutCard({ handout }: { handout: HandoutDTO }): JSX.Element {
+function GmHandoutCard({
+  handout,
+  roomId,
+}: {
+  handout: HandoutDTO;
+  roomId: string;
+}): JSX.Element {
   const dispatch = useAppDispatch();
-  const [grantInput, setGrantInput] = useState('');
+  const membersState = useAppSelector((s) => s.members.byRoom[roomId]);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+
+  const players = membersState?.players ?? [];
+  const hasPlayers = players.length > 0;
+
+  function togglePlayer(id: string): void {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function onGrant(): void {
-    // TODO(presence): після введення REST/WSS-каналу присутності замінити textarea
-    // на dropdown зі списком учасників кімнати (RoomMemberDTO).
-    const userIds = grantInput
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const userIds = [...checkedIds];
     if (userIds.length === 0) return;
     dispatch(grantHandoutThunk({ handoutId: handout.id, userIds }));
-    setGrantInput('');
+    setCheckedIds(new Set());
   }
 
   return (
@@ -152,13 +175,38 @@ function GmHandoutCard({ handout }: { handout: HandoutDTO }): JSX.Element {
         ))}
       </div>
       <div className="handout-panel__grant">
-        <input
-          value={grantInput}
-          onChange={(e) => setGrantInput(e.target.value)}
-          placeholder="userIds через кому"
-          aria-label="Видати handout — список userId через кому"
-        />
-        <button type="button" onClick={onGrant}>Grant</button>
+        {hasPlayers ? (
+          <>
+            <fieldset className="handout-panel__member-picker">
+              <legend>Видати гравцям</legend>
+              {players.map((p) => (
+                <label key={p.id} className="handout-panel__member-label">
+                  <input
+                    type="checkbox"
+                    checked={checkedIds.has(p.id)}
+                    onChange={() => togglePlayer(p.id)}
+                    aria-label={`Видати ${p.name}`}
+                  />
+                  {p.name}
+                </label>
+              ))}
+            </fieldset>
+            <button
+              type="button"
+              onClick={onGrant}
+              disabled={checkedIds.size === 0}
+            >
+              Grant
+            </button>
+          </>
+        ) : (
+          <p
+            className="handout-panel__no-players"
+            title="Гравці без персонажів не з'являються у списку (R6 γ-variant)"
+          >
+            Гравців без персонажів немає — попросіть учасників створити персонажа.
+          </p>
+        )}
       </div>
       <button
         type="button"

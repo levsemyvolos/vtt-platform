@@ -23,11 +23,11 @@ interface TabSpec {
   label: string;
 }
 
-function buildTabs(myRole: Role, myCharacterId: string | null): TabSpec[] {
+function buildTabs(myRole: Role): TabSpec[] {
   const tabs: TabSpec[] = [{ id: 'initiative', label: 'Ініціатива' }];
   if (myRole !== 'Observer') tabs.push({ id: 'handouts', label: 'Handouts' });
   if (myRole === 'GM') tabs.push({ id: 'notes', label: 'Нотатки' });
-  if (myCharacterId) tabs.push({ id: 'character', label: 'Персонаж' });
+  if (myRole !== 'Observer') tabs.push({ id: 'character', label: 'Персонаж' });
   tabs.push({ id: 'audio', label: 'Музика' });
   return tabs;
 }
@@ -39,15 +39,15 @@ interface PanelProps extends SidebarProps {
 function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps): JSX.Element | null {
   if (tab === 'initiative') {
     return sceneId ? (
-      <InitiativeTracker sceneId={sceneId} myRole={myRole} />
+      <InitiativeTracker sceneId={sceneId} myRole={myRole} roomId={roomId} />
     ) : (
       <p className="sidebar__placeholder">Сцена не активна.</p>
     );
   }
   if (tab === 'handouts') return <HandoutPanel roomId={roomId} myRole={myRole} />;
   if (tab === 'notes') return <NotesPanel roomId={roomId} myRole={myRole} />;
-  if (tab === 'character' && myCharacterId)
-    return <CharacterSheet characterId={myCharacterId} myRole={myRole} />;
+  if (tab === 'character')
+    return <CharacterSheet characterId={myCharacterId ?? null} roomId={roomId} myRole={myRole} />;
   if (tab === 'audio') return <AudioPanel roomId={roomId} sceneId={sceneId} myRole={myRole} />;
   return null;
 }
@@ -62,7 +62,7 @@ function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps
  *  - `<VideoCall />`   — `<video>` montage of local + remote WebRTC peers.
  */
 export default function Sidebar(props: SidebarProps): JSX.Element {
-  const tabs = buildTabs(props.myRole, props.myCharacterId);
+  const tabs = buildTabs(props.myRole);
   const [tab, setTab] = useState<Tab>('initiative');
   return (
     <aside className="sidebar" aria-label="Room sidebar">
