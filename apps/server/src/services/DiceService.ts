@@ -38,6 +38,18 @@ const MAX_FACES = 1000;
 
 const FORMULA_RE = /^\s*(\d+)\s*[dD]\s*(\d+)\s*([+-]\s*\d+)?\s*$/;
 
+function validateRange(
+  value: number,
+  min: number,
+  max: number,
+  label: string,
+): string | null {
+  if (!Number.isFinite(value) || value < min || value > max) {
+    return `${label} must be between ${min} and ${max}`;
+  }
+  return null;
+}
+
 export class DiceService {
   /**
    * Parses a textual dice formula like "2d6+3" or "1d20-1" into a structured form.
@@ -54,12 +66,10 @@ export class DiceService {
     const modifier =
       rawMod !== undefined ? Number.parseInt(rawMod.replace(/\s+/g, ''), 10) : 0;
 
-    if (!Number.isFinite(count) || count < 1 || count > MAX_COUNT) {
-      return { ok: false, error: `Dice count must be between 1 and ${MAX_COUNT}` };
-    }
-    if (!Number.isFinite(faces) || faces < 2 || faces > MAX_FACES) {
-      return { ok: false, error: `Dice faces must be between 2 and ${MAX_FACES}` };
-    }
+    const errCount = validateRange(count, 1, MAX_COUNT, 'Dice count');
+    if (errCount) return { ok: false, error: errCount };
+    const errFaces = validateRange(faces, 2, MAX_FACES, 'Dice faces');
+    if (errFaces) return { ok: false, error: errFaces };
     if (!Number.isFinite(modifier)) {
       return { ok: false, error: 'Modifier is not a finite integer' };
     }

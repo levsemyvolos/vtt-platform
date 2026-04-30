@@ -13,12 +13,6 @@ if (!JWT_SECRET) throw new Error('JWT_SECRET env var is required');
 const ACCESS_TTL_SEC = 900; // 15 min
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-interface AccessPayload {
-  sub: string;
-  role: Role;
-  sid: string;
-}
-
 interface RefreshPayload {
   sub: string;
   sid: string;

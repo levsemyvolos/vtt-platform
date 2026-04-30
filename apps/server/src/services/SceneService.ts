@@ -14,6 +14,43 @@ import { TokenRepository } from '../repositories/TokenRepository.js';
 import { HttpError } from '../lib/errors.js';
 import { projectScene, projectToken } from './projections.js';
 
+interface BresenhamCtx {
+  cx: number;
+  cy: number;
+  x1: number;
+  y1: number;
+  dx: number;
+  dy: number;
+  sx: number;
+  sy: number;
+  err: number;
+}
+
+function stepBresenham(ctx: BresenhamCtx): void {
+  const e2 = ctx.err * 2;
+  if (e2 > -ctx.dy) {
+    ctx.err -= ctx.dy;
+    ctx.cx += ctx.sx;
+  }
+  if (e2 < ctx.dx) {
+    ctx.err += ctx.dx;
+    ctx.cy += ctx.sy;
+  }
+}
+
+function isBlocker(
+  mask: boolean[][],
+  x: number,
+  y: number,
+  endX: number,
+  endY: number,
+): boolean {
+  const col = mask[x];
+  if (!col || col[y] === undefined) return true;
+  if (x === endX && y === endY) return false;
+  return col[y] === true;
+}
+
 export class SceneService {
   constructor(
     private readonly scenes: SceneRepository,
@@ -152,8 +189,8 @@ export class SceneService {
    * Bresenham's line algorithm — returns true if no cell on the line from
    * (x0,y0) to (x1,y1), exclusive of the start, is a blocker.
    *
-   * Note: the start cell itself is always considered visible (it's where the
-   * viewer stands). The end cell is visible if the line reaches it.
+   * The start cell is always visible (it's where the viewer stands). The end
+   * cell is visible if the line reaches it.
    */
   private lineOfSightClear(
     mask: boolean[][],
@@ -162,30 +199,23 @@ export class SceneService {
     x1: number,
     y1: number,
   ): boolean {
-    let cx = x0;
-    let cy = y0;
-    const dx = Math.abs(x1 - cx);
-    const dy = Math.abs(y1 - cy);
-    const sx = cx < x1 ? 1 : -1;
-    const sy = cy < y1 ? 1 : -1;
-    let err = dx - dy;
-    // safety bound — prevents infinite loops on pathological input
-    const maxSteps = dx + dy + 2;
+    const ctx: BresenhamCtx = {
+      cx: x0,
+      cy: y0,
+      x1,
+      y1,
+      dx: Math.abs(x1 - x0),
+      dy: Math.abs(y1 - y0),
+      sx: x0 < x1 ? 1 : -1,
+      sy: y0 < y1 ? 1 : -1,
+      err: 0,
+    };
+    ctx.err = ctx.dx - ctx.dy;
+    const maxSteps = ctx.dx + ctx.dy + 2;
     for (let step = 0; step < maxSteps; step++) {
-      if (cx === x1 && cy === y1) return true;
-      const e2 = err * 2;
-      if (e2 > -dy) {
-        err -= dy;
-        cx += sx;
-      }
-      if (e2 < dx) {
-        err += dx;
-        cy += sy;
-      }
-      // out-of-bounds = blocked
-      const col = mask[cx];
-      if (!col || col[cy] === undefined) return false;
-      if (col[cy] === true && !(cx === x1 && cy === y1)) return false;
+      if (ctx.cx === x1 && ctx.cy === y1) return true;
+      stepBresenham(ctx);
+      if (isBlocker(mask, ctx.cx, ctx.cy, x1, y1)) return false;
     }
     return false;
   }

@@ -1,0 +1,115 @@
+import type { Server as HttpServer } from 'http';
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import type { Role, Ack } from '@vtt/shared';
+import type { TypedServer, TypedSocket } from './types.js';
+import { userRoom } from './types.js';
+import type { SceneService } from '../services/SceneService.js';
+import type { DiceService } from '../services/DiceService.js';
+import type { ChatService } from '../services/ChatService.js';
+import type { SessionResyncService } from '../services/SessionResyncService.js';
+import type { RoomRepository } from '../repositories/RoomRepository.js';
+import { makeTokenMoveHandler } from './handlers/token.js';
+import { makeDiceRollHandler } from './handlers/dice.js';
+import { makeChatMessageHandler } from './handlers/chat.js';
+import { makeSessionResyncHandler } from './handlers/resync.js';
+import { registerSignalingHandlers } from './handlers/signaling.js';
+
+interface AccessPayload {
+  sub: string;
+  role: Role;
+  sid: string;
+}
+
+export interface SocketDeps {
+  sceneService: SceneService;
+  diceService: DiceService;
+  chatService: ChatService;
+  resyncService: SessionResyncService;
+  rooms: RoomRepository;
+  jwtSecret: string;
+  corsOrigin: string;
+}
+
+/**
+ * Builds a typed socket.io v4 Server bound to the existing http.Server,
+ * applies JWT-handshake middleware, and registers per-socket handlers
+ * for the events listed in §2.16.3 (table 2.14).
+ *
+ * Authentication: client sends `auth.token = accessJWT` in handshake. The
+ * middleware verifies signature and attaches `socket.data` (typed via
+ * `SocketData` from @vtt/shared/wss).
+ *
+ * Personal-room convention: every authenticated socket auto-joins
+ * `user:${userId}` so unicast events (whisper, secret roll, signaling)
+ * can target a user without tracking a userId→socketId map manually.
+ */
+export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedServer {
+  const io: TypedServer = new Server(httpServer, {
+    cors: { origin: deps.corsOrigin },
+  });
+
+  io.use((socket: TypedSocket, next) => {
+    const rawToken =
+      typeof socket.handshake.auth['token'] === 'string'
+        ? socket.handshake.auth['token']
+        : '';
+    if (!rawToken) {
+      next(new Error('Missing auth token'));
+      return;
+    }
+    try {
+      const payload = jwt.verify(rawToken, deps.jwtSecret) as AccessPayload;
+      socket.data.userId = payload.sub;
+      socket.data.role = payload.role;
+      socket.data.sessionId = payload.sid;
+      next();
+    } catch {
+      next(new Error('Invalid or expired access token'));
+    }
+  });
+
+  io.on('connection', (socket: TypedSocket) => {
+    void socket.join(userRoom(socket.data.userId));
+
+    socket.on(
+      'room:join',
+      async (
+        payload: { roomId: string },
+        ack: (response: Ack<{ joined: true }>) => void,
+      ) => {
+        try {
+          const room = await deps.rooms.findById(payload.roomId);
+          if (!room) {
+            ack({ ok: false, error: { code: 404, message: 'Room not found' } });
+            return;
+          }
+          // GM is the owner; Players/Observers gain access via invite tokens
+          // (validated at REST /rooms/:id/join endpoints in earlier verticals).
+          // For Vertical 2 we accept any authenticated user — RBAC tightening
+          // moves to Чат 7 along with full presence tracking.
+          if (socket.data.roomId && socket.data.roomId !== payload.roomId) {
+            await socket.leave(socket.data.roomId);
+          }
+          await socket.join(payload.roomId);
+          socket.data.roomId = payload.roomId;
+          ack({ ok: true, data: { joined: true } });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          ack({ ok: false, error: { code: 500, message } });
+        }
+      },
+    );
+
+    socket.on('token:move', makeTokenMoveHandler(io, socket, deps.sceneService));
+    socket.on(
+      'dice:roll',
+      makeDiceRollHandler(io, socket, deps.diceService, deps.chatService, deps.rooms),
+    );
+    socket.on('chat:message', makeChatMessageHandler(io, socket, deps.chatService));
+    socket.on('session:resync', makeSessionResyncHandler(socket, deps.resyncService));
+    registerSignalingHandlers(io, socket);
+  });
+
+  return io;
+}
