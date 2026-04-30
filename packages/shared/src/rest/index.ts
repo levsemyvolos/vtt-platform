@@ -155,3 +155,6 @@ export interface RoomMembersResponse {
   players: UserPublic[];
   observers: UserPublic[];
 }
+
+// ---------- Чат 7.6 — AI Assistant text (Ф8.1) ----------
+export * from './ai';

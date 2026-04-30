@@ -12,6 +12,7 @@ import notesReducer from './notes';
 import charactersReducer from './characters';
 import audioReducer from './audio';
 import membersReducer from './members';
+import assistantReducer from './assistant';
 
 export const store = configureStore({
   reducer: {
@@ -27,6 +28,7 @@ export const store = configureStore({
     characters: charactersReducer,
     audio: audioReducer,
     members: membersReducer,
+    assistant: assistantReducer,
   },
 });
 

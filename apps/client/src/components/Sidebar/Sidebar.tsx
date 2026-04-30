@@ -7,6 +7,7 @@ import CharacterSheet from '../CharacterSheet/CharacterSheet';
 import AudioPanel from '../AudioPanel/AudioPanel';
 import AudioPlayer from '../AudioPanel/AudioPlayer';
 import VideoCall from '../VideoCall/VideoCall';
+import AssistantPanel from '../AssistantPanel/AssistantPanel';
 
 interface SidebarProps {
   roomId: string;
@@ -64,6 +65,8 @@ function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps
 export default function Sidebar(props: SidebarProps): JSX.Element {
   const tabs = buildTabs(props.myRole);
   const [tab, setTab] = useState<Tab>('initiative');
+  const [assistantOpen, setAssistantOpen] = useState(false);
+
   return (
     <aside className="sidebar" aria-label="Room sidebar">
       <VideoCall roomId={props.roomId} myUserId={props.myUserId} />
@@ -79,10 +82,23 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
             {t.label}
           </button>
         ))}
+        {props.myRole === 'GM' && (
+          <button
+            type="button"
+            className="sidebar__ai-btn"
+            onClick={() => setAssistantOpen(true)}
+            title="GM AI Асистент"
+          >
+            AI
+          </button>
+        )}
       </nav>
       <div className="sidebar__panel" role="tabpanel">
         <ActivePanel {...props} tab={tab} />
       </div>
+      {assistantOpen && (
+        <AssistantPanel roomId={props.roomId} onClose={() => setAssistantOpen(false)} />
+      )}
       <AudioPlayer />
     </aside>
   );
