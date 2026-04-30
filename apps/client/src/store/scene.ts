@@ -4,7 +4,9 @@ import type {
   TokenPublicDTO,
   SceneUpdatedPayload,
   TokenRollbackPayload,
+  FogMaskDiffPayload,
 } from '@vtt/shared';
+import { xorPackedMasks } from '../components/GameCanvas/fogMask';
 
 interface SceneState {
   current: SceneDTO | null;
@@ -82,6 +84,20 @@ const sceneSlice = createSlice({
       if (idx === -1) state.current.tokens.push(action.payload);
       else state.current.tokens[idx] = action.payload;
     },
+    /**
+     * Algorithm A4 trigger A (§2.17.5): GM modified the fog mask. Server emits
+     * an XOR diff against the previously broadcast packed bitmap; the client
+     * XORs it onto `current.fogMaskBase64` to obtain the new mask without
+     * re-fetching the full snapshot.
+     */
+    applyFogDiff: (state, action: PayloadAction<FogMaskDiffPayload>) => {
+      if (!state.current) return;
+      if (state.current.id !== action.payload.sceneId) return;
+      state.current.fogMaskBase64 = xorPackedMasks(
+        state.current.fogMaskBase64,
+        action.payload.diffBase64,
+      );
+    },
   },
 });
 
@@ -92,5 +108,6 @@ export const {
   applySceneUpdate,
   applyTokenRollback,
   upsertToken,
+  applyFogDiff,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;
