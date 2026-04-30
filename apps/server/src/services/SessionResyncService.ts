@@ -1,0 +1,72 @@
+import type { Role, SessionResyncPayload } from '@vtt/shared';
+import { HttpError } from '../lib/errors.js';
+import { SceneService } from './SceneService.js';
+import { InitiativeRepository } from '../repositories/InitiativeRepository.js';
+import { projectInitiative, projectChatMessage } from './projections.js';
+import { ChatMessageRepository } from '../repositories/ChatMessageRepository.js';
+
+/**
+ * Algorithm A3 (§2.17.4) — session resync after disconnect.
+ *
+ * Aggregates Scene + last 200 ChatMessages + InitiativeEntries[] + serverTime
+ * via parallel fork (Promise.all). Total budget per НФВ 3.2: ≤ 10 s real-world
+ * (≤ 100 ms on mocked DB in unit tests).
+ */
+export class SessionResyncService {
+  constructor(
+    private readonly sceneService: SceneService,
+    private readonly initiative: InitiativeRepository,
+    private readonly messages: ChatMessageRepository,
+  ) {}
+
+  /**
+   * @param roomId room the user is rejoining
+   * @param viewerRole role of the viewer (drives A6 token projection)
+   * @param viewerId UUID of the viewer
+   * @returns SessionResyncPayload ready to emit on `session:resync`
+   * @throws HttpError 404 if the room has no active scene
+   */
+  async buildResyncPayload(
+    roomId: string,
+    viewerRole: Role,
+    viewerId: string,
+  ): Promise<SessionResyncPayload> {
+    const sceneSnapshotPromise = this.sceneService.getActiveSnapshot(
+      roomId,
+      viewerRole,
+      viewerId,
+    );
+    const messagesPromise = this.messages.listRecent(roomId, 200);
+
+    const [scene, rawMessages] = await Promise.all([
+      sceneSnapshotPromise,
+      messagesPromise,
+    ]);
+
+    if (!scene) throw new HttpError(404, 'Room has no active scene');
+
+    const initiativeEntries = await this.initiative.listByScene(scene.id);
+
+    // Whisper / secret_roll filter — viewer must see only messages addressed to them.
+    // (For broadcast modes, recipientId is null and everyone passes the filter.)
+    const messages = rawMessages
+      .filter((m) => {
+        if (m.recipientId === null) return true;
+        if (m.mode === 'whisper') {
+          return m.senderId === viewerId || m.recipientId === viewerId;
+        }
+        if (m.mode === 'secret_roll') {
+          return viewerRole === 'GM' || m.senderId === viewerId;
+        }
+        return true;
+      })
+      .map(projectChatMessage);
+
+    return {
+      scene,
+      messages,
+      initiatives: initiativeEntries.map(projectInitiative),
+      serverTime: Date.now(),
+    };
+  }
+}
