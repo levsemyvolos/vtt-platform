@@ -1,8 +1,9 @@
 import { Router, type IRouter } from 'express';
 import type { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import type { AIImageRequest, AIMusicRequest } from '@vtt/shared';
+import type { AIImageRequest, AIMusicRequest, AssistantTextRequest } from '@vtt/shared';
 import type { AIService } from '../services/AIService.js';
+import type { AssistantService } from '../services/AssistantService.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
 import { HttpError } from '../lib/errors.js';
 import { AIQuotaError } from '../infrastructure/ai/AIProvider.js';
@@ -33,7 +34,7 @@ function handleError(err: unknown, res: Response): void {
   res.status(500).json({ error: { code: 500, message: 'Internal server error' } });
 }
 
-export function buildAiRouter(aiService: AIService): IRouter {
+export function buildAiRouter(aiService: AIService, assistantService: AssistantService): IRouter {
   const router = Router();
 
   router.post(
@@ -58,6 +59,20 @@ export function buildAiRouter(aiService: AIService): IRouter {
       try {
         const result = await aiService.generateMusic(req.user!.id, req.body);
         res.status(201).json(result);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  router.post(
+    '/text',
+    jwtAuth,
+    aiRateLimiter,
+    async (req: Request<object, object, AssistantTextRequest>, res: Response) => {
+      try {
+        const result = await assistantService.generateAssistantText(req.body);
+        res.status(200).json(result);
       } catch (err) {
         handleError(err, res);
       }

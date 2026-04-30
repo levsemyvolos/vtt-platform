@@ -26,6 +26,7 @@ import { HandoutService } from './services/HandoutService.js';
 import { NoteService } from './services/NoteService.js';
 import { CharacterService } from './services/CharacterService.js';
 import { AIService } from './services/AIService.js';
+import { AssistantService } from './services/AssistantService.js';
 import { AssetService } from './services/AssetService.js';
 import { SceneRepository } from './repositories/SceneRepository.js';
 import { TokenRepository } from './repositories/TokenRepository.js';
@@ -90,7 +91,8 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
   });
   assetService = new AssetService(aiProvider, fileStorage, assetRepo);
   const aiService = new AIService(aiProvider, assetService);
-  app.use('/ai', buildAiRouter(aiService));
+  const assistantService = new AssistantService(aiProvider);
+  app.use('/ai', buildAiRouter(aiService, assistantService));
   app.use('/assets', buildAssetsRouter(assetService));
 } else {
   // eslint-disable-next-line no-console
