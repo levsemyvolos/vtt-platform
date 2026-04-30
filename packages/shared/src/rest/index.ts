@@ -11,12 +11,12 @@ export interface AuthTokenPair {
   user: UserPublic;
 }
 
-export type ParticipantRole = 'GM' | 'Player' | 'Observer';
+import type { Role } from '../shared/index';
 
 export interface RoomMemberDTO {
   userId: string;
   name: string;
-  role: ParticipantRole;
+  role: Role;
   characterId?: string;
 }
 
