@@ -111,6 +111,34 @@ export interface InitiativeUpdatedPayload {
   currentRound: number;
 }
 
+/**
+ * Universal audio-control event (Ф6, table 2.14).
+ *
+ * Discriminated by `action`:
+ *   - 'play'   — start the track from the beginning (track became current).
+ *   - 'switch' — scene changed and the new scene's bound track must auto-start
+ *                with fade-in (Ф6.4); semantically same as 'play' but lets
+ *                clients distinguish a manual play from a scene-switch.
+ *   - 'stop'   — stop the current track (no `trackId`/`sceneId` required).
+ *
+ * `startedAt` is the server's monotonic timestamp (ms since epoch) so late
+ * joiners can sync playback offset on `session:resync`. Fade duration lives on
+ * the client as a UI constant (see store/audio.ts) — it is never persisted
+ * and never travels over the wire.
+ */
+export type AudioPlayPayload =
+  | {
+      action: 'play' | 'switch';
+      trackId: string;
+      sceneId: string | null;
+      loop: boolean;
+      startedAt: number;
+    }
+  | {
+      action: 'stop';
+      startedAt: number;
+    };
+
 // ---------- ACK envelope ----------
 
 /**
@@ -162,6 +190,7 @@ export interface ServerToClientEvents {
   'initiative:updated': (payload: InitiativeUpdatedPayload) => void;
   'session:resync': (payload: SessionResyncPayload) => void;
   'fog:mask-diff': (payload: FogMaskDiffPayload) => void;
+  'audio:play': (payload: AudioPlayPayload) => void;
   'signal:offer': (payload: SignalingPayload) => void;
   'signal:answer': (payload: SignalingPayload) => void;
   'signal:ice': (payload: SignalingPayload) => void;

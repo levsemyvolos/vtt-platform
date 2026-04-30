@@ -16,6 +16,7 @@ import { store } from '../store';
 import { applySceneUpdate, applyTokenRollback, hydrateScene, applyFogDiff } from '../store/scene';
 import { appendChatMessage, hydrateChat, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
+import { applyAudioPlay } from '../store/audio';
 
 export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -63,6 +64,11 @@ export function getSocket(): TypedClientSocket {
     store.dispatch(hydrateScene(payload.scene));
     store.dispatch(hydrateChat(payload.messages));
     store.dispatch(hydrateInitiative(payload.initiatives));
+  });
+  // Ф6 — universal `audio:play` event (broadcast from REST handlers and from
+  // SceneService.onSceneActivated hook). Discriminated union by `action`.
+  socket.on('audio:play', (payload) => {
+    store.dispatch(applyAudioPlay(payload));
   });
 
   return socket;

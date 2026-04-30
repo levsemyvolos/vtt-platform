@@ -57,6 +57,13 @@ export class SceneService {
     private readonly tokens: TokenRepository,
   ) {}
 
+  /**
+   * Optional hook fired after a successful `setActiveScene` (Ф2.4). Used by
+   * `AudioService.handleSceneSwitch` (Ф6.4) without coupling SceneService to
+   * the audio module — the wire-up lives in `index.ts`.
+   */
+  onSceneActivated?: (roomId: string, sceneId: string) => void;
+
   // -------- A2: OCC token-move --------
 
   /**
@@ -263,6 +270,7 @@ export class SceneService {
     if (!scene) throw new HttpError(404, 'Scene not found');
     if (scene.roomId !== roomId) throw new HttpError(400, 'Scene does not belong to room');
     await this.scenes.setActive(roomId, sceneId);
+    this.onSceneActivated?.(roomId, sceneId);
   }
 
   /**

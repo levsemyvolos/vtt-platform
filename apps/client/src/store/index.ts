@@ -9,6 +9,7 @@ import mediaReducer from './media';
 import handoutsReducer from './handouts';
 import notesReducer from './notes';
 import charactersReducer from './characters';
+import audioReducer from './audio';
 
 export const store = configureStore({
   reducer: {
@@ -21,6 +22,7 @@ export const store = configureStore({
     handouts: handoutsReducer,
     notes: notesReducer,
     characters: charactersReducer,
+    audio: audioReducer,
   },
 });
 

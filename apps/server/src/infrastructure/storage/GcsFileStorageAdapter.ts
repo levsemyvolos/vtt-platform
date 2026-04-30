@@ -2,6 +2,9 @@ import { Storage, type Bucket } from '@google-cloud/storage';
 import {
   FileStorageAdapter,
   PRESIGNED_URL_TTL_MS,
+  type ObjectMetadata,
+  type PresignedUploadInput,
+  type PresignedUploadResult,
   type PutObjectInput,
 } from './FileStorageAdapter.js';
 
@@ -42,6 +45,40 @@ export class GcsFileStorageAdapter implements FileStorageAdapter {
       expires: Date.now() + PRESIGNED_URL_TTL_MS,
     });
     return url;
+  }
+
+  async getPresignedUploadUrl(
+    { storageKey, mimeType }: PresignedUploadInput,
+  ): Promise<PresignedUploadResult> {
+    const expiresAt = new Date(Date.now() + PRESIGNED_URL_TTL_MS);
+    const [uploadUrl] = await this.bucket.file(storageKey).getSignedUrl({
+      action: 'write',
+      version: 'v4',
+      expires: expiresAt,
+      contentType: mimeType,
+    });
+    return { uploadUrl, expiresAt };
+  }
+
+  async statObject(storageKey: string): Promise<ObjectMetadata | null> {
+    try {
+      const [meta] = await this.bucket.file(storageKey).getMetadata();
+      const sizeRaw = meta.size;
+      const size =
+        typeof sizeRaw === 'number'
+          ? sizeRaw
+          : typeof sizeRaw === 'string'
+            ? Number(sizeRaw)
+            : 0;
+      return {
+        size,
+        contentType: meta.contentType ?? 'application/octet-stream',
+      };
+    } catch (err) {
+      const code = (err as { code?: number }).code;
+      if (code === 404) return null;
+      throw err;
+    }
   }
 
   async delete(storageKey: string): Promise<void> {

@@ -67,16 +67,6 @@ export interface InitiativeEntryDTO {
   tokenId?: string;
 }
 
-export interface AudioTrackDTO {
-  id: string;
-  name: string;
-  url: string;
-  loop: boolean;
-  fade: boolean;
-  sceneId: string;
-  roomId: string;
-}
-
 /**
  * Scene snapshot used by GET /rooms/:id/scenes/:sceneId and SessionResyncPayload.
  * Tokens are projected per A6 (RBAC) before being placed in this DTO.
