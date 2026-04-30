@@ -14,17 +14,19 @@ services:
     branch: main
     autoDeploy: true
     healthCheckPath: /health
-    # Free tier does not support preDeployCommand — Prisma migrations are
-    # executed inside buildCommand (after `prisma generate`). Trade-off: every
-    # deploy reruns `migrate deploy`; it is idempotent so no-op when there are
-    # no pending migrations. Promote back to a separate preDeployCommand after
-    # upgrade to Starter+.
+    # Free tier does not support preDeployCommand. Migrations also cannot run
+    # from Render against Supabase Free, because Supabase Free exposes the
+    # direct connection (5432) only via IPv6 and Render Free instances are
+    # IPv4-only. The Transaction pooler (6543) used at runtime via DATABASE_URL
+    # is incompatible with Prisma DDL through PgBouncer transaction-mode.
+    # Workaround for MVP: run `prisma migrate deploy` locally once against the
+    # Supabase Direct URL, then redeploy. Promote to a build-time migration
+    # after upgrading to Starter+ (which supports preDeployCommand).
     buildCommand: |
       corepack enable
       corepack prepare pnpm@9.12.0 --activate
       pnpm install --frozen-lockfile
       pnpm --filter @vtt/server exec prisma generate
-      pnpm --filter @vtt/server exec prisma migrate deploy
     startCommand: pnpm --filter @vtt/server start
     envVars:
       - key: NODE_VERSION
