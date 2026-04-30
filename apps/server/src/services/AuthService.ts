@@ -159,6 +159,18 @@ export class AuthService {
     await this.sessions.deleteById(sessionId);
   }
 
+  /**
+   * Issues an Observer-role JWT pair for an already-created anonymous user.
+   * Used by POST /rooms/join-invite where the route handler creates the
+   * anonymous User via UserRepository, then delegates token issuance here.
+   * @param userPublic public projection of the freshly-created user
+   * @param userAgent HTTP User-Agent header value
+   * @returns AuthTokenPair with role='Observer' baked into the access JWT
+   */
+  async issueObserverTokens(userPublic: UserPublic, userAgent = ''): Promise<AuthTokenPair> {
+    return this.issueTokenPair(userPublic.id, 'Observer', userPublic, userAgent);
+  }
+
   private async issueTokenPair(
     userId: string,
     role: Role,

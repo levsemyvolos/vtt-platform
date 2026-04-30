@@ -1,14 +1,28 @@
+import { randomBytes, randomUUID } from 'crypto';
 import { Router, type IRouter } from 'express';
 import type { Request, Response } from 'express';
-import type { CreateRoomRequest, RoomDTO, RoomMembersResponse, UserPublic } from '@vtt/shared';
+import type {
+  CreateRoomRequest,
+  ObserverJoinRequest,
+  ObserverJoinResponse,
+  RoomDTO,
+  RoomMemberDTO,
+  RoomMembersResponse,
+  UserPublic,
+} from '@vtt/shared';
 import type { Room } from '@prisma/client';
 import { RoomService } from '../services/RoomService.js';
 import { RoomRepository } from '../repositories/RoomRepository.js';
+import { UserRepository } from '../repositories/UserRepository.js';
+import { SessionRepository } from '../repositories/SessionRepository.js';
+import { AuthService } from '../services/AuthService.js';
 import { prisma } from '../lib/prisma.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
 import { HttpError } from '../lib/errors.js';
 
-const roomService = new RoomService(new RoomRepository(prisma));
+const roomService = new RoomService(new RoomRepository(prisma), prisma);
+const userRepo = new UserRepository(prisma);
+const authService = new AuthService(userRepo, new SessionRepository(prisma));
 
 export const roomsRouter: IRouter = Router();
 
@@ -20,15 +34,14 @@ function handleError(err: unknown, res: Response): void {
   }
 }
 
-// members: [] — real-time presence is populated via socket.io in Chat 4
-function toRoomDTO(room: Room): RoomDTO {
+function toRoomDTO(room: Room, members: RoomMemberDTO[] = []): RoomDTO {
   return {
     id: room.id,
     name: room.name,
     gameSystem: room.gameSystem,
     status: room.status,
     ownerId: room.ownerId,
-    members: [],
+    members,
     createdAt: room.createdAt.toISOString(),
   };
 }
@@ -36,7 +49,16 @@ function toRoomDTO(room: Room): RoomDTO {
 roomsRouter.get('/', jwtAuth, async (req: Request, res: Response) => {
   try {
     const rooms = await roomService.listByOwner(req.user!.id);
-    res.json(rooms.map(toRoomDTO));
+    // Owned rooms — members snapshot is GM-only by definition (creator), no DB hit needed
+    const dtos = rooms.map((room) => {
+      const gmMember: RoomMemberDTO = {
+        userId: room.ownerId,
+        name: '',
+        role: 'GM',
+      };
+      return toRoomDTO(room, [gmMember]);
+    });
+    res.json(dtos);
   } catch (err) {
     handleError(err, res);
   }
@@ -49,7 +71,8 @@ roomsRouter.post(
     try {
       const { name, gameSystem } = req.body;
       const room = await roomService.create(req.user!.id, name, gameSystem);
-      res.status(201).json(toRoomDTO(room));
+      const members = await roomService.getMembersProjection(room.id);
+      res.status(201).json(toRoomDTO(room, members));
     } catch (err) {
       handleError(err, res);
     }
@@ -59,11 +82,79 @@ roomsRouter.post(
 roomsRouter.get('/:id', jwtAuth, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const room = await roomService.getById(req.params.id);
-    res.json(toRoomDTO(room));
+    const members = await roomService.getMembersProjection(req.params.id);
+    res.json(toRoomDTO(room, members));
   } catch (err) {
     handleError(err, res);
   }
 });
+
+/**
+ * POST /rooms/join — Player joins a room via invite token.
+ * Body: { token: string } (raw playerToken from invite URL)
+ * Returns the resolved RoomDTO with members snapshot.
+ */
+roomsRouter.post(
+  '/join',
+  jwtAuth,
+  async (req: Request<object, object, { token?: string }>, res: Response) => {
+    try {
+      const token = req.body.token?.trim();
+      if (!token) throw new HttpError(400, 'Missing invite token');
+      const room = await roomService.joinByInvite(token);
+      const members = await roomService.getMembersProjection(room.id);
+      res.json(toRoomDTO(room, members));
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+);
+
+/**
+ * POST /rooms/join-invite — anonymous Observer joins a room via invite code.
+ * Body: ObserverJoinRequest = { inviteCode, name }.
+ * Creates an anonymous User (passwordHash = '' sentinel — cannot login via /auth/login),
+ * issues an Observer-role JWT pair, returns AuthTokenPair + roomId.
+ *
+ * NOTE: jwtAuth is intentionally NOT applied — observers have no prior account.
+ */
+roomsRouter.post(
+  '/join-invite',
+  async (req: Request<object, object, ObserverJoinRequest>, res: Response) => {
+    try {
+      const inviteCode = req.body.inviteCode?.trim();
+      const rawName = req.body.name?.trim();
+      if (!inviteCode || inviteCode.length !== 64) {
+        throw new HttpError(400, 'Invalid invite code');
+      }
+      if (!rawName || rawName.length < 2) {
+        throw new HttpError(400, 'Display name must be at least 2 characters');
+      }
+      const displayName = rawName.slice(0, 64);
+      const room = await roomService.joinAsObserver(inviteCode);
+
+      // Create anonymous user (passwordHash = '' blocks /auth/login by bcrypt mismatch).
+      const anonymousEmail = `observer-${randomBytes(8).toString('hex')}@anon.local`;
+      const user = await userRepo.create({
+        id: randomUUID(),
+        email: anonymousEmail,
+        passwordHash: '',
+        displayName,
+      });
+      const userPublic: UserPublic = {
+        id: user.id,
+        email: user.email,
+        name: user.displayName,
+      };
+      const ua = String(req.headers['user-agent'] ?? '');
+      const tokens = await authService.issueObserverTokens(userPublic, ua);
+      const body: ObserverJoinResponse = { ...tokens, roomId: room.id };
+      res.status(201).json(body);
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+);
 
 roomsRouter.post(
   '/:id/invites',
