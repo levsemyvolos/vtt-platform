@@ -12,6 +12,8 @@ import { buildNotesRouter } from './routes/notes.js';
 import { buildCharactersRouter } from './routes/characters.js';
 import { buildAudioRouter } from './routes/audio.js';
 import { buildAudioBroadcaster } from './socketio/handlers/audio.js';
+import { buildAnnotationBroadcaster } from './socketio/handlers/annotation.js';
+import { AnnotationService } from './services/AnnotationService.js';
 import { AudioService } from './services/AudioService.js';
 import { AudioTrackRepository } from './repositories/AudioTrackRepository.js';
 import { TurnConfigProvider } from './services/TurnConfigProvider.js';
@@ -123,16 +125,25 @@ const characterService = new CharacterService(characterRepo, fileStorage, assetS
 const jwtSecret = process.env['JWT_SECRET'];
 if (!jwtSecret) throw new Error('JWT_SECRET env var is required');
 
+// Deferred broadcaster: captures io after buildSocketIo returns (any socket
+// event arrives only after server.listen(), so the broadcaster is always set).
+let _annotationEmit: ReturnType<typeof buildAnnotationBroadcaster> = () => {};
+const annotationService = new AnnotationService((roomId, payload) => {
+  _annotationEmit(roomId, payload);
+});
+
 const io = buildSocketIo(httpServer, {
   sceneService,
   diceService,
   chatService,
   resyncService,
   initiativeService,
+  annotationService,
   rooms: roomRepo,
   jwtSecret,
   corsOrigin: process.env['CLIENT_URL'] ?? 'http://localhost:5173',
 });
+_annotationEmit = buildAnnotationBroadcaster(io);
 
 // ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------
 app.use(buildInitiativeRouter(initiativeService, roomRepo, io));

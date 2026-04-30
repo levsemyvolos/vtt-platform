@@ -9,12 +9,14 @@ import type { DiceService } from '../services/DiceService.js';
 import type { ChatService } from '../services/ChatService.js';
 import type { SessionResyncService } from '../services/SessionResyncService.js';
 import type { InitiativeService } from '../services/InitiativeService.js';
+import type { AnnotationService } from '../services/AnnotationService.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
 import { makeTokenMoveHandler } from './handlers/token.js';
 import { makeDiceRollHandler } from './handlers/dice.js';
 import { makeChatMessageHandler } from './handlers/chat.js';
 import { makeSessionResyncHandler } from './handlers/resync.js';
 import { registerSignalingHandlers } from './handlers/signaling.js';
+import { registerAnnotationHandlers } from './handlers/annotation.js';
 
 interface AccessPayload {
   sub: string;
@@ -34,6 +36,7 @@ export interface SocketDeps {
    * `routes/initiative.ts`.
    */
   initiativeService: InitiativeService;
+  annotationService: AnnotationService;
   rooms: RoomRepository;
   jwtSecret: string;
   corsOrigin: string;
@@ -117,6 +120,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
     socket.on('chat:message', makeChatMessageHandler(io, socket, deps.chatService));
     socket.on('session:resync', makeSessionResyncHandler(socket, deps.resyncService));
     registerSignalingHandlers(io, socket);
+    registerAnnotationHandlers(socket, deps.annotationService);
   });
 
   return io;

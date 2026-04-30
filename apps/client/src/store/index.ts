@@ -13,6 +13,7 @@ import charactersReducer from './characters';
 import audioReducer from './audio';
 import membersReducer from './members';
 import assistantReducer from './assistant';
+import annotationsReducer from './annotations';
 
 export const store = configureStore({
   reducer: {
@@ -29,6 +30,7 @@ export const store = configureStore({
     audio: audioReducer,
     members: membersReducer,
     assistant: assistantReducer,
+    annotations: annotationsReducer,
   },
 });
 

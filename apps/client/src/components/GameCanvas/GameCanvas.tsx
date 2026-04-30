@@ -2,11 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Stage } from 'react-konva';
 import type Konva from 'konva';
 import type { Role, SceneDTO } from '@vtt/shared';
+import { useAppSelector } from '../../store';
 import BackgroundLayer from './layers/BackgroundLayer';
 import TokenLayer from './layers/TokenLayer';
 import AnnotationLayer from './layers/AnnotationLayer';
 import FogOfWarLayer from './layers/FogOfWarLayer';
 import AddTokenButton from './AddTokenButton';
+import AnnotationToolbar, { type AnnotationTool } from './AnnotationToolbar';
+import { getUserPingColor } from './layers/AnnotationLayer';
+import { emitAnnotationPing } from '../../api/socket';
 
 export interface GameCanvasProps {
   scene: SceneDTO;
@@ -29,6 +33,9 @@ const ZOOM_STEP = 1.08;
  *
  * Zoom: mouse wheel, anchored to cursor position so the cell under the
  * cursor stays under the cursor across zoom levels.
+ *
+ * Annotation ping (Ф3.4.1): click on Stage when ping tool is active →
+ * emit annotation:ping with canvas-space coordinates.
  */
 export default function GameCanvas({
   scene,
@@ -38,6 +45,9 @@ export default function GameCanvas({
 }: GameCanvasProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
+  const [annotationTool, setAnnotationTool] = useState<AnnotationTool>('ping');
+
+  const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
 
   useEffect(() => {
     const el = containerRef.current;
@@ -73,16 +83,46 @@ export default function GameCanvas({
     });
   }
 
+  function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (annotationTool !== 'ping') return;
+    // Only fire on direct Stage click, not on token or other shape clicks.
+    if (e.target !== e.target.getStage()) return;
+
+    const stage = e.target.getStage();
+    if (!stage || !roomId) return;
+
+    const scale = stage.scaleX();
+    const pos = stage.position();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
+    // Convert from viewport to scene-space (undo pan + zoom).
+    const x = (pointer.x - pos.x) / scale;
+    const y = (pointer.y - pos.y) / scale;
+
+    emitAnnotationPing({
+      roomId,
+      sceneId: scene.id,
+      x,
+      y,
+      color: getUserPingColor(myUserId),
+      userId: myUserId,
+      timestamp: Date.now(),
+    });
+  }
+
   return (
     <div ref={containerRef} className="game-canvas" style={{ width: '100%', height: '100%' }}>
       <div className="canvas-toolbar">
         <AddTokenButton myRole={myRole} sceneId={scene.id} />
+        <AnnotationToolbar activeTool={annotationTool} onChange={setAnnotationTool} />
       </div>
       <Stage
         width={size.width}
         height={size.height}
         draggable
         onWheel={handleWheel}
+        onClick={handleStageClick}
       >
         <BackgroundLayer
           {...(backgroundUrl !== undefined ? { backgroundUrl } : {})}
