@@ -29,17 +29,22 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
 
   useEffect(() => {
     if (!containerRef.current || dbRef.current) return;
-    const box = new DiceBox(containerRef.current, {
+    // dice-box requires a CSS selector string, not an HTMLElement.
+    const selector = `#${containerRef.current.id}`;
+    const box = new DiceBox(selector, {
       assetPath: '/assets/dice-box/',
       theme: 'default',
       scale: 6,
     });
-    box.init().then(() => {
-      dbRef.current = box;
-    }).catch(() => {
-      // dice-box assets may not be served in unit-test / SSR contexts; degrade gracefully
-      dbRef.current = null;
-    });
+    box
+      .init()
+      .then(() => {
+        dbRef.current = box;
+      })
+      .catch(() => {
+        // dice-box assets may not be served in unit-test / SSR contexts; degrade gracefully
+        dbRef.current = null;
+      });
     return () => {
       dbRef.current = null;
     };
@@ -66,7 +71,12 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
 
   return (
     <section className="dice-roller">
-      <div ref={containerRef} className="dice-roller__canvas" style={{ minHeight: 200 }} />
+      <div
+        ref={containerRef}
+        id="dice-roller-canvas"
+        className="dice-roller__canvas"
+        style={{ minHeight: 200, position: 'relative' }}
+      />
       <div className="dice-roller__controls">
         <input
           aria-label="Dice formula"

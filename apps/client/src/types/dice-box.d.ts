@@ -23,7 +23,12 @@ declare module '@3d-dice/dice-box' {
   }
 
   export default class DiceBox {
-    constructor(container: string | HTMLElement, options?: DiceBoxOptions);
+    /**
+     * @param selector CSS selector string (NOT an HTMLElement). The lib
+     * does `document.querySelector(selector)` internally and throws
+     * 'You must provide a DOM selector as the first argument' otherwise.
+     */
+    constructor(selector: string, options?: DiceBoxOptions);
     init(): Promise<DiceBox>;
     roll(notation: string | string[]): Promise<DiceRollOutcome[]>;
     add(notation: string | string[]): Promise<DiceRollOutcome[]>;
