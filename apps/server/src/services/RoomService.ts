@@ -10,13 +10,15 @@ export class RoomService {
    * Creates room with unique invite tokens for Player and Observer roles.
    * @param ownerId GM user UUID
    * @param name room display name (≤ 128 chars)
+   * @param gameSystem ruleset label, e.g. "D&D 5e" (≤ 64 chars)
    * @returns created Room
    */
-  async create(ownerId: string, name: string): Promise<Room> {
+  async create(ownerId: string, name: string, gameSystem = 'D&D 5e'): Promise<Room> {
     return this.rooms.create({
       id: randomUUID(),
       owner: { connect: { id: ownerId } },
       name,
+      gameSystem,
       inviteTokenPlayer: randomBytes(32).toString('hex').slice(0, 64),
       inviteTokenObserver: randomBytes(32).toString('hex').slice(0, 64),
     });

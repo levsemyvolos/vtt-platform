@@ -24,8 +24,8 @@ roomsRouter.post(
   jwtAuth,
   async (req: Request<object, object, CreateRoomRequest>, res: Response) => {
     try {
-      const { name } = req.body;
-      const room = await roomService.create(req.user!.id, name);
+      const { name, gameSystem } = req.body;
+      const room = await roomService.create(req.user!.id, name, gameSystem);
       res.status(201).json(room);
     } catch (err) {
       handleError(err, res);
