@@ -13,7 +13,7 @@ import type {
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, hydrateScene } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, hydrateScene, applyFogDiff } from '../store/scene';
 import { appendChatMessage, hydrateChat, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 
@@ -54,6 +54,10 @@ export function getSocket(): TypedClientSocket {
   });
   socket.on('initiative:updated', (entries) => {
     store.dispatch(hydrateInitiative(entries));
+  });
+  // Algorithm A4 trigger A — XOR fog-mask diff broadcast (§2.17.5).
+  socket.on('fog:mask-diff', (payload) => {
+    store.dispatch(applyFogDiff(payload));
   });
   socket.on('session:resync', (payload: SessionResyncPayload) => {
     store.dispatch(hydrateScene(payload.scene));
