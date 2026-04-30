@@ -42,6 +42,11 @@ export interface SignalingPayload {
   toUserId: string;
   /** Opaque SDP / ICE candidate. Forwarded as-is by the server. */
   data: unknown;
+  /**
+   * Sender's userId. Set authoritatively by the server when forwarding;
+   * any value sent by the client is overwritten and must not be trusted.
+   */
+  fromUserId?: string;
 }
 
 // ---------- S→C payloads ----------

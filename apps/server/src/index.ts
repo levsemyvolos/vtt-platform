@@ -5,6 +5,8 @@ import { roomsRouter } from './routes/rooms.js';
 import { scenesRouter, roomScenesSubRouter } from './routes/scenes.js';
 import { buildAiRouter } from './routes/ai.js';
 import { buildAssetsRouter } from './routes/assets.js';
+import { buildTurnRouter } from './routes/turn.js';
+import { TurnConfigProvider } from './services/TurnConfigProvider.js';
 import { prisma } from './lib/prisma.js';
 import { buildSocketIo } from './socketio/index.js';
 import { SceneService } from './services/SceneService.js';
@@ -63,6 +65,14 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
   // eslint-disable-next-line no-console
   console.warn('[server] AI/Storage wiring skipped — GCP_PROJECT_ID / GCP_SERVICE_ACCOUNT_KEY / GCS_BUCKET not set');
 }
+
+// ---------- WebRTC ICE config (vertical 4) ----------
+const turnConfigProvider = new TurnConfigProvider({
+  turnHost: process.env['TURN_HOST'],
+  turnRealm: process.env['TURN_REALM'],
+  staticAuthSecret: process.env['TURN_STATIC_AUTH_SECRET'],
+});
+app.use(buildTurnRouter(turnConfigProvider));
 
 // ---------- socket.io wiring (vertical 2) ----------
 const sceneRepo = new SceneRepository(prisma);
