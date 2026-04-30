@@ -10,6 +10,10 @@ import { buildInitiativeRouter } from './routes/initiative.js';
 import { buildHandoutsRouter } from './routes/handouts.js';
 import { buildNotesRouter } from './routes/notes.js';
 import { buildCharactersRouter } from './routes/characters.js';
+import { buildAudioRouter } from './routes/audio.js';
+import { buildAudioBroadcaster } from './socketio/handlers/audio.js';
+import { AudioService } from './services/AudioService.js';
+import { AudioTrackRepository } from './repositories/AudioTrackRepository.js';
 import { TurnConfigProvider } from './services/TurnConfigProvider.js';
 import { prisma } from './lib/prisma.js';
 import { buildSocketIo } from './socketio/index.js';
@@ -61,6 +65,7 @@ const assetRepo = new AssetRepository(prisma);
 const handoutRepo = new HandoutRepository(prisma);
 const noteRepo = new NoteRepository(prisma);
 const characterRepo = new CharacterRepository(prisma);
+const audioRepo = new AudioTrackRepository(prisma);
 
 // ---------- AI + Storage wiring (vertical 3, §2.13.4) ----------
 const gcpProjectId = process.env['GCP_PROJECT_ID'];
@@ -131,6 +136,35 @@ app.use(buildInitiativeRouter(initiativeService, roomRepo, io));
 app.use(buildHandoutsRouter(handoutService, handoutRepo, roomRepo));
 app.use(buildNotesRouter(noteService, roomRepo));
 app.use(buildCharactersRouter(characterService, characterRepo, roomRepo));
+
+// ---------- Чат 7.2 — audio (Ф6) — needs FileStorage; mounted only when GCS is wired ----------
+let audioService: AudioService | null = null;
+if (fileStorage) {
+  audioService = new AudioService(
+    audioRepo,
+    assetRepo,
+    fileStorage,
+    roomRepo,
+    sceneRepo,
+    buildAudioBroadcaster(io),
+  );
+  app.use(buildAudioRouter(audioService));
+} else {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[server] Audio router skipped — file storage not configured; ' +
+      'POST /audio and PATCH /audio/* will return 404',
+  );
+}
+
+// Wire scene-activation hook so Ф6.4 (autoplay-on-scene-switch) fires from
+// the existing REST endpoint without coupling SceneService to AudioService.
+const sceneActivationListener = audioService;
+if (sceneActivationListener) {
+  sceneService.onSceneActivated = (roomId, sceneId) => {
+    void sceneActivationListener.handleSceneSwitch(roomId, sceneId);
+  };
+}
 
 const PORT = Number(process.env['PORT'] ?? 4000);
 httpServer.listen(PORT, () => {

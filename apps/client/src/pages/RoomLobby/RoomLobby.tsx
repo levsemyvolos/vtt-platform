@@ -112,6 +112,7 @@ interface SessionViewProps {
 
 function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps): JSX.Element {
   const scene = useAppSelector((s) => s.scene.current);
+  const { currentUser } = useAppSelector((s) => s.session);
   const [hydrating, setHydrating] = useState(false);
   const [hydrateError, setHydrateError] = useState<string | null>(null);
 
@@ -169,6 +170,7 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
             sceneId={scene?.id ?? null}
             myRole={myRole}
             myCharacterId={myCharacterId}
+            myUserId={currentUser?.id ?? ''}
           />
           <DiceRoller roomId={room.id} />
           <ChatPanel roomId={room.id} />

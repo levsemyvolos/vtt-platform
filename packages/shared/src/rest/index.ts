@@ -125,3 +125,6 @@ export * from './handouts';
 export * from './notes';
 export * from './characters';
 export * from './initiative';
+
+// ---------- Чат 7.2 — музичний супровід (Ф6) ----------
+export * from './audio';
