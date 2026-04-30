@@ -1,5 +1,16 @@
+import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearRoom } from '../../store/room';
+import { apiFetch } from '../../api/apiFetch';
+import {
+  connectSocket,
+  disconnectSocket,
+  emitRoomJoin,
+  emitSessionResync,
+  getSocket,
+} from '../../api/socket';
+import DiceRoller from '../../components/DiceRoller/DiceRoller';
+import ChatPanel from '../../components/ChatPanel/ChatPanel';
 
 const ROLE_LABEL = {
   GM: 'Ведучий',
@@ -7,22 +18,65 @@ const ROLE_LABEL = {
   Observer: 'Спостерігач',
 } as const;
 
+interface InviteTokens {
+  playerToken: string;
+  observerToken: string;
+}
+
 export default function RoomLobby() {
   const dispatch = useAppDispatch();
   const { currentRoom, members } = useAppSelector((s) => s.room);
   const { currentUser } = useAppSelector((s) => s.session);
+  const [invites, setInvites] = useState<InviteTokens | null>(null);
+  const [rtStatus, setRtStatus] = useState<'idle' | 'connecting' | 'joined' | 'error'>(
+    'idle',
+  );
+  const [rtError, setRtError] = useState<string | null>(null);
+
+  // Connect socket + room:join + initial session:resync on mount.
+  useEffect(() => {
+    if (!currentRoom) return;
+    const roomId = currentRoom.id;
+    setRtStatus('connecting');
+    connectSocket();
+    const s = getSocket();
+    const onConnect = (): void => {
+      emitRoomJoin(roomId)
+        .then(() => emitSessionResync(roomId).catch(() => undefined))
+        .then(() => setRtStatus('joined'))
+        .catch((e) => {
+          setRtStatus('error');
+          setRtError(e instanceof Error ? e.message : 'Join failed');
+        });
+    };
+    s.on('connect', onConnect);
+    if (s.connected) onConnect();
+    return () => {
+      s.off('connect', onConnect);
+      disconnectSocket();
+    };
+  }, [currentRoom]);
 
   if (!currentRoom) return null;
 
   const myMember = members.find((m) => m.userId === currentUser?.id);
-  const isGM = myMember?.role === 'GM';
+  const isGM = currentRoom.ownerId === currentUser?.id;
 
   const handleLeave = () => {
+    disconnectSocket();
     dispatch(clearRoom());
   };
 
-  const handleStartSession = () => {
-    // TODO (Chat 4+): emit socket.io event to start the scene
+  const handleShowInvites = async (): Promise<void> => {
+    try {
+      const tokens = await apiFetch<InviteTokens>(
+        `/api/rooms/${currentRoom.id}/invites`,
+        { method: 'POST' },
+      );
+      setInvites(tokens);
+    } catch (err) {
+      setRtError(err instanceof Error ? err.message : 'Не вдалося отримати invite');
+    }
   };
 
   return (
@@ -38,7 +92,12 @@ export default function RoomLobby() {
         <span className={`lobby-status status--${currentRoom.status}`}>
           {currentRoom.status}
         </span>
+        <span className={`rt-status rt--${rtStatus}`} style={{ marginLeft: 12 }}>
+          RT: {rtStatus}
+        </span>
       </header>
+
+      {rtError && <p className="lobby-error">⚠ {rtError}</p>}
 
       <section className="members-section">
         <h2>Учасники ({members.length})</h2>
@@ -49,28 +108,43 @@ export default function RoomLobby() {
                 {ROLE_LABEL[member.role]}
               </span>
               <span className="member-name">{member.name}</span>
-              {member.characterId && (
-                <span className="character-badge" title="Персонаж прикріплено">
-                  ♟
-                </span>
-              )}
             </li>
           ))}
+          {myMember === undefined && currentUser && (
+            <li className="member-card">
+              <span className="role-badge">
+                {isGM ? ROLE_LABEL.GM : ROLE_LABEL.Player}
+              </span>
+              <span className="member-name">{currentUser.name} (ви)</span>
+            </li>
+          )}
         </ul>
       </section>
 
       {isGM && (
-        <div className="gm-controls">
-          <button type="button" className="btn-start" onClick={handleStartSession}>
-            Розпочати сесію
+        <section className="gm-controls">
+          <button type="button" onClick={handleShowInvites}>
+            Показати invite-токени
           </button>
-        </div>
+          {invites && (
+            <div className="invites">
+              <p>
+                Player: <code>{invites.playerToken}</code>
+              </p>
+              <p>
+                Observer: <code>{invites.observerToken}</code>
+              </p>
+            </div>
+          )}
+        </section>
       )}
 
-      {myMember && (
-        <footer className="lobby-footer">
-          Ваша роль: <strong>{ROLE_LABEL[myMember.role]}</strong>
-        </footer>
+      {/* Real-time smoke harness — поки нема GameCanvas (Чат 7) */}
+      {rtStatus === 'joined' && (
+        <section className="rt-smoke" style={{ display: 'flex', gap: 16 }}>
+          <DiceRoller roomId={currentRoom.id} />
+          <ChatPanel roomId={currentRoom.id} />
+        </section>
       )}
     </div>
   );
