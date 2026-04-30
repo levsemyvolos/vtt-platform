@@ -14,13 +14,18 @@ services:
     branch: main
     autoDeploy: true
     healthCheckPath: /health
+    # Free tier does not support preDeployCommand — Prisma migrations are
+    # executed inside buildCommand (after `prisma generate`). Trade-off: every
+    # deploy reruns `migrate deploy`; it is idempotent so no-op when there are
+    # no pending migrations. Promote back to a separate preDeployCommand after
+    # upgrade to Starter+.
     buildCommand: |
       corepack enable
       corepack prepare pnpm@9.12.0 --activate
       pnpm install --frozen-lockfile
       pnpm --filter @vtt/server exec prisma generate
+      pnpm --filter @vtt/server exec prisma migrate deploy
     startCommand: pnpm --filter @vtt/server start
-    preDeployCommand: pnpm --filter @vtt/server exec prisma migrate deploy
     envVars:
       - key: NODE_VERSION
         value: 20.18.0
