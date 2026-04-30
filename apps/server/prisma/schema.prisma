@@ -1,0 +1,223 @@
+// VTT Platform — Prisma Schema
+// Database: PostgreSQL
+// Spec: §2.15
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MessageMode {
+  normal
+  ic
+  ooc
+  whisper
+  secret_roll
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(254)
+  passwordHash String   @db.VarChar(60)
+  displayName  String   @db.VarChar(64)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  ownedRooms        Room[]
+  sessions          Session[]
+  characters        Character[]
+  notes             Note[]
+  handoutRecipients HandoutRecipient[]
+  assignedTokens    Token[]            @relation("TokenAssignedUser")
+  sentMessages      ChatMessage[]      @relation("ChatMessageSender")
+  receivedMessages  ChatMessage[]      @relation("ChatMessageRecipient")
+  assets            Asset[]            @relation("AssetOwner")
+}
+
+model Room {
+  id                  String   @id @default(uuid()) @db.Uuid
+  ownerId             String   @db.Uuid
+  name                String   @db.VarChar(128)
+  inviteTokenPlayer   String   @unique @db.VarChar(64)
+  inviteTokenObserver String   @unique @db.VarChar(64)
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+
+  owner       User          @relation(fields: [ownerId], references: [id])
+  scenes      Scene[]
+  messages    ChatMessage[]
+  handouts    Handout[]
+  notes       Note[]
+  audioTracks AudioTrack[]
+  characters  Character[]
+  assets      Asset[]       @relation("AssetRoom")
+}
+
+model Asset {
+  id         String   @id @default(uuid()) @db.Uuid
+  ownerId    String   @db.Uuid
+  roomId     String   @db.Uuid
+  mimeType   String   @db.VarChar(128)
+  size       BigInt
+  storageKey String   @unique @db.VarChar(256)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  owner            User        @relation("AssetOwner", fields: [ownerId], references: [id])
+  room             Room        @relation("AssetRoom", fields: [roomId], references: [id], onDelete: Cascade)
+  sceneBackgrounds Scene[]     @relation("SceneBackground")
+  tokenImages      Token[]     @relation("TokenImage")
+  characterPdfs    Character[] @relation("CharacterPdf")
+  handoutAssets    Handout[]   @relation("HandoutAsset")
+  audioTracks      AudioTrack[]
+}
+
+model Scene {
+  id                String   @id @default(uuid()) @db.Uuid
+  roomId            String   @db.Uuid
+  name              String   @db.VarChar(128)
+  backgroundAssetId String?  @db.Uuid
+  gridSize          Int
+  isHidden          Boolean  @default(false)
+  isActive          Boolean  @default(false)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+
+  room            Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  backgroundAsset Asset?             @relation("SceneBackground", fields: [backgroundAssetId], references: [id], onDelete: SetNull)
+  tokens          Token[]
+  initiativeItems InitiativeEntry[]
+  audioTracks     AudioTrack[]
+
+  @@index([roomId])
+}
+
+model Token {
+  id             String   @id @default(uuid()) @db.Uuid
+  sceneId        String   @db.Uuid
+  assignedUserId String?  @db.Uuid
+  imageAssetId   String?  @db.Uuid
+  x              Float
+  y              Float
+  name           String   @db.VarChar(64)
+  hp             Int?
+  statusMarkers  String[] @default([])
+  isHidden       Boolean  @default(false)
+
+  scene        Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  assignedUser User?  @relation("TokenAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  imageAsset   Asset? @relation("TokenImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+
+  @@index([sceneId])
+}
+
+model Character {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String   @db.Uuid
+  roomId      String   @db.Uuid
+  name        String   @db.VarChar(128)
+  sheetData   Json
+  pdfAssetId  String?  @db.Uuid
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  owner    User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  room     Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  pdfAsset Asset? @relation("CharacterPdf", fields: [pdfAssetId], references: [id], onDelete: SetNull)
+}
+
+model ChatMessage {
+  id          String      @id @default(uuid()) @db.Uuid
+  roomId      String      @db.Uuid
+  senderId    String?     @db.Uuid
+  mode        MessageMode
+  body        String      @db.Text
+  rollPayload Json?
+  recipientId String?     @db.Uuid
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+
+  room      Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender    User? @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+  recipient User? @relation("ChatMessageRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, createdAt(sort: Desc)])
+}
+
+model Handout {
+  id        String   @id @default(uuid()) @db.Uuid
+  roomId    String   @db.Uuid
+  title     String   @db.VarChar(128)
+  body      String   @db.Text
+  assetId   String?  @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  room       Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  asset      Asset?             @relation("HandoutAsset", fields: [assetId], references: [id], onDelete: SetNull)
+  recipients HandoutRecipient[]
+
+  @@index([roomId])
+}
+
+model HandoutRecipient {
+  handoutId String   @db.Uuid
+  userId    String   @db.Uuid
+  grantedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  handout Handout @relation(fields: [handoutId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([handoutId, userId])
+}
+
+model AudioTrack {
+  id        String   @id @default(uuid()) @db.Uuid
+  roomId    String   @db.Uuid
+  sceneId   String?  @db.Uuid
+  title     String   @db.VarChar(128)
+  assetId   String   @db.Uuid
+  loop      Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  room    Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  scene   Scene? @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+}
+
+model Note {
+  id       String   @id @default(uuid()) @db.Uuid
+  roomId   String   @db.Uuid
+  authorId String   @db.Uuid
+  title    String   @db.VarChar(128)
+  body     String   @db.Text
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  room   Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+}
+
+model InitiativeEntry {
+  id         String  @id @default(uuid()) @db.Uuid
+  sceneId    String  @db.Uuid
+  name       String  @db.VarChar(64)
+  initiative Int
+  orderIndex Int
+  isCurrent  Boolean @default(false)
+
+  scene Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  refreshTokenHash String   @db.VarChar(128)
+  issuedAt         DateTime @default(now()) @db.Timestamptz(6)
+  expiresAt        DateTime @db.Timestamptz(6)
+  userAgent        String   @db.VarChar(256)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}

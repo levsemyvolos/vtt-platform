@@ -8,7 +8,9 @@
     "start": "tsx src/index.ts",
     "type-check": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^3.24.0",

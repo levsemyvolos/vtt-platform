@@ -1,6 +1,8 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { authRouter } from './routes/auth.js';
+import { roomsRouter } from './routes/rooms.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -13,6 +15,9 @@ app.use(express.json());
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
+
+app.use('/auth', authRouter);
+app.use('/rooms', roomsRouter);
 
 io.on('connection', (socket) => {
   console.log(`socket connected: ${socket.id}`);

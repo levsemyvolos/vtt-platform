@@ -55,6 +55,10 @@ export interface ObserverJoinResponse extends AuthTokenPair {
   roomId: string;
 }
 
+export interface RefreshRequest {
+  refreshToken: string;
+}
+
 export interface DiceRollRequest {
   expression: string;
   label?: string;

@@ -1,3 +1,5 @@
+export type Role = 'GM' | 'Player' | 'Observer';
+
 export interface TokenPublicDTO {
   id: string;
   name: string;
