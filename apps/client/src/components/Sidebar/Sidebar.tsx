@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
 import InitiativeTracker from './InitiativeTracker';
 import HandoutPanel from '../Handouts/HandoutPanel';
@@ -24,12 +25,12 @@ interface TabSpec {
   label: string;
 }
 
-function buildTabs(myRole: Role): TabSpec[] {
-  const tabs: TabSpec[] = [{ id: 'initiative', label: 'Ініціатива' }];
-  if (myRole !== 'Observer') tabs.push({ id: 'handouts', label: 'Handouts' });
-  if (myRole === 'GM') tabs.push({ id: 'notes', label: 'Нотатки' });
-  if (myRole !== 'Observer') tabs.push({ id: 'character', label: 'Персонаж' });
-  tabs.push({ id: 'audio', label: 'Музика' });
+function buildTabs(myRole: Role, t: (key: string) => string): TabSpec[] {
+  const tabs: TabSpec[] = [{ id: 'initiative', label: t('campaign:initiative.sidebarTab') }];
+  if (myRole !== 'Observer') tabs.push({ id: 'handouts', label: t('campaign:handouts.sidebarTab') });
+  if (myRole === 'GM') tabs.push({ id: 'notes', label: t('campaign:notes.sidebarTab') });
+  if (myRole !== 'Observer') tabs.push({ id: 'character', label: t('campaign:character.sidebarTab') });
+  tabs.push({ id: 'audio', label: t('campaign:audio.sidebarTab') });
   return tabs;
 }
 
@@ -38,11 +39,12 @@ interface PanelProps extends SidebarProps {
 }
 
 function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps): JSX.Element | null {
+  const { t } = useTranslation('campaign');
   if (tab === 'initiative') {
     return sceneId ? (
       <InitiativeTracker sceneId={sceneId} myRole={myRole} roomId={roomId} />
     ) : (
-      <p className="sidebar__placeholder">Сцена не активна.</p>
+      <p className="sidebar__placeholder">{t('sidebar.noActiveScene')}</p>
     );
   }
   if (tab === 'handouts') return <HandoutPanel roomId={roomId} myRole={myRole} />;
@@ -63,23 +65,24 @@ function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps
  *  - `<VideoCall />`   — `<video>` montage of local + remote WebRTC peers.
  */
 export default function Sidebar(props: SidebarProps): JSX.Element {
-  const tabs = buildTabs(props.myRole);
+  const { t } = useTranslation('campaign');
+  const tabs = buildTabs(props.myRole, t);
   const [tab, setTab] = useState<Tab>('initiative');
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   return (
-    <aside className="sidebar" aria-label="Room sidebar">
+    <aside className="sidebar" aria-label={t('sidebar.ariaLabel')}>
       <VideoCall roomId={props.roomId} myUserId={props.myUserId} />
       <nav className="sidebar__tabs" role="tablist">
-        {tabs.map((t) => (
+        {tabs.map((tabSpec) => (
           <button
-            key={t.id}
+            key={tabSpec.id}
             type="button"
             role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
+            aria-selected={tab === tabSpec.id}
+            onClick={() => setTab(tabSpec.id)}
           >
-            {t.label}
+            {tabSpec.label}
           </button>
         ))}
         {props.myRole === 'GM' && (
@@ -87,7 +90,7 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
             type="button"
             className="sidebar__ai-btn"
             onClick={() => setAssistantOpen(true)}
-            title="GM AI Асистент"
+            title={t('sidebar.aiBtn')}
           >
             AI
           </button>

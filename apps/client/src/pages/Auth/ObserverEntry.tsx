@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { observerJoin, clearError } from '../../store/session';
 import { fetchRoom } from '../../store/room';
@@ -9,6 +10,7 @@ type Props = {
 
 export default function ObserverEntry({ onSwitchToLogin }: Props) {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(['auth', 'errors']);
   const { status, error } = useAppSelector((s) => s.session);
 
   const [inviteCode, setInviteCode] = useState('');
@@ -16,8 +18,8 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
   const [localError, setLocalError] = useState<string | null>(null);
 
   const validate = (): string | null => {
-    if (!inviteCode.trim()) return 'Введіть код запрошення';
-    if (name.trim().length < 2) return "Ім'я — мінімум 2 символи";
+    if (!inviteCode.trim()) return t('errors:validation.inviteCodeRequired');
+    if (name.trim().length < 2) return t('errors:validation.nameTooShort');
     return null;
   };
 
@@ -44,10 +46,10 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
 
   return (
     <div className="auth-form">
-      <h1>Вхід як Спостерігач</h1>
-      <form onSubmit={(e) => void handleSubmit(e)} aria-label="форма спостерігача">
+      <h1>{t('auth:observer.heading')}</h1>
+      <form onSubmit={(e) => void handleSubmit(e)} aria-label={t('auth:observer.formLabel')}>
         <div className="field">
-          <label htmlFor="obs-code">Код запрошення</label>
+          <label htmlFor="obs-code">{t('auth:observer.inviteCodeLabel')}</label>
           <input
             id="obs-code"
             type="text"
@@ -58,7 +60,7 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
           />
         </div>
         <div className="field">
-          <label htmlFor="obs-name">{"Ваше ім'я"}</label>
+          <label htmlFor="obs-name">{t('auth:observer.yourNameLabel')}</label>
           <input
             id="obs-name"
             type="text"
@@ -74,11 +76,11 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
           </p>
         )}
         <button type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Підключення…' : 'Підключитись'}
+          {status === 'loading' ? t('auth:observer.loading') : t('auth:observer.submitBtn')}
         </button>
       </form>
       <button type="button" onClick={onSwitchToLogin}>
-        Назад до входу
+        {t('auth:links.backToLogin')}
       </button>
     </div>
   );

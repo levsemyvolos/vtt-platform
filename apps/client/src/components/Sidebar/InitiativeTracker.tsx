@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   DndContext,
   PointerSensor,
@@ -29,16 +30,12 @@ interface InitiativeTrackerProps {
   roomId: string;
 }
 
-/**
- * Трек ініціативи (Ф7.3). GM: drag-to-reorder, додавання через member-picker
- * або ручний ввід (1d20 + dexMod auto-roll), кнопка «Наступний хід»;
- * Player/Observer — лише перегляд.
- */
 export default function InitiativeTracker({
   sceneId,
   myRole,
   roomId,
 }: InitiativeTrackerProps): JSX.Element {
+  const { t } = useTranslation(['campaign', 'errors']);
   const dispatch = useAppDispatch();
   const entries = useAppSelector((s) => s.initiative.entries);
   const currentRound = useAppSelector((s) => s.initiative.currentRound);
@@ -88,7 +85,7 @@ export default function InitiativeTracker({
           return all.find((m) => m!.id === selectedMemberId)?.name ?? '';
         })();
     if (!name) {
-      setError('Оберіть учасника або введіть ім\'я');
+      setError(t('errors:validation.selectMemberOrName'));
       return;
     }
     setBusy(true);
@@ -97,7 +94,7 @@ export default function InitiativeTracker({
       await dispatch(addEntryThunk({ sceneId, name, initiative })).unwrap();
       setShowAdd(false);
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Помилка');
+      setError(typeof err === 'string' ? err : t('errors:network.generic'));
     } finally {
       setBusy(false);
     }
@@ -108,7 +105,7 @@ export default function InitiativeTracker({
     try {
       await dispatch(removeEntryThunk({ sceneId, entryId })).unwrap();
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Помилка');
+      setError(typeof err === 'string' ? err : t('errors:network.generic'));
     }
   }
 
@@ -117,7 +114,7 @@ export default function InitiativeTracker({
     try {
       await dispatch(advanceTurnThunk({ sceneId })).unwrap();
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Помилка');
+      setError(typeof err === 'string' ? err : t('errors:network.generic'));
     }
   }
 
@@ -138,14 +135,14 @@ export default function InitiativeTracker({
 
   function renderAddForm(): JSX.Element {
     return (
-      <form onSubmit={onAdd} className="initiative-tracker__form">
+      <form onSubmit={(e) => void onAdd(e)} className="initiative-tracker__form">
         {allMembers.length > 0 && !useCustomName && (
           <select
             value={selectedMemberId}
             onChange={(e) => setSelectedMemberId(e.target.value)}
-            aria-label="Оберіть учасника"
+            aria-label={t('campaign:initiative.selectMemberLabel')}
           >
-            <option value="">— учасник —</option>
+            <option value="">{t('campaign:initiative.selectMemberDefault')}</option>
             {allMembers.map((m) => (
               <option key={m!.id} value={m!.id}>
                 {m!.name}
@@ -159,31 +156,31 @@ export default function InitiativeTracker({
             checked={useCustomName}
             onChange={(e) => setUseCustomName(e.target.checked)}
           />
-          Власне ім'я
+          {t('campaign:initiative.customNameToggle')}
         </label>
         {useCustomName && (
           <input
             type="text"
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
-            placeholder="Ім'я (NPC, монстр…)"
-            aria-label="Ім'я учасника"
+            placeholder={t('campaign:initiative.namePlaceholder')}
+            aria-label={t('campaign:initiative.nameLabel')}
           />
         )}
         <label>
-          Ініціатива
+          {t('campaign:initiative.initiativeLabel')}
           <input
             type="number"
             value={initiative}
             onChange={(e) => setInitiative(Number(e.target.value))}
-            aria-label="Значення ініціативи"
+            aria-label={t('campaign:initiative.initiativeAriaLabel')}
           />
         </label>
         <button
           type="button"
           onClick={() => setInitiative(rollInitiative())}
-          title="1d20"
-          aria-label="Кинути ініціативу (1d20)"
+          title={t('campaign:initiative.rollTitle')}
+          aria-label={t('campaign:initiative.rollAriaLabel')}
         >
           🎲
         </button>
@@ -196,27 +193,27 @@ export default function InitiativeTracker({
   return (
     <div className="initiative-tracker">
       <header className="initiative-tracker__header">
-        <span>Раунд: {currentRound}</span>
+        <span>{t('campaign:initiative.roundLabel', { round: currentRound })}</span>
         {isGM && (
           <button
             type="button"
-            onClick={onAdvance}
+            onClick={() => void onAdvance()}
             disabled={busy || entries.length === 0}
-            aria-label="Наступний хід"
+            aria-label={t('campaign:initiative.nextTurnLabel')}
           >
-            Наступний хід
+            {t('campaign:initiative.nextTurnBtn')}
           </button>
         )}
       </header>
 
       {entries.length === 0 ? (
-        <p className="initiative-tracker__empty">Список порожній.</p>
+        <p className="initiative-tracker__empty">{t('campaign:initiative.empty')}</p>
       ) : isGM ? (
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <SortableContext items={entries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
             <ul className="initiative-tracker__list">
               {entries.map((entry) => (
-                <SortableEntry key={entry.id} entry={entry} onRemove={onRemove} />
+                <SortableEntry key={entry.id} entry={entry} onRemove={(id) => void onRemove(id)} />
               ))}
             </ul>
           </SortableContext>
@@ -232,8 +229,8 @@ export default function InitiativeTracker({
       {isGM && (
         <div className="initiative-tracker__actions">
           {!showAdd ? (
-            <button type="button" onClick={onOpenAdd} aria-label="Додати позицію">
-              + Додати
+            <button type="button" onClick={onOpenAdd} aria-label={t('campaign:initiative.addLabel')}>
+              {t('campaign:initiative.addBtn')}
             </button>
           ) : renderAddForm()}
         </div>
@@ -250,6 +247,7 @@ interface RowProps {
 }
 
 function SortableEntry({ entry, onRemove }: RowProps): JSX.Element {
+  const { t } = useTranslation('campaign');
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
   const style = {
@@ -267,7 +265,9 @@ function SortableEntry({ entry, onRemove }: RowProps): JSX.Element {
     >
       <span className="initiative-tracker__name">{entry.name}</span>
       <span className="initiative-tracker__value">{entry.initiative}</span>
-      {entry.isCurrent && <span className="initiative-tracker__badge">current</span>}
+      {entry.isCurrent && (
+        <span className="initiative-tracker__badge">{t('initiative.currentBadge')}</span>
+      )}
       {onRemove && (
         <button
           type="button"
@@ -275,7 +275,7 @@ function SortableEntry({ entry, onRemove }: RowProps): JSX.Element {
             e.stopPropagation();
             onRemove(entry.id);
           }}
-          aria-label={`Видалити ${entry.name}`}
+          aria-label={t('initiative.deleteLabel', { name: entry.name })}
         >
           ×
         </button>
@@ -285,13 +285,16 @@ function SortableEntry({ entry, onRemove }: RowProps): JSX.Element {
 }
 
 function ReadOnlyEntry({ entry }: RowProps): JSX.Element {
+  const { t } = useTranslation('campaign');
   return (
     <li
       className={`initiative-tracker__item${entry.isCurrent ? ' initiative-tracker__item--current' : ''}`}
     >
       <span className="initiative-tracker__name">{entry.name}</span>
       <span className="initiative-tracker__value">{entry.initiative}</span>
-      {entry.isCurrent && <span className="initiative-tracker__badge">current</span>}
+      {entry.isCurrent && (
+        <span className="initiative-tracker__badge">{t('initiative.currentBadge')}</span>
+      )}
     </li>
   );
 }

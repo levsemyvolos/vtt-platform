@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
@@ -12,7 +13,6 @@ import {
 import SpellsList, { type SpellEntry } from './SpellsList';
 
 interface CharacterSheetProps {
-  /** null/undefined = show "New Character" screen so GM/Player can create one. */
   characterId?: string | null;
   roomId: string;
   myRole: Role;
@@ -111,6 +111,7 @@ interface CharacterListViewProps {
 }
 
 function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Element {
+  const { t } = useTranslation(['campaign', 'common', 'errors']);
   const dispatch = useAppDispatch();
   const allChars = useAppSelector((s) => s.characters.items);
   const myUserId = useAppSelector((s) => s.session.currentUser?.id);
@@ -125,10 +126,10 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
 
   return (
     <section className="character-sheet character-sheet--list">
-      <h3>Персонажі</h3>
+      <h3>{t('campaign:character.heading')}</h3>
       {myChars.length > 0 && (
         <>
-          <h4>Мої</h4>
+          <h4>{t('campaign:character.myChars')}</h4>
           <ul className="character-sheet__list">
             {myChars.map((c) => (
               <li key={c.id}>
@@ -142,7 +143,7 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
       )}
       {otherChars.length > 0 && (
         <>
-          <h4>Гравці (GM перегляд)</h4>
+          <h4>{t('campaign:character.otherChars')}</h4>
           <ul className="character-sheet__list">
             {otherChars.map((c) => (
               <li key={c.id}>
@@ -172,7 +173,7 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
                 setNewName('');
                 setCreating(false);
               } catch {
-                setError('Помилка створення персонажа');
+                setError(t('errors:network.characterCreateFailed'));
               } finally {
                 setBusy(false);
               }
@@ -181,12 +182,16 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Ім'я персонажа"
-              aria-label="Ім'я нового персонажа"
+              placeholder={t('campaign:character.namePlaceholder')}
+              aria-label={t('campaign:character.newNameLabel')}
               required
             />
-            <button type="submit" disabled={busy}>Створити</button>
-            <button type="button" onClick={() => setCreating(false)} disabled={busy}>Скасувати</button>
+            <button type="submit" disabled={busy}>
+              {busy ? t('common:btn.creating') : t('common:btn.create')}
+            </button>
+            <button type="button" onClick={() => setCreating(false)} disabled={busy}>
+              {t('common:btn.cancel')}
+            </button>
             {error && <p className="character-sheet__error">{error}</p>}
           </form>
         ) : (
@@ -194,9 +199,9 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
             type="button"
             className="character-sheet__new-btn"
             onClick={() => setCreating(true)}
-            aria-label="Новий персонаж"
+            aria-label={t('campaign:character.newAriaLabel')}
           >
-            + Новий персонаж
+            {t('campaign:character.newBtn')}
           </button>
         )
       )}
@@ -205,21 +210,18 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
 }
 
 function ShortView({ name, portraitUrl }: { name: string; portraitUrl?: string }): JSX.Element {
+  const { t } = useTranslation('campaign');
   return (
     <section className="character-sheet character-sheet--short">
       <h3>{name}</h3>
       {portraitUrl && <img src={portraitUrl} alt={name} className="character-sheet__portrait" />}
-      <p className="character-sheet__notice">Аркуш закритий власником — доступне лише ім'я та портрет.</p>
+      <p className="character-sheet__notice">{t('character.closedByOwner')}</p>
     </section>
   );
 }
 
-/**
- * Аркуш персонажа D&D 5e (Ф7.5).
- * Без characterId — показує список персонажів кімнати + кнопку «Новий персонаж».
- * З characterId — повний редактор (власник) або read-only (GM перегляд).
- */
 export default function CharacterSheet({ characterId, roomId, myRole }: CharacterSheetProps): JSX.Element {
+  const { t } = useTranslation(['campaign', 'common']);
   const dispatch = useAppDispatch();
   const current = useAppSelector((s) => s.characters.current);
   const myUserId = useAppSelector((s) => s.session.currentUser?.id);
@@ -227,14 +229,12 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
   const [name, setName] = useState('');
   const [sheet, setSheet] = useState<SheetData>(() => makeDefaultSheet());
 
-  // Load characters list for character picker when no specific characterId given
   useEffect(() => {
     if (!characterId) {
       void dispatch(loadCharacters(roomId));
     }
   }, [characterId, roomId, dispatch]);
 
-  // Load single character when characterId is provided
   useEffect(() => {
     if (characterId) {
       void dispatch(loadCharacter(characterId));
@@ -256,13 +256,11 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
 
   const readOnly = !isOwner;
 
-  // ---- No character selected — show list + create ----
   if (!characterId) {
     return <CharacterListView roomId={roomId} myRole={myRole} />;
   }
 
-  // ---- Loading ----
-  if (!current) return <p>Завантаження аркуша…</p>;
+  if (!current) return <p>{t('campaign:character.loading')}</p>;
   if (current.kind === 'short') {
     return (
       <ShortView
@@ -296,23 +294,29 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
     setSheet((s) => ({ ...s, inventory: s.inventory.filter((_, i) => i !== idx) }));
 
   return (
-    <section className="character-sheet character-sheet--full" aria-label={`Аркуш ${current.name}`}>
+    <section
+      className="character-sheet character-sheet--full"
+      aria-label={t('campaign:character.sheetLabel', { name: current.name })}
+    >
       <header className="character-sheet__header">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={readOnly}
-          aria-label="Ім'я персонажа"
+          aria-label={t('campaign:character.nameInputLabel')}
           className="character-sheet__name"
         />
-        <div className="character-sheet__portrait-slot" aria-label="Портрет (placeholder)" />
+        <div
+          className="character-sheet__portrait-slot"
+          aria-label={t('campaign:character.portraitLabel')}
+        />
         {isGmViewer(myRole, isOwner) && (
-          <span className="character-sheet__badge">Read-only (GM перегляд)</span>
+          <span className="character-sheet__badge">{t('campaign:character.readOnlyBadge')}</span>
         )}
       </header>
 
       <fieldset className="character-sheet__attrs" disabled={readOnly}>
-        <legend>Атрибути</legend>
+        <legend>{t('campaign:character.attrs')}</legend>
         {(Object.keys(sheet.attributes) as (keyof SheetAttributes)[]).map((key) => (
           <label key={key} className="character-sheet__attr">
             <span>{key}</span>
@@ -320,7 +324,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
               type="number"
               value={sheet.attributes[key]}
               onChange={(e) => patch(key, Number(e.target.value))}
-              aria-label={`Атрибут ${key}`}
+              aria-label={t('campaign:character.attrLabel', { key })}
             />
             <span className="character-sheet__mod">{modifier(sheet.attributes[key])}</span>
           </label>
@@ -328,7 +332,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
       </fieldset>
 
       <fieldset className="character-sheet__vitals" disabled={readOnly}>
-        <legend>Vitals</legend>
+        <legend>{t('campaign:character.vitals')}</legend>
         <label>
           HP
           <input
@@ -364,7 +368,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
       </fieldset>
 
       <fieldset className="character-sheet__skills" disabled={readOnly}>
-        <legend>Skills</legend>
+        <legend>{t('campaign:character.skills')}</legend>
         <ul>
           {sheet.skills.map((sk, idx) => (
             <li key={sk.name}>
@@ -390,21 +394,29 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
       </fieldset>
 
       <fieldset className="character-sheet__inventory" disabled={readOnly}>
-        <legend>Inventory</legend>
+        <legend>{t('campaign:character.inventory')}</legend>
         <ul>
           {sheet.inventory.map((item, idx) => (
             <li key={idx}>
               <input
                 value={item}
                 onChange={(e) => setInventoryAt(idx, e.target.value)}
-                aria-label={`Предмет ${idx + 1}`}
+                aria-label={t('campaign:character.inventoryItem', { idx: idx + 1 })}
               />
-              <button type="button" onClick={() => removeInventoryAt(idx)} aria-label="Видалити">×</button>
+              <button
+                type="button"
+                onClick={() => removeInventoryAt(idx)}
+                aria-label={t('common:btn.delete')}
+              >
+                ×
+              </button>
             </li>
           ))}
         </ul>
         {!readOnly && (
-          <button type="button" onClick={addInventory}>+ Додати предмет</button>
+          <button type="button" onClick={addInventory}>
+            {t('campaign:character.addInventoryBtn')}
+          </button>
         )}
       </fieldset>
 
@@ -415,23 +427,28 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
       />
 
       <section className="character-sheet__pdf">
-        <h4>PDF</h4>
+        <h4>{t('campaign:character.pdfSection')}</h4>
         {current.pdfUrl && (
           <iframe
             src={current.pdfUrl}
             width="100%"
             height={600}
-            title={`PDF аркуш ${current.name}`}
+            title={t('campaign:character.pdfTitle', { name: current.name })}
           />
         )}
         {isOwner && (
-          <input type="file" accept="application/pdf" onChange={onPdf} aria-label="Завантажити PDF" />
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={onPdf}
+            aria-label={t('campaign:character.pdfUploadLabel')}
+          />
         )}
       </section>
 
       {isOwner && (
         <div className="character-sheet__actions">
-          <button type="button" onClick={onSave}>Зберегти</button>
+          <button type="button" onClick={onSave}>{t('common:btn.save')}</button>
         </div>
       )}
     </section>

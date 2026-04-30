@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { register, clearError } from '../../store/session';
 
@@ -8,6 +9,7 @@ type Props = {
 
 export default function Register({ onSwitchToLogin }: Props) {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(['auth', 'common', 'errors']);
   const { status, error } = useAppSelector((s) => s.session);
 
   const [name, setName] = useState('');
@@ -16,9 +18,9 @@ export default function Register({ onSwitchToLogin }: Props) {
   const [localError, setLocalError] = useState<string | null>(null);
 
   const validate = (): string | null => {
-    if (name.trim().length < 2) return "Ім'я — мінімум 2 символи";
-    if (!email.includes('@')) return 'Введіть коректний email';
-    if (password.length < 8) return 'Пароль — мінімум 8 символів';
+    if (name.trim().length < 2) return t('errors:validation.nameTooShort');
+    if (!email.includes('@')) return t('errors:validation.emailInvalid');
+    if (password.length < 8) return t('errors:validation.passwordTooShort');
     return null;
   };
 
@@ -38,10 +40,10 @@ export default function Register({ onSwitchToLogin }: Props) {
 
   return (
     <div className="auth-form">
-      <h1>Реєстрація</h1>
-      <form onSubmit={handleSubmit} aria-label="форма реєстрації">
+      <h1>{t('auth:register.heading')}</h1>
+      <form onSubmit={handleSubmit} aria-label={t('auth:register.formLabel')}>
         <div className="field">
-          <label htmlFor="reg-name">{"Ім'я"}</label>
+          <label htmlFor="reg-name">{t('auth:register.nameLabel')}</label>
           <input
             id="reg-name"
             type="text"
@@ -52,7 +54,7 @@ export default function Register({ onSwitchToLogin }: Props) {
           />
         </div>
         <div className="field">
-          <label htmlFor="reg-email">Email</label>
+          <label htmlFor="reg-email">{t('common:label.email')}</label>
           <input
             id="reg-email"
             type="email"
@@ -63,7 +65,7 @@ export default function Register({ onSwitchToLogin }: Props) {
           />
         </div>
         <div className="field">
-          <label htmlFor="reg-password">Пароль</label>
+          <label htmlFor="reg-password">{t('common:label.password')}</label>
           <input
             id="reg-password"
             type="password"
@@ -79,11 +81,11 @@ export default function Register({ onSwitchToLogin }: Props) {
           </p>
         )}
         <button type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Реєстрація…' : 'Зареєструватись'}
+          {status === 'loading' ? t('auth:register.loading') : t('auth:register.submitBtn')}
         </button>
       </form>
       <button type="button" onClick={onSwitchToLogin}>
-        Вже маю акаунт
+        {t('auth:register.alreadyHaveAccount')}
       </button>
     </div>
   );

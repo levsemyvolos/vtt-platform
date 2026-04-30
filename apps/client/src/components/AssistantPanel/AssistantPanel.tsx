@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { AssistantContext, ConversationMessage } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 
@@ -11,15 +12,11 @@ interface AssistantPanelProps {
   onClose: () => void;
 }
 
-const TABS: { id: AssistantContext; label: string }[] = [
-  { id: 'npc-description', label: 'NPC' },
-  { id: 'scene-description', label: 'Scene' },
-  { id: 'srd-lookup', label: 'SRD' },
-  { id: 'free-chat', label: 'Free' },
-];
+const TAB_IDS: AssistantContext[] = ['npc-description', 'scene-description', 'srd-lookup', 'free-chat'];
 
 export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps): JSX.Element {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation('assistant');
   const activeContext = useAppSelector((s) => s.assistant.activeContext);
   const status = useAppSelector((s) => s.assistant.status);
   const error = useAppSelector((s) => s.assistant.error);
@@ -36,29 +33,29 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
   }
 
   return (
-    <div className="assistant-panel" role="dialog" aria-label="GM AI Асистент">
+    <div className="assistant-panel" role="dialog" aria-label={t('panel.dialogLabel')}>
       <div className="assistant-panel__header">
-        <span className="assistant-panel__title">GM Асистент</span>
+        <span className="assistant-panel__title">{t('panel.title')}</span>
         <button
           type="button"
           className="assistant-panel__close"
           onClick={onClose}
-          aria-label="Закрити"
+          aria-label={t('panel.closeLabel')}
         >
           ✕
         </button>
       </div>
       <nav className="assistant-panel__tabs" role="tablist">
-        {TABS.map((t) => (
+        {TAB_IDS.map((id) => (
           <button
-            key={t.id}
+            key={id}
             type="button"
             role="tab"
-            aria-selected={activeContext === t.id}
-            className={`assistant-panel__tab${activeContext === t.id ? ' assistant-panel__tab--active' : ''}`}
-            onClick={() => handleTabChange(t.id)}
+            aria-selected={activeContext === id}
+            className={`assistant-panel__tab${activeContext === id ? ' assistant-panel__tab--active' : ''}`}
+            onClick={() => handleTabChange(id)}
           >
-            {t.label}
+            {t(`context.${id}`)}
           </button>
         ))}
       </nav>

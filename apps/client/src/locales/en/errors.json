@@ -1,0 +1,41 @@
+{
+  "validation": {
+    "emailInvalid": "Enter a valid email",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "nameTooShort": "Name must be at least 2 characters",
+    "inviteCodeRequired": "Enter invite code",
+    "roomNameRequired": "Enter room name",
+    "sceneNameRequired": "Scene name is required",
+    "gridWidthRange": "Width: 1 to 100 cells",
+    "gridHeightRange": "Height: 1 to 100 cells",
+    "gridSizeRange": "Cell size: 20–200 px",
+    "imageType": "Only PNG, JPEG or WebP",
+    "imageSize": "File exceeds {{mb}} MB",
+    "audioFileRequired": "Select an MP3 or OGG file",
+    "audioType": "Only MP3 (audio/mpeg) or OGG (audio/ogg)",
+    "audioSize": "File exceeds {{mb}} MB",
+    "selectMemberOrName": "Select a member or enter a name"
+  },
+  "network": {
+    "loadFailed": "Failed to load",
+    "saveFailed": "Save error",
+    "createFailed": "Creation error",
+    "deleteFailed": "Deletion error",
+    "joinFailed": "Failed to join session",
+    "copyFailed": "Failed to copy — copy manually",
+    "inviteFailed": "Failed to get invite link",
+    "generic": "Error",
+    "rollFailed": "Roll failed",
+    "tokenAddFailed": "Failed to add token",
+    "uploadFailed": "Upload error",
+    "generateFailed": "Generation error",
+    "applyFailed": "Failed to apply background",
+    "characterCreateFailed": "Character creation error"
+  },
+  "api": {
+    "rateLimitExceeded": "AI request limit reached. Try again in a minute.",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Access denied",
+    "serverError": "Server error"
+  }
+}

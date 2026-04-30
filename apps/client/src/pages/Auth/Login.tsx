@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { login, clearError } from '../../store/session';
 
@@ -9,6 +10,7 @@ type Props = {
 
 export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props) {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(['auth', 'common', 'errors']);
   const { status, error } = useAppSelector((s) => s.session);
 
   const [email, setEmail] = useState('');
@@ -16,8 +18,8 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
   const [localError, setLocalError] = useState<string | null>(null);
 
   const validate = (): string | null => {
-    if (!email.includes('@')) return 'Введіть коректний email';
-    if (password.length < 8) return 'Пароль — мінімум 8 символів';
+    if (!email.includes('@')) return t('errors:validation.emailInvalid');
+    if (password.length < 8) return t('errors:validation.passwordTooShort');
     return null;
   };
 
@@ -37,10 +39,10 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
 
   return (
     <div className="auth-form">
-      <h1>Вхід</h1>
-      <form onSubmit={handleSubmit} aria-label="форма входу">
+      <h1>{t('auth:login.heading')}</h1>
+      <form onSubmit={handleSubmit} aria-label={t('auth:login.formLabel')}>
         <div className="field">
-          <label htmlFor="login-email">Email</label>
+          <label htmlFor="login-email">{t('common:label.email')}</label>
           <input
             id="login-email"
             type="email"
@@ -51,7 +53,7 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
           />
         </div>
         <div className="field">
-          <label htmlFor="login-password">Пароль</label>
+          <label htmlFor="login-password">{t('common:label.password')}</label>
           <input
             id="login-password"
             type="password"
@@ -67,15 +69,15 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
           </p>
         )}
         <button type="submit" disabled={status === 'loading'}>
-          {status === 'loading' ? 'Вхід…' : 'Увійти'}
+          {status === 'loading' ? t('auth:login.loading') : t('auth:login.submitBtn')}
         </button>
       </form>
       <div className="auth-links">
         <button type="button" onClick={onSwitchToRegister}>
-          Зареєструватись
+          {t('auth:links.switchToRegister')}
         </button>
         <button type="button" onClick={onSwitchToObserver}>
-          Увійти як Спостерігач
+          {t('auth:links.switchToObserver')}
         </button>
       </div>
     </div>

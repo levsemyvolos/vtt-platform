@@ -1,15 +1,10 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AIImageRequest, AIImageResponse, UpdateSceneRequest } from '@vtt/shared';
 import { apiFetch, ApiError } from '../../api/apiFetch';
 
-const STYLE_PRESETS = [
-  { value: 'realistic', label: 'Реалістичний' },
-  { value: 'fantasy', label: 'Фентезі' },
-  { value: 'sci-fi', label: 'Sci-Fi' },
-  { value: 'cartoon', label: 'Мультяшний' },
-] as const;
-
-type StylePreset = (typeof STYLE_PRESETS)[number]['value'];
+const STYLE_PRESET_KEYS = ['realistic', 'fantasy', 'sci-fi', 'cartoon'] as const;
+type StylePreset = (typeof STYLE_PRESET_KEYS)[number];
 
 interface GenerateBackgroundModalProps {
   roomId: string;
@@ -22,6 +17,7 @@ export default function GenerateBackgroundModal({
   sceneId,
   onClose,
 }: GenerateBackgroundModalProps): JSX.Element {
+  const { t } = useTranslation(['room', 'common', 'errors']);
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState<StylePreset>('fantasy');
   const [preview, setPreview] = useState<AIImageResponse | null>(null);
@@ -44,9 +40,9 @@ export default function GenerateBackgroundModal({
       setPreview(result);
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
-        setError('Ліміт AI-запитів вичерпано. Спробуйте через хвилину.');
+        setError(t('errors:api.rateLimitExceeded'));
       } else {
-        setError(err instanceof Error ? err.message : 'Помилка генерації');
+        setError(err instanceof Error ? err.message : t('errors:network.generateFailed'));
       }
     } finally {
       setGenerating(false);
@@ -65,41 +61,41 @@ export default function GenerateBackgroundModal({
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не вдалося застосувати фон');
+      setError(err instanceof Error ? err.message : t('errors:network.applyFailed'));
     } finally {
       setApplying(false);
     }
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Генерація фону" className="modal-backdrop">
+    <div role="dialog" aria-modal="true" aria-label={t('room:aiGenerate.dialogLabel')} className="modal-backdrop">
       <div className="modal modal--wide">
-        <h2>Згенерувати фон сцени (AI)</h2>
+        <h2>{t('room:aiGenerate.heading')}</h2>
 
-        <form onSubmit={(e) => void handleGenerate(e)} aria-label="форма генерації фону" noValidate>
+        <form onSubmit={(e) => void handleGenerate(e)} aria-label={t('room:aiGenerate.formLabel')} noValidate>
           <div className="field">
-            <label htmlFor="ai-prompt">Опис сцени</label>
+            <label htmlFor="ai-prompt">{t('room:aiGenerate.promptLabel')}</label>
             <textarea
               id="ai-prompt"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={3}
-              placeholder="Підземелля з кам'яними стінами та смолоскипами..."
+              placeholder={t('room:aiGenerate.promptPlaceholder')}
               maxLength={400}
               autoFocus
             />
           </div>
 
           <div className="field">
-            <label htmlFor="ai-style">Стиль</label>
+            <label htmlFor="ai-style">{t('room:aiGenerate.styleLabel')}</label>
             <select
               id="ai-style"
               value={style}
               onChange={(e) => setStyle(e.target.value as StylePreset)}
             >
-              {STYLE_PRESETS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
+              {STYLE_PRESET_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {t(`room:aiGenerate.styles.${key}`)}
                 </option>
               ))}
             </select>
@@ -107,10 +103,10 @@ export default function GenerateBackgroundModal({
 
           <div className="modal__actions">
             <button type="button" onClick={onClose} disabled={generating || applying}>
-              Скасувати
+              {t('common:btn.cancel')}
             </button>
             <button type="submit" disabled={generating || !prompt.trim()}>
-              {generating ? 'Генерація…' : 'Згенерувати'}
+              {generating ? t('room:aiGenerate.generating') : t('room:aiGenerate.generateBtn')}
             </button>
           </div>
         </form>
@@ -125,7 +121,7 @@ export default function GenerateBackgroundModal({
           <div className="ai-preview">
             <img
               src={preview.previewUrl}
-              alt="Згенерований фон"
+              alt={t('room:aiGenerate.previewAlt')}
               className="ai-preview__img"
             />
             <div className="modal__actions">
@@ -135,7 +131,7 @@ export default function GenerateBackgroundModal({
                 disabled={applying}
                 className="btn-primary"
               >
-                {applying ? 'Застосування…' : 'Використати як фон'}
+                {applying ? t('room:aiGenerate.applying') : t('room:aiGenerate.applyBg')}
               </button>
             </div>
           </div>

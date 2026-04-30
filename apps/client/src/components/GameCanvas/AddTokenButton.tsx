@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
 import { useAppSelector } from '../../store';
 import { apiFetch, ApiError } from '../../api/apiFetch';
@@ -17,6 +18,7 @@ interface TokenCreateRequest {
 }
 
 export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps): JSX.Element | null {
+  const { t } = useTranslation(['room', 'common', 'errors']);
   const { current: scene, version } = useAppSelector((s) => s.scene);
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
@@ -32,7 +34,6 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
     setBusy(true);
     setError(null);
     try {
-      // clientSeq must not be lower than scene.version (A2 OCC invariant)
       const clientSeq = version;
       const x = Math.floor(scene.gridWidth / 2);
       const y = Math.floor(scene.gridHeight / 2);
@@ -48,7 +49,7 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
       if (err instanceof ApiError && err.status === 404) {
         setError('Endpoint /scenes/:id/tokens ще не реалізовано — буде додано у Чаті 7.4.');
       } else {
-        setError(err instanceof Error ? err.message : 'Помилка додавання токену');
+        setError(err instanceof Error ? err.message : t('errors:network.tokenAddFailed'));
       }
     } finally {
       setBusy(false);
@@ -61,19 +62,19 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
         type="button"
         className="canvas-toolbar__btn"
         onClick={() => setShowModal(true)}
-        title="Додати токен на сцену"
-        aria-label="Додати токен"
+        title={t('room:token.addTitle')}
+        aria-label={t('room:token.addLabel')}
       >
-        + Токен
+        {t('room:token.addBtn')}
       </button>
 
       {showModal && (
-        <div role="dialog" aria-modal="true" aria-label="Новий токен" className="modal-backdrop">
+        <div role="dialog" aria-modal="true" aria-label={t('room:token.addModalLabel')} className="modal-backdrop">
           <div className="modal">
-            <h3>Додати токен</h3>
-            <form onSubmit={(e) => void handleSubmit(e)} aria-label="форма токену" noValidate>
+            <h3>{t('room:token.addModalHeading')}</h3>
+            <form onSubmit={(e) => void handleSubmit(e)} aria-label={t('room:token.tokenFormLabel')} noValidate>
               <div className="field">
-                <label htmlFor="token-name">Назва</label>
+                <label htmlFor="token-name">{t('common:label.name')}</label>
                 <input
                   id="token-name"
                   type="text"
@@ -85,7 +86,7 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
                 />
               </div>
               <div className="field">
-                <label htmlFor="token-image">URL зображення</label>
+                <label htmlFor="token-image">{t('room:token.imageUrlLabel')}</label>
                 <input
                   id="token-image"
                   type="url"
@@ -96,7 +97,10 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
                 />
               </div>
               <p className="modal__note">
-                Токен буде розміщено в центрі сцени (позиція {scene ? `${Math.floor(scene.gridWidth / 2)}, ${Math.floor(scene.gridHeight / 2)}` : '—'}).
+                {t('room:token.tokenPlacedNote', {
+                  x: scene ? Math.floor(scene.gridWidth / 2) : '—',
+                  y: scene ? Math.floor(scene.gridHeight / 2) : '—',
+                })}
               </p>
               {error && (
                 <p role="alert" className="modal__error">
@@ -105,10 +109,10 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
               )}
               <div className="modal__actions">
                 <button type="button" onClick={() => setShowModal(false)} disabled={busy}>
-                  Скасувати
+                  {t('common:btn.cancel')}
                 </button>
                 <button type="submit" disabled={busy}>
-                  {busy ? 'Додавання…' : 'Додати'}
+                  {busy ? t('room:token.adding') : t('room:token.addSubmitBtn')}
                 </button>
               </div>
             </form>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AudioTrackDTO, Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
@@ -16,12 +17,8 @@ interface AudioPanelProps {
   myRole: Role;
 }
 
-/**
- * GM control surface for music tracks (Ф6.1 + Ф6.3). Players see a read-only
- * list and the volume slider; only GM may upload, bind, set loop, edit fadeMs
- * or delete (RBAC §2.18).
- */
 export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps): JSX.Element {
+  const { t } = useTranslation(['campaign', 'common']);
   const dispatch = useAppDispatch();
   const tracks = useAppSelector((s) => s.audio.tracks);
   const current = useAppSelector((s) => s.audio.current);
@@ -35,11 +32,11 @@ export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps)
   const currentTrackId = current && current.action !== 'stop' ? current.trackId : null;
 
   return (
-    <section className="audio-panel" aria-label="Музичні треки">
+    <section className="audio-panel" aria-label={t('campaign:audio.panelAriaLabel')}>
       <header className="audio-panel__header">
-        <h3>Музика</h3>
+        <h3>{t('campaign:audio.heading')}</h3>
         <label className="audio-panel__volume">
-          Гучність
+          {t('campaign:audio.volume')}
           <input
             type="range"
             min={0}
@@ -54,16 +51,16 @@ export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps)
       {isGM && <TrackUpload roomId={roomId} sceneId={sceneId} />}
 
       {tracks.length === 0 ? (
-        <p className="audio-panel__empty">Треків ще немає.</p>
+        <p className="audio-panel__empty">{t('campaign:audio.empty')}</p>
       ) : (
         <ul className="audio-panel__list">
-          {tracks.map((t) => (
+          {tracks.map((tr) => (
             <TrackItem
-              key={t.id}
-              track={t}
+              key={tr.id}
+              track={tr}
               sceneId={sceneId}
               isGM={isGM}
-              isPlaying={t.id === currentTrackId}
+              isPlaying={tr.id === currentTrackId}
             />
           ))}
         </ul>
@@ -76,11 +73,6 @@ function computeTrackBound(sceneId: string | null, trackSceneId: string | null):
   return sceneId !== null && trackSceneId === sceneId;
 }
 
-function computeBindTitle(sceneId: string | null, isBound: boolean): string {
-  if (!sceneId) return 'Активна сцена відсутня';
-  return isBound ? 'Відв\'язати від сцени' : 'Прив\'язати до активної сцени';
-}
-
 interface TrackItemProps {
   track: AudioTrackDTO;
   sceneId: string | null;
@@ -89,6 +81,7 @@ interface TrackItemProps {
 }
 
 function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Element {
+  const { t } = useTranslation(['campaign', 'common']);
   const dispatch = useAppDispatch();
   const [editing, setEditing] = useState(false);
   const [editFadeMs, setEditFadeMs] = useState(track.fadeMs);
@@ -97,8 +90,12 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
 
   const isBoundHere = computeTrackBound(sceneId, track.sceneId);
   const liClassName = `audio-panel__item${isPlaying ? ' is-playing' : ''}`;
-  const bindTitle = computeBindTitle(sceneId, isBoundHere);
-  const bindLabel = isBoundHere ? '✕ scene' : 'bind';
+  const bindTitle = sceneId
+    ? isBoundHere
+      ? t('campaign:audio.unbindTitle')
+      : t('campaign:audio.bindTitle')
+    : t('campaign:audio.noScene');
+  const bindLabel = isBoundHere ? t('campaign:audio.unbindBtn') : t('campaign:audio.bindBtn');
 
   function onOpenEdit(): void {
     setEditFadeMs(track.fadeMs);
@@ -121,7 +118,9 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
   return (
     <li className={liClassName}>
       <span className="audio-panel__title">{track.title}</span>
-      {track.loop && <span className="audio-panel__badge">loop</span>}
+      {track.loop && (
+        <span className="audio-panel__badge">{t('campaign:audio.loopBadge')}</span>
+      )}
       {isPlaying && <span className="audio-panel__badge is-active">▶</span>}
 
       {isGM && !editing && (
@@ -136,14 +135,18 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
           >
             {bindLabel}
           </button>
-          <button type="button" onClick={onOpenEdit} aria-label={`Редагувати ${track.title}`}>
-            ✎ Edit
+          <button
+            type="button"
+            onClick={onOpenEdit}
+            aria-label={t('campaign:audio.editAriaLabel', { title: track.title })}
+          >
+            {t('campaign:audio.editBtn')}
           </button>
           <button
             type="button"
             className="audio-panel__delete"
             onClick={() => dispatch(removeAudioTrack(track.id))}
-            aria-label={`Видалити трек ${track.title}`}
+            aria-label={t('campaign:audio.deleteAriaLabel', { title: track.title })}
           >
             ×
           </button>
@@ -153,7 +156,7 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
       {isGM && editing && (
         <div className="audio-panel__edit">
           <label>
-            Loop
+            {t('campaign:audio.loopLabel')}
             <input
               type="checkbox"
               checked={editLoop}
@@ -161,7 +164,7 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
             />
           </label>
           <label>
-            Fade {editFadeMs} мс
+            {t('campaign:audio.fadeLabel', { ms: editFadeMs })}
             <input
               type="range"
               min={0}
@@ -169,11 +172,15 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
               step={100}
               value={editFadeMs}
               onChange={(e) => setEditFadeMs(Number(e.target.value))}
-              aria-label="Тривалість fade-in/out"
+              aria-label={t('campaign:audio.fadeAriaLabel')}
             />
           </label>
-          <button type="button" onClick={onSaveEdit} disabled={busy}>Зберегти</button>
-          <button type="button" onClick={() => setEditing(false)} disabled={busy}>Скасувати</button>
+          <button type="button" onClick={() => void onSaveEdit()} disabled={busy}>
+            {t('common:btn.save')}
+          </button>
+          <button type="button" onClick={() => setEditing(false)} disabled={busy}>
+            {t('common:btn.cancel')}
+          </button>
         </div>
       )}
     </li>

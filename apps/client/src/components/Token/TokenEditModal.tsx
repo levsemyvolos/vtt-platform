@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { StatusMarker } from '@vtt/shared';
 import { ALL_STATUS_MARKERS } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -17,6 +18,7 @@ interface TokenEditModalProps {
 
 export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps): JSX.Element | null {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(['room', 'common', 'errors']);
   const token = useAppSelector((s) => s.scene.current?.tokens.find((t) => t.id === tokenId));
   const members = useAppSelector((s) => s.room.members);
 
@@ -62,7 +64,7 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
       dispatch(upsertToken(updated));
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Помилка збереження');
+      setError(e instanceof Error ? e.message : t('errors:network.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -77,10 +79,10 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 24, width: 360, color: '#f5f5f7' }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>Редагувати токен</h3>
+        <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>{t('room:token.editHeading')}</h3>
 
         <label style={{ display: 'block', marginBottom: 12 }}>
-          <span style={{ fontSize: 12, opacity: 0.7 }}>Назва</span>
+          <span style={{ fontSize: 12, opacity: 0.7 }}>{t('common:label.name')}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -105,7 +107,9 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <span style={{ fontSize: 12, opacity: 0.7, display: 'block', marginBottom: 6 }}>Колір</span>
+          <span style={{ fontSize: 12, opacity: 0.7, display: 'block', marginBottom: 6 }}>
+            {t('room:token.colorLabel')}
+          </span>
           <div style={{ display: 'flex', gap: 6 }}>
             {COLOR_PRESETS.map((c) => (
               <button
@@ -121,7 +125,9 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <span style={{ fontSize: 12, opacity: 0.7, display: 'block', marginBottom: 6 }}>Статуси</span>
+          <span style={{ fontSize: 12, opacity: 0.7, display: 'block', marginBottom: 6 }}>
+            {t('room:token.statusLabel')}
+          </span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {ALL_STATUS_MARKERS.map((m) => (
               <button
@@ -140,14 +146,14 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
         </div>
 
         <label style={{ display: 'block', marginBottom: 16 }}>
-          <span style={{ fontSize: 12, opacity: 0.7 }}>Призначений гравець</span>
+          <span style={{ fontSize: 12, opacity: 0.7 }}>{t('room:token.assignedPlayerLabel')}</span>
           <select
             value={assignedUserId}
             onChange={(e) => setAssignedUserId(e.target.value)}
             style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px',
               background: '#0f0f1a', border: '1px solid #333', borderRadius: 4, color: '#f5f5f7' }}
           >
-            <option value="">— не призначено —</option>
+            <option value="">{t('room:token.noAssigned')}</option>
             {members.map((m) => (
               <option key={m.userId} value={m.userId}>{m.name} ({m.role})</option>
             ))}
@@ -160,12 +166,12 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
           <button onClick={onClose} disabled={saving}
             style={{ padding: '8px 16px', borderRadius: 6, background: '#333', border: 'none',
               color: '#f5f5f7', cursor: 'pointer' }}>
-            Скасувати
+            {t('common:btn.cancel')}
           </button>
           <button onClick={() => void handleSave()} disabled={saving}
             style={{ padding: '8px 16px', borderRadius: 6, background: '#7c5cff', border: 'none',
               color: '#fff', cursor: saving ? 'wait' : 'pointer' }}>
-            {saving ? 'Збереження…' : 'Зберегти'}
+            {saving ? t('common:btn.saving') : t('common:btn.save')}
           </button>
         </div>
       </div>

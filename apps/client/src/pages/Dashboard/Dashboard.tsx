@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchRooms, createRoom, fetchRoom } from '../../store/room';
 import { logout } from '../../store/session';
@@ -6,6 +7,7 @@ import type { RoomDTO } from '@vtt/shared';
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(['room', 'common', 'errors']);
   const { currentUser } = useAppSelector((s) => s.session);
   const { ownRooms, status, error } = useAppSelector((s) => s.room);
 
@@ -21,7 +23,7 @@ export default function Dashboard() {
   const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!roomName.trim()) {
-      setCreateError('Введіть назву кімнати');
+      setCreateError(t('errors:validation.roomNameRequired'));
       return;
     }
     setCreateError(null);
@@ -40,25 +42,19 @@ export default function Dashboard() {
     void dispatch(logout());
   };
 
-  const statusLabel: Record<RoomDTO['status'], string> = {
-    lobby: 'Лобі',
-    active: 'Активна',
-    closed: 'Закрита',
-  };
-
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>Ігрові кімнати</h1>
+        <h1>{t('room:dashboard.heading')}</h1>
         <div className="dashboard-user">
           <span>{currentUser?.name}</span>
           <button type="button" onClick={handleLogout}>
-            Вийти
+            {t('common:btn.logout')}
           </button>
         </div>
       </header>
 
-      {status === 'loading' && <p className="loading">Завантаження…</p>}
+      {status === 'loading' && <p className="loading">{t('common:status.loading')}</p>}
       {error && (
         <p role="alert" className="error">
           {error}
@@ -66,7 +62,7 @@ export default function Dashboard() {
       )}
 
       {ownRooms.length === 0 && status === 'loaded' && (
-        <p className="empty">Кімнат ще немає. Створіть першу!</p>
+        <p className="empty">{t('room:dashboard.noRooms')}</p>
       )}
 
       <ul className="room-list">
@@ -76,12 +72,14 @@ export default function Dashboard() {
               <strong className="room-name">{room.name}</strong>
               <span className="room-system">{room.gameSystem}</span>
               <span className={`room-status status--${room.status}`}>
-                {statusLabel[room.status]}
+                {t(`room:status.${room.status}`)}
               </span>
-              <span className="room-members">{room.members.length} учасників</span>
+              <span className="room-members">
+                {t('room:dashboard.membersCount', { count: room.members.length })}
+              </span>
             </div>
             <button type="button" onClick={() => handleOpen(room)}>
-              Відкрити
+              {t('common:btn.open')}
             </button>
           </li>
         ))}
@@ -91,11 +89,11 @@ export default function Dashboard() {
         <form
           onSubmit={(e) => void handleCreate(e)}
           className="create-room-form"
-          aria-label="форма нової кімнати"
+          aria-label={t('room:dashboard.formLabel')}
         >
-          <h2>Нова кімната</h2>
+          <h2>{t('room:dashboard.newRoomHeading')}</h2>
           <div className="field">
-            <label htmlFor="room-name">Назва</label>
+            <label htmlFor="room-name">{t('common:label.name')}</label>
             <input
               id="room-name"
               type="text"
@@ -105,7 +103,7 @@ export default function Dashboard() {
             />
           </div>
           <div className="field">
-            <label htmlFor="room-system">Ігрова система</label>
+            <label htmlFor="room-system">{t('common:label.gameSystem')}</label>
             <input
               id="room-system"
               type="text"
@@ -121,16 +119,16 @@ export default function Dashboard() {
           )}
           <div className="form-actions">
             <button type="submit" disabled={status === 'loading'}>
-              Створити
+              {t('common:btn.create')}
             </button>
             <button type="button" onClick={() => setShowCreate(false)}>
-              Скасувати
+              {t('common:btn.cancel')}
             </button>
           </div>
         </form>
       ) : (
         <button type="button" className="btn-create" onClick={() => setShowCreate(true)}>
-          + Нова кімната
+          {t('room:dashboard.createBtn')}
         </button>
       )}
     </div>

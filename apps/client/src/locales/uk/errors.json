@@ -1,0 +1,41 @@
+{
+  "validation": {
+    "emailInvalid": "Введіть коректний email",
+    "passwordTooShort": "Пароль — мінімум 8 символів",
+    "nameTooShort": "Ім'я — мінімум 2 символи",
+    "inviteCodeRequired": "Введіть код запрошення",
+    "roomNameRequired": "Введіть назву кімнати",
+    "sceneNameRequired": "Назва сцени обов'язкова",
+    "gridWidthRange": "Ширина: від 1 до 100 кліток",
+    "gridHeightRange": "Висота: від 1 до 100 кліток",
+    "gridSizeRange": "Розмір клітинки: 20–200 px",
+    "imageType": "Лише PNG, JPEG або WebP",
+    "imageSize": "Файл перевищує {{mb}} МБ",
+    "audioFileRequired": "Виберіть файл MP3 або OGG",
+    "audioType": "Лише MP3 (audio/mpeg) або OGG (audio/ogg)",
+    "audioSize": "Файл перевищує {{mb}} МБ",
+    "selectMemberOrName": "Оберіть учасника або введіть ім'я"
+  },
+  "network": {
+    "loadFailed": "Не вдалося завантажити",
+    "saveFailed": "Помилка збереження",
+    "createFailed": "Помилка створення",
+    "deleteFailed": "Помилка видалення",
+    "joinFailed": "Не вдалося приєднатися до сесії",
+    "copyFailed": "Не вдалося скопіювати — скопіюйте вручну",
+    "inviteFailed": "Не вдалося отримати посилання",
+    "generic": "Помилка",
+    "rollFailed": "Помилка кидка",
+    "tokenAddFailed": "Помилка додавання токену",
+    "uploadFailed": "Помилка завантаження",
+    "generateFailed": "Помилка генерації",
+    "applyFailed": "Не вдалося застосувати фон",
+    "characterCreateFailed": "Помилка створення персонажа"
+  },
+  "api": {
+    "rateLimitExceeded": "Ліміт AI-запитів вичерпано. Спробуйте через хвилину.",
+    "unauthorized": "Не авторизовано",
+    "forbidden": "Доступ заборонено",
+    "serverError": "Помилка сервера"
+  }
+}

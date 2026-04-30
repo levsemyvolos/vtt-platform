@@ -1,20 +1,16 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AUDIO_MAX_BYTES } from '@vtt/shared';
 import { useAppDispatch } from '../../store';
 import { uploadAudioTrack } from '../../store/audio';
 
 interface TrackUploadProps {
   roomId: string;
-  /** Optional default scene-binding for the new track. */
   sceneId: string | null;
 }
 
-/**
- * GM-only upload form. Presigned-PUT flow (sequence А.7). Client-side
- * MIME/size validation mirrors the server's guards (НФВ 6.3).
- * fadeMs slider sets persistent fade-in/out duration (R8, Ф6.2).
- */
 export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.Element {
+  const { t } = useTranslation(['campaign', 'errors']);
   const dispatch = useAppDispatch();
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -28,15 +24,15 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
     e.preventDefault();
     setError(null);
     if (!file) {
-      setError('Виберіть файл MP3 або OGG');
+      setError(t('errors:validation.audioFileRequired'));
       return;
     }
     if (file.type !== 'audio/mpeg' && file.type !== 'audio/ogg') {
-      setError('Лише MP3 (audio/mpeg) або OGG (audio/ogg)');
+      setError(t('errors:validation.audioType'));
       return;
     }
     if (file.size > AUDIO_MAX_BYTES) {
-      setError(`Файл перевищує ${(AUDIO_MAX_BYTES / 1024 / 1024).toFixed(0)} МБ`);
+      setError(t('errors:validation.audioSize', { mb: (AUDIO_MAX_BYTES / 1024 / 1024).toFixed(0) }));
       return;
     }
     setBusy(true);
@@ -55,26 +51,26 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
       setFile(null);
       setFadeMs(1500);
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Помилка завантаження');
+      setError(typeof err === 'string' ? err : t('errors:network.uploadFailed'));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="audio-upload">
+    <form onSubmit={(e) => void onSubmit(e)} className="audio-upload">
       <input
         type="text"
-        placeholder="Назва треку"
+        placeholder={t('campaign:audio.trackTitlePlaceholder')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        aria-label="Назва аудіо-треку"
+        aria-label={t('campaign:audio.trackTitleLabel')}
       />
       <input
         type="file"
         accept="audio/mpeg,audio/ogg"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        aria-label="Аудіо-файл (MP3 / OGG)"
+        aria-label={t('campaign:audio.fileLabel')}
         required
       />
       <label>
@@ -83,10 +79,10 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
           checked={loop}
           onChange={(e) => setLoop(e.target.checked)}
         />
-        Loop
+        {t('campaign:audio.loopLabel')}
       </label>
       <label className="audio-upload__fade">
-        Fade {fadeMs} мс
+        {t('campaign:audio.fadeLabel', { ms: fadeMs })}
         <input
           type="range"
           min={0}
@@ -94,7 +90,7 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
           step={100}
           value={fadeMs}
           onChange={(e) => setFadeMs(Number(e.target.value))}
-          aria-label="Тривалість fade-in/out у мілісекундах"
+          aria-label={t('campaign:audio.fadeAriaLabel')}
         />
       </label>
       <label>
@@ -104,10 +100,10 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
           disabled={!sceneId}
           onChange={(e) => setBindScene(e.target.checked)}
         />
-        Прив'язати до активної сцени
+        {t('campaign:audio.bindSceneLabel')}
       </label>
       <button type="submit" disabled={busy}>
-        {busy ? 'Завантаження…' : 'Завантажити'}
+        {busy ? t('campaign:audio.uploading') : t('campaign:audio.uploadBtn')}
       </button>
       {error && <p className="audio-upload__error">{error}</p>}
     </form>
