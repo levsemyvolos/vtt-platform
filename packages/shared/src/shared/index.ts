@@ -4,6 +4,15 @@ export type ChatMode = 'normal' | 'ic' | 'ooc' | 'whisper' | 'secret_roll';
 
 export type DiceMode = 'normal' | 'advantage' | 'disadvantage' | 'secret';
 
+export type StatusMarker =
+  | 'poisoned' | 'stunned' | 'prone' | 'blinded' | 'charmed' | 'frightened'
+  | 'grappled' | 'incapacitated' | 'paralyzed' | 'petrified' | 'restrained' | 'unconscious';
+
+export const ALL_STATUS_MARKERS: readonly StatusMarker[] = [
+  'poisoned', 'stunned', 'prone', 'blinded', 'charmed', 'frightened',
+  'grappled', 'incapacitated', 'paralyzed', 'petrified', 'restrained', 'unconscious',
+];
+
 /**
  * Public projection of Token (algorithm A6 RBAC-projection, §2.17).
  * Observer never receives `hp` / `statusMarkers`; hidden tokens are filtered out
@@ -18,10 +27,15 @@ export interface TokenPublicDTO {
   imageUrl: string;
   /** Monotonic OCC version per algorithm A2 (§2.17). */
   version: number;
-  /** Present only for GM and the assigned player; omitted for Observer. */
+  color?: string;
+  /** GM and token owner only */
   hp?: number;
-  /** Present only for GM and the assigned player; omitted for Observer. */
-  statusMarkers?: string[];
+  /** GM and token owner only */
+  maxHp?: number;
+  /** GM and token owner only */
+  statusMarkers?: StatusMarker[];
+  /** Visible to all — needed for R1 player-drag-own-token check */
+  assignedUserId?: string | null;
 }
 
 export interface AssetDTO {

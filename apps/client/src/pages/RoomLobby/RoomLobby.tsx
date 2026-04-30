@@ -160,7 +160,7 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
       <div className="game-room__layout">
         <main className="game-room__canvas">
           {scene ? (
-            <GameCanvas scene={scene} myRole={myRole} />
+            <GameCanvas scene={scene} myRole={myRole} myUserId={currentUser?.id ?? ''} />
           ) : (
             <div className="game-room__canvas-placeholder">
               {hydrating

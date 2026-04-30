@@ -11,6 +11,7 @@ import AddTokenButton from './AddTokenButton';
 export interface GameCanvasProps {
   scene: SceneDTO;
   myRole: Role;
+  myUserId: string;
   /** Optional URL for the scene background bitmap (Ф2.2.5). */
   backgroundUrl?: string;
 }
@@ -32,6 +33,7 @@ const ZOOM_STEP = 1.08;
 export default function GameCanvas({
   scene,
   myRole,
+  myUserId,
   backgroundUrl,
 }: GameCanvasProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,6 +95,7 @@ export default function GameCanvas({
           tokens={scene.tokens}
           gridSize={scene.gridSize}
           myRole={myRole}
+          myUserId={myUserId}
         />
         <AnnotationLayer />
         <FogOfWarLayer

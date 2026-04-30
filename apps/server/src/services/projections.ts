@@ -7,6 +7,7 @@ import type {
   Role,
   ChatMode,
   DiceMode,
+  StatusMarker,
 } from '@vtt/shared';
 
 /**
@@ -41,10 +42,13 @@ export function projectToken(
     sceneId: token.sceneId,
     imageUrl: token.imageAssetId ? `/assets/${token.imageAssetId}` : '',
     version: token.version,
+    color: token.color ?? '#7c5cff',
+    assignedUserId: token.assignedUserId,
   };
   if (seesPrivateFields) {
     if (token.hp !== null) dto.hp = token.hp;
-    dto.statusMarkers = token.statusMarkers;
+    if (token.maxHp !== null) dto.maxHp = token.maxHp;
+    dto.statusMarkers = token.statusMarkers as StatusMarker[];
   }
   return dto;
 }

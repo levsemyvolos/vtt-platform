@@ -1,45 +1,88 @@
-import { Layer, Group, Image as KonvaImage, Rect, Text } from 'react-konva';
+import { useState } from 'react';
+import { Layer, Group, Image as KonvaImage, Rect, Text, Circle } from 'react-konva';
 import type Konva from 'konva';
-import type { Role, TokenPublicDTO } from '@vtt/shared';
+import type { Role, TokenPublicDTO, StatusMarker } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import { moveTokenOptimistic, applyTokenRollback } from '../../../store/scene';
 import { emitTokenMove } from '../../../api/socket';
 import { useImage } from '../useImage';
+import HpBar from '../HpBar';
+import TokenEditModal from '../../Token/TokenEditModal';
+import TokenContextMenu from '../../Token/TokenContextMenu';
 
 interface TokenLayerProps {
   sceneId: string;
   tokens: TokenPublicDTO[];
   gridSize: number;
   myRole: Role;
+  myUserId: string;
 }
+
+const STATUS_COLORS: Record<StatusMarker, string> = {
+  poisoned: '#51cf66', stunned: '#339af0', prone: '#868e96',
+  blinded: '#212529', charmed: '#f783ac', frightened: '#ff6b6b',
+  grappled: '#f76707', incapacitated: '#e9ecef', paralyzed: '#74c0fc',
+  petrified: '#adb5bd', restrained: '#fd7e14', unconscious: '#495057',
+};
 
 /**
  * Middle layer (Ф3.1, Ф3.2). Renders all RBAC-projected tokens received from
  * the server (algorithm A6 already filtered hidden ones upstream).
  *
- * Drag policy: only GM may drag any token. Player drag of own tokens (Ф3.2.2)
- * is blocked here — `TokenPublicDTO` does not yet expose `assignedPlayerId`
- * so the client cannot make that decision; tracked as roadmap item along with
- * the necessary server change to `@vtt/shared`.
+ * Drag policy (Ф3.2.2): GM may drag any token; Player may drag only their
+ * own token (determined by `assignedUserId === myUserId`).
+ *
+ * Context menu and edit modal are GM-only (rendered outside <Layer> to avoid
+ * DOM-inside-Konva constraint).
  */
 export default function TokenLayer({
-  sceneId,
-  tokens,
-  gridSize,
-  myRole,
+  sceneId, tokens, gridSize, myRole, myUserId,
 }: TokenLayerProps): JSX.Element {
+  const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
+  const [editTokenId, setEditTokenId] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ tokenId: string; x: number; y: number } | null>(null);
+
   return (
-    <Layer>
-      {tokens.map((token) => (
-        <TokenNode
-          key={token.id}
-          token={token}
-          sceneId={sceneId}
-          gridSize={gridSize}
-          draggable={myRole === 'GM'}
+    <>
+      <Layer>
+        {ghost && (
+          <Rect
+            x={ghost.x} y={ghost.y}
+            width={gridSize} height={gridSize}
+            fill="#ffffff" opacity={0.25} cornerRadius={4} listening={false}
+          />
+        )}
+        {tokens.map((token) => (
+          <TokenNode
+            key={token.id}
+            token={token}
+            sceneId={sceneId}
+            gridSize={gridSize}
+            draggable={myRole === 'GM' || token.assignedUserId === myUserId}
+            onGhostMove={setGhost}
+            onGhostEnd={() => setGhost(null)}
+            onEditClick={myRole === 'GM' ? setEditTokenId : undefined}
+            onContextMenu={
+              myRole === 'GM'
+                ? (id, x, y) => setCtxMenu({ tokenId: id, x, y })
+                : undefined
+            }
+          />
+        ))}
+      </Layer>
+      {editTokenId && (
+        <TokenEditModal tokenId={editTokenId} onClose={() => setEditTokenId(null)} />
+      )}
+      {ctxMenu && (
+        <TokenContextMenu
+          tokenId={ctxMenu.tokenId}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onEdit={() => setEditTokenId(ctxMenu.tokenId)}
+          onClose={() => setCtxMenu(null)}
         />
-      ))}
-    </Layer>
+      )}
+    </>
   );
 }
 
@@ -48,28 +91,38 @@ interface TokenNodeProps {
   sceneId: string;
   gridSize: number;
   draggable: boolean;
+  onGhostMove: (pos: { x: number; y: number }) => void;
+  onGhostEnd: () => void;
+  onEditClick: ((id: string) => void) | undefined;
+  onContextMenu: ((id: string, x: number, y: number) => void) | undefined;
 }
 
-function TokenNode({ token, sceneId, gridSize, draggable }: TokenNodeProps): JSX.Element {
+function TokenNode({
+  token, sceneId, gridSize, draggable,
+  onGhostMove, onGhostEnd, onEditClick, onContextMenu,
+}: TokenNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
   const sceneVersion = useAppSelector((s) => s.scene.version);
   const image = useImage(token.imageUrl);
+  const tokenColor = token.color ?? '#7c5cff';
 
   const px = token.x * gridSize;
   const py = token.y * gridSize;
 
-  function snap(value: number, max: number): number {
-    const cell = Math.round(value / gridSize);
-    if (cell < 0) return 0;
-    if (cell > max) return max;
-    return cell;
+  function snap(value: number): number {
+    return Math.max(0, Math.round(value / gridSize));
+  }
+
+  function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
+    const node = e.target;
+    onGhostMove({ x: snap(node.x()) * gridSize, y: snap(node.y()) * gridSize });
   }
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
+    onGhostEnd();
     const node = e.target;
-    const targetCellX = snap(node.x(), Number.MAX_SAFE_INTEGER);
-    const targetCellY = snap(node.y(), Number.MAX_SAFE_INTEGER);
-    // Snap visually — A2 still arbitrates authoritatively below.
+    const targetCellX = snap(node.x());
+    const targetCellY = snap(node.y());
     node.position({ x: targetCellX * gridSize, y: targetCellY * gridSize });
 
     const previousX = token.x;
@@ -83,58 +136,56 @@ function TokenNode({ token, sceneId, gridSize, draggable }: TokenNodeProps): JSX
       y: targetCellY,
       clientSeq: sceneVersion,
     }).catch(() => {
-      // Network or ack-timeout failure: revert to the pre-drag position so
-      // the user is not stuck looking at a position the server never saw.
-      dispatch(
-        applyTokenRollback({
-          tokenId: token.id,
-          x: previousX,
-          y: previousY,
-          version: token.version,
-        }),
-      );
+      dispatch(applyTokenRollback({
+        tokenId: token.id, x: previousX, y: previousY, version: token.version,
+      }));
     });
   }
 
+  const markers = (token.statusMarkers ?? []) as StatusMarker[];
+
   return (
     <Group
-      x={px}
-      y={py}
+      x={px} y={py}
       draggable={draggable}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
+      onClick={() => onEditClick?.(token.id)}
+      onContextMenu={(e) => {
+        e.evt.preventDefault();
+        const stage = e.target.getStage();
+        const pos = stage?.getPointerPosition();
+        if (pos) onContextMenu?.(token.id, pos.x, pos.y);
+      }}
       listening={true}
     >
       {image ? (
         <KonvaImage image={image} width={gridSize} height={gridSize} />
       ) : (
         <Rect
-          width={gridSize}
-          height={gridSize}
-          fill="#7c5cff"
-          stroke="#fff"
-          strokeWidth={2}
-          cornerRadius={4}
+          width={gridSize} height={gridSize}
+          fill={tokenColor} stroke="#fff" strokeWidth={2} cornerRadius={4}
         />
       )}
       <Text
-        text={token.name}
-        x={0}
-        y={gridSize}
-        width={gridSize}
-        align="center"
-        fill="#f5f5f7"
-        fontSize={11}
+        text={token.name} x={0} y={gridSize}
+        width={gridSize} align="center" fill="#f5f5f7" fontSize={11}
       />
       {token.hp !== undefined && (
-        <Text
-          text={`HP ${token.hp}`}
-          x={0}
-          y={-14}
-          width={gridSize}
-          align="center"
-          fill="#ff6b6b"
-          fontSize={11}
-        />
+        <HpBar hp={token.hp} maxHp={token.maxHp} gridSize={gridSize} />
+      )}
+      {markers.length > 0 && (
+        <Group y={gridSize - 10}>
+          {markers.slice(0, 8).map((m, i) => (
+            <Circle
+              key={m}
+              x={i * 10 + 5} y={5}
+              radius={4}
+              fill={STATUS_COLORS[m]}
+              stroke="#000" strokeWidth={0.5}
+            />
+          ))}
+        </Group>
       )}
     </Group>
   );

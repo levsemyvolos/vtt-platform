@@ -13,6 +13,8 @@ const baseToken: Token = {
   y: 0,
   name: 'Hero',
   hp: 12,
+  maxHp: null,
+  color: null,
   statusMarkers: [],
   isHidden: false,
   version: 5,
@@ -37,6 +39,7 @@ function makeTokenRepo(overrides: Partial<TokenRepository> = {}): TokenRepositor
     listBySceneId: vi.fn().mockResolvedValue([baseToken]),
     create: vi.fn(),
     updatePositionWithVersion: vi.fn(),
+    update: vi.fn().mockResolvedValue({ ...baseToken, version: 6 }),
     delete: vi.fn(),
     ...overrides,
   } as unknown as TokenRepository;

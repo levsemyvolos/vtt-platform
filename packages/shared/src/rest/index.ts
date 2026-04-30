@@ -126,5 +126,25 @@ export * from './notes';
 export * from './characters';
 export * from './initiative';
 
+// ---------- Чат 7.4 — token CRUD (Ф2.5) ----------
+export interface CreateTokenRequest {
+  name: string;
+  x: number;
+  y: number;
+  imageAssetId?: string;
+  color?: string;
+  assignedUserId?: string;
+}
+
+export interface UpdateTokenRequest {
+  name?: string;
+  hp?: number | null;
+  maxHp?: number | null;
+  color?: string;
+  statusMarkers?: string[];
+  assignedUserId?: string | null;
+  isHidden?: boolean;
+}
+
 // ---------- Чат 7.2 — музичний супровід (Ф6) ----------
 export * from './audio';
