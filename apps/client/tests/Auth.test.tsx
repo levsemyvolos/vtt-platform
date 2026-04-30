@@ -1,5 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+
+// vite.config.ts sets test.globals=false → @testing-library/react does NOT
+// auto-register afterEach(cleanup). Without this, components from previous
+// tests remain mounted in jsdom and `getByLabelText` finds duplicates.
+afterEach(cleanup);
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import type { ReactElement } from 'react';
