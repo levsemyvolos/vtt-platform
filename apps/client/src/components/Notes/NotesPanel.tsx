@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -15,11 +16,8 @@ interface NotesPanelProps {
   myRole: Role;
 }
 
-/**
- * Приватні нотатки GM (Ф9). Двопанельний редактор: textarea + Markdown-preview.
- * Доступна лише користувачам з роллю GM.
- */
 export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Element | null {
+  const { t } = useTranslation(['campaign', 'common']);
   const dispatch = useAppDispatch();
   const items = useAppSelector((s) => s.notes.items);
   const current = useAppSelector((s) => s.notes.current);
@@ -46,7 +44,7 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
 
   function onCreateNew(): void {
     void dispatch(
-      createNoteThunk({ roomId, req: { title: 'Нова нотатка', body: '' } }),
+      createNoteThunk({ roomId, req: { title: t('campaign:notes.newNoteTitle'), body: '' } }),
     );
   }
 
@@ -63,12 +61,12 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
   }
 
   return (
-    <section className="notes-panel" aria-label="GM notes">
+    <section className="notes-panel" aria-label={t('campaign:notes.panelAriaLabel')}>
       <aside className="notes-panel__list">
         <header className="notes-panel__list-header">
-          <h3>Нотатки</h3>
-          <button type="button" onClick={onCreateNew} aria-label="Створити нотатку">
-            + Створити
+          <h3>{t('campaign:notes.heading')}</h3>
+          <button type="button" onClick={onCreateNew} aria-label={t('campaign:notes.createAriaLabel')}>
+            {t('campaign:notes.createBtn')}
           </button>
         </header>
         <ul>
@@ -78,7 +76,7 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
               className={current?.id === n.id ? 'notes-panel__list-item--active' : ''}
             >
               <button type="button" onClick={() => dispatch(setCurrentNote(n))}>
-                {n.title || '(без назви)'}
+                {n.title || t('campaign:notes.untitled')}
               </button>
             </li>
           ))}
@@ -86,30 +84,30 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
       </aside>
       <div className="notes-panel__editor">
         {!current ? (
-          <p className="notes-panel__empty">Оберіть або створіть нотатку.</p>
+          <p className="notes-panel__empty">{t('campaign:notes.emptySelect')}</p>
         ) : (
           <>
             <input
               value={draftTitle}
               onChange={(e) => setDraftTitle(e.target.value)}
-              aria-label="Заголовок нотатки"
+              aria-label={t('campaign:notes.titleLabel')}
               className="notes-panel__title"
             />
             <div className="notes-panel__split">
               <textarea
                 value={draftBody}
                 onChange={(e) => setDraftBody(e.target.value)}
-                aria-label="Текст нотатки (Markdown)"
+                aria-label={t('campaign:notes.bodyLabel')}
                 className="notes-panel__textarea"
               />
-              <div className="notes-panel__preview" aria-label="Markdown preview">
+              <div className="notes-panel__preview" aria-label={t('campaign:notes.previewLabel')}>
                 <ReactMarkdown>{draftBody}</ReactMarkdown>
               </div>
             </div>
             <div className="notes-panel__actions">
-              <button type="button" onClick={onSave}>Зберегти</button>
+              <button type="button" onClick={onSave}>{t('common:btn.save')}</button>
               <button type="button" onClick={onDelete} className="notes-panel__delete">
-                Видалити
+                {t('common:btn.delete')}
               </button>
             </div>
           </>

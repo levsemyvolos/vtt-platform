@@ -1,4 +1,5 @@
 import { useRef, useState, type DragEvent, type ChangeEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AssetDTO } from '@vtt/shared';
 import {
   IMAGE_MAX_BYTES,
@@ -15,6 +16,7 @@ interface ImageUploadProps {
 }
 
 export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): JSX.Element {
+  const { t } = useTranslation(['room', 'errors']);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -23,10 +25,10 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
 
   function validateFile(file: File): string | null {
     if (!IMAGE_ALLOWED_MIME.includes(file.type as ImageMime)) {
-      return 'Лише PNG, JPEG або WebP';
+      return t('errors:validation.imageType');
     }
     if (file.size > IMAGE_MAX_BYTES) {
-      return `Файл перевищує ${(IMAGE_MAX_BYTES / 1024 / 1024).toFixed(0)} МБ`;
+      return t('errors:validation.imageSize', { mb: (IMAGE_MAX_BYTES / 1024 / 1024).toFixed(0) });
     }
     return null;
   }
@@ -40,17 +42,17 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
     setBusy(true);
     setError(null);
     try {
-      setProgress('Отримання URL…');
+      setProgress(t('room:asset.progressUrl'));
       const init = await initImageUpload({
         roomId,
         mimeType: file.type as ImageMime,
         size: file.size,
       });
 
-      setProgress('Завантаження…');
+      setProgress(t('room:asset.progressUpload'));
       await uploadBytesToGcs(init.uploadUrl, file);
 
-      setProgress('Збереження…');
+      setProgress(t('room:asset.progressSave'));
       const asset = await finalizeImageUpload({
         roomId,
         storageKey: init.storageKey,
@@ -61,7 +63,7 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
       setProgress(null);
       onUploaded(asset);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка завантаження');
+      setError(err instanceof Error ? err.message : t('errors:network.uploadFailed'));
     } finally {
       setBusy(false);
       setProgress(null);
@@ -92,7 +94,6 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
 
   function handleChange(e: ChangeEvent<HTMLInputElement>): void {
     handleFiles(e.target.files);
-    // Reset so re-selecting the same file triggers onChange next time
     if (inputRef.current) inputRef.current.value = '';
   }
 
@@ -102,20 +103,22 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      aria-label="Зона завантаження зображення"
+      aria-label={t('room:asset.dropZoneLabel')}
     >
       <p className="image-upload__hint">
-        Перетягніть зображення сюди або{' '}
+        {t('room:asset.dragHint')}{' '}
         <button
           type="button"
           className="image-upload__browse"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
         >
-          оберіть файл
+          {t('room:asset.browseBtn')}
         </button>
       </p>
-      <p className="image-upload__formats">PNG, JPEG, WebP · до {IMAGE_MAX_BYTES / 1024 / 1024} МБ</p>
+      <p className="image-upload__formats">
+        {t('room:asset.formatsHint', { mb: IMAGE_MAX_BYTES / 1024 / 1024 })}
+      </p>
 
       <input
         ref={inputRef}
@@ -124,7 +127,7 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
         onChange={handleChange}
         disabled={busy}
         style={{ display: 'none' }}
-        aria-label="Файл зображення"
+        aria-label={t('room:asset.fileInputLabel')}
       />
 
       {progress && <p className="image-upload__progress">{progress}</p>}

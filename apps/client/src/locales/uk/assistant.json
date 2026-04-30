@@ -1,0 +1,20 @@
+{
+  "panel": {
+    "dialogLabel": "GM AI Асистент",
+    "title": "GM Асистент",
+    "closeLabel": "Закрити"
+  },
+  "context": {
+    "npc-description": "NPC",
+    "scene-description": "Сцена",
+    "srd-lookup": "SRD",
+    "free-chat": "Вільний"
+  },
+  "input": {
+    "placeholder": "Запитайте GM-асистента… (Ctrl+Enter — відправити)",
+    "inputLabel": "Повідомлення GM-асистенту",
+    "sendBtn": "Відправити",
+    "sending": "Надсилання…",
+    "sendLabel": "Відправити"
+  }
+}

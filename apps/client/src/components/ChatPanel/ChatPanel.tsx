@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ChatMode } from '@vtt/shared';
 import { useAppSelector } from '../../store';
 import { emitChatMessage } from '../../api/socket';
@@ -7,18 +8,13 @@ interface ChatPanelProps {
   roomId: string;
 }
 
-const MODES: { value: ChatMode; label: string }[] = [
-  { value: 'ic', label: 'У ролі (IC)' },
-  { value: 'ooc', label: 'Поза роллю (OOC)' },
-  { value: 'whisper', label: 'Шепіт' },
-];
-
 /**
  * Chat with mode selector (IC / OOC / whisper). Whisper requires a recipientId
  * — entered as the userId of another room member. Dice rolls share the
  * messages list (rendered with their rollPayload).
  */
 export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
+  const { t } = useTranslation('room');
   const messages = useAppSelector((s) => s.chat.messages);
   const members = useAppSelector((s) => s.room.members);
   const [text, setText] = useState('');
@@ -43,8 +39,14 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
     }
   }
 
+  const MODES: { value: ChatMode; label: string }[] = [
+    { value: 'ic', label: t('chat.modes.ic') },
+    { value: 'ooc', label: t('chat.modes.ooc') },
+    { value: 'whisper', label: t('chat.modes.whisper') },
+  ];
+
   return (
-    <section className="chat-panel" aria-label="Chat panel">
+    <section className="chat-panel" aria-label={t('chat.panelLabel')}>
       <ul className="chat-panel__messages">
         {messages.map((m) => (
           <li key={m.id} className={`chat-panel__msg chat-panel__msg--${m.mode}`}>
@@ -65,7 +67,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
         <select
           value={mode}
           onChange={(e) => setMode(e.target.value as ChatMode)}
-          aria-label="Chat mode"
+          aria-label={t('chat.modeLabel')}
         >
           {MODES.map((m) => (
             <option key={m.value} value={m.value}>{m.label}</option>
@@ -75,10 +77,10 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
           <select
             value={recipientId}
             onChange={(e) => setRecipientId(e.target.value)}
-            aria-label="Whisper recipient"
+            aria-label={t('chat.recipientLabel')}
             required
           >
-            <option value="">— оберіть отримувача —</option>
+            <option value="">{t('chat.selectRecipient')}</option>
             {members.map((m) => (
               <option key={m.userId} value={m.userId}>{m.name}</option>
             ))}
@@ -88,10 +90,10 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Повідомлення…"
-          aria-label="Chat message input"
+          placeholder={t('chat.messagePlaceholder')}
+          aria-label={t('chat.panelLabel')}
         />
-        <button type="submit">Надіслати</button>
+        <button type="submit">{t('common:btn.send')}</button>
       </form>
       {error && <p className="chat-panel__error">{error}</p>}
     </section>

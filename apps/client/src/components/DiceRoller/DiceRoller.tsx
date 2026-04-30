@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DiceBox from '@3d-dice/dice-box';
 import type { DiceMode } from '@vtt/shared';
 import { useAppSelector } from '../../store';
@@ -17,6 +18,7 @@ interface DiceRollerProps {
  * render text-only (no animation) — the protocol does NOT replicate physics.
  */
 export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
+  const { t } = useTranslation('room');
   const containerRef = useRef<HTMLDivElement>(null);
   const dbRef = useRef<DiceBox | null>(null);
   const [expression, setExpression] = useState('1d20');
@@ -29,7 +31,6 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
 
   useEffect(() => {
     if (!containerRef.current || dbRef.current) return;
-    // dice-box requires a CSS selector string, not an HTMLElement.
     const selector = `#${containerRef.current.id}`;
     const box = new DiceBox(selector, {
       assetPath: '/assets/dice-box/',
@@ -42,7 +43,6 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
         dbRef.current = box;
       })
       .catch(() => {
-        // dice-box assets may not be served in unit-test / SSR contexts; degrade gracefully
         dbRef.current = null;
       });
     return () => {
@@ -55,19 +55,24 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
     setError(null);
     try {
       const result = await emitDiceRoll({ roomId, expression, mode });
-      // local 3D animation — fire-and-forget
       const box = dbRef.current;
       if (box) {
         try { box.clear(); await box.roll(expression); } catch { /* visual only */ }
       }
-      // store update arrives via the chat:dice listener in api/socket.ts
       void result;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Roll failed');
+      setError(err instanceof Error ? err.message : t('errors:network.rollFailed'));
     } finally {
       setBusy(false);
     }
   }
+
+  const MODES: { value: DiceMode; label: string }[] = [
+    { value: 'normal', label: t('dice.modes.normal') },
+    { value: 'advantage', label: t('dice.modes.advantage') },
+    { value: 'disadvantage', label: t('dice.modes.disadvantage') },
+    { value: 'secret', label: t('dice.modes.secret') },
+  ];
 
   return (
     <section className="dice-roller">
@@ -79,31 +84,32 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
       />
       <div className="dice-roller__controls">
         <input
-          aria-label="Dice formula"
+          aria-label={t('dice.formulaLabel')}
           value={expression}
           onChange={(e) => setExpression(e.target.value)}
           placeholder="2d6+3"
         />
         <select
-          aria-label="Dice mode"
+          aria-label={t('dice.modeLabel')}
           value={mode}
           onChange={(e) => setMode(e.target.value as DiceMode)}
         >
-          <option value="normal">Звичайний</option>
-          <option value="advantage">Перевага</option>
-          <option value="disadvantage">Недолік</option>
-          <option value="secret">Прихований (тільки ВМ)</option>
+          {MODES.map((m) => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
         </select>
         <button onClick={handleRoll} disabled={busy}>
-          Кинути
+          {t('dice.rollBtn')}
         </button>
       </div>
       {error && <p className="dice-roller__error">{error}</p>}
       {lastDice?.rollPayload && (
         <p className="dice-roller__last">
-          Останній: <strong>{lastDice.rollPayload.expression}</strong> ={' '}
-          <strong>{lastDice.rollPayload.total}</strong>{' '}
-          ({lastDice.rollPayload.rolls.join(', ')})
+          {t('dice.lastRoll', {
+            expression: lastDice.rollPayload.expression,
+            total: lastDice.rollPayload.total,
+            rolls: lastDice.rollPayload.rolls.join(', '),
+          })}
         </p>
       )}
     </section>

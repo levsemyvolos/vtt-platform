@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface SpellEntry {
   name: string;
@@ -12,12 +13,8 @@ interface SpellsListProps {
   onChange: (spells: SpellEntry[]) => void;
 }
 
-/**
- * Мінімальний список заклинань D&D 5e (R-Spells-Minimal). Підтримує
- * Add / Edit / Delete по кожному заклинанню; slots/components/ritual —
- * у R-Spells-Full (Roadmap).
- */
 export default function SpellsList({ spells, readOnly, onChange }: SpellsListProps): JSX.Element {
+  const { t } = useTranslation(['campaign', 'common']);
   const [editing, setEditing] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState<SpellEntry>({ name: '', level: 0, description: '' });
@@ -60,8 +57,10 @@ export default function SpellsList({ spells, readOnly, onChange }: SpellsListPro
 
   return (
     <fieldset className="spells-list">
-      <legend>Spells</legend>
-      {spells.length === 0 && <p className="spells-list__empty">Заклинань немає.</p>}
+      <legend>{t('campaign:character.spells')}</legend>
+      {spells.length === 0 && (
+        <p className="spells-list__empty">{t('campaign:character.spellsEmpty')}</p>
+      )}
       <ul className="spells-list__items">
         {spells.map((spell, idx) => (
           <li key={idx} className="spells-list__item">
@@ -75,14 +74,14 @@ export default function SpellsList({ spells, readOnly, onChange }: SpellsListPro
                 <button
                   type="button"
                   onClick={() => openEdit(idx)}
-                  aria-label={`Редагувати ${spell.name}`}
+                  aria-label={t('campaign:character.spellEditLabel', { name: spell.name })}
                 >
                   ✎
                 </button>
                 <button
                   type="button"
                   onClick={() => onDelete(idx)}
-                  aria-label={`Видалити ${spell.name}`}
+                  aria-label={t('campaign:character.spellDeleteLabel', { name: spell.name })}
                 >
                   ×
                 </button>
@@ -97,41 +96,45 @@ export default function SpellsList({ spells, readOnly, onChange }: SpellsListPro
           <input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="Назва"
-            aria-label="Назва заклинання"
+            placeholder={t('campaign:character.spellNameLabel')}
+            aria-label={t('campaign:character.spellNameLabel')}
             required
           />
           <select
             value={form.level}
             onChange={(e) => setForm((f) => ({ ...f, level: Number(e.target.value) as SpellEntry['level'] }))}
-            aria-label="Рівень заклинання"
+            aria-label={t('campaign:character.spellLevelLabel')}
           >
             {([0, 1, 2, 3, 4, 5, 6, 7, 8, 9] as const).map((l) => (
               <option key={l} value={l}>
-                {l === 0 ? 'Cantrip' : `Level ${l}`}
+                {l === 0
+                  ? t('campaign:character.spellCantrip')
+                  : t('campaign:character.spellLevel', { level: l })}
               </option>
             ))}
           </select>
           <textarea
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Опис (необов'язково)"
-            aria-label="Опис заклинання"
+            placeholder={t('campaign:character.spellDescPlaceholder')}
+            aria-label={t('campaign:character.spellDescLabel')}
             rows={2}
           />
-          <button type="submit">{editing !== null ? 'Зберегти' : 'Додати'}</button>
+          <button type="submit">
+            {editing !== null ? t('common:btn.save') : t('common:btn.add')}
+          </button>
           <button
             type="button"
             onClick={() => { setEditing(null); setAddOpen(false); }}
           >
-            Скасувати
+            {t('common:btn.cancel')}
           </button>
         </form>
       )}
 
       {!readOnly && !addOpen && editing === null && (
         <button type="button" onClick={openAdd} className="spells-list__add">
-          + Заклинання
+          {t('campaign:character.addSpellBtn')}
         </button>
       )}
     </fieldset>

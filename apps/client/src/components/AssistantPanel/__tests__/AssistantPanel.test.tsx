@@ -24,9 +24,9 @@ describe('AssistantPanel (Ф8.1)', () => {
       </Provider>,
     );
     expect(screen.getByRole('tab', { name: 'NPC' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Scene' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Сцена' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'SRD' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Free' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Вільний' })).toBeTruthy();
   });
 
   it('switches active context when tab is clicked', () => {
@@ -36,7 +36,7 @@ describe('AssistantPanel (Ф8.1)', () => {
         <AssistantPanel roomId={ROOM_ID} onClose={vi.fn()} />
       </Provider>,
     );
-    const sceneTab = screen.getByRole('tab', { name: 'Scene' });
+    const sceneTab = screen.getByRole('tab', { name: 'Сцена' });
     fireEvent.click(sceneTab);
     expect(store.getState().assistant.activeContext).toBe('scene-description');
   });

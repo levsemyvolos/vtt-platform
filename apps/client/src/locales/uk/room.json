@@ -1,0 +1,151 @@
+{
+  "dashboard": {
+    "heading": "Ігрові кімнати",
+    "createBtn": "+ Нова кімната",
+    "noRooms": "Кімнат ще немає. Створіть першу!",
+    "membersCount": "{{count}} учасників",
+    "newRoomHeading": "Нова кімната",
+    "formLabel": "форма нової кімнати"
+  },
+  "status": {
+    "lobby": "Лобі",
+    "active": "Активна",
+    "closed": "Закрита"
+  },
+  "roles": {
+    "GM": "Ведучий",
+    "Player": "Гравець",
+    "Observer": "Спостерігач"
+  },
+  "lobby": {
+    "backBtn": "← Назад",
+    "membersHeading": "Учасники ({{count}})",
+    "characterAttached": "Персонаж прикріплено",
+    "startSession": "Розпочати сесію",
+    "joinSession": "Приєднатися до сесії",
+    "yourRole": "Ваша роль:",
+    "exitBtn": "← Вийти",
+    "roleLabel": "Роль:",
+    "sessionLoading": "Завантаження сцени…",
+    "sessionError": "Помилка: {{message}}",
+    "noActiveScene": "Активної сцени ще немає. Створіть сцену через REST POST /rooms/:id/scenes."
+  },
+  "scenes": {
+    "heading": "Сцени",
+    "createBtn": "+ Створити сцену",
+    "activeBadge": "Активна",
+    "activateBtn": "Активувати",
+    "activating": "…",
+    "currentActiveBadgeTitle": "Поточна активна сцена",
+    "alreadyActive": "Ця сцена вже активна",
+    "makeActive": "Зробити активною",
+    "noScenesGM": "Сцен немає — створіть першу!",
+    "noScenesPlayer": "Сцен ще немає.",
+    "modal": {
+      "heading": "Нова сцена",
+      "dialogLabel": "Нова сцена",
+      "sceneName": "Назва *",
+      "gridWidth": "Ширина (кліток)",
+      "gridHeight": "Висота (кліток)",
+      "gridSize": "Розмір клітинки (px)",
+      "formLabel": "форма нової сцени"
+    }
+  },
+  "chat": {
+    "panelLabel": "Чат",
+    "modes": {
+      "ic": "У ролі (IC)",
+      "ooc": "Поза роллю (OOC)",
+      "whisper": "Шепіт"
+    },
+    "messagePlaceholder": "Повідомлення…",
+    "selectRecipient": "— оберіть отримувача —",
+    "modeLabel": "Режим чату",
+    "recipientLabel": "Отримувач шепоту"
+  },
+  "dice": {
+    "formulaLabel": "Формула кидка",
+    "modeLabel": "Режим кидка",
+    "modes": {
+      "normal": "Звичайний",
+      "advantage": "Перевага",
+      "disadvantage": "Недолік",
+      "secret": "Прихований (тільки ВМ)"
+    },
+    "rollBtn": "Кинути",
+    "lastRoll": "Останній: {{expression}} = {{total}} ({{rolls}})"
+  },
+  "invite": {
+    "inviteBtn": "Запросити гравців",
+    "inviteBtnTitle": "Отримати посилання для запрошення гравців",
+    "playerLabel": "Гравець:",
+    "observerLabel": "Спостерігач:",
+    "copied": "Скопійовано!",
+    "copyBtn": "Скопіювати"
+  },
+  "token": {
+    "editHeading": "Редагувати токен",
+    "addBtn": "+ Токен",
+    "addTitle": "Додати токен на сцену",
+    "addLabel": "Додати токен",
+    "addModalLabel": "Новий токен",
+    "addModalHeading": "Додати токен",
+    "imageUrlLabel": "URL зображення",
+    "tokenFormLabel": "форма токену",
+    "adding": "Додавання…",
+    "addSubmitBtn": "Додати",
+    "tokenPlacedNote": "Токен буде розміщено в центрі сцени (позиція {{x}}, {{y}}).",
+    "colorLabel": "Колір",
+    "statusLabel": "Статуси",
+    "assignedPlayerLabel": "Призначений гравець",
+    "noAssigned": "— не призначено —"
+  },
+  "annotation": {
+    "pingTitle": "Ping — привернути увагу (Ф3.4.1)",
+    "drawTitle": "Малювання — TODO R3b (Ф3.4.2)",
+    "measureTitle": "Лінійка — TODO R3b (Ф3.4.3)"
+  },
+  "connection": {
+    "new": "Ініціалізація",
+    "connecting": "З'єднання...",
+    "disconnected": "Відключено",
+    "failed": "Помилка з'єднання",
+    "closed": "Закрито"
+  },
+  "mesh": {
+    "ceiling": "Ліміт з'єднань досягнуто — відео вимкнено, лише аудіо"
+  },
+  "asset": {
+    "loadingGallery": "Завантаження галереї…",
+    "empty": "Зображень ще немає. Завантажте перше через форму вище.",
+    "selectImage": "Обрати зображення {{name}}",
+    "galleryLabel": "Галерея зображень",
+    "dropZoneLabel": "Зона завантаження зображення",
+    "dragHint": "Перетягніть зображення сюди або",
+    "browseBtn": "оберіть файл",
+    "formatsHint": "PNG, JPEG, WebP · до {{mb}} МБ",
+    "fileInputLabel": "Файл зображення",
+    "progressUrl": "Отримання URL…",
+    "progressUpload": "Завантаження…",
+    "progressSave": "Збереження…"
+  },
+  "aiGenerate": {
+    "dialogLabel": "Генерація фону",
+    "heading": "Згенерувати фон сцени (AI)",
+    "promptLabel": "Опис сцени",
+    "promptPlaceholder": "Підземелля з кам'яними стінами та смолоскипами...",
+    "styleLabel": "Стиль",
+    "generateBtn": "Згенерувати",
+    "generating": "Генерація…",
+    "applyBg": "Використати як фон",
+    "applying": "Застосування…",
+    "previewAlt": "Згенерований фон",
+    "formLabel": "форма генерації фону",
+    "styles": {
+      "realistic": "Реалістичний",
+      "fantasy": "Фентезі",
+      "sci-fi": "Sci-Fi",
+      "cartoon": "Мультяшний"
+    }
+  }
+}

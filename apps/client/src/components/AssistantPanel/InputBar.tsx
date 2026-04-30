@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface InputBarProps {
   onSend: (text: string) => void;
@@ -6,6 +7,7 @@ interface InputBarProps {
 }
 
 export default function InputBar({ onSend, disabled }: InputBarProps): JSX.Element {
+  const { t } = useTranslation('assistant');
   const [text, setText] = useState('');
 
   function handleSend() {
@@ -29,19 +31,19 @@ export default function InputBar({ onSend, disabled }: InputBarProps): JSX.Eleme
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Запитайте GM-асистента… (Ctrl+Enter — відправити)"
+        placeholder={t('input.placeholder')}
         rows={3}
         disabled={disabled}
-        aria-label="Повідомлення GM-асистенту"
+        aria-label={t('input.inputLabel')}
       />
       <button
         type="button"
         className="assistant-panel__send-btn"
         onClick={handleSend}
         disabled={disabled || !text.trim()}
-        aria-label="Відправити"
+        aria-label={t('input.sendLabel')}
       >
-        {disabled ? 'Надсилання…' : 'Відправити'}
+        {disabled ? t('input.sending') : t('input.sendBtn')}
       </button>
     </div>
   );

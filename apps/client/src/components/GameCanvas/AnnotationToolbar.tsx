@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 export type AnnotationTool = 'ping' | 'draw' | 'measure';
 
 interface Props {
@@ -12,12 +14,13 @@ interface Props {
  * Draw (Ф3.4.2) and Measure (Ф3.4.3) — closed, deferred to roadmap R3b.
  */
 export default function AnnotationToolbar({ activeTool, onChange }: Props): JSX.Element {
+  const { t } = useTranslation('room');
   return (
     <div className="annotation-toolbar">
       <button
         className={`annotation-btn${activeTool === 'ping' ? ' active' : ''}`}
         onClick={() => onChange('ping')}
-        title="Ping — привернути увагу (Ф3.4.1)"
+        title={t('annotation.pingTitle')}
         aria-pressed={activeTool === 'ping'}
       >
         ⊕ Ping
@@ -25,14 +28,14 @@ export default function AnnotationToolbar({ activeTool, onChange }: Props): JSX.
       <button
         className="annotation-btn"
         disabled
-        title="Малювання — TODO R3b (Ф3.4.2)"
+        title={t('annotation.drawTitle')}
       >
         ✏ Draw
       </button>
       <button
         className="annotation-btn"
         disabled
-        title="Лінійка — TODO R3b (Ф3.4.3)"
+        title={t('annotation.measureTitle')}
       >
         📐 Measure
       </button>

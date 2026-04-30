@@ -1,0 +1,20 @@
+{
+  "panel": {
+    "dialogLabel": "GM AI Assistant",
+    "title": "GM Assistant",
+    "closeLabel": "Close"
+  },
+  "context": {
+    "npc-description": "NPC",
+    "scene-description": "Scene",
+    "srd-lookup": "SRD",
+    "free-chat": "Free"
+  },
+  "input": {
+    "placeholder": "Ask the GM assistant… (Ctrl+Enter — send)",
+    "inputLabel": "Message to GM assistant",
+    "sendBtn": "Send",
+    "sending": "Sending…",
+    "sendLabel": "Send"
+  }
+}

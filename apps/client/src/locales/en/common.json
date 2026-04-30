@@ -1,0 +1,34 @@
+{
+  "btn": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "creating": "Creating…",
+    "back": "Back",
+    "logout": "Logout",
+    "open": "Open",
+    "close": "Close",
+    "send": "Send",
+    "activate": "Activate",
+    "add": "Add"
+  },
+  "label": {
+    "name": "Name",
+    "description": "Description",
+    "status": "Status",
+    "password": "Password",
+    "email": "Email",
+    "gameSystem": "Game System",
+    "volume": "Volume",
+    "role": "Role"
+  },
+  "status": {
+    "loading": "Loading…",
+    "active": "Active",
+    "closed": "Closed",
+    "lobby": "Lobby"
+  }
+}

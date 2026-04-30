@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store';
 import { removeToken } from '../../store/scene';
 import { apiDeleteToken } from '../../api/scenes';
@@ -15,6 +16,7 @@ export default function TokenContextMenu({
   tokenId, x, y, onEdit, onClose,
 }: TokenContextMenuProps): JSX.Element {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(['room', 'common']);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,9 +49,11 @@ export default function TokenContextMenu({
 
   return (
     <div ref={ref} style={menuStyle}>
-      <button style={itemStyle} onClick={() => { onEdit(); onClose(); }}>Редагувати</button>
+      <button style={itemStyle} onClick={() => { onEdit(); onClose(); }}>
+        {t('common:btn.edit')}
+      </button>
       <button style={{ ...itemStyle, color: '#ff6b6b' }} onClick={() => void handleDelete()}>
-        Видалити
+        {t('common:btn.delete')}
       </button>
     </div>
   );

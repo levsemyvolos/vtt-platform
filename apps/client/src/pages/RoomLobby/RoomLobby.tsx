@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { RoomDTO, Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearRoom } from '../../store/room';
@@ -10,14 +11,9 @@ import DiceRoller from '../../components/DiceRoller/DiceRoller';
 import SceneManager from '../../components/SceneManager/SceneManager';
 import InviteLink from '../../components/InviteLink/InviteLink';
 
-const ROLE_LABEL = {
-  GM: 'Ведучий',
-  Player: 'Гравець',
-  Observer: 'Спостерігач',
-} as const;
-
 export default function RoomLobby(): JSX.Element | null {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation('room');
   const { currentRoom, members } = useAppSelector((s) => s.room);
   const { currentUser } = useAppSelector((s) => s.session);
   const [sessionStarted, setSessionStarted] = useState(false);
@@ -38,9 +34,6 @@ export default function RoomLobby(): JSX.Element | null {
     setSessionStarted(false);
   };
 
-  // Local toggle: a proper room-status transition (lobby → active) is server
-  // work and does not yet have a REST endpoint — tracked for a follow-up
-  // server-side chat. For Etap 1 MVP the GM flips the view client-side.
   const handleStartSession = (): void => setSessionStarted(true);
 
   if (sessionStarted) {
@@ -58,7 +51,7 @@ export default function RoomLobby(): JSX.Element | null {
     <div className="room-lobby">
       <header className="lobby-header">
         <button type="button" className="btn-back" onClick={handleLeave}>
-          ← Назад
+          {t('lobby.backBtn')}
         </button>
         <div>
           <h1>{currentRoom.name}</h1>
@@ -66,7 +59,7 @@ export default function RoomLobby(): JSX.Element | null {
         </div>
         <div className="lobby-header__right">
           <span className={`lobby-status status--${currentRoom.status}`}>
-            {currentRoom.status}
+            {t(`status.${currentRoom.status}`)}
           </span>
           <InviteLink roomId={currentRoom.id} />
         </div>
@@ -75,16 +68,16 @@ export default function RoomLobby(): JSX.Element | null {
       <SceneManager roomId={currentRoom.id} myRole={myRole} />
 
       <section className="members-section">
-        <h2>Учасники ({members.length})</h2>
+        <h2>{t('lobby.membersHeading', { count: members.length })}</h2>
         <ul className="member-list">
           {members.map((member) => (
             <li key={member.userId} className="member-card">
               <span className={`role-badge role--${member.role.toLowerCase()}`}>
-                {ROLE_LABEL[member.role]}
+                {t(`roles.${member.role}`)}
               </span>
               <span className="member-name">{member.name}</span>
               {member.characterId && (
-                <span className="character-badge" title="Персонаж прикріплено">
+                <span className="character-badge" title={t('lobby.characterAttached')}>
                   ♟
                 </span>
               )}
@@ -96,14 +89,14 @@ export default function RoomLobby(): JSX.Element | null {
       {(isGM || currentRoom.status === 'active') && (
         <div className="gm-controls">
           <button type="button" className="btn-start" onClick={handleStartSession}>
-            {isGM ? 'Розпочати сесію' : 'Приєднатися до сесії'}
+            {isGM ? t('lobby.startSession') : t('lobby.joinSession')}
           </button>
         </div>
       )}
 
       {myMember && (
         <footer className="lobby-footer">
-          Ваша роль: <strong>{ROLE_LABEL[myMember.role]}</strong>
+          {t('lobby.yourRole')} <strong>{t(`roles.${myMember.role}`)}</strong>
         </footer>
       )}
     </div>
@@ -120,12 +113,11 @@ interface SessionViewProps {
 function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps): JSX.Element {
   const scene = useAppSelector((s) => s.scene.current);
   const { currentUser } = useAppSelector((s) => s.session);
+  const { t } = useTranslation(['room', 'errors']);
   const [hydrating, setHydrating] = useState(false);
   const [hydrateError, setHydrateError] = useState<string | null>(null);
 
-  // Connect socket → join room → request A3 resync (single round-trip
-  // hydrates scene + chat + initiatives). Runs once when the session view
-  // mounts.
+  // Connect socket → join room → request A3 resync. Runs once when the session view mounts.
   useEffect(() => {
     let cancelled = false;
     setHydrating(true);
@@ -137,7 +129,7 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
         await emitSessionResync(room.id);
       } catch (err) {
         if (!cancelled) {
-          setHydrateError(err instanceof Error ? err.message : 'Не вдалося приєднатися до сесії');
+          setHydrateError(err instanceof Error ? err.message : t('errors:network.joinFailed'));
         }
       } finally {
         if (!cancelled) setHydrating(false);
@@ -146,16 +138,18 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
     return () => {
       cancelled = true;
     };
-  }, [room.id]);
+  }, [room.id, t]);
 
   return (
     <div className="game-room">
       <header className="game-room__header">
         <button type="button" className="btn-back" onClick={onLeave}>
-          ← Вийти
+          {t('room:lobby.exitBtn')}
         </button>
         <h1>{room.name}</h1>
-        <span className="game-room__role">Роль: {ROLE_LABEL[myRole]}</span>
+        <span className="game-room__role">
+          {t('room:lobby.roleLabel')} {t(`room:roles.${myRole}`)}
+        </span>
       </header>
       <div className="game-room__layout">
         <main className="game-room__canvas">
@@ -164,10 +158,10 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
           ) : (
             <div className="game-room__canvas-placeholder">
               {hydrating
-                ? 'Завантаження сцени…'
+                ? t('room:lobby.sessionLoading')
                 : hydrateError
-                  ? `Помилка: ${hydrateError}`
-                  : 'Активної сцени ще немає. Створіть сцену через REST POST /rooms/:id/scenes.'}
+                  ? t('room:lobby.sessionError', { message: hydrateError })
+                  : t('room:lobby.noActiveScene')}
             </div>
           )}
         </main>

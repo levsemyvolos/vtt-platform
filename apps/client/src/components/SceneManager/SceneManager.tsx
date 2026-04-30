@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { loadScenes, activateScene } from '../../store/scenes';
@@ -11,6 +12,7 @@ interface SceneManagerProps {
 
 export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX.Element {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(['room', 'common']);
   const { list, status, error } = useAppSelector((s) => s.scenes);
   const [showCreate, setShowCreate] = useState(false);
   const [activating, setActivating] = useState<string | null>(null);
@@ -34,20 +36,20 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
   return (
     <section className="scene-manager">
       <div className="scene-manager__header">
-        <h3>Сцени</h3>
+        <h3>{t('room:scenes.heading')}</h3>
         {isGM && (
           <button
             type="button"
             className="btn-add-scene"
             onClick={() => setShowCreate(true)}
           >
-            + Створити сцену
+            {t('room:scenes.createBtn')}
           </button>
         )}
       </div>
 
       {status === 'loading' && (
-        <p className="scene-manager__status">Завантаження…</p>
+        <p className="scene-manager__status">{t('common:status.loading')}</p>
       )}
       {status === 'error' && (
         <p className="scene-manager__status scene-manager__status--error">{error}</p>
@@ -58,8 +60,11 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
           <li key={scene.id} className="scene-item">
             <span className="scene-item__name">{scene.name}</span>
             {scene.isActive && (
-              <span className="scene-item__badge scene-item__badge--active" title="Поточна активна сцена">
-                Активна
+              <span
+                className="scene-item__badge scene-item__badge--active"
+                title={t('room:scenes.currentActiveBadgeTitle')}
+              >
+                {t('room:scenes.activeBadge')}
               </span>
             )}
             {isGM && (
@@ -67,17 +72,17 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
                 type="button"
                 className="btn-activate"
                 disabled={scene.isActive || activating === scene.id}
-                title={scene.isActive ? 'Ця сцена вже активна' : 'Зробити активною'}
+                title={scene.isActive ? t('room:scenes.alreadyActive') : t('room:scenes.makeActive')}
                 onClick={() => void handleActivate(scene.id)}
               >
-                {activating === scene.id ? '…' : 'Активувати'}
+                {activating === scene.id ? t('room:scenes.activating') : t('room:scenes.activateBtn')}
               </button>
             )}
           </li>
         ))}
         {list.length === 0 && status === 'idle' && (
           <li className="scene-item scene-item--empty">
-            {isGM ? 'Сцен немає — створіть першу!' : 'Сцен ще немає.'}
+            {isGM ? t('room:scenes.noScenesGM') : t('room:scenes.noScenesPlayer')}
           </li>
         )}
       </ul>

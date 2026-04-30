@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store';
 import { createScene, loadScenes } from '../../store/scenes';
 
@@ -9,6 +10,7 @@ interface CreateSceneModalProps {
 
 export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalProps): JSX.Element {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation(['room', 'common', 'errors']);
   const [name, setName] = useState('');
   const [gridWidth, setGridWidth] = useState(24);
   const [gridHeight, setGridHeight] = useState(18);
@@ -17,10 +19,10 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
   const [error, setError] = useState<string | null>(null);
 
   function validate(): string | null {
-    if (!name.trim()) return "Назва сцени обов'язкова";
-    if (gridWidth < 1 || gridWidth > 100) return 'Ширина: від 1 до 100 кліток';
-    if (gridHeight < 1 || gridHeight > 100) return 'Висота: від 1 до 100 кліток';
-    if (gridSize < 20 || gridSize > 200) return 'Розмір клітинки: 20–200 px';
+    if (!name.trim()) return t('errors:validation.sceneNameRequired');
+    if (gridWidth < 1 || gridWidth > 100) return t('errors:validation.gridWidthRange');
+    if (gridHeight < 1 || gridHeight > 100) return t('errors:validation.gridHeightRange');
+    if (gridSize < 20 || gridSize > 200) return t('errors:validation.gridSizeRange');
     return null;
   }
 
@@ -37,23 +39,27 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
       await dispatch(
         createScene({ roomId, dto: { name: name.trim(), gridWidth, gridHeight, gridSize } }),
       ).unwrap();
-      // loadScenes is a safety refresh; createScene.fulfilled already pushes to list
       void dispatch(loadScenes(roomId));
       onClose();
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Помилка створення сцени');
+      setError(typeof err === 'string' ? err : t('errors:network.createFailed'));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Нова сцена" className="modal-backdrop">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('room:scenes.modal.dialogLabel')}
+      className="modal-backdrop"
+    >
       <div className="modal">
-        <h2>Нова сцена</h2>
-        <form onSubmit={(e) => void onSubmit(e)} aria-label="форма нової сцени" noValidate>
+        <h2>{t('room:scenes.modal.heading')}</h2>
+        <form onSubmit={(e) => void onSubmit(e)} aria-label={t('room:scenes.modal.formLabel')} noValidate>
           <div className="field">
-            <label htmlFor="scene-name">Назва *</label>
+            <label htmlFor="scene-name">{t('room:scenes.modal.sceneName')}</label>
             <input
               id="scene-name"
               type="text"
@@ -64,7 +70,7 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
             />
           </div>
           <div className="field">
-            <label htmlFor="scene-grid-width">Ширина (кліток)</label>
+            <label htmlFor="scene-grid-width">{t('room:scenes.modal.gridWidth')}</label>
             <input
               id="scene-grid-width"
               type="number"
@@ -75,7 +81,7 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
             />
           </div>
           <div className="field">
-            <label htmlFor="scene-grid-height">Висота (кліток)</label>
+            <label htmlFor="scene-grid-height">{t('room:scenes.modal.gridHeight')}</label>
             <input
               id="scene-grid-height"
               type="number"
@@ -86,7 +92,7 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
             />
           </div>
           <div className="field">
-            <label htmlFor="scene-grid-size">Розмір клітинки (px)</label>
+            <label htmlFor="scene-grid-size">{t('room:scenes.modal.gridSize')}</label>
             <input
               id="scene-grid-size"
               type="number"
@@ -105,10 +111,10 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
 
           <div className="modal__actions">
             <button type="button" onClick={onClose} disabled={busy}>
-              Скасувати
+              {t('common:btn.cancel')}
             </button>
             <button type="submit" disabled={busy}>
-              {busy ? 'Створення…' : 'Створити'}
+              {busy ? t('common:btn.creating') : t('common:btn.create')}
             </button>
           </div>
         </form>

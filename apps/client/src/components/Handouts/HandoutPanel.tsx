@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { HandoutDTO, Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
@@ -15,11 +16,6 @@ interface HandoutPanelProps {
   myRole: Role;
 }
 
-/**
- * Панель handouts (Ф7.4). GM керує створенням / grant / revoke / delete;
- * Player бачить лише видані йому матеріали; Observer не бачить панелі взагалі.
- * Grant використовує member-picker з GET /rooms/:id/members (R6 γ-variant).
- */
 export default function HandoutPanel({ roomId, myRole }: HandoutPanelProps): JSX.Element | null {
   const dispatch = useAppDispatch();
   const items = useAppSelector((s) => s.handouts.items);
@@ -47,6 +43,7 @@ interface GmViewProps {
 }
 
 function GmView({ roomId, items }: GmViewProps): JSX.Element {
+  const { t } = useTranslation(['campaign', 'common', 'errors']);
   const dispatch = useAppDispatch();
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
@@ -69,42 +66,42 @@ function GmView({ roomId, items }: GmViewProps): JSX.Element {
       setAssetId('');
       setShowCreate(false);
     } catch (err) {
-      setError(typeof err === 'string' ? err : 'Помилка створення');
+      setError(typeof err === 'string' ? err : t('errors:network.createFailed'));
     }
   }
 
   return (
-    <section className="handout-panel handout-panel--gm" aria-label="Handouts (GM)">
+    <section className="handout-panel handout-panel--gm" aria-label={t('campaign:handouts.gmAriaLabel')}>
       <header className="handout-panel__header">
-        <h3>Handouts</h3>
+        <h3>{t('campaign:handouts.heading')}</h3>
         <button type="button" onClick={() => setShowCreate((v) => !v)}>
-          {showCreate ? 'Скасувати' : '+ Створити'}
+          {showCreate ? t('common:btn.cancel') : t('campaign:handouts.createBtn')}
         </button>
       </header>
       {showCreate && (
-        <form onSubmit={onCreate} className="handout-panel__form">
+        <form onSubmit={(e) => void onCreate(e)} className="handout-panel__form">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Заголовок"
-            aria-label="Заголовок handout"
+            placeholder={t('campaign:handouts.titlePlaceholder')}
+            aria-label={t('campaign:handouts.titleAriaLabel')}
             required
           />
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Текст (Markdown)"
-            aria-label="Тіло handout"
+            placeholder={t('campaign:handouts.bodyPlaceholder')}
+            aria-label={t('campaign:handouts.bodyAriaLabel')}
             rows={4}
             required
           />
           <input
             value={assetId}
             onChange={(e) => setAssetId(e.target.value)}
-            placeholder="assetId (необов'язково)"
-            aria-label="assetId (необов'язково)"
+            placeholder={t('campaign:handouts.assetIdPlaceholder')}
+            aria-label={t('campaign:handouts.assetIdAriaLabel')}
           />
-          <button type="submit">Створити</button>
+          <button type="submit">{t('common:btn.create')}</button>
         </form>
       )}
       {error && <p className="handout-panel__error">{error}</p>}
@@ -124,6 +121,7 @@ function GmHandoutCard({
   handout: HandoutDTO;
   roomId: string;
 }): JSX.Element {
+  const { t } = useTranslation(['campaign', 'common']);
   const dispatch = useAppDispatch();
   const membersState = useAppSelector((s) => s.members.byRoom[roomId]);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
@@ -157,8 +155,8 @@ function GmHandoutCard({
         </a>
       )}
       <div className="handout-panel__recipients">
-        <strong>Видано:</strong>{' '}
-        {handout.recipientIds.length === 0 && <em>нікому</em>}
+        <strong>{t('handouts.grantedLabel')}</strong>{' '}
+        {handout.recipientIds.length === 0 && <em>{t('handouts.noneGranted')}</em>}
         {handout.recipientIds.map((uid) => (
           <span key={uid} className="handout-panel__recipient">
             {uid.slice(0, 8)}
@@ -167,7 +165,7 @@ function GmHandoutCard({
               onClick={() =>
                 dispatch(revokeHandoutThunk({ handoutId: handout.id, userId: uid }))
               }
-              aria-label={`Відкликати у ${uid}`}
+              aria-label={t('handouts.revokeLabel', { uid })}
             >
               ×
             </button>
@@ -178,14 +176,14 @@ function GmHandoutCard({
         {hasPlayers ? (
           <>
             <fieldset className="handout-panel__member-picker">
-              <legend>Видати гравцям</legend>
+              <legend>{t('handouts.grantToPlayersLegend')}</legend>
               {players.map((p) => (
                 <label key={p.id} className="handout-panel__member-label">
                   <input
                     type="checkbox"
                     checked={checkedIds.has(p.id)}
                     onChange={() => togglePlayer(p.id)}
-                    aria-label={`Видати ${p.name}`}
+                    aria-label={t('handouts.grantLabel', { name: p.name })}
                   />
                   {p.name}
                 </label>
@@ -196,15 +194,12 @@ function GmHandoutCard({
               onClick={onGrant}
               disabled={checkedIds.size === 0}
             >
-              Grant
+              {t('handouts.grantBtn')}
             </button>
           </>
         ) : (
-          <p
-            className="handout-panel__no-players"
-            title="Гравці без персонажів не з'являються у списку (R6 γ-variant)"
-          >
-            Гравців без персонажів немає — попросіть учасників створити персонажа.
+          <p className="handout-panel__no-players">
+            {t('handouts.noPlayers')}
           </p>
         )}
       </div>
@@ -212,20 +207,23 @@ function GmHandoutCard({
         type="button"
         className="handout-panel__delete"
         onClick={() => dispatch(deleteHandoutThunk(handout.id))}
-        aria-label={`Видалити handout ${handout.title}`}
+        aria-label={t('handouts.deleteLabel', { title: handout.title })}
       >
-        Видалити
+        {t('common:btn.delete')}
       </button>
     </li>
   );
 }
 
 function PlayerView({ items }: { items: HandoutDTO[] }): JSX.Element {
+  const { t } = useTranslation('campaign');
   return (
-    <section className="handout-panel handout-panel--player" aria-label="Handouts">
-      <header className="handout-panel__header"><h3>Handouts</h3></header>
+    <section className="handout-panel handout-panel--player" aria-label={t('handouts.playerAriaLabel')}>
+      <header className="handout-panel__header">
+        <h3>{t('handouts.heading')}</h3>
+      </header>
       {items.length === 0 ? (
-        <p className="handout-panel__empty">Поки що нічого не видано.</p>
+        <p className="handout-panel__empty">{t('handouts.emptyPlayer')}</p>
       ) : (
         <ul className="handout-panel__list">
           {items.map((h) => (
@@ -234,7 +232,7 @@ function PlayerView({ items }: { items: HandoutDTO[] }): JSX.Element {
               <p>{h.body}</p>
               {h.assetUrl && (
                 <a href={h.assetUrl} target="_blank" rel="noopener noreferrer">
-                  Завантажити вкладений файл
+                  {t('handouts.downloadAttachment')}
                 </a>
               )}
             </li>

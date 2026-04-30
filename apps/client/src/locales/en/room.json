@@ -1,0 +1,151 @@
+{
+  "dashboard": {
+    "heading": "Game Rooms",
+    "createBtn": "+ New Room",
+    "noRooms": "No rooms yet. Create your first!",
+    "membersCount": "{{count}} members",
+    "newRoomHeading": "New Room",
+    "formLabel": "new room form"
+  },
+  "status": {
+    "lobby": "Lobby",
+    "active": "Active",
+    "closed": "Closed"
+  },
+  "roles": {
+    "GM": "Game Master",
+    "Player": "Player",
+    "Observer": "Observer"
+  },
+  "lobby": {
+    "backBtn": "← Back",
+    "membersHeading": "Members ({{count}})",
+    "characterAttached": "Character attached",
+    "startSession": "Start Session",
+    "joinSession": "Join Session",
+    "yourRole": "Your role:",
+    "exitBtn": "← Exit",
+    "roleLabel": "Role:",
+    "sessionLoading": "Loading scene…",
+    "sessionError": "Error: {{message}}",
+    "noActiveScene": "No active scene. Create a scene via REST POST /rooms/:id/scenes."
+  },
+  "scenes": {
+    "heading": "Scenes",
+    "createBtn": "+ Create Scene",
+    "activeBadge": "Active",
+    "activateBtn": "Activate",
+    "activating": "…",
+    "currentActiveBadgeTitle": "Current active scene",
+    "alreadyActive": "This scene is already active",
+    "makeActive": "Make active",
+    "noScenesGM": "No scenes — create the first!",
+    "noScenesPlayer": "No scenes yet.",
+    "modal": {
+      "heading": "New Scene",
+      "dialogLabel": "New Scene",
+      "sceneName": "Name *",
+      "gridWidth": "Width (cells)",
+      "gridHeight": "Height (cells)",
+      "gridSize": "Cell size (px)",
+      "formLabel": "new scene form"
+    }
+  },
+  "chat": {
+    "panelLabel": "Chat panel",
+    "modes": {
+      "ic": "In Character (IC)",
+      "ooc": "Out of Character (OOC)",
+      "whisper": "Whisper"
+    },
+    "messagePlaceholder": "Message…",
+    "selectRecipient": "— select recipient —",
+    "modeLabel": "Chat mode",
+    "recipientLabel": "Whisper recipient"
+  },
+  "dice": {
+    "formulaLabel": "Dice formula",
+    "modeLabel": "Dice mode",
+    "modes": {
+      "normal": "Normal",
+      "advantage": "Advantage",
+      "disadvantage": "Disadvantage",
+      "secret": "Secret (GM only)"
+    },
+    "rollBtn": "Roll",
+    "lastRoll": "Last: {{expression}} = {{total}} ({{rolls}})"
+  },
+  "invite": {
+    "inviteBtn": "Invite Players",
+    "inviteBtnTitle": "Get invite link for players",
+    "playerLabel": "Player:",
+    "observerLabel": "Observer:",
+    "copied": "Copied!",
+    "copyBtn": "Copy"
+  },
+  "token": {
+    "editHeading": "Edit Token",
+    "addBtn": "+ Token",
+    "addTitle": "Add token to scene",
+    "addLabel": "Add Token",
+    "addModalLabel": "New Token",
+    "addModalHeading": "Add Token",
+    "imageUrlLabel": "Image URL",
+    "tokenFormLabel": "token form",
+    "adding": "Adding…",
+    "addSubmitBtn": "Add",
+    "tokenPlacedNote": "Token will be placed at the center of the scene (position {{x}}, {{y}}).",
+    "colorLabel": "Color",
+    "statusLabel": "Status",
+    "assignedPlayerLabel": "Assigned Player",
+    "noAssigned": "— not assigned —"
+  },
+  "annotation": {
+    "pingTitle": "Ping — attract attention (Ф3.4.1)",
+    "drawTitle": "Draw — TODO R3b (Ф3.4.2)",
+    "measureTitle": "Ruler — TODO R3b (Ф3.4.3)"
+  },
+  "connection": {
+    "new": "Initializing",
+    "connecting": "Connecting...",
+    "disconnected": "Disconnected",
+    "failed": "Connection Failed",
+    "closed": "Closed"
+  },
+  "mesh": {
+    "ceiling": "Mesh ceiling reached — video disabled, audio only"
+  },
+  "asset": {
+    "loadingGallery": "Loading gallery…",
+    "empty": "No images yet. Upload the first one using the form above.",
+    "selectImage": "Select image {{name}}",
+    "galleryLabel": "Image gallery",
+    "dropZoneLabel": "Image upload area",
+    "dragHint": "Drag an image here or",
+    "browseBtn": "select a file",
+    "formatsHint": "PNG, JPEG, WebP · up to {{mb}} MB",
+    "fileInputLabel": "Image file",
+    "progressUrl": "Getting URL…",
+    "progressUpload": "Uploading…",
+    "progressSave": "Saving…"
+  },
+  "aiGenerate": {
+    "dialogLabel": "Generate Background",
+    "heading": "Generate Scene Background (AI)",
+    "promptLabel": "Scene Description",
+    "promptPlaceholder": "Dungeon with stone walls and torches...",
+    "styleLabel": "Style",
+    "generateBtn": "Generate",
+    "generating": "Generating…",
+    "applyBg": "Use as Background",
+    "applying": "Applying…",
+    "previewAlt": "Generated background",
+    "formLabel": "background generation form",
+    "styles": {
+      "realistic": "Realistic",
+      "fantasy": "Fantasy",
+      "sci-fi": "Sci-Fi",
+      "cartoon": "Cartoon"
+    }
+  }
+}
