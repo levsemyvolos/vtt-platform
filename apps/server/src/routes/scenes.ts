@@ -66,8 +66,30 @@ function toSceneDTOFromEntity(scene: {
   };
 }
 
-// POST /rooms/:id/scenes
+// POST /rooms/:id/scenes  +  GET /rooms/:id/scenes
 export const roomScenesSubRouter: IRouter = Router({ mergeParams: true });
+
+// GET /rooms/:id/scenes — list scenes for a room (visible to GM/Player/Observer).
+// Tokens are intentionally not eagerly populated here; the GameCanvas hydrates
+// them via session:resync on the active scene only.
+roomScenesSubRouter.get(
+  '/',
+  jwtAuth,
+  async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      const room = await prisma.room.findUnique({ where: { id: req.params.id } });
+      if (!room) throw new HttpError(404, 'Room not found');
+      const scenes = await prisma.scene.findMany({
+        where: { roomId: req.params.id },
+        orderBy: { createdAt: 'asc' },
+      });
+      res.json(scenes.map(toSceneDTOFromEntity));
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+);
+
 roomScenesSubRouter.post(
   '/',
   jwtAuth,
