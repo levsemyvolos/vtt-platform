@@ -32,6 +32,24 @@ export class SceneRepository {
     return this.db.scene.update({ where: { id }, data });
   }
 
+  async getCurrentRound(sceneId: string): Promise<number> {
+    const row = await this.db.scene.findUnique({
+      where: { id: sceneId },
+      select: { currentRound: true },
+    });
+    return row?.currentRound ?? 1;
+  }
+
+  /** Atomically increments Scene.currentRound and returns the new value. */
+  async incrementRound(sceneId: string): Promise<number> {
+    const row = await this.db.scene.update({
+      where: { id: sceneId },
+      data: { currentRound: { increment: 1 } },
+      select: { currentRound: true },
+    });
+    return row.currentRound;
+  }
+
   /**
    * Atomically deactivates all scenes in the room and activates the target one.
    * Used by SceneService.setActive (Ф2.4).

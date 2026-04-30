@@ -327,7 +327,10 @@ export class SceneService {
     if (requesterRole !== 'GM') throw new HttpError(403, 'Only GM can edit tokens');
     const token = await this.tokens.findById(tokenId);
     if (!token) throw new HttpError(404, 'Token not found');
+    return this.tokens.update(tokenId, this.buildTokenUpdateData(patch));
+  }
 
+  private buildTokenUpdateData(patch: UpdateTokenRequest): Prisma.TokenUpdateInput {
     const data: Prisma.TokenUpdateInput = { version: { increment: 1 } };
     if (patch.name !== undefined) data.name = patch.name;
     if (patch.hp !== undefined) data.hp = patch.hp;
@@ -340,7 +343,7 @@ export class SceneService {
         ? { connect: { id: patch.assignedUserId } }
         : { disconnect: true };
     }
-    return this.tokens.update(tokenId, data);
+    return data;
   }
 
   async deleteToken(tokenId: string, requesterRole: Role): Promise<void> {

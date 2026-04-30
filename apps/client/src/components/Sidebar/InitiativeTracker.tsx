@@ -62,7 +62,8 @@ export default function InitiativeTracker({
   }, [isGM, roomId, membersState, dispatch]);
 
   function rollInitiative(dexMod = 0): number {
-    return Math.floor(Math.random() * 20) + 1 + dexMod;
+    const die = (crypto.getRandomValues(new Uint32Array(1))[0]! % 20) + 1;
+    return die + dexMod;
   }
 
   function onOpenAdd(): void {
@@ -135,6 +136,63 @@ export default function InitiativeTracker({
     ? [membersState.gm, ...membersState.players].filter(Boolean)
     : [];
 
+  function renderAddForm(): JSX.Element {
+    return (
+      <form onSubmit={onAdd} className="initiative-tracker__form">
+        {allMembers.length > 0 && !useCustomName && (
+          <select
+            value={selectedMemberId}
+            onChange={(e) => setSelectedMemberId(e.target.value)}
+            aria-label="Оберіть учасника"
+          >
+            <option value="">— учасник —</option>
+            {allMembers.map((m) => (
+              <option key={m!.id} value={m!.id}>
+                {m!.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <label className="initiative-tracker__custom-toggle">
+          <input
+            type="checkbox"
+            checked={useCustomName}
+            onChange={(e) => setUseCustomName(e.target.checked)}
+          />
+          Власне ім'я
+        </label>
+        {useCustomName && (
+          <input
+            type="text"
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            placeholder="Ім'я (NPC, монстр…)"
+            aria-label="Ім'я учасника"
+          />
+        )}
+        <label>
+          Ініціатива
+          <input
+            type="number"
+            value={initiative}
+            onChange={(e) => setInitiative(Number(e.target.value))}
+            aria-label="Значення ініціативи"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => setInitiative(rollInitiative())}
+          title="1d20"
+          aria-label="Кинути ініціативу (1d20)"
+        >
+          🎲
+        </button>
+        <button type="submit" disabled={busy}>OK</button>
+        <button type="button" onClick={() => setShowAdd(false)} disabled={busy}>×</button>
+      </form>
+    );
+  }
+
   return (
     <div className="initiative-tracker">
       <header className="initiative-tracker__header">
@@ -177,60 +235,7 @@ export default function InitiativeTracker({
             <button type="button" onClick={onOpenAdd} aria-label="Додати позицію">
               + Додати
             </button>
-          ) : (
-            <form onSubmit={onAdd} className="initiative-tracker__form">
-              {allMembers.length > 0 && !useCustomName && (
-                <select
-                  value={selectedMemberId}
-                  onChange={(e) => setSelectedMemberId(e.target.value)}
-                  aria-label="Оберіть учасника"
-                >
-                  <option value="">— учасник —</option>
-                  {allMembers.map((m) => (
-                    <option key={m!.id} value={m!.id}>
-                      {m!.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <label className="initiative-tracker__custom-toggle">
-                <input
-                  type="checkbox"
-                  checked={useCustomName}
-                  onChange={(e) => setUseCustomName(e.target.checked)}
-                />
-                Власне ім'я
-              </label>
-              {useCustomName && (
-                <input
-                  type="text"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="Ім'я (NPC, монстр…)"
-                  aria-label="Ім'я учасника"
-                />
-              )}
-              <label>
-                Ініціатива
-                <input
-                  type="number"
-                  value={initiative}
-                  onChange={(e) => setInitiative(Number(e.target.value))}
-                  aria-label="Значення ініціативи"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => setInitiative(rollInitiative())}
-                title="1d20"
-                aria-label="Кинути ініціативу (1d20)"
-              >
-                🎲
-              </button>
-              <button type="submit" disabled={busy}>OK</button>
-              <button type="button" onClick={() => setShowAdd(false)} disabled={busy}>×</button>
-            </form>
-          )}
+          ) : renderAddForm()}
         </div>
       )}
 

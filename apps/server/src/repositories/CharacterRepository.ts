@@ -1,4 +1,4 @@
-import type { PrismaClient, Prisma, Character } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
 export type CharacterWithPdf = Prisma.CharacterGetPayload<{
   include: { pdfAsset: true };

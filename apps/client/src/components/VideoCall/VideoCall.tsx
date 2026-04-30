@@ -55,6 +55,21 @@ export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Ele
       return apiFetch<TurnConfigResponse>('/api/turn-config');
     }
 
+    async function autoCallPeers(manager: PeerManager): Promise<void> {
+      const membersState = store.getState().members.byRoom[roomId];
+      if (!membersState) return;
+      const allMembers: UserPublic[] = [
+        ...(membersState.gm ? [membersState.gm] : []),
+        ...membersState.players,
+        ...membersState.observers,
+      ];
+      for (const member of allMembers) {
+        if (!cancelled && member.id !== myUserId && myUserId < member.id) {
+          await manager.call(member.id);
+        }
+      }
+    }
+
     async function bootstrap(): Promise<void> {
       try {
         // ── 1. TURN credentials ──────────────────────────────────────────
@@ -135,19 +150,7 @@ export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Ele
 
         // ── 6. Auto-call known members (alphabetical initiator convention)
         //       Prevents double-offers: only lower-ID peer sends the offer.
-        const membersState = store.getState().members.byRoom[roomId];
-        if (membersState) {
-          const allMembers: UserPublic[] = [
-            ...(membersState.gm ? [membersState.gm] : []),
-            ...membersState.players,
-            ...membersState.observers,
-          ];
-          for (const member of allMembers) {
-            if (!cancelled && member.id !== myUserId && myUserId < member.id) {
-              await manager.call(member.id);
-            }
-          }
-        }
+        await autoCallPeers(manager);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Не вдалося ввімкнути медіа');

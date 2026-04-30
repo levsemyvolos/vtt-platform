@@ -34,6 +34,13 @@ function buildAudioStorageKey(roomId: string, mimeType: AudioMime): string {
   return `rooms/${roomId}/audio/${randomUUID()}.${MIME_EXTENSION[mimeType]}`;
 }
 
+type TrackUpdate = {
+  title?: string;
+  loop?: boolean;
+  sceneId?: string | null;
+  fadeMs?: number;
+};
+
 /** Sink for `audio:play` broadcasts — abstracted to keep the service WSS-agnostic. */
 export type AudioBroadcaster = (roomId: string, payload: AudioPlayPayload) => void;
 
@@ -107,31 +114,8 @@ export class AudioService {
    *          the playback URL is freshly presigned).
    */
   async finalizeUpload(req: AudioFinalizeRequest, ownerId: string): Promise<AudioTrack> {
-    if (!isAllowedMime(req.mimeType)) {
-      throw new HttpError(415, `Unsupported audio MIME: ${req.mimeType}`);
-    }
-    if (req.size > AUDIO_MAX_BYTES) {
-      throw new HttpError(413, `Audio file exceeds ${AUDIO_MAX_BYTES} bytes (НФВ 6.3)`);
-    }
-    const expectedPrefix = `rooms/${req.roomId}/audio/`;
-    if (!req.storageKey.startsWith(expectedPrefix)) {
-      throw new HttpError(400, 'storageKey does not belong to this room');
-    }
-    if (!req.title || req.title.trim().length === 0) {
-      throw new HttpError(400, 'title is required');
-    }
-
-    const stat = await this.storage.statObject(req.storageKey);
-    if (!stat) throw new HttpError(409, 'Upload was not completed');
-    if (stat.size > AUDIO_MAX_BYTES) {
-      // Defence-in-depth: signed URL pins MIME but not size.
-      await this.storage.delete(req.storageKey);
-      throw new HttpError(413, `Uploaded object exceeds ${AUDIO_MAX_BYTES} bytes`);
-    }
-    if (stat.contentType !== req.mimeType) {
-      await this.storage.delete(req.storageKey);
-      throw new HttpError(415, 'Uploaded object MIME does not match declared MIME');
-    }
+    this.validateFinalizeRequest(req);
+    const objectSize = await this.verifyUploadedObject(req.storageKey, req.mimeType as AudioMime);
 
     const sceneId = await this.resolveSceneBinding(req.roomId, req.sceneId ?? null);
 
@@ -140,7 +124,7 @@ export class AudioService {
       ownerId,
       roomId: req.roomId,
       mimeType: req.mimeType,
-      size: BigInt(stat.size),
+      size: BigInt(objectSize),
       storageKey: req.storageKey,
     });
     const track = await this.tracks.create({
@@ -170,34 +154,15 @@ export class AudioService {
    * (including `null` for unbind) the service emits `audio:play` so all
    * connected clients pick up the new state in realtime.
    */
-  async patchTrack(
-    trackId: string,
-    patch: AudioPatchRequest,
-  ): Promise<AudioTrack> {
+  async patchTrack(trackId: string, patch: AudioPatchRequest): Promise<AudioTrack> {
     const existing = await this.tracks.findById(trackId);
     if (!existing) throw new HttpError(404, 'Track not found');
 
-    const update: {
-      title?: string;
-      loop?: boolean;
-      sceneId?: string | null;
-      fadeMs?: number;
-    } = {};
-    if (typeof patch.title === 'string') {
-      const trimmed = patch.title.trim();
-      if (trimmed.length === 0) throw new HttpError(400, 'title cannot be empty');
-      update.title = trimmed.slice(0, 128);
-    }
-    if (typeof patch.loop === 'boolean') update.loop = patch.loop;
-    if (patch.sceneId !== undefined) {
-      update.sceneId = await this.resolveSceneBinding(existing.roomId, patch.sceneId);
-    }
-    if (typeof patch.fadeMs === 'number') {
-      if (!Number.isInteger(patch.fadeMs) || patch.fadeMs < 0 || patch.fadeMs > 10000) {
-        throw new HttpError(400, 'fadeMs must be an integer in range 0–10000');
-      }
-      update.fadeMs = patch.fadeMs;
-    }
+    const update: TrackUpdate = {};
+    this.updateTitle(patch, update);
+    this.updateLoop(patch, update);
+    await this.updateBinding(patch, update, existing.roomId);
+    this.updateFadeMs(patch, update);
 
     const track = await this.tracks.update(trackId, update);
 
@@ -290,7 +255,79 @@ export class AudioService {
     }
   }
 
-  // --------- internals ---------
+  // ─── private helpers ───────────────────────────────────────────────────────
+
+  /**
+   * Validates the incoming finalizeUpload request (MIME, size, storageKey
+   * prefix, title) before any I/O. Cyclomatic complexity ≤ 5.
+   */
+  private validateFinalizeRequest(req: AudioFinalizeRequest): void {
+    if (!isAllowedMime(req.mimeType)) {
+      throw new HttpError(415, `Unsupported audio MIME: ${req.mimeType}`);
+    }
+    if (req.size > AUDIO_MAX_BYTES) {
+      throw new HttpError(413, `Audio file exceeds ${AUDIO_MAX_BYTES} bytes (НФВ 6.3)`);
+    }
+    const expectedPrefix = `rooms/${req.roomId}/audio/`;
+    if (!req.storageKey.startsWith(expectedPrefix)) {
+      throw new HttpError(400, 'storageKey does not belong to this room');
+    }
+    if (!req.title || req.title.trim().length === 0) {
+      throw new HttpError(400, 'title is required');
+    }
+  }
+
+  /**
+   * Checks that the GCS object matching `storageKey` actually exists and has
+   * the expected MIME. Deletes the orphan object on mismatch.
+   * Cyclomatic complexity ≤ 4.
+   */
+  /** Returns verified object size in bytes. Deletes orphan on mismatch. */
+  private async verifyUploadedObject(storageKey: string, mimeType: AudioMime): Promise<number> {
+    const stat = await this.storage.statObject(storageKey);
+    if (!stat) throw new HttpError(409, 'Upload was not completed');
+    if (stat.size > AUDIO_MAX_BYTES) {
+      // Defence-in-depth: signed URL pins MIME but not size.
+      await this.storage.delete(storageKey);
+      throw new HttpError(413, `Uploaded object exceeds ${AUDIO_MAX_BYTES} bytes`);
+    }
+    if (stat.contentType !== mimeType) {
+      await this.storage.delete(storageKey);
+      throw new HttpError(415, 'Uploaded object MIME does not match declared MIME');
+    }
+    return stat.size;
+  }
+
+  private updateTitle(patch: AudioPatchRequest, update: TrackUpdate): void {
+    if (typeof patch.title === 'string') {
+      const trimmed = patch.title.trim();
+      if (trimmed.length === 0) throw new HttpError(400, 'title cannot be empty');
+      update.title = trimmed.slice(0, 128);
+    }
+  }
+
+  private updateLoop(patch: AudioPatchRequest, update: TrackUpdate): void {
+    if (typeof patch.loop === 'boolean') update.loop = patch.loop;
+  }
+
+  private async updateBinding(
+    patch: AudioPatchRequest,
+    update: TrackUpdate,
+    roomId: string,
+  ): Promise<void> {
+    if (patch.sceneId !== undefined) {
+      update.sceneId = await this.resolveSceneBinding(roomId, patch.sceneId);
+    }
+  }
+
+  private updateFadeMs(patch: AudioPatchRequest, update: TrackUpdate): void {
+    if (typeof patch.fadeMs === 'number') {
+      if (!Number.isInteger(patch.fadeMs) || patch.fadeMs < 0 || patch.fadeMs > 10000) {
+        throw new HttpError(400, 'fadeMs must be an integer in range 0–10000');
+      }
+      update.fadeMs = patch.fadeMs;
+    }
+  }
 
   /**
    * Validates that `sceneId` (when not null/undefined) belongs to `roomId`.

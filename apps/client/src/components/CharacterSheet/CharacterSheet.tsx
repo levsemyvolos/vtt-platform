@@ -78,14 +78,17 @@ function makeDefaultSheet(attrs = DEFAULT_ATTRIBUTES): SheetData {
   };
 }
 
+function safeRecord(val: unknown): Record<string, unknown> {
+  return (val && typeof val === 'object' ? val : {}) as Record<string, unknown>;
+}
+
+function normaliseSpells(raw: unknown): SpellEntry[] {
+  return Array.isArray(raw) ? (raw as SpellEntry[]) : [];
+}
+
 function normaliseSheet(raw: unknown): SheetData {
-  const r = (raw ?? {}) as Record<string, unknown>;
-  const attrs = { ...DEFAULT_ATTRIBUTES, ...((r.attributes ?? {}) as Partial<SheetAttributes>) };
-  const spellsRaw = r.spells;
-  let spells: SpellEntry[] = [];
-  if (Array.isArray(spellsRaw)) {
-    spells = spellsRaw as SpellEntry[];
-  }
+  const r = safeRecord(raw);
+  const attrs = { ...DEFAULT_ATTRIBUTES, ...(safeRecord(r.attributes) as Partial<SheetAttributes>) };
   return {
     attributes: attrs,
     hp: typeof r.hp === 'number' ? r.hp : 8 + conMod(attrs),
@@ -94,8 +97,111 @@ function normaliseSheet(raw: unknown): SheetData {
     speed: typeof r.speed === 'number' ? r.speed : 30,
     skills: Array.isArray(r.skills) && r.skills.length > 0 ? r.skills as SheetSkill[] : DEFAULT_SKILLS,
     inventory: Array.isArray(r.inventory) ? r.inventory as string[] : [],
-    spells,
+    spells: normaliseSpells(r.spells),
   };
+}
+
+function isGmViewer(role: Role, isOwner: boolean): boolean {
+  return role === 'GM' && !isOwner;
+}
+
+interface CharacterListViewProps {
+  roomId: string;
+  myRole: Role;
+}
+
+function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Element {
+  const dispatch = useAppDispatch();
+  const allChars = useAppSelector((s) => s.characters.items);
+  const myUserId = useAppSelector((s) => s.session.currentUser?.id);
+
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const myChars = allChars.filter((c) => c.ownerId === myUserId);
+  const otherChars = myRole === 'GM' ? allChars.filter((c) => c.ownerId !== myUserId) : [];
+
+  return (
+    <section className="character-sheet character-sheet--list">
+      <h3>Персонажі</h3>
+      {myChars.length > 0 && (
+        <>
+          <h4>Мої</h4>
+          <ul className="character-sheet__list">
+            {myChars.map((c) => (
+              <li key={c.id}>
+                <button type="button" onClick={() => dispatch(setCurrentCharacter(c))}>
+                  {c.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {otherChars.length > 0 && (
+        <>
+          <h4>Гравці (GM перегляд)</h4>
+          <ul className="character-sheet__list">
+            {otherChars.map((c) => (
+              <li key={c.id}>
+                <button type="button" onClick={() => dispatch(setCurrentCharacter(c))}>
+                  {c.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {myRole !== 'Observer' && (
+        creating ? (
+          <form
+            className="character-sheet__create-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setBusy(true);
+              setError(null);
+              try {
+                await dispatch(
+                  createCharacterThunk({
+                    roomId,
+                    req: { name: newName.trim(), sheetData: makeDefaultSheet() },
+                  }),
+                ).unwrap();
+                setNewName('');
+                setCreating(false);
+              } catch {
+                setError('Помилка створення персонажа');
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Ім'я персонажа"
+              aria-label="Ім'я нового персонажа"
+              required
+            />
+            <button type="submit" disabled={busy}>Створити</button>
+            <button type="button" onClick={() => setCreating(false)} disabled={busy}>Скасувати</button>
+            {error && <p className="character-sheet__error">{error}</p>}
+          </form>
+        ) : (
+          <button
+            type="button"
+            className="character-sheet__new-btn"
+            onClick={() => setCreating(true)}
+            aria-label="Новий персонаж"
+          >
+            + Новий персонаж
+          </button>
+        )
+      )}
+    </section>
+  );
 }
 
 function ShortView({ name, portraitUrl }: { name: string; portraitUrl?: string }): JSX.Element {
@@ -116,15 +222,10 @@ function ShortView({ name, portraitUrl }: { name: string; portraitUrl?: string }
 export default function CharacterSheet({ characterId, roomId, myRole }: CharacterSheetProps): JSX.Element {
   const dispatch = useAppDispatch();
   const current = useAppSelector((s) => s.characters.current);
-  const allChars = useAppSelector((s) => s.characters.items);
   const myUserId = useAppSelector((s) => s.session.currentUser?.id);
 
   const [name, setName] = useState('');
   const [sheet, setSheet] = useState<SheetData>(() => makeDefaultSheet());
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Load characters list for character picker when no specific characterId given
   useEffect(() => {
@@ -157,94 +258,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
 
   // ---- No character selected — show list + create ----
   if (!characterId) {
-    const myChars = allChars.filter((c) => c.ownerId === myUserId);
-    const otherChars = myRole === 'GM' ? allChars.filter((c) => c.ownerId !== myUserId) : [];
-
-    return (
-      <section className="character-sheet character-sheet--list">
-        <h3>Персонажі</h3>
-        {myChars.length > 0 && (
-          <>
-            <h4>Мої</h4>
-            <ul className="character-sheet__list">
-              {myChars.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => dispatch(setCurrentCharacter(c))}
-                  >
-                    {c.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-        {otherChars.length > 0 && (
-          <>
-            <h4>Гравці (GM перегляд)</h4>
-            <ul className="character-sheet__list">
-              {otherChars.map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => dispatch(setCurrentCharacter(c))}
-                  >
-                    {c.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-        {myRole !== 'Observer' && (
-          creating ? (
-            <form
-              className="character-sheet__create-form"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setBusy(true);
-                setError(null);
-                try {
-                  await dispatch(
-                    createCharacterThunk({
-                      roomId,
-                      req: { name: newName.trim(), sheetData: makeDefaultSheet() },
-                    }),
-                  ).unwrap();
-                  setNewName('');
-                  setCreating(false);
-                } catch {
-                  setError('Помилка створення персонажа');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Ім'я персонажа"
-                aria-label="Ім'я нового персонажа"
-                required
-              />
-              <button type="submit" disabled={busy}>Створити</button>
-              <button type="button" onClick={() => setCreating(false)} disabled={busy}>Скасувати</button>
-              {error && <p className="character-sheet__error">{error}</p>}
-            </form>
-          ) : (
-            <button
-              type="button"
-              className="character-sheet__new-btn"
-              onClick={() => setCreating(true)}
-              aria-label="Новий персонаж"
-            >
-              + Новий персонаж
-            </button>
-          )
-        )}
-      </section>
-    );
+    return <CharacterListView roomId={roomId} myRole={myRole} />;
   }
 
   // ---- Loading ----
@@ -292,7 +306,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
           className="character-sheet__name"
         />
         <div className="character-sheet__portrait-slot" aria-label="Портрет (placeholder)" />
-        {myRole === 'GM' && !isOwner && (
+        {isGmViewer(myRole, isOwner) && (
           <span className="character-sheet__badge">Read-only (GM перегляд)</span>
         )}
       </header>
