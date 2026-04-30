@@ -2,8 +2,11 @@ import type { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import type { Role } from '@vtt/shared';
 
-// Module augmentation for Express Request
+// Module augmentation for Express Request — namespace is the documented form
+// for declaration merging with @types/express, which itself uses `namespace`.
+// eslint-disable-next-line @typescript-eslint/no-namespace
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: { id: string; role: Role; sessionId: string };
