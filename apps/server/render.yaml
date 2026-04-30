@@ -1,0 +1,48 @@
+# Render Blueprint — VTT Platform App Server
+# Bible §2.12 (Deployment View, table 2.7 row "App Server").
+# Runtime: Node.js 20 LTS — direct execution via tsx (no tsc build step,
+# fixed in Chat 1, see PROJECT_BIBLE.md §10.1 / table 2.17).
+#
+# Reads env from Render's process environment — apps/server/package.json:start
+# is `tsx src/index.ts` (no --env-file flag).
+services:
+  - type: web
+    name: vtt-server
+    runtime: node
+    region: frankfurt
+    plan: starter
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    buildCommand: |
+      corepack enable
+      corepack prepare pnpm@9.12.0 --activate
+      pnpm install --frozen-lockfile
+      pnpm --filter @vtt/server exec prisma generate
+    startCommand: pnpm --filter @vtt/server start
+    preDeployCommand: pnpm --filter @vtt/server exec prisma migrate deploy
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false
+      - key: GCP_PROJECT_ID
+        sync: false
+      - key: GCP_LOCATION
+        value: us-central1
+      - key: GCP_SERVICE_ACCOUNT_KEY
+        sync: false
+      - key: GCS_BUCKET
+        sync: false
+      - key: TURN_HOST
+        sync: false
+      - key: TURN_REALM
+        sync: false
+      - key: TURN_STATIC_AUTH_SECRET
+        sync: false

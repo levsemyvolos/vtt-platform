@@ -7,9 +7,9 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
-    "type-check": "pnpm -r --parallel exec tsc --noEmit",
-    "lint": "pnpm -r --parallel exec eslint src",
-    "test": "pnpm -r --parallel exec vitest run",
+    "type-check": "pnpm -r --parallel --if-present run type-check",
+    "lint": "pnpm -r --parallel --if-present run lint",
+    "test": "pnpm -r --parallel --if-present run test",
     "dev": "pnpm -r --parallel run dev"
   },
   "devDependencies": {

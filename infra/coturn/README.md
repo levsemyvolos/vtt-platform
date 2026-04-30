@@ -48,13 +48,62 @@ sudo apt update
 sudo apt install -y coturn certbot
 ```
 
-### 2.3 TLS-сертифікат (Let's Encrypt)
+### 2.3 TLS-сертифікат (Let's Encrypt) + автоматичне поновлення
+
+Первинне отримання сертифіката:
+
 ```bash
 sudo systemctl stop coturn        # звільнити :80
 sudo certbot certonly --standalone -d turn.vtt.example.com \
      --agree-tos --non-interactive --email ops@vtt.example.com
 sudo systemctl enable certbot.timer
 ```
+
+Поновлення кожні 60 днів виконує `certbot.timer` (поставляється з пакетом).
+Щоб coturn підхоплював свіжий сертифікат без ручного рестарту, додаємо
+deploy-hook:
+
+```bash
+sudo install -d -m 0755 /etc/letsencrypt/renewal-hooks/deploy
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/restart-coturn.sh > /dev/null <<'EOF'
+#!/bin/sh
+# certbot викликає цей хук після успішного renew. RENEWED_DOMAINS
+# містить тільки домени, для яких сертифікат справді оновився.
+case "$RENEWED_DOMAINS" in
+  *turn.vtt.example.com*) systemctl restart coturn ;;
+esac
+EOF
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/restart-coturn.sh
+```
+
+Перевірка dry-run без реального renew:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+Лог `journalctl -u certbot.timer` має містити запис про виклик
+`restart-coturn.sh`.
+
+### 2.3.1 Systemd unit (override)
+
+Stock-юніт `coturn.service` потребує одного коригування — додати залежність
+від `network-online.target`, бо coturn у момент старту біндить статичну IP:
+
+```bash
+sudo systemctl edit coturn
+# у редакторі ввести:
+[Unit]
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+```
+
+`systemctl daemon-reload && systemctl restart coturn` — перевірити, що
+сервіс піднімається після ребуту VM.
 
 ### 2.4 Конфіг
 ```bash

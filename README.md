@@ -23,25 +23,49 @@ Virtual Tabletop platform — diploma thesis project, Chapter 3 implementation.
 
 ## Deployments
 
-- **Client**: [Vercel](https://vercel.com)
-- **Server**: [Render](https://render.com)
-- **Database**: [Supabase](https://supabase.com) (PostgreSQL 16)
-- **TURN**: coturn 4.x on Oracle Cloud Always Free VPS (UDP 3478 / TLS 5349)
+| Component | Host | URL | Plan |
+|---|---|---|---|
+| Client SPA | Vercel | `https://vtt-client.vercel.app` | Hobby |
+| App Server | Render | `https://vtt-server.onrender.com` | Starter |
+| PostgreSQL | Supabase | `eu-central-1` (Frankfurt) | Free |
+| TURN | GCP e2-micro VM, `us-central1-f` | `turn:turn.vtt.example.com:3478?transport=udp` / `turns:...:5349?transport=tcp` | Free trial $300 |
+| Source | GitHub | `https://github.com/levsemyvolos/<repo>` | — |
+
+> URL заглушки замінити на реальні після першого деплою; цей блок —
+> джерело істини для §3.5 «Стратегія доставки» Розділу 3.
+
+CI/CD: Vercel auto-deploy на push у `main` (Client), Render auto-deploy на
+push у `main` (Server, з `preDeployCommand: prisma migrate deploy`).
+Pre-merge gate — GitHub Actions workflow `.github/workflows/ci.yml`
+(type-check + lint + test).
 
 ## Local Development
 
 ```bash
-cp .env.example .env          # fill DB_URL, GCP credentials, JWT_SECRET
-docker compose up -d          # postgres:16 + coturn:4
-pnpm install
+cp .env.example .env          # fill DATABASE_URL, GCP creds, JWT_SECRET, TURN_*
+docker compose up -d          # postgres:16 + coturn:4 (only for §3.15 volume test)
+pnpm install --frozen-lockfile
+pnpm --filter @vtt/server exec prisma migrate deploy
 pnpm dev                      # client :5173, server :4000
+```
+
+## Build (production-equivalent)
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter @vtt/server exec prisma generate
+pnpm type-check               # MERGE GATE — must pass
+pnpm lint
+pnpm test
+pnpm --filter @vtt/client build   # → apps/client/dist (deployed by Vercel)
+pnpm --filter @vtt/server start   # tsx src/index.ts (no tsc emit, Bible §10.1)
 ```
 
 ## CI Scripts (root)
 
 | Script | What it does |
 |--------|-------------|
-| `pnpm type-check` | `tsc --noEmit` across all workspaces in parallel |
+| `pnpm type-check` | `tsc --noEmit` across all workspaces in parallel — **CI merge gate** |
 | `pnpm lint` | ESLint across all workspaces in parallel |
 | `pnpm test` | Vitest across all workspaces in parallel |
 | `pnpm dev` | Client + server dev servers in parallel |
@@ -50,11 +74,23 @@ pnpm dev                      # client :5173, server :4000
 
 ```
 apps/
-  client/    — React 18 + Vite + Konva + Redux Toolkit
-  server/    — Express 4 + socket.io 4 + Prisma 5 + tsx (no tsc build)
+  client/                   — React 18 + Vite + Konva + Redux Toolkit
+    vercel.json             — Vercel build config (monorepo-aware)
+  server/                   — Express 4 + socket.io 4 + Prisma 5 + tsx (no tsc build)
+    render.yaml             — Render Blueprint (Node web service)
+    Dockerfile              — single-stage node:20-alpine, Render Docker fallback
 packages/
-  shared/    — TypeScript DTO interfaces (no build step; exports ./src/index.ts)
+  shared/                   — TS DTO interfaces (no build; exports ./src/index.ts)
 infra/
-  coturn/    — turnserver.conf for local Docker and Oracle Cloud VPS
-docker-compose.yml  — postgres:16 + coturn:4 for local dev and volume tests (§ 3.15)
+  coturn/                   — turnserver.conf + GCP e2-micro deploy guide
+  supabase/                 — connection-string + prisma migrate deploy guide
+  smoke/                    — 8-request smoke flow (REST .http + socket-smoke.mjs)
+.github/workflows/ci.yml    — type-check / lint / test on PR
+docker-compose.yml          — postgres:16 + coturn:4 for §3.15 volume test
 ```
+
+## Smoke check after deploy
+
+See `infra/smoke/README.md` for the 8-step flow:
+login → create room → create scene → activate scene → get scene →
+WSS dice roll → AI image gen → audio upload (presigned PUT GCS).
