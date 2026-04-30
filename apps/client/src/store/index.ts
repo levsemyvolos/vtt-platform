@@ -5,6 +5,7 @@ import roomReducer from './room';
 import sceneReducer from './scene';
 import chatReducer from './chat';
 import initiativeReducer from './initiative';
+import mediaReducer from './media';
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,7 @@ export const store = configureStore({
     scene: sceneReducer,
     chat: chatReducer,
     initiative: initiativeReducer,
+    media: mediaReducer,
   },
 });
 

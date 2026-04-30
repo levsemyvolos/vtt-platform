@@ -9,6 +9,7 @@ import type {
   ChatMessageInput,
   ChatDicePayload,
   ChatMessageDTO,
+  SignalingPayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
@@ -131,6 +132,35 @@ export function emitChatMessage(payload: ChatMessageInput): Promise<ChatMessageD
       });
     }),
   );
+}
+
+export function emitSignal(
+  event: 'signal:offer' | 'signal:answer' | 'signal:ice',
+  payload: SignalingPayload,
+): void {
+  // Fire-and-forget: server proxies as-is, no ack envelope (§2.16.3).
+  getSocket().emit(event, payload);
+}
+
+export type SignalListener = (
+  event: 'signal:offer' | 'signal:answer' | 'signal:ice',
+  payload: SignalingPayload,
+) => void;
+
+/** Subscribes to all three signaling events. Returns unsubscribe handle. */
+export function onSignal(listener: SignalListener): () => void {
+  const s = getSocket();
+  const offer = (p: SignalingPayload): void => listener('signal:offer', p);
+  const answer = (p: SignalingPayload): void => listener('signal:answer', p);
+  const ice = (p: SignalingPayload): void => listener('signal:ice', p);
+  s.on('signal:offer', offer);
+  s.on('signal:answer', answer);
+  s.on('signal:ice', ice);
+  return () => {
+    s.off('signal:offer', offer);
+    s.off('signal:answer', answer);
+    s.off('signal:ice', ice);
+  };
 }
 
 export function emitSessionResync(roomId: string): Promise<SessionResyncPayload> {

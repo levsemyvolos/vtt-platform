@@ -102,3 +102,20 @@ export interface AIMusicResponse {
   previewUrl: string;
   assetId: string;
 }
+
+/**
+ * Structural equivalent of the W3C `RTCIceServer` dictionary (lib.dom.d.ts).
+ * Defined in shared so the server (no DOM lib) can produce it and the client
+ * can pass it directly to `new RTCPeerConnection({ iceServers })`.
+ */
+export interface IceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
+export interface TurnConfigResponse {
+  iceServers: IceServer[];
+  /** Unix seconds when HMAC credentials expire (RFC 7635 timed-credential). */
+  ttlSecondsRemaining: number;
+}
