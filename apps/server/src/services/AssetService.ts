@@ -28,6 +28,12 @@ function buildStorageKey(roomId: string, kind: 'image' | 'audio' | 'doc', mimeTy
   return `rooms/${roomId}/${kind}/${randomUUID()}.${extensionFor(mimeType)}`;
 }
 
+function kindForMime(mimeType: string): 'image' | 'audio' | 'doc' {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  return 'doc';
+}
+
 export class AssetService {
   constructor(
     private readonly ai: AIProvider,
@@ -94,5 +100,40 @@ export class AssetService {
    */
   presignedUrlFor(storageKey: string): Promise<string> {
     return this.storage.getPresignedUrl(storageKey);
+  }
+
+  /**
+   * Persists a user-supplied binary (PDF, image, etc.) WITHOUT going through
+   * the AI pipeline. Used by character PDF import (Ф9.3) and any future
+   * direct-upload flow.
+   *
+   * Same par-block layout as `storeAiAsset` — upload bytes and insert metadata
+   * concurrently — so the contract stays uniform.
+   *
+   * @param buffer raw bytes from the client
+   * @param mimeType MIME of the upload (e.g. application/pdf)
+   * @param ownerId UUID of the uploading user
+   * @param roomId room scope (cascade-deleted with the room)
+   * @returns persisted Asset row
+   */
+  async uploadUserFile(
+    buffer: Buffer,
+    mimeType: string,
+    ownerId: string,
+    roomId: string,
+  ): Promise<Asset> {
+    const storageKey = buildStorageKey(roomId, kindForMime(mimeType), mimeType);
+    const [, asset] = await Promise.all([
+      this.storage.put({ storageKey, bytes: buffer, mimeType }),
+      this.repo.create({
+        id: randomUUID(),
+        ownerId,
+        roomId,
+        mimeType,
+        size: BigInt(buffer.byteLength),
+        storageKey,
+      }),
+    ]);
+    return asset;
   }
 }

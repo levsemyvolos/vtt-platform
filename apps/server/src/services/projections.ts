@@ -105,5 +105,7 @@ export function projectInitiative(entry: InitiativeEntry): InitiativeEntryDTO {
     id: entry.id,
     name: entry.name,
     initiative: entry.initiative,
+    orderIndex: entry.orderIndex,
+    isCurrent: entry.isCurrent,
   };
 }

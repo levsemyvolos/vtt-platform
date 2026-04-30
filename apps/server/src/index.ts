@@ -6,6 +6,10 @@ import { scenesRouter, roomScenesSubRouter } from './routes/scenes.js';
 import { buildAiRouter } from './routes/ai.js';
 import { buildAssetsRouter } from './routes/assets.js';
 import { buildTurnRouter } from './routes/turn.js';
+import { buildInitiativeRouter } from './routes/initiative.js';
+import { buildHandoutsRouter } from './routes/handouts.js';
+import { buildNotesRouter } from './routes/notes.js';
+import { buildCharactersRouter } from './routes/characters.js';
 import { TurnConfigProvider } from './services/TurnConfigProvider.js';
 import { prisma } from './lib/prisma.js';
 import { buildSocketIo } from './socketio/index.js';
@@ -13,6 +17,10 @@ import { SceneService } from './services/SceneService.js';
 import { DiceService } from './services/DiceService.js';
 import { ChatService } from './services/ChatService.js';
 import { SessionResyncService } from './services/SessionResyncService.js';
+import { InitiativeService } from './services/InitiativeService.js';
+import { HandoutService } from './services/HandoutService.js';
+import { NoteService } from './services/NoteService.js';
+import { CharacterService } from './services/CharacterService.js';
 import { AIService } from './services/AIService.js';
 import { AssetService } from './services/AssetService.js';
 import { SceneRepository } from './repositories/SceneRepository.js';
@@ -21,8 +29,12 @@ import { ChatMessageRepository } from './repositories/ChatMessageRepository.js';
 import { InitiativeRepository } from './repositories/InitiativeRepository.js';
 import { RoomRepository } from './repositories/RoomRepository.js';
 import { AssetRepository } from './repositories/AssetRepository.js';
+import { HandoutRepository } from './repositories/HandoutRepository.js';
+import { NoteRepository } from './repositories/NoteRepository.js';
+import { CharacterRepository } from './repositories/CharacterRepository.js';
 import { GeminiProvider } from './infrastructure/ai/GeminiProvider.js';
 import { GcsFileStorageAdapter } from './infrastructure/storage/GcsFileStorageAdapter.js';
+import type { FileStorageAdapter } from './infrastructure/storage/FileStorageAdapter.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -39,11 +51,25 @@ app.use('/rooms/:id/scenes', roomScenesSubRouter);
 app.use('/rooms', roomsRouter);
 app.use('/scenes', scenesRouter);
 
+// ---------- Repositories (shared across verticals) ----------
+const sceneRepo = new SceneRepository(prisma);
+const tokenRepo = new TokenRepository(prisma);
+const chatRepo = new ChatMessageRepository(prisma);
+const initiativeRepo = new InitiativeRepository(prisma);
+const roomRepo = new RoomRepository(prisma);
+const assetRepo = new AssetRepository(prisma);
+const handoutRepo = new HandoutRepository(prisma);
+const noteRepo = new NoteRepository(prisma);
+const characterRepo = new CharacterRepository(prisma);
+
 // ---------- AI + Storage wiring (vertical 3, §2.13.4) ----------
 const gcpProjectId = process.env['GCP_PROJECT_ID'];
 const gcpKeyJson = process.env['GCP_SERVICE_ACCOUNT_KEY'];
 const gcpLocation = process.env['GCP_LOCATION'] ?? 'us-central1';
 const gcsBucket = process.env['GCS_BUCKET'];
+
+let fileStorage: FileStorageAdapter | null = null;
+let assetService: AssetService | null = null;
 
 if (gcpProjectId && gcpKeyJson && gcsBucket) {
   const aiProvider = new GeminiProvider({
@@ -51,19 +77,21 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
     location: gcpLocation,
     serviceAccountKeyJson: gcpKeyJson,
   });
-  const fileStorage = new GcsFileStorageAdapter({
+  fileStorage = new GcsFileStorageAdapter({
     projectId: gcpProjectId,
     bucketName: gcsBucket,
     serviceAccountKeyJson: gcpKeyJson,
   });
-  const assetRepo = new AssetRepository(prisma);
-  const assetService = new AssetService(aiProvider, fileStorage, assetRepo);
+  assetService = new AssetService(aiProvider, fileStorage, assetRepo);
   const aiService = new AIService(aiProvider, assetService);
   app.use('/ai', buildAiRouter(aiService));
   app.use('/assets', buildAssetsRouter(assetService));
 } else {
   // eslint-disable-next-line no-console
-  console.warn('[server] AI/Storage wiring skipped — GCP_PROJECT_ID / GCP_SERVICE_ACCOUNT_KEY / GCS_BUCKET not set');
+  console.warn(
+    '[server] AI/Storage wiring skipped — GCP_PROJECT_ID / GCP_SERVICE_ACCOUNT_KEY / GCS_BUCKET not set; ' +
+      'handouts.assetUrl will be undefined and character PDF upload will return 503',
+  );
 }
 
 // ---------- WebRTC ICE config (vertical 4) ----------
@@ -74,30 +102,35 @@ const turnConfigProvider = new TurnConfigProvider({
 });
 app.use(buildTurnRouter(turnConfigProvider));
 
-// ---------- socket.io wiring (vertical 2) ----------
-const sceneRepo = new SceneRepository(prisma);
-const tokenRepo = new TokenRepository(prisma);
-const chatRepo = new ChatMessageRepository(prisma);
-const initiativeRepo = new InitiativeRepository(prisma);
-const roomRepo = new RoomRepository(prisma);
-
+// ---------- Services (vertical 2 + Чат 7.1) ----------
 const sceneService = new SceneService(sceneRepo, tokenRepo);
 const diceService = new DiceService();
 const chatService = new ChatService(chatRepo);
 const resyncService = new SessionResyncService(sceneService, initiativeRepo, chatRepo);
+const initiativeService = new InitiativeService(initiativeRepo, sceneRepo);
+const handoutService = new HandoutService(handoutRepo, fileStorage);
+const noteService = new NoteService(noteRepo);
+const characterService = new CharacterService(characterRepo, fileStorage, assetService);
 
 const jwtSecret = process.env['JWT_SECRET'];
 if (!jwtSecret) throw new Error('JWT_SECRET env var is required');
 
-buildSocketIo(httpServer, {
+const io = buildSocketIo(httpServer, {
   sceneService,
   diceService,
   chatService,
   resyncService,
+  initiativeService,
   rooms: roomRepo,
   jwtSecret,
   corsOrigin: process.env['CLIENT_URL'] ?? 'http://localhost:5173',
 });
+
+// ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------
+app.use(buildInitiativeRouter(initiativeService, roomRepo, io));
+app.use(buildHandoutsRouter(handoutService, handoutRepo, roomRepo));
+app.use(buildNotesRouter(noteService, roomRepo));
+app.use(buildCharactersRouter(characterService, characterRepo, roomRepo));
 
 const PORT = Number(process.env['PORT'] ?? 4000);
 httpServer.listen(PORT, () => {

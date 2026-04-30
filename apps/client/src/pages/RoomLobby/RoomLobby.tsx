@@ -42,7 +42,14 @@ export default function RoomLobby(): JSX.Element | null {
   const handleStartSession = (): void => setSessionStarted(true);
 
   if (sessionStarted) {
-    return <SessionView room={currentRoom} myRole={myRole} onLeave={handleLeave} />;
+    return (
+      <SessionView
+        room={currentRoom}
+        myRole={myRole}
+        myCharacterId={myMember?.characterId ?? null}
+        onLeave={handleLeave}
+      />
+    );
   }
 
   return (
@@ -99,10 +106,11 @@ export default function RoomLobby(): JSX.Element | null {
 interface SessionViewProps {
   room: RoomDTO;
   myRole: Role;
+  myCharacterId: string | null;
   onLeave: () => void;
 }
 
-function SessionView({ room, myRole, onLeave }: SessionViewProps): JSX.Element {
+function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps): JSX.Element {
   const scene = useAppSelector((s) => s.scene.current);
   const [hydrating, setHydrating] = useState(false);
   const [hydrateError, setHydrateError] = useState<string | null>(null);
@@ -156,7 +164,12 @@ function SessionView({ room, myRole, onLeave }: SessionViewProps): JSX.Element {
           )}
         </main>
         <section className="game-room__side">
-          <Sidebar />
+          <Sidebar
+            roomId={room.id}
+            sceneId={scene?.id ?? null}
+            myRole={myRole}
+            myCharacterId={myCharacterId}
+          />
           <DiceRoller roomId={room.id} />
           <ChatPanel roomId={room.id} />
         </section>

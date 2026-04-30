@@ -119,3 +119,9 @@ export interface TurnConfigResponse {
   /** Unix seconds when HMAC credentials expire (RFC 7635 timed-credential). */
   ttlSecondsRemaining: number;
 }
+
+// ---------- Чат 7.1 — кампанійні матеріали (Ф7 + Ф9) ----------
+export * from './handouts';
+export * from './notes';
+export * from './characters';
+export * from './initiative';

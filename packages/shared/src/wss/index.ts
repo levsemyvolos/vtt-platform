@@ -97,6 +97,20 @@ export interface FogMaskDiffPayload {
   height: number;
 }
 
+/**
+ * Initiative-tracker snapshot broadcast after every write op (add / remove /
+ * reorder / advance). Ф7.3.
+ *
+ * `currentRound` is incremented when `advanceTurn` wraps past the last entry
+ * back to index 0. MVP: stored in-memory inside InitiativeService — see TSDoc
+ * note there.
+ */
+export interface InitiativeUpdatedPayload {
+  sceneId: string;
+  entries: InitiativeEntryDTO[];
+  currentRound: number;
+}
+
 // ---------- ACK envelope ----------
 
 /**
@@ -145,7 +159,7 @@ export interface ServerToClientEvents {
   'token:rollback': (payload: TokenRollbackPayload) => void;
   'chat:dice': (payload: ChatDicePayload) => void;
   'chat:message': (payload: ChatMessageDTO) => void;
-  'initiative:updated': (payload: InitiativeEntryDTO[]) => void;
+  'initiative:updated': (payload: InitiativeUpdatedPayload) => void;
   'session:resync': (payload: SessionResyncPayload) => void;
   'fog:mask-diff': (payload: FogMaskDiffPayload) => void;
   'signal:offer': (payload: SignalingPayload) => void;
