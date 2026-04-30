@@ -1,31 +1,76 @@
+import { useState } from 'react';
+import type { Role } from '@vtt/shared';
+import InitiativeTracker from './InitiativeTracker';
+import HandoutPanel from '../Handouts/HandoutPanel';
+import NotesPanel from '../Notes/NotesPanel';
+import CharacterSheet from '../CharacterSheet/CharacterSheet';
+
+interface SidebarProps {
+  roomId: string;
+  sceneId: string | null;
+  myRole: Role;
+  myCharacterId: string | null;
+}
+
+type Tab = 'initiative' | 'handouts' | 'notes' | 'character';
+
+interface TabSpec {
+  id: Tab;
+  label: string;
+}
+
+function buildTabs(myRole: Role, myCharacterId: string | null): TabSpec[] {
+  const tabs: TabSpec[] = [{ id: 'initiative', label: 'Ініціатива' }];
+  if (myRole !== 'Observer') tabs.push({ id: 'handouts', label: 'Handouts' });
+  if (myRole === 'GM') tabs.push({ id: 'notes', label: 'Нотатки' });
+  if (myCharacterId) tabs.push({ id: 'character', label: 'Персонаж' });
+  return tabs;
+}
+
+interface PanelProps extends SidebarProps {
+  tab: Tab;
+}
+
+function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps): JSX.Element | null {
+  if (tab === 'initiative') {
+    return sceneId ? (
+      <InitiativeTracker sceneId={sceneId} myRole={myRole} />
+    ) : (
+      <p className="sidebar__placeholder">Сцена не активна.</p>
+    );
+  }
+  if (tab === 'handouts') return <HandoutPanel roomId={roomId} myRole={myRole} />;
+  if (tab === 'notes') return <NotesPanel roomId={roomId} myRole={myRole} />;
+  if (tab === 'character' && myCharacterId)
+    return <CharacterSheet characterId={myCharacterId} myRole={myRole} />;
+  return null;
+}
+
 /**
- * Game-room sidebar shell. Three slots reserved per the GM mockup
- * (рис. 2.12, §2.10): Initiative tracker (Ф7.3), Character roster (Ф9), and
- * the Assistant panel button (Ф8). Slot bodies are populated by Chat 7.1
- * (Initiative + Characters) and a future AI Assistant chat (Ф8).
+ * Game-room sidebar (рис. 2.12, §2.10). Слоти Чату 7.1: Initiative (Ф7.3),
+ * Handouts (Ф7.4), Notes (Ф9, GM-only), Character (Ф7.5).
  */
-export default function Sidebar(): JSX.Element {
+export default function Sidebar(props: SidebarProps): JSX.Element {
+  const tabs = buildTabs(props.myRole, props.myCharacterId);
+  const [tab, setTab] = useState<Tab>('initiative');
   return (
     <aside className="sidebar" aria-label="Room sidebar">
-      <section className="sidebar__slot" data-slot="initiative" aria-label="Initiative tracker">
-        <h3>Ініціатива</h3>
-        <p className="sidebar__placeholder">Наповнюється у Чаті 7.1 (Ф7.3).</p>
-      </section>
-      <section className="sidebar__slot" data-slot="characters" aria-label="Character roster">
-        <h3>Персонажі</h3>
-        <p className="sidebar__placeholder">Наповнюється у Чаті 7.1 (Ф9).</p>
-      </section>
-      <section className="sidebar__slot" data-slot="assistant" aria-label="AI assistant">
-        <h3>AI-помічник</h3>
-        <button
-          type="button"
-          disabled
-          title="Чат 8 — AI Assistant"
-          className="sidebar__assistant-btn"
-        >
-          🤖 Відкрити
-        </button>
-      </section>
+      <nav className="sidebar__tabs" role="tablist">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      <div className="sidebar__panel" role="tabpanel">
+        <ActivePanel {...props} tab={tab} />
+      </div>
     </aside>
   );
 }

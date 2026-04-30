@@ -32,21 +32,9 @@ export interface AssetDTO {
   roomId: string;
 }
 
-export interface CharacterSheetDTO {
-  id: string;
-  name: string;
-  portraitUrl?: string;
-  sheetData?: Record<string, unknown>;
-}
-
-export interface HandoutDTO {
-  id: string;
-  title: string;
-  content?: string;
-  assetUrl?: string;
-  recipients: string[];
-  roomId: string;
-}
+// Note: HandoutDTO / CharacterSheetDTO / NoteDTO are defined in
+// `../rest/handouts.ts`, `../rest/characters.ts`, `../rest/notes.ts`
+// (introduced for Чат 7.1 — кампанійні матеріали Ф7+Ф9).
 
 export interface ChatMessageDTO {
   id: string;
@@ -64,20 +52,19 @@ export interface ChatMessageDTO {
   createdAt: string;
 }
 
+/**
+ * Initiative tracker entry projected for clients (Ф7.3).
+ * `orderIndex` defines turn order within equal-initiative ties; `isCurrent`
+ * highlights whose turn it is now.
+ */
 export interface InitiativeEntryDTO {
   id: string;
   name: string;
   initiative: number;
+  orderIndex: number;
+  isCurrent: boolean;
   characterId?: string;
   tokenId?: string;
-}
-
-export interface NoteDTO {
-  id: string;
-  title: string;
-  content: string;
-  roomId: string;
-  ownerId: string;
 }
 
 export interface AudioTrackDTO {

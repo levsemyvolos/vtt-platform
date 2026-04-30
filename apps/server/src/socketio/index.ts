@@ -8,6 +8,7 @@ import type { SceneService } from '../services/SceneService.js';
 import type { DiceService } from '../services/DiceService.js';
 import type { ChatService } from '../services/ChatService.js';
 import type { SessionResyncService } from '../services/SessionResyncService.js';
+import type { InitiativeService } from '../services/InitiativeService.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
 import { makeTokenMoveHandler } from './handlers/token.js';
 import { makeDiceRollHandler } from './handlers/dice.js';
@@ -26,6 +27,13 @@ export interface SocketDeps {
   diceService: DiceService;
   chatService: ChatService;
   resyncService: SessionResyncService;
+  /**
+   * Provided so future WSS handlers (e.g. live-edit of initiative from a
+   * client widget) can reuse the same in-memory round counter as the REST
+   * layer. Чат 7.1 itself broadcasts from REST handlers — see
+   * `routes/initiative.ts`.
+   */
+  initiativeService: InitiativeService;
   rooms: RoomRepository;
   jwtSecret: string;
   corsOrigin: string;

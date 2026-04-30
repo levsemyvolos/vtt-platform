@@ -6,6 +6,9 @@ import sceneReducer from './scene';
 import chatReducer from './chat';
 import initiativeReducer from './initiative';
 import mediaReducer from './media';
+import handoutsReducer from './handouts';
+import notesReducer from './notes';
+import charactersReducer from './characters';
 
 export const store = configureStore({
   reducer: {
@@ -15,6 +18,9 @@ export const store = configureStore({
     chat: chatReducer,
     initiative: initiativeReducer,
     media: mediaReducer,
+    handouts: handoutsReducer,
+    notes: notesReducer,
+    characters: charactersReducer,
   },
 });
 

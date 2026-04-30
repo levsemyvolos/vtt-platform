@@ -52,8 +52,8 @@ export function getSocket(): TypedClientSocket {
   socket.on('chat:dice', (payload) => {
     store.dispatch(appendDiceRoll(payload));
   });
-  socket.on('initiative:updated', (entries) => {
-    store.dispatch(hydrateInitiative(entries));
+  socket.on('initiative:updated', (payload) => {
+    store.dispatch(hydrateInitiative(payload));
   });
   // Algorithm A4 trigger A — XOR fog-mask diff broadcast (§2.17.5).
   socket.on('fog:mask-diff', (payload) => {
