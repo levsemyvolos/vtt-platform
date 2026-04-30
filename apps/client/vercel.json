@@ -4,13 +4,6 @@
   "outputDirectory": "dist",
   "installCommand": "echo \"install handled inside buildCommand from monorepo root\"",
   "framework": null,
-  "build": {
-    "env": {
-      "VITE_API_URL": "@vite_api_url",
-      "VITE_WSS_URL": "@vite_wss_url",
-      "VITE_TURN_CONFIG_URL": "@vite_turn_config_url"
-    }
-  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
