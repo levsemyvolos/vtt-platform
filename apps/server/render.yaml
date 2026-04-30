@@ -10,7 +10,7 @@ services:
     name: vtt-server
     runtime: node
     region: frankfurt
-    plan: starter
+    plan: free
     branch: main
     autoDeploy: true
     healthCheckPath: /health
