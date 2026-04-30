@@ -108,6 +108,7 @@ function makeSceneRepo(roomId = ROOM_ID): { repo: SceneRepository; mocks: SceneR
     fogMaskBase64: null,
     isHidden: false,
     isActive: true,
+    currentRound: 1,
     createdAt: new Date(),
   } satisfies Scene);
   return { repo: mocks as unknown as SceneRepository, mocks };
@@ -121,6 +122,7 @@ function fakeTrack(overrides: Partial<AudioTrack> = {}): AudioTrack {
     title: 'Battle music',
     assetId: 'asset-1',
     loop: false,
+    fadeMs: 1500,
     createdAt: new Date(),
     ...overrides,
   };

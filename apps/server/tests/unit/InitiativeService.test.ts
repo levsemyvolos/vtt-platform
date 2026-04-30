@@ -66,12 +66,14 @@ function makeRepo(state: RepoState): InitiativeRepository {
       const cur = state.rows.find((r) => r.isCurrent);
       return cur?.orderIndex ?? null;
     }),
-    // Make Prisma client fields irrelevant for the type cast.
   } as unknown as InitiativeRepository;
 }
 
-function makeSceneRepo(): SceneRepository {
-  const scene: Scene = {
+/** Creates a SceneRepository mock backed by shared mutable round state. */
+function makeSceneRepo(opts: { initialRound?: number } = {}): SceneRepository {
+  let currentRound = opts.initialRound ?? 1;
+
+  const baseScene: Scene = {
     id: SCENE_ID,
     roomId: ROOM_ID,
     name: 'Cave',
@@ -82,10 +84,23 @@ function makeSceneRepo(): SceneRepository {
     fogMaskBase64: null,
     isHidden: false,
     isActive: true,
+    currentRound,
     createdAt: new Date(),
   };
+
   return {
-    findById: vi.fn().mockResolvedValue(scene),
+    findById: vi.fn().mockResolvedValue({ ...baseScene }),
+    getCurrentRound: vi.fn(async () => currentRound),
+    incrementRound: vi.fn(async () => {
+      currentRound += 1;
+      return currentRound;
+    }),
+    update: vi.fn(async (_id: string, data: { currentRound?: number }) => {
+      if (typeof data.currentRound === 'number') {
+        currentRound = data.currentRound;
+      }
+      return { ...baseScene, currentRound };
+    }),
   } as unknown as SceneRepository;
 }
 
@@ -161,5 +176,29 @@ describe('InitiativeService (Ф7.3)', () => {
     // remaining 2 rows (B at orderIndex 1, C at orderIndex 2 → first is B).
     const current = snap.entries.find((e) => e.isCurrent);
     expect(current?.id).toBe('b');
+  });
+
+  it('currentRound persists across service restart (mock SceneRepository)', async () => {
+    // Two InitiativeService instances share the same SceneRepository,
+    // simulating process restart with a persistent DB.
+    const state: RepoState = {
+      rows: [
+        makeEntry({ id: 'a', name: 'A', initiative: 20, orderIndex: 0 }),
+        makeEntry({ id: 'b', name: 'B', initiative: 15, orderIndex: 1 }),
+      ],
+    };
+    const repo = makeRepo(state);
+    const sceneRepo = makeSceneRepo(); // shared "DB" state
+
+    const svc1 = new InitiativeService(repo, sceneRepo);
+    await svc1.advanceTurn(SCENE_ID); // A current, round = 1
+    await svc1.advanceTurn(SCENE_ID); // B current, round = 1
+    const snapBeforeRestart = await svc1.advanceTurn(SCENE_ID); // wrap → A, round = 2
+    expect(snapBeforeRestart.currentRound).toBe(2);
+
+    // Simulate restart: new service instance, same shared sceneRepo.
+    const svc2 = new InitiativeService(repo, sceneRepo);
+    const snapAfterRestart = await svc2.getSnapshot(SCENE_ID);
+    expect(snapAfterRestart.currentRound).toBe(2); // not reset to 1
   });
 });

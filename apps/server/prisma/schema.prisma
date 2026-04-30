@@ -95,6 +95,8 @@ model Scene {
   fogMaskBase64     String?  @db.Text
   isHidden          Boolean  @default(false)
   isActive          Boolean  @default(false)
+  // Current combat round; incremented on wraparound advanceTurn (Ф7.3, A_Initiative).
+  currentRound      Int      @default(1)
   createdAt         DateTime @default(now()) @db.Timestamptz(6)
 
   room            Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)

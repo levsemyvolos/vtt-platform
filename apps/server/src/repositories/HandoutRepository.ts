@@ -1,4 +1,4 @@
-import type { PrismaClient, Prisma, Handout } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
 export type HandoutWithRecipientsAndAsset = Prisma.HandoutGetPayload<{
   include: { recipients: true; asset: true };

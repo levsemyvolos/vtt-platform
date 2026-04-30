@@ -30,18 +30,11 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @vtt/server exec prisma generate
 
-      # Type-check is the merge gate (M2 in session_chapter_3_kickoff). Failure
-      # here blocks merge regardless of test/lint outcome.
       - name: Type check (gate)
         run: pnpm type-check
 
-      # Lint and test run for visibility but are NOT merge gates yet — Чат 7.1/7.2
-      # left a few pre-existing lint errors (unused imports, complexity > 10) that
-      # are scheduled for cleanup in Чат 14 ("Test plan + cleanup PR"). Promote
-      # to `run: pnpm lint` (no continue-on-error) once that chat lands.
-      - name: Lint (non-gating)
+      - name: Lint (gate)
         run: pnpm lint
-        continue-on-error: true
 
-      - name: Test
+      - name: Test (gate)
         run: pnpm test

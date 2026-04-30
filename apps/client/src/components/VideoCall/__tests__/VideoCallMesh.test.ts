@@ -33,13 +33,14 @@ class FakePC {
   getAudioTracks = vi.fn(() => [] as MediaStreamTrack[]);
   getVideoTracks = vi.fn(() => [] as MediaStreamTrack[]);
 
-  constructor(_config?: RTCConfiguration) {
+  constructor() {
     FakePC.instances.push(this);
   }
 }
 
 class FakeMediaStream {
-  id = `stream-${Math.random()}`;
+  static counter = 0;
+  id = `stream-${FakeMediaStream.counter++}`;
   getTracks = vi.fn(() => [] as MediaStreamTrack[]);
   getAudioTracks = vi.fn(() => [] as MediaStreamTrack[]);
   getVideoTracks = vi.fn(() => [] as MediaStreamTrack[]);
@@ -154,10 +155,10 @@ describe('PeerManager — 2-peer mesh handshake', () => {
 
     // Simulate remote track delivery (fires ontrack after remote SDP is set).
     const streamFromB = new FakeMediaStream() as unknown as MediaStream;
-    pcA.ontrack?.({ streams: [streamFromB] } as any); // A receives B's track
+    pcA.ontrack?.({ streams: [streamFromB] } as unknown as RTCTrackEvent); // A receives B's track
 
     const streamFromA = new FakeMediaStream() as unknown as MediaStream;
-    pcB.ontrack?.({ streams: [streamFromA] } as any); // B receives A's track
+    pcB.ontrack?.({ streams: [streamFromA] } as unknown as RTCTrackEvent); // B receives A's track
 
     expect(onStreamA).toHaveBeenCalledWith('bob', streamFromB);
     expect(onStreamB).toHaveBeenCalledWith('alice', streamFromA);

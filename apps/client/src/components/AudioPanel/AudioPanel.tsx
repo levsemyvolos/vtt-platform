@@ -72,6 +72,15 @@ export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps)
   );
 }
 
+function computeTrackBound(sceneId: string | null, trackSceneId: string | null): boolean {
+  return sceneId !== null && trackSceneId === sceneId;
+}
+
+function computeBindTitle(sceneId: string | null, isBound: boolean): string {
+  if (!sceneId) return 'Активна сцена відсутня';
+  return isBound ? 'Відв\'язати від сцени' : 'Прив\'язати до активної сцени';
+}
+
 interface TrackItemProps {
   track: AudioTrackDTO;
   sceneId: string | null;
@@ -86,7 +95,10 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
   const [editLoop, setEditLoop] = useState(track.loop);
   const [busy, setBusy] = useState(false);
 
-  const isBoundHere = sceneId !== null && track.sceneId === sceneId;
+  const isBoundHere = computeTrackBound(sceneId, track.sceneId);
+  const liClassName = `audio-panel__item${isPlaying ? ' is-playing' : ''}`;
+  const bindTitle = computeBindTitle(sceneId, isBoundHere);
+  const bindLabel = isBoundHere ? '✕ scene' : 'bind';
 
   function onOpenEdit(): void {
     setEditFadeMs(track.fadeMs);
@@ -107,7 +119,7 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
   }
 
   return (
-    <li className={`audio-panel__item${isPlaying ? ' is-playing' : ''}`}>
+    <li className={liClassName}>
       <span className="audio-panel__title">{track.title}</span>
       {track.loop && <span className="audio-panel__badge">loop</span>}
       {isPlaying && <span className="audio-panel__badge is-active">▶</span>}
@@ -120,15 +132,9 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
               dispatch(bindTrackToScene({ trackId: track.id, sceneId: isBoundHere ? null : sceneId }))
             }
             disabled={!sceneId}
-            title={
-              !sceneId
-                ? 'Активна сцена відсутня'
-                : isBoundHere
-                  ? 'Відв\'язати від сцени'
-                  : 'Прив\'язати до активної сцени'
-            }
+            title={bindTitle}
           >
-            {isBoundHere ? '✕ scene' : 'bind'}
+            {bindLabel}
           </button>
           <button type="button" onClick={onOpenEdit} aria-label={`Редагувати ${track.title}`}>
             ✎ Edit

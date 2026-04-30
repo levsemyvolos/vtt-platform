@@ -5,7 +5,6 @@ import { configureStore } from '@reduxjs/toolkit';
 import sceneReducer, { hydrateScene } from '../../../store/scene';
 import roomReducer from '../../../store/room';
 import TokenEditModal from '../TokenEditModal';
-import * as scenesApi from '../../../api/scenes';
 import type { SceneDTO } from '@vtt/shared';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
