@@ -13,7 +13,13 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:4000',
+      // Client calls /api/auth/* etc; server mounts routers under /auth /rooms /scenes
+      // (no /api prefix), so we strip the prefix at the proxy level.
+      '/api': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
       '/socket.io': {
         target: 'http://localhost:4000',
         ws: true,
