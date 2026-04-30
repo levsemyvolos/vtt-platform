@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import ConnectionState from '../VideoCall/ConnectionState';
 
 interface VideoTileProps {
   /** Display label (typically participant name). */
@@ -34,11 +35,9 @@ export default function VideoTile({
         muted={muted}
         aria-label={`Відеовіконце ${label}`}
       />
+      {connectionState && <ConnectionState state={connectionState} />}
       <figcaption className="video-tile__caption">
         <span className="video-tile__name">{label}</span>
-        {connectionState && (
-          <span className="video-tile__state">{connectionState}</span>
-        )}
       </figcaption>
     </figure>
   );

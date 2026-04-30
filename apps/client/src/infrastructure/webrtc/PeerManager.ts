@@ -42,9 +42,16 @@ export class PeerManager {
   private readonly peers = new Map<string, PeerEntry>();
   private localStream: MediaStream | null = null;
   private readonly opts: PeerManagerOptions;
+  private iceServers: IceServer[];
 
   constructor(opts: PeerManagerOptions) {
     this.opts = opts;
+    this.iceServers = opts.iceServers;
+  }
+
+  /** Replace ICE servers used for new RTCPeerConnections (TURN credential refresh). */
+  setIceServers(servers: IceServer[]): void {
+    this.iceServers = servers;
   }
 
   // --------------- Public API ---------------
@@ -115,7 +122,7 @@ export class PeerManager {
     const existing = this.peers.get(peerId);
     if (existing) return existing;
 
-    const pc = new RTCPeerConnection({ iceServers: this.opts.iceServers });
+    const pc = new RTCPeerConnection({ iceServers: this.iceServers });
     const entry: PeerEntry = { pc, pendingCandidates: [], remoteDescriptionSet: false };
 
     if (this.localStream) {
