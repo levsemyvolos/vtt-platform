@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { authRouter } from './routes/auth.js';
 import { roomsRouter } from './routes/rooms.js';
-import { scenesRouter, roomScenesSubRouter } from './routes/scenes.js';
+import { scenesRouter, roomScenesSubRouter, tokensRouter } from './routes/scenes.js';
 import { buildAiRouter } from './routes/ai.js';
 import { buildAssetsRouter } from './routes/assets.js';
 import { buildTurnRouter } from './routes/turn.js';
@@ -54,6 +54,7 @@ app.use('/auth', authRouter);
 app.use('/rooms/:id/scenes', roomScenesSubRouter);
 app.use('/rooms', roomsRouter);
 app.use('/scenes', scenesRouter);
+app.use('/tokens', tokensRouter);
 
 // ---------- Repositories (shared across verticals) ----------
 const sceneRepo = new SceneRepository(prisma);

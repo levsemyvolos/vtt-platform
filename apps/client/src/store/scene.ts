@@ -84,6 +84,10 @@ const sceneSlice = createSlice({
       if (idx === -1) state.current.tokens.push(action.payload);
       else state.current.tokens[idx] = action.payload;
     },
+    removeToken: (state, action: PayloadAction<string>) => {
+      if (!state.current) return;
+      state.current.tokens = state.current.tokens.filter((t) => t.id !== action.payload);
+    },
     /**
      * Algorithm A4 trigger A (§2.17.5): GM modified the fog mask. Server emits
      * an XOR diff against the previously broadcast packed bitmap; the client
@@ -108,6 +112,7 @@ export const {
   applySceneUpdate,
   applyTokenRollback,
   upsertToken,
+  removeToken,
   applyFogDiff,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;

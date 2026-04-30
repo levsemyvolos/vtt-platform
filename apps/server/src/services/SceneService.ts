@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { Scene, Token } from '@prisma/client';
+import type { Scene, Token, Prisma } from '@prisma/client';
 import type {
   OccResult,
   TokenMovePayload,
@@ -8,6 +8,8 @@ import type {
   SceneDTO,
   CreateSceneRequest,
   UpdateSceneRequest,
+  CreateTokenRequest,
+  UpdateTokenRequest,
 } from '@vtt/shared';
 import { SceneRepository, type SceneWithTokens } from '../repositories/SceneRepository.js';
 import { TokenRepository } from '../repositories/TokenRepository.js';
@@ -300,5 +302,51 @@ export class SceneService {
   async getTokenSceneId(tokenId: string): Promise<string | null> {
     const token: Token | null = await this.tokens.findById(tokenId);
     return token?.sceneId ?? null;
+  }
+
+  async createToken(sceneId: string, dto: CreateTokenRequest): Promise<Token> {
+    const scene = await this.scenes.findById(sceneId);
+    if (!scene) throw new HttpError(404, 'Scene not found');
+    return this.tokens.create({
+      id: randomUUID(),
+      scene: { connect: { id: sceneId } },
+      name: dto.name,
+      x: dto.x,
+      y: dto.y,
+      ...(dto.imageAssetId ? { imageAsset: { connect: { id: dto.imageAssetId } } } : {}),
+      ...(dto.color !== undefined ? { color: dto.color } : {}),
+      ...(dto.assignedUserId ? { assignedUser: { connect: { id: dto.assignedUserId } } } : {}),
+    });
+  }
+
+  async updateToken(
+    tokenId: string,
+    patch: UpdateTokenRequest,
+    requesterRole: Role,
+  ): Promise<Token> {
+    if (requesterRole !== 'GM') throw new HttpError(403, 'Only GM can edit tokens');
+    const token = await this.tokens.findById(tokenId);
+    if (!token) throw new HttpError(404, 'Token not found');
+
+    const data: Prisma.TokenUpdateInput = { version: { increment: 1 } };
+    if (patch.name !== undefined) data.name = patch.name;
+    if (patch.hp !== undefined) data.hp = patch.hp;
+    if (patch.maxHp !== undefined) data.maxHp = patch.maxHp;
+    if (patch.color !== undefined) data.color = patch.color;
+    if (patch.statusMarkers !== undefined) data.statusMarkers = patch.statusMarkers;
+    if (patch.isHidden !== undefined) data.isHidden = patch.isHidden;
+    if (patch.assignedUserId !== undefined) {
+      data.assignedUser = patch.assignedUserId
+        ? { connect: { id: patch.assignedUserId } }
+        : { disconnect: true };
+    }
+    return this.tokens.update(tokenId, data);
+  }
+
+  async deleteToken(tokenId: string, requesterRole: Role): Promise<void> {
+    if (requesterRole !== 'GM') throw new HttpError(403, 'Only GM can delete tokens');
+    const token = await this.tokens.findById(tokenId);
+    if (!token) throw new HttpError(404, 'Token not found');
+    await this.tokens.delete(tokenId);
   }
 }

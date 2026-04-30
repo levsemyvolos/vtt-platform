@@ -39,6 +39,10 @@ export class TokenRepository {
     return this.db.token.findUnique({ where: { id } });
   }
 
+  update(id: string, data: Prisma.TokenUpdateInput): Promise<Token> {
+    return this.db.token.update({ where: { id }, data });
+  }
+
   delete(id: string): Promise<Token> {
     return this.db.token.delete({ where: { id } });
   }

@@ -115,6 +115,8 @@ model Token {
   y              Float
   name           String   @db.VarChar(64)
   hp             Int?
+  maxHp          Int?
+  color          String?
   statusMarkers  String[] @default([])
   isHidden       Boolean  @default(false)
   // OCC version per algorithm A2 (§2.17.3). Monotonically increasing on every accepted move.

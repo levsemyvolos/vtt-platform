@@ -1,4 +1,5 @@
-import type { SceneDTO } from '@vtt/shared';
+import type { SceneDTO, TokenPublicDTO } from '@vtt/shared';
+import type { CreateTokenRequest, UpdateTokenRequest } from '@vtt/shared';
 import { apiFetch } from './apiFetch';
 
 /**
@@ -9,4 +10,28 @@ import { apiFetch } from './apiFetch';
  */
 export function fetchSceneSnapshot(sceneId: string): Promise<SceneDTO> {
   return apiFetch<SceneDTO>(`/api/scenes/${sceneId}`);
+}
+
+export function apiCreateToken(
+  sceneId: string,
+  data: CreateTokenRequest,
+): Promise<TokenPublicDTO> {
+  return apiFetch<TokenPublicDTO>(`/api/scenes/${sceneId}/tokens`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function apiUpdateToken(
+  tokenId: string,
+  data: UpdateTokenRequest,
+): Promise<TokenPublicDTO> {
+  return apiFetch<TokenPublicDTO>(`/api/tokens/${tokenId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function apiDeleteToken(tokenId: string): Promise<void> {
+  return apiFetch<void>(`/api/tokens/${tokenId}`, { method: 'DELETE' });
 }
