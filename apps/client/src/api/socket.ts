@@ -10,6 +10,7 @@ import type {
   ChatDicePayload,
   ChatMessageDTO,
   SignalingPayload,
+  AnnotationPingPayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
@@ -17,6 +18,7 @@ import { applySceneUpdate, applyTokenRollback, hydrateScene, applyFogDiff } from
 import { appendChatMessage, hydrateChat, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
+import { addPing, removePing } from '../store/annotations';
 
 export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -69,6 +71,14 @@ export function getSocket(): TypedClientSocket {
   // SceneService.onSceneActivated hook). Discriminated union by `action`.
   socket.on('audio:play', (payload) => {
     store.dispatch(applyAudioPlay(payload));
+  });
+
+  // Ф3.4.1 — ephemeral ping marker; auto-removed after 3 s (§2.16, table 2.14).
+  socket.on('annotation:ping', (payload) => {
+    store.dispatch(addPing(payload));
+    setTimeout(() => {
+      store.dispatch(removePing(payload.timestamp));
+    }, 3000);
   });
 
   return socket;
@@ -181,4 +191,9 @@ export function emitSessionResync(roomId: string): Promise<SessionResyncPayload>
       });
     }),
   );
+}
+
+/** Fire-and-forget ping marker (Ф3.4.1). No ack — server broadcasts and forgets. */
+export function emitAnnotationPing(payload: AnnotationPingPayload): void {
+  getSocket().emit('annotation:ping', payload);
 }

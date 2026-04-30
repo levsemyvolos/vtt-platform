@@ -139,6 +139,20 @@ export type AudioPlayPayload =
       startedAt: number;
     };
 
+/**
+ * Ephemeral attention-marker broadcast (Ф3.4.1, table 2.14 row 13).
+ * Never persisted — server forwards to room and the client auto-fades in 3 s.
+ */
+export interface AnnotationPingPayload {
+  roomId: string;
+  sceneId: string;
+  x: number;
+  y: number;
+  color: string;
+  userId: string;
+  timestamp: number;
+}
+
 // ---------- ACK envelope ----------
 
 /**
@@ -180,6 +194,7 @@ export interface ClientToServerEvents {
   'signal:offer': (payload: SignalingPayload) => void;
   'signal:answer': (payload: SignalingPayload) => void;
   'signal:ice': (payload: SignalingPayload) => void;
+  'annotation:ping': (payload: AnnotationPingPayload) => void;
 }
 
 export interface ServerToClientEvents {
@@ -194,6 +209,7 @@ export interface ServerToClientEvents {
   'signal:offer': (payload: SignalingPayload) => void;
   'signal:answer': (payload: SignalingPayload) => void;
   'signal:ice': (payload: SignalingPayload) => void;
+  'annotation:ping': (payload: AnnotationPingPayload) => void;
 }
 
 export interface InterServerEvents {
