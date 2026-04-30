@@ -16,6 +16,8 @@ interface MediaState {
   localStreamReady: boolean;
   /** Keyed by remote userId. */
   peers: Record<string, RemotePeerState>;
+  /** True when active peer count ≥ 6 (mesh O(N²) ceiling per §2.13.4). */
+  meshCeilingReached: boolean;
 }
 
 const initialState: MediaState = {
@@ -23,6 +25,7 @@ const initialState: MediaState = {
   cameraEnabled: true,
   localStreamReady: false,
   peers: {},
+  meshCeilingReached: false,
 };
 
 const mediaSlice = createSlice({
@@ -44,6 +47,9 @@ const mediaSlice = createSlice({
     removePeer: (state, action: PayloadAction<string>) => {
       delete state.peers[action.payload];
     },
+    setMeshCeiling: (state, action: PayloadAction<boolean>) => {
+      state.meshCeilingReached = action.payload;
+    },
     resetMedia: () => initialState,
   },
 });
@@ -54,6 +60,7 @@ export const {
   toggleCamera,
   upsertPeer,
   removePeer,
+  setMeshCeiling,
   resetMedia,
 } = mediaSlice.actions;
 export default mediaSlice.reducer;
