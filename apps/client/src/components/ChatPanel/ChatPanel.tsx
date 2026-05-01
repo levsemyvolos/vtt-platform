@@ -38,9 +38,9 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
   }
 
   function modeClass(m: string): string {
-    if (m === 'ooc') return styles.msgOoc ?? '';
-    if (m === 'whisper') return styles.msgWhisper ?? '';
-    return styles.msgIc ?? '';
+    if (m === 'ooc') return styles.msgOoc as string;
+    if (m === 'whisper') return styles.msgWhisper as string;
+    return styles.msgIc as string;
   }
 
   const MODES: { value: ChatMode; label: string }[] = [

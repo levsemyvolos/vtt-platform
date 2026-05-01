@@ -1,4 +1,4 @@
-import i18next from 'i18next';
+import i18next, { type Resource } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
@@ -32,8 +32,7 @@ export async function initI18n(): Promise<void> {
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      resources: resources as any,
+      resources: resources as Resource,
       fallbackLng: 'en',
       supportedLngs: SUPPORTED_LNGS,
       ns: NAMESPACES,

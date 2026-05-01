@@ -46,9 +46,9 @@ export default function RoomLobby(): JSX.Element | null {
   }
 
   function roleBadgeClass(role: string): string {
-    if (role === 'GM') return styles.roleGm ?? '';
-    if (role === 'Player') return styles.rolePlayer ?? '';
-    return styles.roleObserver ?? '';
+    if (role === 'GM') return styles.roleGm as string;
+    if (role === 'Player') return styles.rolePlayer as string;
+    return styles.roleObserver as string;
   }
 
   return (
