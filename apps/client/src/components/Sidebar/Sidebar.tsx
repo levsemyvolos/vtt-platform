@@ -26,7 +26,8 @@ interface TabSpec {
   label: string;
 }
 
-function buildTabs(myRole: Role, t: (key: string) => string): TabSpec[] {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildTabs(myRole: Role, t: (key: string) => any): TabSpec[] {
   const tabs: TabSpec[] = [{ id: 'initiative', label: t('campaign:initiative.sidebarTab') }];
   if (myRole !== 'Observer') tabs.push({ id: 'handouts', label: t('campaign:handouts.sidebarTab') });
   if (myRole === 'GM') tabs.push({ id: 'notes', label: t('campaign:notes.sidebarTab') });
@@ -59,7 +60,8 @@ function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps
  */
 export default function Sidebar(props: SidebarProps): JSX.Element {
   const { t } = useTranslation('campaign');
-  const tabs = buildTabs(props.myRole, t);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tabs = buildTabs(props.myRole, t as (key: string) => any);
   const [tab, setTab] = useState<Tab>('initiative');
   const [assistantOpen, setAssistantOpen] = useState(false);
 

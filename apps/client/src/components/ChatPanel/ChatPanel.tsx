@@ -14,7 +14,7 @@ interface ChatPanelProps {
  * messages list (rendered with their rollPayload).
  */
 export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
-  const { t } = useTranslation('room');
+  const { t } = useTranslation(['room', 'common']);
   const messages = useAppSelector((s) => s.chat.messages);
   const members = useAppSelector((s) => s.room.members);
   const [text, setText] = useState('');
@@ -38,9 +38,9 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
   }
 
   function modeClass(m: string): string {
-    if (m === 'ooc') return styles.msgOoc;
-    if (m === 'whisper') return styles.msgWhisper;
-    return styles.msgIc;
+    if (m === 'ooc') return styles.msgOoc ?? '';
+    if (m === 'whisper') return styles.msgWhisper ?? '';
+    return styles.msgIc ?? '';
   }
 
   const MODES: { value: ChatMode; label: string }[] = [

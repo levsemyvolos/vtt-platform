@@ -98,9 +98,11 @@
     "colorLabel": "Колір",
     "statusLabel": "Статуси",
     "assignedPlayerLabel": "Призначений гравець",
-    "noAssigned": "— не призначено —"
+    "noAssigned": "— не призначено —",
+    "contextMenuLabel": "Дії з токеном"
   },
   "annotation": {
+    "toolbarLabel": "Інструменти анотацій",
     "pingTitle": "Ping — привернути увагу (Ф3.4.1)",
     "drawTitle": "Малювання — TODO R3b (Ф3.4.2)",
     "measureTitle": "Лінійка — TODO R3b (Ф3.4.3)"

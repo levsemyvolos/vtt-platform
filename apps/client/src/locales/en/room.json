@@ -98,9 +98,11 @@
     "colorLabel": "Color",
     "statusLabel": "Status",
     "assignedPlayerLabel": "Assigned Player",
-    "noAssigned": "— not assigned —"
+    "noAssigned": "— not assigned —",
+    "contextMenuLabel": "Token actions"
   },
   "annotation": {
+    "toolbarLabel": "Annotation tools",
     "pingTitle": "Ping — attract attention (Ф3.4.1)",
     "drawTitle": "Draw — TODO R3b (Ф3.4.2)",
     "measureTitle": "Ruler — TODO R3b (Ф3.4.3)"
