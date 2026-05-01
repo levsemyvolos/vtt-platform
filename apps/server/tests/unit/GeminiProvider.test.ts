@@ -17,6 +17,16 @@ vi.mock('@google-cloud/aiplatform', () => ({
   },
 }));
 
+// Wraps a JS object in the same proto Value shape PredictionServiceClient
+// emits at runtime (verified on Render: structValue → fields → stringValue).
+function asProtoValue(obj: Record<string, string>): unknown {
+  const fields: Record<string, { stringValue: string }> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    fields[k] = { stringValue: v };
+  }
+  return { structValue: { fields }, kind: 'structValue' };
+}
+
 const { GeminiProvider } = await import('../../src/infrastructure/ai/GeminiProvider.js');
 const { AIQuotaError } = await import('../../src/infrastructure/ai/AIProvider.js');
 
@@ -150,14 +160,14 @@ describe('GeminiProvider.generateImage', () => {
 describe('GeminiProvider.generateMusic', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('decodes audioContent from Lyria 2 predict() into Buffer + mimeType', async () => {
+  it('decodes Lyria predict() proto-Value into Buffer + mimeType', async () => {
     const { client: genai } = makeGenAI();
     const { client: predict, mocks: predictMocks } = makePredict();
     const wav = Buffer.from([5, 6, 7, 8]);
     predictMocks.predict.mockResolvedValue([
       {
         predictions: [
-          { audioContent: wav.toString('base64'), mimeType: 'audio/wav' },
+          asProtoValue({ bytesBase64Encoded: wav.toString('base64'), mimeType: 'audio/wav' }),
         ],
       },
       undefined,
