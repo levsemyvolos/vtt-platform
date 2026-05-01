@@ -1,11 +1,33 @@
 {
   "dashboard": {
-    "heading": "Game Rooms",
-    "createBtn": "+ New Room",
+    "heading": "My Rooms",
+    "subheading": "{{active}} active · {{total}} total",
+    "createBtn": "+ Create Room",
     "noRooms": "No rooms yet. Create your first!",
     "membersCount": "{{count}} members",
+    "membersCount_one": "{{count}} member",
     "newRoomHeading": "New Room",
-    "formLabel": "new room form"
+    "formLabel": "new room form",
+    "tabs": {
+      "my": "My",
+      "invited": "Invited"
+    },
+    "search": {
+      "placeholder": "search rooms…"
+    },
+    "card": {
+      "role": "Role: {{role}}"
+    },
+    "createCard": {
+      "heading": "Create a new room",
+      "subheading": "Pick a system and invite players"
+    },
+    "empty": {
+      "myHeading": "You have no rooms yet",
+      "mySubheading": "Create your first room — and invite players via link.",
+      "invitedHeading": "No active invitations",
+      "invitedSubheading": "When you are invited to a room, it will appear here."
+    }
   },
   "status": {
     "lobby": "Lobby",
