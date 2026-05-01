@@ -22,14 +22,19 @@ export interface GeminiProviderConfig {
   musicModel?: string;
 }
 
-// Real Vertex AI publisher model IDs as of 2026-05.
-// Bible §2.3 names like `gemini-3.1-flash-image` / `lyria-3` were planning
-// placeholders — Vertex actually exposes Gemini for text, Imagen for image,
-// and a Lyria preview ID for music. Override per-instance via the optional
-// fields on `GeminiProviderConfig` if Google rotates the IDs.
+// Vertex AI publisher model IDs (verified against docs.cloud.google.com,
+// 2026-05). Bible §2.3 used aspirational names that needed real-world
+// publisher IDs:
+//   text  — Gemini 2.5 Flash (GA)
+//   image — Nano Banana 1 (Gemini 2.5 Flash Image, GA). Phase 2 target is
+//           `gemini-3.1-flash-image-preview` (Nano Banana 2) once the
+//           project is on Google's preview allowlist.
+//   music — Lyria 2 (`lyria-002`, GA via predict). Phase 2 target is
+//           `lyria-3-pro-preview` once allowlisted.
+// Per-instance overrides remain available on `GeminiProviderConfig`.
 const DEFAULT_TEXT_MODEL = 'gemini-2.5-flash';
-const DEFAULT_IMAGE_MODEL = 'imagen-3.0-fast-generate-001';
-const DEFAULT_MUSIC_MODEL = 'lyria-001';
+const DEFAULT_IMAGE_MODEL = 'gemini-2.5-flash-image';
+const DEFAULT_MUSIC_MODEL = 'lyria-002';
 
 function isQuotaError(err: unknown): boolean {
   const code = (err as { code?: number }).code;
