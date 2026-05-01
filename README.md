@@ -89,6 +89,27 @@ infra/
 docker-compose.yml          — postgres:16 + coturn:4 for §3.15 volume test
 ```
 
+## Demo Credentials (local dev)
+
+| Role | Email | Password |
+|------|-------|----------|
+| Game Master | `gm@test.com` | `password123` |
+| Player | `player@test.com` | `password123` |
+| Observer | `http://localhost:5173/observer?code=<inviteCode>` | — |
+
+> Облікові записи створюються автоматично через `POST /auth/register`. Invite-код отримати через `POST /rooms/:id/invites` (поле `observerToken`).
+
+## Smoke Checklist (Chat 7.11)
+
+Full browser smoke + REST API smoke documented in
+[`apps/client/docs/SMOKE_CHECKLIST.md`](apps/client/docs/SMOKE_CHECKLIST.md).
+
+**Results:** 60/62 pass, 2 skipped (GCS audio upload + WebRTC camera in headless),
+0 fail. Screenshots: [`apps/client/docs/screenshots/`](apps/client/docs/screenshots/) (39 PNG files).
+
+**Coverage (server services):** AuthService 57%, DiceService 97%, SceneService 71%,
+AssistantService 100%, SessionResyncService 100%. All target services ≥ 50% ✅.
+
 ## Smoke check after deploy
 
 See `infra/smoke/README.md` for the 8-step flow:
