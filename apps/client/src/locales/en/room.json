@@ -28,7 +28,7 @@
     "roleLabel": "Role:",
     "sessionLoading": "Loading scene…",
     "sessionError": "Error: {{message}}",
-    "noActiveScene": "No active scene. Create a scene via REST POST /rooms/:id/scenes."
+    "noActiveScene": "No active scene. Create a scene in the lobby and activate it."
   },
   "scenes": {
     "heading": "Scenes",

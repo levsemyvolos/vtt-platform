@@ -14,8 +14,8 @@ import type {
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, hydrateScene, applyFogDiff } from '../store/scene';
-import { appendChatMessage, hydrateChat, appendDiceRoll } from '../store/chat';
+import { applySceneUpdate, applyTokenRollback, applyFogDiff } from '../store/scene';
+import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
 import { addPing, removePing } from '../store/annotations';
@@ -62,11 +62,10 @@ export function getSocket(): TypedClientSocket {
   socket.on('fog:mask-diff', (payload) => {
     store.dispatch(applyFogDiff(payload));
   });
-  socket.on('session:resync', (payload: SessionResyncPayload) => {
-    store.dispatch(hydrateScene(payload.scene));
-    store.dispatch(hydrateChat(payload.messages));
-    store.dispatch(hydrateInitiative(payload.initiatives));
-  });
+  // Note: server responds to `session:resync` only via the ack callback (see
+  // `emitSessionResync` below — its caller in RoomLobby dispatches the hydrate
+  // actions on the resolved payload). No server-pushed `session:resync` event
+  // exists, so we deliberately do NOT register a listener here.
   // Ф6 — universal `audio:play` event (broadcast from REST handlers and from
   // SceneService.onSceneActivated hook). Discriminated union by `action`.
   socket.on('audio:play', (payload) => {

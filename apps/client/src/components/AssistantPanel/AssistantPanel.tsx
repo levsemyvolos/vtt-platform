@@ -16,7 +16,7 @@ interface AssistantPanelProps {
 
 export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps): JSX.Element {
   const dispatch = useAppDispatch();
-  const { t } = useTranslation('assistant');
+  const { t } = useTranslation(['assistant', 'errors']);
   const activeContext = useAppSelector((s) => s.assistant.activeContext);
   const status = useAppSelector((s) => s.assistant.status);
   const error = useAppSelector((s) => s.assistant.error);
@@ -52,7 +52,9 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
       </nav>
       <MessageList messages={messages} />
       {error && status === 'error' && (
-        <p className={styles.error} role="alert">{error}</p>
+        <p className={styles.error} role="alert">
+          {error.startsWith('errors:') ? t(error as never) : error}
+        </p>
       )}
       <InputBar
         onSend={(prompt) => void dispatch(sendAssistantMessage({ context: activeContext, prompt, conversationId }))}

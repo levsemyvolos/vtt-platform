@@ -29,6 +29,11 @@
     "loading": "Loading…",
     "active": "Active",
     "closed": "Closed",
-    "lobby": "Lobby"
+    "lobby": "Lobby",
+    "retry": "Retry"
+  },
+  "desktopGuard": {
+    "title": "Mobile / tablet not supported",
+    "subtitle": "Please use a desktop browser with a width of at least 1280 px."
   }
 }

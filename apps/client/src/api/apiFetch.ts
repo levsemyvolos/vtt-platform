@@ -62,6 +62,16 @@ async function refreshOnce(): Promise<string | null> {
 
 async function parseError(res: Response): Promise<ApiError> {
   const body = await res.json().catch(() => ({})) as { error?: { message?: string } };
+  // 5xx leak guard: server can surface infra details (Prisma SQL, stack frames).
+  // Replace with an i18n key that callers resolve via `t()`. Raw text is kept
+  // in console for developers but never reaches the user-facing UI.
+  if (res.status >= 500) {
+    if (body.error?.message) {
+      // eslint-disable-next-line no-console
+      console.error('[apiFetch] server 5xx detail:', body.error.message);
+    }
+    return new ApiError(res.status, 'errors:server.generic');
+  }
   return new ApiError(res.status, body.error?.message ?? res.statusText);
 }
 
@@ -104,7 +114,8 @@ export async function apiFetch<TRes = unknown>(
   if (!res.ok) {
     const err = await parseError(res);
     if (res.status >= 500) {
-      store.dispatch(addToast('error', `Server error ${res.status}: ${err.message}`));
+      // err.message is already an i18n key from parseError; Toast resolves it.
+      store.dispatch(addToast('error', err.message));
     }
     throw err;
   }

@@ -13,7 +13,7 @@ interface SceneManagerProps {
 
 export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX.Element {
   const dispatch = useAppDispatch();
-  const { t } = useTranslation(['room', 'common']);
+  const { t } = useTranslation(['room', 'common', 'errors']);
   const { list, status, error } = useAppSelector((s) => s.scenes);
   const [showCreate, setShowCreate] = useState(false);
   const [activating, setActivating] = useState<string | null>(null);
@@ -53,7 +53,16 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
         <p className={styles.status}>{t('common:status.loading')}</p>
       )}
       {status === 'error' && (
-        <p className={`${styles.status} ${styles.statusError}`}>{error}</p>
+        <div className={`${styles.status} ${styles.statusError}`}>
+          <p>{error?.startsWith('errors:') ? t(error as never) : error}</p>
+          <button
+            type="button"
+            className={styles.btnAdd}
+            onClick={() => void dispatch(loadScenes(roomId))}
+          >
+            {t('common:status.retry')}
+          </button>
+        </div>
       )}
 
       <ul className={styles.list}>
@@ -68,12 +77,12 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
                 {t('room:scenes.activeBadge')}
               </span>
             )}
-            {isGM && (
+            {isGM && !scene.isActive && (
               <button
                 type="button"
                 className={styles.btnActivate}
-                disabled={scene.isActive || activating === scene.id}
-                title={scene.isActive ? t('room:scenes.alreadyActive') : t('room:scenes.makeActive')}
+                disabled={activating === scene.id}
+                title={t('room:scenes.makeActive')}
                 onClick={() => void handleActivate(scene.id)}
               >
                 {activating === scene.id ? t('room:scenes.activating') : t('room:scenes.activateBtn')}

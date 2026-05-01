@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './DesktopOnlyGuard.module.css';
 
 interface Props {
@@ -11,17 +12,18 @@ interface Props {
  * The children are always mounted (background) so state is preserved.
  */
 export default function DesktopOnlyGuard({ children }: Props): JSX.Element {
+  const { t } = useTranslation('common');
   return (
     <>
       <div
         className={styles.banner}
         role="alert"
         aria-live="polite"
-        aria-label="Desktop only notice"
+        aria-label={t('desktopGuard.title')}
       >
         <span className={styles.icon} aria-hidden="true">🖥</span>
-        <p className={styles.title}>Mobile/tablet not supported</p>
-        <p className={styles.subtitle}>Please use a desktop browser with a width of at least 1280 px.</p>
+        <p className={styles.title}>{t('desktopGuard.title')}</p>
+        <p className={styles.subtitle}>{t('desktopGuard.subtitle')}</p>
       </div>
       {children}
     </>

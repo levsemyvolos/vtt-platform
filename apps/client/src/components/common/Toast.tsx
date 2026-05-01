@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { removeToast, type ToastVariant } from '../../store/toast';
 import styles from './Toast.module.css';
@@ -16,6 +17,14 @@ const AUTO_DISMISS_MS = 4000;
 export default function ToastContainer(): JSX.Element {
   const dispatch = useAppDispatch();
   const queue = useAppSelector((s) => s.toast.queue);
+  const { t: translate } = useTranslation(['errors', 'common']);
+
+  const renderMessage = (raw: string): string => {
+    // Messages that come as i18n keys (`errors:foo.bar`) are translated here so
+    // producers (apiFetch, thunks) don't need React context. Plain strings pass through.
+    if (raw.startsWith('errors:') || raw.startsWith('common:')) return translate(raw as never);
+    return raw;
+  };
 
   useEffect(() => {
     const first = queue[0];
@@ -35,7 +44,7 @@ export default function ToastContainer(): JSX.Element {
           className={`${styles.toast} ${styles[`toast--${t.variant}`]}`}
         >
           <span className={styles.icon} aria-hidden="true">{ICONS[t.variant]}</span>
-          <span className={styles.message}>{t.message}</span>
+          <span className={styles.message}>{renderMessage(t.message)}</span>
           <button
             type="button"
             className={styles.close}

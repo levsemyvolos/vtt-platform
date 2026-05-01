@@ -42,12 +42,20 @@ export class GeminiProvider implements AIProvider {
     const credentials = JSON.parse(
       Buffer.from(cfg.serviceAccountKeyJson, 'base64').toString('utf-8'),
     ) as { client_email: string; private_key: string };
+    // Vertex AI exposes a regional endpoint (`<region>-aiplatform.googleapis.com`)
+    // and a global one (`aiplatform.googleapis.com` — used when `location=global`,
+    // which is the default for modern Gemini multi-region routing). The path
+    // segment under `locations/<id>` keeps the literal id either way.
+    const apiEndpoint =
+      cfg.location === 'global'
+        ? 'aiplatform.googleapis.com'
+        : `${cfg.location}-aiplatform.googleapis.com`;
     this.client =
       client ??
       new PredictionServiceClient({
         projectId: cfg.projectId,
         credentials,
-        apiEndpoint: `${cfg.location}-aiplatform.googleapis.com`,
+        apiEndpoint,
       });
     this.endpointBase = `projects/${cfg.projectId}/locations/${cfg.location}/publishers/google/models`;
     this.textModel = cfg.textModel ?? DEFAULT_TEXT_MODEL;
