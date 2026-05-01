@@ -1,11 +1,34 @@
 {
   "dashboard": {
-    "heading": "Ігрові кімнати",
-    "createBtn": "+ Нова кімната",
+    "heading": "Мої кімнати",
+    "subheading": "{{active}} активних · {{total}} всього",
+    "createBtn": "+ Створити кімнату",
     "noRooms": "Кімнат ще немає. Створіть першу!",
     "membersCount": "{{count}} учасників",
+    "membersCount_one": "{{count}} учасник",
+    "membersCount_few": "{{count}} учасники",
     "newRoomHeading": "Нова кімната",
-    "formLabel": "форма нової кімнати"
+    "formLabel": "форма нової кімнати",
+    "tabs": {
+      "my": "Мої",
+      "invited": "Запрошення"
+    },
+    "search": {
+      "placeholder": "пошук кімнати…"
+    },
+    "card": {
+      "role": "Роль: {{role}}"
+    },
+    "createCard": {
+      "heading": "Створити нову кімнату",
+      "subheading": "Оберіть систему та запросіть гравців"
+    },
+    "empty": {
+      "myHeading": "У вас ще немає кімнат",
+      "mySubheading": "Створіть першу кімнату — і запросіть гравців посиланням.",
+      "invitedHeading": "Немає активних запрошень",
+      "invitedSubheading": "Коли вас запросять до кімнати, вона з'явиться тут."
+    }
   },
   "status": {
     "lobby": "Лобі",
