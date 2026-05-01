@@ -74,6 +74,15 @@ function computeTrackBound(sceneId: string | null, trackSceneId: string | null):
   return sceneId !== null && trackSceneId === sceneId;
 }
 
+function computeBindTitle(
+  sceneId: string | null,
+  isBoundHere: boolean,
+  labels: { noScene: string; bind: string; unbind: string },
+): string {
+  if (!sceneId) return labels.noScene;
+  return isBoundHere ? labels.unbind : labels.bind;
+}
+
 interface TrackItemProps {
   track: AudioTrackDTO;
   sceneId: string | null;
@@ -91,11 +100,11 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
 
   const isBoundHere = computeTrackBound(sceneId, track.sceneId);
   const liClassName = isPlaying ? `${styles.item} ${styles.itemPlaying}` : styles.item;
-  const bindTitle = sceneId
-    ? isBoundHere
-      ? t('campaign:audio.unbindTitle')
-      : t('campaign:audio.bindTitle')
-    : t('campaign:audio.noScene');
+  const bindTitle = computeBindTitle(sceneId, isBoundHere, {
+    noScene: t('campaign:audio.noScene'),
+    bind: t('campaign:audio.bindTitle'),
+    unbind: t('campaign:audio.unbindTitle'),
+  });
   const bindLabel = isBoundHere ? t('campaign:audio.unbindBtn') : t('campaign:audio.bindBtn');
 
   function onOpenEdit(): void {
