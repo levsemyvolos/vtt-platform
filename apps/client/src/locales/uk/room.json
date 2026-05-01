@@ -78,7 +78,8 @@
       "gridHeight": "Висота (кліток)",
       "gridSize": "Розмір клітинки (px)",
       "formLabel": "форма нової сцени"
-    }
+    },
+    "editBtn": "Редагувати"
   },
   "chat": {
     "panelLabel": "Чат",
@@ -175,7 +176,22 @@
     "rightToolbar": {
       "heading": "Властивості"
     },
-    "placeholder": "Оберіть елемент для редагування"
+    "placeholder": "Оберіть елемент для редагування",
+    "bg": {
+      "aiBtn": "Згенерувати AI"
+    },
+    "grid": {
+      "sizeLabel": "Розмір клітинки (px)",
+      "widthLabel": "Ширина (кліток)",
+      "heightLabel": "Висота (кліток)",
+      "saveBtn": "Зберегти"
+    },
+    "fog": {
+      "clearBtn": "Очистити туман (показати все)"
+    },
+    "properties": {
+      "noSelection": "Клікніть на токен у сцені, щоб обрати"
+    }
   },
   "aiGenerate": {
     "dialogLabel": "Генерація фону",

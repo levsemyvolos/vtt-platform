@@ -20,12 +20,15 @@ interface SceneState {
    * the pre-drag position without round-tripping the server again.
    */
   pendingMoves: Record<string, { x: number; y: number }>;
+  /** Selected token id for the SceneEditor properties panel. */
+  selectedTokenId: string | null;
 }
 
 const initialState: SceneState = {
   current: null,
   version: 0,
   pendingMoves: {},
+  selectedTokenId: null,
 };
 
 const sceneSlice = createSlice({
@@ -102,6 +105,15 @@ const sceneSlice = createSlice({
         action.payload.diffBase64,
       );
     },
+    selectToken: (state, action: PayloadAction<string>) => {
+      state.selectedTokenId = action.payload;
+    },
+    deselectToken: (state) => {
+      state.selectedTokenId = null;
+    },
+    clearFogMask: (state) => {
+      if (state.current) state.current.fogMaskBase64 = null;
+    },
   },
 });
 
@@ -114,5 +126,8 @@ export const {
   upsertToken,
   removeToken,
   applyFogDiff,
+  selectToken,
+  deselectToken,
+  clearFogMask,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;

@@ -77,7 +77,8 @@
       "gridHeight": "Height (cells)",
       "gridSize": "Cell size (px)",
       "formLabel": "new scene form"
-    }
+    },
+    "editBtn": "Edit"
   },
   "chat": {
     "panelLabel": "Chat panel",
@@ -174,7 +175,22 @@
     "rightToolbar": {
       "heading": "Properties"
     },
-    "placeholder": "Select an element to edit"
+    "placeholder": "Select an element to edit",
+    "bg": {
+      "aiBtn": "Generate AI"
+    },
+    "grid": {
+      "sizeLabel": "Cell size (px)",
+      "widthLabel": "Width (cells)",
+      "heightLabel": "Height (cells)",
+      "saveBtn": "Save"
+    },
+    "fog": {
+      "clearBtn": "Clear fog (reveal all)"
+    },
+    "properties": {
+      "noSelection": "Click a token on the canvas to select it"
+    }
   },
   "aiGenerate": {
     "dialogLabel": "Generate Background",

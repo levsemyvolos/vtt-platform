@@ -1,5 +1,16 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, act } from '@testing-library/react';
+
+vi.mock('react-konva', () => ({
+  Stage: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Layer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Rect: () => null,
+  Image: () => null,
+  Group: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Text: () => null,
+  Circle: () => null,
+  Line: () => null,
+}));
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import roomReducer, { startEditing, setCurrentRoom } from '../../../store/room';
