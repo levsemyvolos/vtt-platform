@@ -1,4 +1,10 @@
 {
+  "chat": {
+    "sidebarTab": "Chat"
+  },
+  "dice": {
+    "sidebarTab": "Dice"
+  },
   "initiative": {
     "sidebarTab": "Initiative",
     "roundLabel": "Round: {{round}}",

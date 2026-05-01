@@ -1,0 +1,42 @@
+{
+  "topBar": {
+    "breadcrumb": "Rooms",
+    "wssHealthOnline": "WSS connected",
+    "wssHealthOffline": "WSS disconnected",
+    "noScene": "Select scene",
+    "settingsDisabled": "Settings (coming soon)",
+    "logout": "Log out"
+  },
+  "toolbar": {
+    "select": "Select",
+    "ping": "Ping",
+    "ruler": "Ruler",
+    "draw": "Draw",
+    "fog": "Fog",
+    "text": "Text",
+    "image": "Image",
+    "music": "Music",
+    "ai": "AI Assistant",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomFit": "Fit to window",
+    "zoomReset": "Reset zoom",
+    "unboundToast": "Feature in development; will be enabled in the next release"
+  },
+  "party": {
+    "eyebrow": "PARTICIPANTS"
+  },
+  "statusBar": {
+    "scene": "Scene",
+    "grid": "Grid",
+    "tokens": "Tokens",
+    "light": "FoW",
+    "autosave": "Auto-save",
+    "fowOn": "on",
+    "fowOff": "off",
+    "noScene": "—"
+  },
+  "migration": {
+    "aiMoved": "AI Assistant has moved to the main toolbar"
+  }
+}

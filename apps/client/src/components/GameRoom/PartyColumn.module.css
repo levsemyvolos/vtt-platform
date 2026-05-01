@@ -1,0 +1,68 @@
+.column {
+  grid-area: party;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md) var(--space-xs);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.videoWrap {
+  padding: var(--space-xs) var(--space-xs);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+/* Override VideoCall sizing inside PartyColumn for compact display */
+.videoWrap :global(.videoCall) {
+  max-height: 180px;
+  overflow: hidden;
+}
+
+.memberList {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-xs) 0;
+  flex: 1;
+}
+
+.memberCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  transition: background var(--transition-fast);
+}
+
+.memberCard:hover {
+  background: var(--color-surface-hover);
+}
+
+.memberInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.memberName {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
