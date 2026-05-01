@@ -17,7 +17,7 @@ interface DiceRollerProps {
  * via ack → DiceBox.roll(notation) plays the physics animation locally.
  */
 export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
-  const { t } = useTranslation('room');
+  const { t } = useTranslation(['room', 'errors']);
   const containerRef = useRef<HTMLDivElement>(null);
   const dbRef = useRef<DiceBox | null>(null);
   const [expression, setExpression] = useState('1d20');

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
-import { createElement } from 'react';
+import React, { createElement } from 'react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import preferencesReducer from '../../store/preferences';
@@ -36,8 +36,8 @@ function makeStore(theme: 'light' | 'dark' | 'system' = 'system') {
 }
 
 function wrapper(store: ReturnType<typeof makeStore>) {
-  return ({ children }: { children: unknown }) =>
-    createElement(Provider, { store }, children as React.ReactNode);
+  return ({ children }: { children: React.ReactNode }) =>
+    createElement(Provider, { store, children });
 }
 
 describe('useTheme', () => {

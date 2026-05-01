@@ -31,7 +31,7 @@ export default function Dashboard() {
   const handleLogout = () => { void dispatch(logout()); };
 
   function statusClass(s: string): string {
-    return s === 'active' ? styles.statusActive : styles.statusIdle;
+    return (s === 'active' ? styles.statusActive : styles.statusIdle) ?? '';
   }
 
   return (

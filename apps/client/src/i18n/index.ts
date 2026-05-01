@@ -18,10 +18,11 @@ export async function initI18n(): Promise<void> {
 
   await Promise.all(
     SUPPORTED_LNGS.map(async (lang) => {
-      resources[lang] = {};
+      const langRes: Record<string, unknown> = {};
+      resources[lang] = langRes;
       await Promise.all(
         NAMESPACES.map(async (ns) => {
-          resources[lang][ns] = await loadLocale(lang, ns);
+          langRes[ns] = await loadLocale(lang, ns);
         }),
       );
     }),
@@ -31,7 +32,8 @@ export async function initI18n(): Promise<void> {
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
-      resources,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      resources: resources as any,
       fallbackLng: 'en',
       supportedLngs: SUPPORTED_LNGS,
       ns: NAMESPACES,
