@@ -5,6 +5,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import canvasViewportReducer from '../../../store/canvasViewport';
 import toastReducer from '../../../store/toast';
 import preferencesReducer from '../../../store/preferences';
+import sceneReducer from '../../../store/scene';
 import CanvasToolbar from '../CanvasToolbar';
 import type { SidebarTab } from '../types';
 
@@ -16,6 +17,7 @@ function makeStore() {
       canvasViewport: canvasViewportReducer,
       toast: toastReducer,
       preferences: preferencesReducer,
+      scene: sceneReducer,
     },
   });
 }

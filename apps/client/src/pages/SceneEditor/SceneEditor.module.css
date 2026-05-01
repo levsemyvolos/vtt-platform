@@ -1,0 +1,19 @@
+.editor {
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  grid-template-columns: 240px 1fr 280px;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* TopBar spans all 3 columns */
+.editor > :first-child {
+  grid-column: 1 / -1;
+}
+
+.canvasZone {
+  background: var(--color-canvas-bg);
+  position: relative;
+  overflow: hidden;
+}

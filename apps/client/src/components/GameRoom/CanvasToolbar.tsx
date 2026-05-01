@@ -9,6 +9,7 @@ import {
   Image as ImageIcon,
   Music,
   Sparkles,
+  PencilRuler,
   ZoomIn,
   ZoomOut,
   Maximize2,
@@ -16,6 +17,7 @@ import {
 import type { Role } from '@vtt/shared';
 import type { CanvasTool } from '../../store/canvasViewport';
 import { setActiveTool, zoomIn, zoomOut, fit, setZoom } from '../../store/canvasViewport';
+import { startEditing } from '../../store/room';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { useUnboundFeatureToast } from '../../hooks/useUnboundFeatureToast';
 import { IconButton } from '../ui';
@@ -54,6 +56,7 @@ export default function CanvasToolbar({
   const { t } = useTranslation('gameroom');
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
   const zoom = useAppSelector((s) => s.canvasViewport.zoom);
+  const currentSceneId = useAppSelector((s) => s.scene.current?.id ?? null);
   const warnUnbound = useUnboundFeatureToast();
 
   const toolLabels: Record<CanvasTool, string> = {
@@ -114,6 +117,21 @@ export default function CanvasToolbar({
           >
             <Sparkles size={16} />
           </IconButton>
+        )}
+
+        {myRole === 'GM' && currentSceneId && (
+          <>
+            <span className={styles.divider} aria-hidden />
+            <IconButton
+              variant="ghost"
+              size="sm"
+              aria-label={t('topBar.editScene')}
+              title={t('topBar.editScene')}
+              onClick={() => { dispatch(startEditing(currentSceneId)); }}
+            >
+              <PencilRuler size={16} />
+            </IconButton>
+          </>
         )}
       </div>
 

@@ -36,6 +36,7 @@ function makeStore(opts: {
         status: opts.roomStatus ?? 'idle',
         error: null,
         sessionActive: false,
+        editingSceneId: null,
       },
     },
   });

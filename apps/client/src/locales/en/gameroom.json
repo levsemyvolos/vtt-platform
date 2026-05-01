@@ -5,7 +5,8 @@
     "wssHealthOffline": "WSS disconnected",
     "noScene": "Select scene",
     "settingsDisabled": "Settings (coming soon)",
-    "logout": "Log out"
+    "logout": "Log out",
+    "editScene": "Edit scene"
   },
   "toolbar": {
     "select": "Select",

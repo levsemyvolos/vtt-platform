@@ -14,14 +14,16 @@ import { GameRoomTopBar, CanvasToolbar, PartyColumn, StatusBar } from '../../com
 import type { SidebarTab } from '../../components/GameRoom';
 import styles from './GameRoom.module.css';
 
-function canvasPlaceholderMsg(
+function resolveCanvasMsg(
   hydrating: boolean,
   hydrateError: string | null,
-  t: (k: string, opts?: Record<string, string>) => string,
+  loading: string,
+  errTemplate: string,
+  noScene: string,
 ): string {
-  if (hydrating) return t('room:lobby.sessionLoading');
-  if (hydrateError) return t('room:lobby.sessionError', { message: hydrateError });
-  return t('room:lobby.noActiveScene');
+  if (hydrating) return loading;
+  if (hydrateError) return errTemplate.replace('{{message}}', hydrateError);
+  return noScene;
 }
 
 function resolveHydrateError(err: unknown): string | null {
@@ -84,6 +86,14 @@ export default function GameRoom(): JSX.Element | null {
 
   if (!currentRoom) return null;
 
+  const canvasMsg = resolveCanvasMsg(
+    hydrating,
+    hydrateError,
+    t('room:lobby.sessionLoading'),
+    t('room:lobby.sessionError', { message: String(hydrateError) }),
+    t('room:lobby.noActiveScene'),
+  );
+
   function handleOpenTab(tab: SidebarTab): void {
     setSidebarTab(tab);
   }
@@ -111,9 +121,7 @@ export default function GameRoom(): JSX.Element | null {
             myUserId={currentUser?.id ?? ''}
           />
         ) : (
-          <div className={styles.canvasPlaceholder}>
-            {canvasPlaceholderMsg(hydrating, hydrateError, t)}
-          </div>
+          <div className={styles.canvasPlaceholder}>{canvasMsg}</div>
         )}
       </main>
 
