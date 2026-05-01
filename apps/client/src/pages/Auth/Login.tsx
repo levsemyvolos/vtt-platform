@@ -2,7 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { login, clearError } from '../../store/session';
+import { Tabs, Button, Input } from '../../components/ui';
+import { AuthLayout } from '../../components/Auth';
 import styles from './Auth.module.css';
+
+type TabId = 'login' | 'register';
 
 type Props = {
   onSwitchToRegister: () => void;
@@ -17,6 +21,11 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const tabItems: ReadonlyArray<{ id: TabId; label: string }> = [
+    { id: 'login', label: t('auth:tabs.login') },
+    { id: 'register', label: t('auth:tabs.register') },
+  ];
 
   const validate = (): string | null => {
     if (!email.includes('@')) return t('errors:validation.emailInvalid');
@@ -36,53 +45,61 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
   const displayError = localError ?? error;
 
   return (
-    <div className={styles.authForm}>
-      <h1>{t('auth:login.heading')}</h1>
-      <form onSubmit={handleSubmit} aria-label={t('auth:login.formLabel')}>
-        <div className={styles.field}>
-          <label htmlFor="login-email">{t('common:label.email')}</label>
-          <input
-            id="login-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-            aria-required="true"
-          />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="login-password">{t('common:label.password')}</label>
-          <input
-            id="login-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-            aria-required="true"
-          />
-        </div>
+    <AuthLayout>
+      <h1 className={styles.heading}>{t('auth:headline.login')}</h1>
+      <p className={styles.subtitle}>{t('auth:subtitle')}</p>
+      <div className={styles.tabsRow}>
+        <Tabs
+          variant="pill"
+          items={tabItems}
+          value="login"
+          onChange={(id) => { if (id === 'register') onSwitchToRegister(); }}
+          ariaLabel={t('auth:tabs.login')}
+        />
+      </div>
+      <form onSubmit={handleSubmit} aria-label={t('auth:login.formLabel')} className={styles.form}>
+        <Input
+          label={t('common:label.email')}
+          id="login-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          required
+          fullWidth
+        />
+        <Input
+          label={t('common:label.password')}
+          id="login-password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          required
+          fullWidth
+        />
         {displayError && (
           <p role="alert" className={styles.error}>{displayError}</p>
         )}
-        <button
+        <Button
           type="submit"
-          className={styles.submitBtn}
+          variant="primary"
+          fullWidth
+          isLoading={status === 'loading'}
           disabled={status === 'loading'}
-          aria-busy={status === 'loading'}
         >
           {status === 'loading' ? t('auth:login.loading') : t('auth:login.submitBtn')}
-        </button>
+        </Button>
       </form>
-      <div className={styles.links}>
-        <button type="button" onClick={onSwitchToRegister}>
-          {t('auth:links.switchToRegister')}
-        </button>
-        <button type="button" onClick={onSwitchToObserver}>
-          {t('auth:links.switchToObserver')}
-        </button>
-      </div>
-    </div>
+      <div className={styles.divider} />
+      <Button
+        type="button"
+        variant="ghost"
+        fullWidth
+        onClick={onSwitchToObserver}
+      >
+        {t('auth:observer.linkLabel')}
+      </Button>
+    </AuthLayout>
   );
 }
