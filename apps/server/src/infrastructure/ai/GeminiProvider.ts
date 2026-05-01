@@ -133,12 +133,29 @@ export class GeminiProvider implements AIProvider {
       const [response] = await this.predictClient.predict({
         endpoint: `${this.musicEndpointBase}/${this.musicModel}`,
         instances: [helpers.toValue({ prompt: req.prompt }) as never],
+        // Lyria 2 docs example sets sampleCount; without it some regions
+        // return predictions=[] silently.
+        parameters: helpers.toValue({ sampleCount: 1 }) as never,
       });
       const first = (response.predictions ?? [])[0];
       const decoded = first
         ? (helpers.fromValue(first as never) as { audioContent?: string; mimeType?: string })
         : {};
       if (!decoded.audioContent) {
+        // Diagnostic — surface the exact response shape so we can adjust the
+        // decoder if Vertex changes it. Removed once Lyria 2 settles.
+        // eslint-disable-next-line no-console
+        console.error(
+          '[lyria] empty audio.',
+          'predictions.length=',
+          response.predictions?.length ?? 0,
+          'first keys=',
+          first ? Object.keys(first as object) : null,
+          'first=',
+          JSON.stringify(first ?? null),
+          'decoded=',
+          JSON.stringify(decoded),
+        );
         throw new Error('Vertex AI returned empty audio payload');
       }
       return {
