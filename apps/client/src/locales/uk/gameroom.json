@@ -5,7 +5,8 @@
     "wssHealthOffline": "WSS відключено",
     "noScene": "Оберіть сцену",
     "settingsDisabled": "Налаштування (незабаром)",
-    "logout": "Вийти"
+    "logout": "Вийти",
+    "editScene": "Редагувати сцену"
   },
   "toolbar": {
     "select": "Вибір",

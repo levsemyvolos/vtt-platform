@@ -44,6 +44,7 @@ function makeStore() {
         status: 'loaded' as const,
         error: null,
         sessionActive: true,
+        editingSceneId: null,
       },
       session: {
         currentUser: { id: 'u1', email: 'gm@test.com', name: 'Andrii' },

@@ -159,6 +159,23 @@
     "progressUpload": "Uploading…",
     "progressSave": "Saving…"
   },
+  "sceneEditor": {
+    "title": "Scene Editor",
+    "breadcrumb": "Editing",
+    "breadcrumbLabel": "Breadcrumbs",
+    "doneBtn": "Done",
+    "leftToolbar": {
+      "label": "Left editor toolbar",
+      "background": "Background",
+      "grid": "Grid",
+      "tokens": "Tokens",
+      "fog": "Fog"
+    },
+    "rightToolbar": {
+      "heading": "Properties"
+    },
+    "placeholder": "Select an element to edit"
+  },
   "aiGenerate": {
     "dialogLabel": "Generate Background",
     "heading": "Generate Scene Background (AI)",

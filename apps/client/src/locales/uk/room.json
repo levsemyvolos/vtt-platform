@@ -160,6 +160,23 @@
     "progressUpload": "Завантаження…",
     "progressSave": "Збереження…"
   },
+  "sceneEditor": {
+    "title": "Редактор сцени",
+    "breadcrumb": "Редагування",
+    "breadcrumbLabel": "Хлібні крихти",
+    "doneBtn": "Готово",
+    "leftToolbar": {
+      "label": "Ліва панель редактора",
+      "background": "Фон",
+      "grid": "Сітка",
+      "tokens": "Токени",
+      "fog": "Туман"
+    },
+    "rightToolbar": {
+      "heading": "Властивості"
+    },
+    "placeholder": "Оберіть елемент для редагування"
+  },
   "aiGenerate": {
     "dialogLabel": "Генерація фону",
     "heading": "Згенерувати фон сцени (AI)",
