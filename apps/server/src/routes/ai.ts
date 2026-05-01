@@ -31,6 +31,11 @@ function handleError(err: unknown, res: Response): void {
     res.status(err.status).json({ error: { code: err.status, message: err.message } });
     return;
   }
+  // Diagnostic: surface the underlying Vertex AI / SDK error in Render logs
+  // so 5xx causes (model-not-found, IAM, transport) can be inspected without
+  // exposing raw details to the client.
+  // eslint-disable-next-line no-console
+  console.error('[ai] unhandled error:', err);
   res.status(500).json({ error: { code: 500, message: 'Internal server error' } });
 }
 
