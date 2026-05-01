@@ -23,6 +23,9 @@
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .msgIc {
@@ -38,16 +41,30 @@
   font-style: italic;
 }
 
+.bubbleDice {
+  background: var(--color-primary-muted);
+  border-left: 2px solid var(--color-primary);
+}
+
 .author {
   font-weight: 600;
   color: var(--color-text-secondary);
-  margin-right: var(--space-xs);
+}
+
+.eyebrowRoll {
+  color: var(--color-primary);
+}
+
+.eyebrowSecret {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--color-text-muted);
 }
 
 .mode {
   font-size: 10px;
   color: var(--color-text-muted);
-  margin-right: var(--space-xs);
 }
 
 .roll {
@@ -71,6 +88,7 @@
 .formRow {
   display: flex;
   gap: var(--space-xs);
+  align-items: flex-start;
 }
 
 .form select {
@@ -82,18 +100,9 @@
   font-size: var(--text-xs);
 }
 
-.form input[type="text"] {
+.msgInput {
   flex: 1;
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--text-xs);
-}
-
-.form input[type="text"]:focus {
-  border-color: var(--color-primary);
+  min-width: 0;
 }
 
 .hint {
@@ -104,19 +113,4 @@
 .error {
   font-size: var(--text-xs);
   color: var(--color-danger);
-}
-
-.btnSend {
-  padding: var(--space-xs) var(--space-md);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
-.btnSend:hover:not(:disabled) {
-  background: var(--color-primary-hover);
 }

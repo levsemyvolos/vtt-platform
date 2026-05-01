@@ -11,6 +11,7 @@ import {
   setCurrentNote,
   updateNoteThunk,
 } from '../../store/notes';
+import { Button } from '../ui';
 
 interface NotesPanelProps {
   roomId: string;
@@ -65,10 +66,18 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
     <section className={styles.panel} aria-label={t('campaign:notes.panelAriaLabel')}>
       <aside className={styles.list}>
         <header className={styles.listHeader}>
-          <h3>{t('campaign:notes.heading')}</h3>
-          <button type="button" className={styles.btnCreate} onClick={onCreateNew} aria-label={t('campaign:notes.createAriaLabel')}>
+          <span className={`eyebrow ${styles.eyebrow}`}>
+            {t('campaign:notes.heading')} · GM
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onCreateNew}
+            aria-label={t('campaign:notes.createAriaLabel')}
+          >
             {t('campaign:notes.createBtn')}
-          </button>
+          </Button>
         </header>
         <ul className={styles.listItems}>
           {items.map((n) => (
@@ -106,10 +115,12 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
               </div>
             </div>
             <div className={styles.editorActions}>
-              <button type="button" className={styles.btnSave} onClick={onSave}>{t('common:btn.save')}</button>
-              <button type="button" onClick={onDelete} className={styles.btnDelete}>
+              <Button type="button" variant="primary" size="sm" onClick={onSave}>
+                {t('common:btn.save')}
+              </Button>
+              <Button type="button" variant="danger" size="sm" onClick={onDelete}>
                 {t('common:btn.delete')}
-              </button>
+              </Button>
             </div>
           </>
         )}

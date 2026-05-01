@@ -11,6 +11,7 @@ import {
   revokeHandoutThunk,
 } from '../../store/handouts';
 import { loadMembers } from '../../store/members';
+import { Button, Badge } from '../ui';
 
 interface HandoutPanelProps {
   roomId: string;
@@ -74,10 +75,15 @@ function GmView({ roomId, items }: GmViewProps): JSX.Element {
   return (
     <section className={styles.panel} aria-label={t('campaign:handouts.gmAriaLabel')}>
       <header className={styles.header}>
-        <h3>{t('campaign:handouts.heading')}</h3>
-        <button type="button" className={styles.btn} onClick={() => setShowCreate((v) => !v)}>
+        <span className={`eyebrow ${styles.heading}`}>{t('campaign:handouts.heading')}</span>
+        <Button
+          type="button"
+          variant={showCreate ? 'ghost' : 'primary'}
+          size="sm"
+          onClick={() => setShowCreate((v) => !v)}
+        >
           {showCreate ? t('common:btn.cancel') : t('campaign:handouts.createBtn')}
-        </button>
+        </Button>
       </header>
       {showCreate && (
         <form onSubmit={(e) => void onCreate(e)} className={styles.createForm}>
@@ -102,7 +108,7 @@ function GmView({ roomId, items }: GmViewProps): JSX.Element {
             placeholder={t('campaign:handouts.assetIdPlaceholder')}
             aria-label={t('campaign:handouts.assetIdAriaLabel')}
           />
-          <button type="submit">{t('common:btn.create')}</button>
+          <Button type="submit" variant="primary" size="sm">{t('common:btn.create')}</Button>
         </form>
       )}
       {error && <p className={styles.error}>{error}</p>}
@@ -155,22 +161,25 @@ function GmHandoutCard({
           Asset
         </a>
       )}
-      <div>
-        <strong>{t('handouts.grantedLabel')}</strong>{' '}
-        {handout.recipientIds.length === 0 && <em>{t('handouts.noneGranted')}</em>}
+      <div className={styles.grantedRow}>
+        <span className={`eyebrow`}>{t('handouts.grantedLabel')}</span>{' '}
+        {handout.recipientIds.length === 0 && (
+          <em className={styles.noneGranted}>{t('handouts.noneGranted')}</em>
+        )}
         {handout.recipientIds.map((uid) => (
           <span key={uid} className={styles.granted}>
             {uid.slice(0, 8)}
-            <button
+            <Button
               type="button"
-              className={styles.btn}
+              variant="ghost"
+              size="sm"
               onClick={() =>
                 dispatch(revokeHandoutThunk({ handoutId: handout.id, userId: uid }))
               }
               aria-label={t('handouts.revokeLabel', { uid })}
             >
-              ×
-            </button>
+              &times;
+            </Button>
           </span>
         ))}
       </div>
@@ -191,14 +200,15 @@ function GmHandoutCard({
                 </label>
               ))}
             </fieldset>
-            <button
+            <Button
               type="button"
-              className={styles.btn}
+              variant="primary"
+              size="sm"
               onClick={onGrant}
               disabled={checkedIds.size === 0}
             >
               {t('handouts.grantBtn')}
-            </button>
+            </Button>
           </>
         ) : (
           <p>
@@ -206,14 +216,15 @@ function GmHandoutCard({
           </p>
         )}
       </div>
-      <button
+      <Button
         type="button"
-        className={`${styles.btn} ${styles.btnDanger}`}
+        variant="danger"
+        size="sm"
         onClick={() => dispatch(deleteHandoutThunk(handout.id))}
         aria-label={t('handouts.deleteLabel', { title: handout.title })}
       >
         {t('common:btn.delete')}
-      </button>
+      </Button>
     </li>
   );
 }
@@ -223,7 +234,12 @@ function PlayerView({ items }: { items: HandoutDTO[] }): JSX.Element {
   return (
     <section className={styles.panel} aria-label={t('handouts.playerAriaLabel')}>
       <header className={styles.header}>
-        <h3>{t('handouts.heading')}</h3>
+        <span className={`eyebrow ${styles.heading}`}>{t('handouts.heading')}</span>
+        {items.length > 0 && (
+          <Badge variant="status" tone="info" uppercase>
+            {items.length}
+          </Badge>
+        )}
       </header>
       {items.length === 0 ? (
         <p className={styles.empty}>{t('handouts.emptyPlayer')}</p>

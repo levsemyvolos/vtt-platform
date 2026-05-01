@@ -12,8 +12,11 @@
 }
 
 .round {
-  font-size: var(--text-xs);
   color: var(--color-text-muted);
+}
+
+.entryAvatar {
+  flex-shrink: 0;
 }
 
 .list {

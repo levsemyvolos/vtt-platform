@@ -6,10 +6,8 @@
   justify-content: space-between;
 }
 
-.header h3 {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
+.heading {
+  color: var(--color-text-muted);
 }
 
 .list { list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
@@ -34,38 +32,28 @@
   margin-bottom: var(--space-sm);
 }
 
-.thumb {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  max-width: 80px;
-  max-height: 80px;
-  object-fit: cover;
+.grantedRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
   margin-bottom: var(--space-sm);
 }
 
+.noneGranted {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
 .granted {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   font-size: var(--text-xs);
   color: var(--color-success);
-  margin-bottom: var(--space-xs);
 }
 
-.actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
-
-.btn {
-  padding: 2px var(--space-sm);
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
-.btn:hover { background: var(--color-surface-hover); }
-
-.btnDanger { color: var(--color-danger); border-color: var(--color-danger); }
-.btnDanger:hover { background: var(--color-danger-bg); }
+.actions { display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm); }
 
 .empty { color: var(--color-text-muted); font-size: var(--text-sm); text-align: center; padding: var(--space-xl); }
 
@@ -79,15 +67,8 @@
   border-radius: var(--radius-sm);
 }
 
-.field label {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-xs);
-}
-
-.field input,
-.field textarea {
+.createForm input,
+.createForm textarea {
   display: block;
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
@@ -98,8 +79,8 @@
   font-size: var(--text-sm);
 }
 
-.field input:focus,
-.field textarea:focus { border-color: var(--color-primary); }
+.createForm input:focus,
+.createForm textarea:focus { border-color: var(--color-primary); outline: none; }
 
 .error { color: var(--color-danger); font-size: var(--text-xs); }
 
