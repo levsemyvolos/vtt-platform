@@ -1,18 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Lock } from 'lucide-react';
 import type { ChatMode } from '@vtt/shared';
 import { useAppSelector } from '../../store';
 import { emitChatMessage } from '../../api/socket';
+import { Button, Input } from '../ui';
 import styles from './ChatPanel.module.css';
 
 interface ChatPanelProps {
   roomId: string;
 }
 
-/**
- * Chat with mode selector (IC / OOC / whisper). Dice rolls share the
- * messages list (rendered with their rollPayload).
- */
 export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
   const { t } = useTranslation(['room', 'common']);
   const messages = useAppSelector((s) => s.chat.messages);
@@ -37,10 +35,11 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
     }
   }
 
-  function modeClass(m: string): string {
-    if (m === 'ooc') return styles.msgOoc as string;
-    if (m === 'whisper') return styles.msgWhisper as string;
-    return styles.msgIc as string;
+  function bubbleClass(m: { mode: string; rollPayload?: unknown }): string {
+    if (m.rollPayload) return `${styles.msg} ${styles.bubbleDice}`;
+    if (m.mode === 'ooc') return `${styles.msg} ${styles.msgOoc}`;
+    if (m.mode === 'whisper') return `${styles.msg} ${styles.msgWhisper}`;
+    return `${styles.msg} ${styles.msgIc}`;
   }
 
   const MODES: { value: ChatMode; label: string }[] = [
@@ -53,16 +52,29 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
     <section className={styles.panel} aria-label={t('chat.panelLabel')}>
       <ul className={styles.messages}>
         {messages.map((m) => (
-          <li key={m.id} className={`${styles.msg} ${modeClass(m.mode)}`}>
+          <li key={m.id} className={bubbleClass(m)}>
             <span className={styles.author}>{m.userId.slice(0, 6)}</span>
-            <span className={styles.mode}>[{m.mode}]</span>
             {m.rollPayload ? (
-              <span className={styles.roll}>
-                {m.rollPayload.expression} = <strong>{m.rollPayload.total}</strong>{' '}
-                ({m.rollPayload.rolls.join(', ')})
-              </span>
+              <>
+                <span className={`eyebrow ${styles.eyebrowRoll}`}>КИДОК</span>
+                <span className={styles.roll}>
+                  {m.rollPayload.expression} = <strong>{m.rollPayload.total}</strong>{' '}
+                  ({m.rollPayload.rolls.join(', ')})
+                </span>
+              </>
+            ) : m.mode === 'whisper' ? (
+              <>
+                <span className={`eyebrow ${styles.eyebrowSecret}`}>
+                  <Lock size={10} aria-hidden="true" style={{ color: 'var(--color-text-muted)' }} />
+                  {' '}ПРИВАТНО
+                </span>
+                <span className={styles.text}>{m.text}</span>
+              </>
             ) : (
-              <span className={styles.text}>{m.text}</span>
+              <>
+                <span className={styles.mode}>[{m.mode}]</span>
+                <span className={styles.text}>{m.text}</span>
+              </>
             )}
           </li>
         ))}
@@ -93,16 +105,16 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
           )}
         </div>
         <div className={styles.formRow}>
-          <input
-            type="text"
+          <Input
+            className={styles.msgInput}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t('chat.messagePlaceholder')}
             aria-label={t('chat.messageInputLabel', { defaultValue: t('chat.panelLabel') })}
           />
-          <button type="submit" className={styles.btnSend} aria-label={t('common:btn.send')}>
+          <Button type="submit" variant="primary" size="sm" aria-label={t('common:btn.send')}>
             {t('common:btn.send')}
-          </button>
+          </Button>
         </div>
         <p className={styles.hint}>/roll 2d6, /w player, /ooc</p>
       </form>

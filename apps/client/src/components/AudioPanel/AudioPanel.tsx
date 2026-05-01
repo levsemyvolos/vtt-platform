@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Play, Pause, Link2, Link2Off, Settings, Trash2 } from 'lucide-react';
 import type { AudioTrackDTO, Role } from '@vtt/shared';
 import styles from './AudioPanel.module.css';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -11,6 +12,7 @@ import {
   setVolume,
 } from '../../store/audio';
 import TrackUpload from './TrackUpload';
+import { Button, IconButton } from '../ui';
 
 interface AudioPanelProps {
   roomId: string;
@@ -35,9 +37,10 @@ export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps)
   return (
     <section className={styles.panel} aria-label={t('campaign:audio.panelAriaLabel')}>
       <header className={styles.header}>
-        <h3>{t('campaign:audio.heading')}</h3>
+        <span className={`eyebrow ${styles.eyebrow}`}>
+          {t('campaign:audio.heading')} · СЦЕНА
+        </span>
         <label className={styles.volume}>
-          {t('campaign:audio.volume')}
           <input
             type="range"
             min={0}
@@ -45,6 +48,8 @@ export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps)
             step={0.05}
             value={volume}
             onChange={(e) => dispatch(setVolume(Number(e.target.value)))}
+            aria-label={t('campaign:audio.volume')}
+            className={styles.slider}
           />
         </label>
       </header>
@@ -105,7 +110,6 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
     bind: t('campaign:audio.bindTitle'),
     unbind: t('campaign:audio.unbindTitle'),
   });
-  const bindLabel = isBoundHere ? t('campaign:audio.unbindBtn') : t('campaign:audio.bindBtn');
 
   function onOpenEdit(): void {
     setEditFadeMs(track.fadeMs);
@@ -127,41 +131,50 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
 
   return (
     <li className={liClassName}>
+      <span className={styles.playIcon} aria-hidden="true">
+        {isPlaying
+          ? <Pause size={14} style={{ color: 'var(--color-primary)' }} />
+          : <Play size={14} style={{ color: 'var(--color-text-muted)' }} />
+        }
+      </span>
       <span className={styles.trackTitle}>{track.title}</span>
       {track.loop && (
         <span className={styles.badge}>{t('campaign:audio.loopBadge')}</span>
       )}
-      {isPlaying && <span className={`${styles.badge} ${styles.badgePlaying}`}>▶</span>}
 
       {isGM && !editing && (
         <div className={styles.controls}>
-          <button
-            type="button"
-            className={styles.btnControl}
+          <IconButton
+            variant="ghost"
+            size="sm"
             onClick={() =>
               dispatch(bindTrackToScene({ trackId: track.id, sceneId: isBoundHere ? null : sceneId }))
             }
             disabled={!sceneId}
             title={bindTitle}
+            aria-label={bindTitle}
           >
-            {bindLabel}
-          </button>
-          <button
-            type="button"
-            className={styles.btnControl}
+            {isBoundHere
+              ? <Link2Off size={14} style={{ color: 'var(--color-primary)' }} />
+              : <Link2 size={14} />
+            }
+          </IconButton>
+          <IconButton
+            variant="ghost"
+            size="sm"
             onClick={onOpenEdit}
             aria-label={t('campaign:audio.editAriaLabel', { title: track.title })}
           >
-            {t('campaign:audio.editBtn')}
-          </button>
-          <button
-            type="button"
-            className={`${styles.btnControl} ${styles.btnDelete}`}
+            <Settings size={14} />
+          </IconButton>
+          <IconButton
+            variant="ghost"
+            size="sm"
             onClick={() => dispatch(removeAudioTrack(track.id))}
             aria-label={t('campaign:audio.deleteAriaLabel', { title: track.title })}
           >
-            ×
-          </button>
+            <Trash2 size={14} style={{ color: 'var(--color-danger)' }} />
+          </IconButton>
         </div>
       )}
 
@@ -185,14 +198,15 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
               value={editFadeMs}
               onChange={(e) => setEditFadeMs(Number(e.target.value))}
               aria-label={t('campaign:audio.fadeAriaLabel')}
+              className={styles.slider}
             />
           </label>
-          <button type="button" className={styles.btnControl} onClick={() => void onSaveEdit()} disabled={busy}>
+          <Button type="button" variant="secondary" size="sm" onClick={() => void onSaveEdit()} disabled={busy}>
             {t('common:btn.save')}
-          </button>
-          <button type="button" className={styles.btnControl} onClick={() => setEditing(false)} disabled={busy}>
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={busy}>
             {t('common:btn.cancel')}
-          </button>
+          </Button>
         </div>
       )}
     </li>
