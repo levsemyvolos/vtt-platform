@@ -15,6 +15,7 @@ import membersReducer from './members';
 import assistantReducer from './assistant';
 import annotationsReducer from './annotations';
 import preferencesReducer from './preferences';
+import toastReducer from './toast';
 
 export const store = configureStore({
   reducer: {
@@ -33,6 +34,7 @@ export const store = configureStore({
     assistant: assistantReducer,
     annotations: annotationsReducer,
     preferences: preferencesReducer,
+    toast: toastReducer,
   },
 });
 

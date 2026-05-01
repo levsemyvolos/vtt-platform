@@ -9,6 +9,11 @@ import Register from './pages/Auth/Register';
 import ObserverEntry from './pages/Auth/ObserverEntry';
 import Dashboard from './pages/Dashboard/Dashboard';
 import RoomLobby from './pages/RoomLobby/RoomLobby';
+import ThemeToggle from './components/Header/ThemeToggle';
+import LanguageSwitcher from './components/Header/LanguageSwitcher';
+import DesktopOnlyGuard from './components/common/DesktopOnlyGuard';
+import Toast from './components/common/Toast';
+import styles from './App.module.css';
 
 type AuthView = 'login' | 'register' | 'observer';
 
@@ -38,39 +43,37 @@ export default function App() {
       });
   }, [status, currentRoom, dispatch]);
 
-  // Unauthenticated / Authenticating states
-  if (status !== 'authenticated' || !currentUser) {
-    return (
-      <main className="auth-screen">
-        {authView === 'login' && (
-          <Login
-            onSwitchToRegister={() => setAuthView('register')}
-            onSwitchToObserver={() => setAuthView('observer')}
-          />
-        )}
-        {authView === 'register' && (
-          <Register onSwitchToLogin={() => setAuthView('login')} />
-        )}
-        {authView === 'observer' && (
-          <ObserverEntry onSwitchToLogin={() => setAuthView('login')} />
-        )}
-      </main>
-    );
-  }
-
-  // RoomLobby state
-  if (currentRoom) {
-    return (
-      <main className="room-screen">
-        <RoomLobby />
-      </main>
-    );
-  }
-
-  // Dashboard state
   return (
-    <main className="dashboard-screen">
-      <Dashboard />
-    </main>
+    <DesktopOnlyGuard>
+      <Toast />
+      {status !== 'authenticated' || !currentUser ? (
+        <main className="auth-screen">
+          {authView === 'login' && (
+            <Login
+              onSwitchToRegister={() => setAuthView('register')}
+              onSwitchToObserver={() => setAuthView('observer')}
+            />
+          )}
+          {authView === 'register' && (
+            <Register onSwitchToLogin={() => setAuthView('login')} />
+          )}
+          {authView === 'observer' && (
+            <ObserverEntry onSwitchToLogin={() => setAuthView('login')} />
+          )}
+        </main>
+      ) : currentRoom ? (
+        <main className="room-screen">
+          <RoomLobby />
+        </main>
+      ) : (
+        <main className="dashboard-screen">
+          <header className={styles.topBar}>
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </header>
+          <Dashboard />
+        </main>
+      )}
+    </DesktopOnlyGuard>
   );
 }

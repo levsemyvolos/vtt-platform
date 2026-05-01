@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TurnConfigResponse, UserPublic } from '@vtt/shared';
+import styles from './VideoCall.module.css';
 import { store, useAppDispatch, useAppSelector } from '../../store';
 import {
   resetMedia,
@@ -186,7 +187,7 @@ export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Ele
   const totalCount = 1 + remoteList.length;
 
   return (
-    <section className="video-call" aria-label="Відео-чат сесії">
+    <section className={styles.videoCall} aria-label="Відео-чат сесії">
       {meshCeilingReached && <MeshCeilingBanner />}
       <VideoGrid count={totalCount}>
         <VideoTile label="Я" stream={localStream} muted />
@@ -199,9 +200,10 @@ export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Ele
           />
         ))}
       </VideoGrid>
-      <div className="video-call__controls">
+      <div className={styles.controls}>
         <button
           type="button"
+          className={styles.btn}
           onClick={onToggleMic}
           disabled={!localStreamReady}
           aria-pressed={!micEnabled}
@@ -210,6 +212,7 @@ export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Ele
         </button>
         <button
           type="button"
+          className={styles.btn}
           onClick={onToggleCamera}
           disabled={!localStreamReady || meshCeilingReached}
           aria-pressed={!cameraEnabled}
@@ -218,7 +221,7 @@ export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Ele
           {cameraEnabled && !meshCeilingReached ? '📷 Off' : '📸 On'}
         </button>
       </div>
-      {error && <p className="video-call__error">{error}</p>}
+      {error && <p className={styles.error}>{error}</p>}
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AudioTrackDTO, Role } from '@vtt/shared';
+import styles from './AudioPanel.module.css';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
   bindTrackToScene,
@@ -32,10 +33,10 @@ export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps)
   const currentTrackId = current && current.action !== 'stop' ? current.trackId : null;
 
   return (
-    <section className="audio-panel" aria-label={t('campaign:audio.panelAriaLabel')}>
-      <header className="audio-panel__header">
+    <section className={styles.panel} aria-label={t('campaign:audio.panelAriaLabel')}>
+      <header className={styles.header}>
         <h3>{t('campaign:audio.heading')}</h3>
-        <label className="audio-panel__volume">
+        <label className={styles.volume}>
           {t('campaign:audio.volume')}
           <input
             type="range"
@@ -51,9 +52,9 @@ export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps)
       {isGM && <TrackUpload roomId={roomId} sceneId={sceneId} />}
 
       {tracks.length === 0 ? (
-        <p className="audio-panel__empty">{t('campaign:audio.empty')}</p>
+        <p className={styles.empty}>{t('campaign:audio.empty')}</p>
       ) : (
-        <ul className="audio-panel__list">
+        <ul className={styles.list}>
           {tracks.map((tr) => (
             <TrackItem
               key={tr.id}
@@ -89,7 +90,7 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
   const [busy, setBusy] = useState(false);
 
   const isBoundHere = computeTrackBound(sceneId, track.sceneId);
-  const liClassName = `audio-panel__item${isPlaying ? ' is-playing' : ''}`;
+  const liClassName = isPlaying ? `${styles.item} ${styles.itemPlaying}` : styles.item;
   const bindTitle = sceneId
     ? isBoundHere
       ? t('campaign:audio.unbindTitle')
@@ -117,16 +118,17 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
 
   return (
     <li className={liClassName}>
-      <span className="audio-panel__title">{track.title}</span>
+      <span className={styles.trackTitle}>{track.title}</span>
       {track.loop && (
-        <span className="audio-panel__badge">{t('campaign:audio.loopBadge')}</span>
+        <span className={styles.badge}>{t('campaign:audio.loopBadge')}</span>
       )}
-      {isPlaying && <span className="audio-panel__badge is-active">▶</span>}
+      {isPlaying && <span className={`${styles.badge} ${styles.badgePlaying}`}>▶</span>}
 
       {isGM && !editing && (
-        <div className="audio-panel__controls">
+        <div className={styles.controls}>
           <button
             type="button"
+            className={styles.btnControl}
             onClick={() =>
               dispatch(bindTrackToScene({ trackId: track.id, sceneId: isBoundHere ? null : sceneId }))
             }
@@ -137,6 +139,7 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
           </button>
           <button
             type="button"
+            className={styles.btnControl}
             onClick={onOpenEdit}
             aria-label={t('campaign:audio.editAriaLabel', { title: track.title })}
           >
@@ -144,7 +147,7 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
           </button>
           <button
             type="button"
-            className="audio-panel__delete"
+            className={`${styles.btnControl} ${styles.btnDelete}`}
             onClick={() => dispatch(removeAudioTrack(track.id))}
             aria-label={t('campaign:audio.deleteAriaLabel', { title: track.title })}
           >
@@ -154,7 +157,7 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
       )}
 
       {isGM && editing && (
-        <div className="audio-panel__edit">
+        <div className={styles.editRow}>
           <label>
             {t('campaign:audio.loopLabel')}
             <input
@@ -175,10 +178,10 @@ function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Ele
               aria-label={t('campaign:audio.fadeAriaLabel')}
             />
           </label>
-          <button type="button" onClick={() => void onSaveEdit()} disabled={busy}>
+          <button type="button" className={styles.btnControl} onClick={() => void onSaveEdit()} disabled={busy}>
             {t('common:btn.save')}
           </button>
-          <button type="button" onClick={() => setEditing(false)} disabled={busy}>
+          <button type="button" className={styles.btnControl} onClick={() => setEditing(false)} disabled={busy}>
             {t('common:btn.cancel')}
           </button>
         </div>

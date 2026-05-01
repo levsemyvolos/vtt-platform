@@ -1,5 +1,7 @@
 import type { AuthTokenPair } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
+import { store } from '../store';
+import { addToast } from '../store/toast';
 
 export class ApiError extends Error {
   constructor(
@@ -99,7 +101,13 @@ export async function apiFetch<TRes = unknown>(
     return retry.json() as Promise<TRes>;
   }
 
-  if (!res.ok) throw await parseError(res);
+  if (!res.ok) {
+    const err = await parseError(res);
+    if (res.status >= 500) {
+      store.dispatch(addToast('error', `Server error ${res.status}: ${err.message}`));
+    }
+    throw err;
+  }
   if (res.status === 204) return undefined as TRes;
   return res.json() as Promise<TRes>;
 }

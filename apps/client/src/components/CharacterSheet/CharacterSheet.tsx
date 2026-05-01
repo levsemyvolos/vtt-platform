@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
+import styles from './CharacterSheet.module.css';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
   loadCharacter,
@@ -125,12 +126,12 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
   const otherChars = myRole === 'GM' ? allChars.filter((c) => c.ownerId !== myUserId) : [];
 
   return (
-    <section className="character-sheet character-sheet--list">
+    <section className={styles.sheet}>
       <h3>{t('campaign:character.heading')}</h3>
       {myChars.length > 0 && (
         <>
           <h4>{t('campaign:character.myChars')}</h4>
-          <ul className="character-sheet__list">
+          <ul>
             {myChars.map((c) => (
               <li key={c.id}>
                 <button type="button" onClick={() => dispatch(setCurrentCharacter(c))}>
@@ -144,7 +145,7 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
       {otherChars.length > 0 && (
         <>
           <h4>{t('campaign:character.otherChars')}</h4>
-          <ul className="character-sheet__list">
+          <ul>
             {otherChars.map((c) => (
               <li key={c.id}>
                 <button type="button" onClick={() => dispatch(setCurrentCharacter(c))}>
@@ -158,7 +159,7 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
       {myRole !== 'Observer' && (
         creating ? (
           <form
-            className="character-sheet__create-form"
+            className={styles.section}
             onSubmit={async (e) => {
               e.preventDefault();
               setBusy(true);
@@ -180,24 +181,25 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
             }}
           >
             <input
+              className={styles.inventoryInput}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={t('campaign:character.namePlaceholder')}
               aria-label={t('campaign:character.newNameLabel')}
               required
             />
-            <button type="submit" disabled={busy}>
+            <button type="submit" className={styles.btnSave} disabled={busy}>
               {busy ? t('common:btn.creating') : t('common:btn.create')}
             </button>
-            <button type="button" onClick={() => setCreating(false)} disabled={busy}>
+            <button type="button" className={styles.btnCreate} onClick={() => setCreating(false)} disabled={busy}>
               {t('common:btn.cancel')}
             </button>
-            {error && <p className="character-sheet__error">{error}</p>}
+            {error && <p className={styles.error}>{error}</p>}
           </form>
         ) : (
           <button
             type="button"
-            className="character-sheet__new-btn"
+            className={styles.btnCreate}
             onClick={() => setCreating(true)}
             aria-label={t('campaign:character.newAriaLabel')}
           >
@@ -212,10 +214,10 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
 function ShortView({ name, portraitUrl }: { name: string; portraitUrl?: string }): JSX.Element {
   const { t } = useTranslation('campaign');
   return (
-    <section className="character-sheet character-sheet--short">
+    <section className={styles.sheet}>
       <h3>{name}</h3>
-      {portraitUrl && <img src={portraitUrl} alt={name} className="character-sheet__portrait" />}
-      <p className="character-sheet__notice">{t('character.closedByOwner')}</p>
+      {portraitUrl && <img src={portraitUrl} alt={name} />}
+      <p>{t('character.closedByOwner')}</p>
     </section>
   );
 }
@@ -295,43 +297,43 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
 
   return (
     <section
-      className="character-sheet character-sheet--full"
+      className={styles.sheet}
       aria-label={t('campaign:character.sheetLabel', { name: current.name })}
     >
-      <header className="character-sheet__header">
+      <header className={styles.header}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={readOnly}
           aria-label={t('campaign:character.nameInputLabel')}
-          className="character-sheet__name"
+          className={styles.name}
         />
         <div
-          className="character-sheet__portrait-slot"
           aria-label={t('campaign:character.portraitLabel')}
         />
         {isGmViewer(myRole, isOwner) && (
-          <span className="character-sheet__badge">{t('campaign:character.readOnlyBadge')}</span>
+          <span>{t('campaign:character.readOnlyBadge')}</span>
         )}
       </header>
 
-      <fieldset className="character-sheet__attrs" disabled={readOnly}>
+      <fieldset className={styles.section} disabled={readOnly}>
         <legend>{t('campaign:character.attrs')}</legend>
         {(Object.keys(sheet.attributes) as (keyof SheetAttributes)[]).map((key) => (
-          <label key={key} className="character-sheet__attr">
-            <span>{key}</span>
+          <label key={key} className={styles.stat}>
+            <span className={styles.statLabel}>{key}</span>
             <input
               type="number"
+              className={styles.statInput}
               value={sheet.attributes[key]}
               onChange={(e) => patch(key, Number(e.target.value))}
               aria-label={t('campaign:character.attrLabel', { key })}
             />
-            <span className="character-sheet__mod">{modifier(sheet.attributes[key])}</span>
+            <span className={styles.statMod}>{modifier(sheet.attributes[key])}</span>
           </label>
         ))}
       </fieldset>
 
-      <fieldset className="character-sheet__vitals" disabled={readOnly}>
+      <fieldset className={styles.section} disabled={readOnly}>
         <legend>{t('campaign:character.vitals')}</legend>
         <label>
           HP
@@ -367,7 +369,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
         </label>
       </fieldset>
 
-      <fieldset className="character-sheet__skills" disabled={readOnly}>
+      <fieldset className={styles.section} disabled={readOnly}>
         <legend>{t('campaign:character.skills')}</legend>
         <ul>
           {sheet.skills.map((sk, idx) => (
@@ -387,18 +389,19 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
                 />
                 {sk.name}
               </label>
-              <span className="character-sheet__mod">{sk.proficient ? '+2' : '+0'}</span>
+              <span className={styles.statMod}>{sk.proficient ? '+2' : '+0'}</span>
             </li>
           ))}
         </ul>
       </fieldset>
 
-      <fieldset className="character-sheet__inventory" disabled={readOnly}>
+      <fieldset className={styles.section} disabled={readOnly}>
         <legend>{t('campaign:character.inventory')}</legend>
         <ul>
           {sheet.inventory.map((item, idx) => (
             <li key={idx}>
               <input
+                className={styles.inventoryInput}
                 value={item}
                 onChange={(e) => setInventoryAt(idx, e.target.value)}
                 aria-label={t('campaign:character.inventoryItem', { idx: idx + 1 })}
@@ -426,7 +429,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
         onChange={(spells) => setSheet((s) => ({ ...s, spells }))}
       />
 
-      <section className="character-sheet__pdf">
+      <section className={styles.section}>
         <h4>{t('campaign:character.pdfSection')}</h4>
         {current.pdfUrl && (
           <iframe
@@ -447,8 +450,8 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
       </section>
 
       {isOwner && (
-        <div className="character-sheet__actions">
-          <button type="button" onClick={onSave}>{t('common:btn.save')}</button>
+        <div>
+          <button type="button" className={styles.btnSave} onClick={onSave}>{t('common:btn.save')}</button>
         </div>
       )}
     </section>

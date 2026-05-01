@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HandoutDTO, Role } from '@vtt/shared';
+import styles from './HandoutPanel.module.css';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
   createHandoutThunk,
@@ -71,15 +72,15 @@ function GmView({ roomId, items }: GmViewProps): JSX.Element {
   }
 
   return (
-    <section className="handout-panel handout-panel--gm" aria-label={t('campaign:handouts.gmAriaLabel')}>
-      <header className="handout-panel__header">
+    <section className={styles.panel} aria-label={t('campaign:handouts.gmAriaLabel')}>
+      <header className={styles.header}>
         <h3>{t('campaign:handouts.heading')}</h3>
-        <button type="button" onClick={() => setShowCreate((v) => !v)}>
+        <button type="button" className={styles.btn} onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? t('common:btn.cancel') : t('campaign:handouts.createBtn')}
         </button>
       </header>
       {showCreate && (
-        <form onSubmit={(e) => void onCreate(e)} className="handout-panel__form">
+        <form onSubmit={(e) => void onCreate(e)} className={styles.createForm}>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -104,8 +105,8 @@ function GmView({ roomId, items }: GmViewProps): JSX.Element {
           <button type="submit">{t('common:btn.create')}</button>
         </form>
       )}
-      {error && <p className="handout-panel__error">{error}</p>}
-      <ul className="handout-panel__list">
+      {error && <p className={styles.error}>{error}</p>}
+      <ul className={styles.list}>
         {items.map((h) => (
           <GmHandoutCard key={h.id} handout={h} roomId={roomId} />
         ))}
@@ -146,22 +147,23 @@ function GmHandoutCard({
   }
 
   return (
-    <li className="handout-panel__card">
-      <h4>{handout.title}</h4>
-      <p>{handout.body}</p>
+    <li className={styles.item}>
+      <h4 className={styles.itemTitle}>{handout.title}</h4>
+      <p className={styles.itemBody}>{handout.body}</p>
       {handout.assetUrl && (
         <a href={handout.assetUrl} target="_blank" rel="noopener noreferrer">
           Asset
         </a>
       )}
-      <div className="handout-panel__recipients">
+      <div>
         <strong>{t('handouts.grantedLabel')}</strong>{' '}
         {handout.recipientIds.length === 0 && <em>{t('handouts.noneGranted')}</em>}
         {handout.recipientIds.map((uid) => (
-          <span key={uid} className="handout-panel__recipient">
+          <span key={uid} className={styles.granted}>
             {uid.slice(0, 8)}
             <button
               type="button"
+              className={styles.btn}
               onClick={() =>
                 dispatch(revokeHandoutThunk({ handoutId: handout.id, userId: uid }))
               }
@@ -172,13 +174,13 @@ function GmHandoutCard({
           </span>
         ))}
       </div>
-      <div className="handout-panel__grant">
+      <div className={styles.actions}>
         {hasPlayers ? (
           <>
-            <fieldset className="handout-panel__member-picker">
+            <fieldset className={styles.grantSelect}>
               <legend>{t('handouts.grantToPlayersLegend')}</legend>
               {players.map((p) => (
-                <label key={p.id} className="handout-panel__member-label">
+                <label key={p.id}>
                   <input
                     type="checkbox"
                     checked={checkedIds.has(p.id)}
@@ -191,6 +193,7 @@ function GmHandoutCard({
             </fieldset>
             <button
               type="button"
+              className={styles.btn}
               onClick={onGrant}
               disabled={checkedIds.size === 0}
             >
@@ -198,14 +201,14 @@ function GmHandoutCard({
             </button>
           </>
         ) : (
-          <p className="handout-panel__no-players">
+          <p>
             {t('handouts.noPlayers')}
           </p>
         )}
       </div>
       <button
         type="button"
-        className="handout-panel__delete"
+        className={`${styles.btn} ${styles.btnDanger}`}
         onClick={() => dispatch(deleteHandoutThunk(handout.id))}
         aria-label={t('handouts.deleteLabel', { title: handout.title })}
       >
@@ -218,18 +221,18 @@ function GmHandoutCard({
 function PlayerView({ items }: { items: HandoutDTO[] }): JSX.Element {
   const { t } = useTranslation('campaign');
   return (
-    <section className="handout-panel handout-panel--player" aria-label={t('handouts.playerAriaLabel')}>
-      <header className="handout-panel__header">
+    <section className={styles.panel} aria-label={t('handouts.playerAriaLabel')}>
+      <header className={styles.header}>
         <h3>{t('handouts.heading')}</h3>
       </header>
       {items.length === 0 ? (
-        <p className="handout-panel__empty">{t('handouts.emptyPlayer')}</p>
+        <p className={styles.empty}>{t('handouts.emptyPlayer')}</p>
       ) : (
-        <ul className="handout-panel__list">
+        <ul className={styles.list}>
           {items.map((h) => (
-            <li key={h.id} className="handout-panel__card">
-              <h4>{h.title}</h4>
-              <p>{h.body}</p>
+            <li key={h.id} className={styles.item}>
+              <h4 className={styles.itemTitle}>{h.title}</h4>
+              <p className={styles.itemBody}>{h.body}</p>
               {h.assetUrl && (
                 <a href={h.assetUrl} target="_blank" rel="noopener noreferrer">
                   {t('handouts.downloadAttachment')}

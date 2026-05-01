@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import styles from './AssistantPanel.module.css';
 
 interface InputBarProps {
   onSend: (text: string) => void;
@@ -10,14 +11,14 @@ export default function InputBar({ onSend, disabled }: InputBarProps): JSX.Eleme
   const { t } = useTranslation('assistant');
   const [text, setText] = useState('');
 
-  function handleSend() {
+  function handleSend(): void {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setText('');
   }
 
-  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>): void {
     if (e.key === 'Enter' && e.ctrlKey) {
       e.preventDefault();
       handleSend();
@@ -25,9 +26,9 @@ export default function InputBar({ onSend, disabled }: InputBarProps): JSX.Eleme
   }
 
   return (
-    <div className="assistant-panel__input-bar">
+    <div className={styles.inputBar}>
       <textarea
-        className="assistant-panel__textarea"
+        className={styles.textarea}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -38,7 +39,7 @@ export default function InputBar({ onSend, disabled }: InputBarProps): JSX.Eleme
       />
       <button
         type="button"
-        className="assistant-panel__send-btn"
+        className={styles.sendBtn}
         onClick={handleSend}
         disabled={disabled || !text.trim()}
         aria-label={t('input.sendLabel')}

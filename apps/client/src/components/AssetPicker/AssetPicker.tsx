@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetDTO } from '@vtt/shared';
 import { listRoomAssets } from '../../api/assets';
+import styles from './AssetPicker.module.css';
 
 interface AssetPickerProps {
   roomId: string;
@@ -33,20 +34,20 @@ export default function AssetPicker({ roomId, onPick }: AssetPickerProps): JSX.E
     onPick(assetId);
   }
 
-  if (loading) return <p className="asset-picker__status">{t('room:asset.loadingGallery')}</p>;
-  if (error) return <p className="asset-picker__status asset-picker__status--error">{error}</p>;
+  if (loading) return <p className={styles.status}>{t('room:asset.loadingGallery')}</p>;
+  if (error) return <p className={`${styles.status} ${styles.statusError}`}>{error}</p>;
 
   return (
-    <div className="asset-picker">
+    <div className={styles.picker}>
       {assets.length === 0 ? (
-        <p className="asset-picker__empty">{t('room:asset.empty')}</p>
+        <p className={styles.empty}>{t('room:asset.empty')}</p>
       ) : (
-        <ul className="asset-picker__grid" role="listbox" aria-label={t('room:asset.galleryLabel')}>
+        <ul className={styles.grid} role="listbox" aria-label={t('room:asset.galleryLabel')}>
           {assets.map((asset) => (
             <li key={asset.id} role="option" aria-selected={selected === asset.id}>
               <button
                 type="button"
-                className={`asset-picker__item${selected === asset.id ? ' asset-picker__item--selected' : ''}`}
+                className={selected === asset.id ? `${styles.item} ${styles.itemSelected}` : styles.item}
                 onClick={() => handlePick(asset.id)}
                 title={asset.name}
                 aria-label={t('room:asset.selectImage', { name: asset.name })}
@@ -54,10 +55,10 @@ export default function AssetPicker({ roomId, onPick }: AssetPickerProps): JSX.E
                 <img
                   src={asset.url}
                   alt={asset.name}
-                  className="asset-picker__thumb"
+                  className={styles.thumb}
                   loading="lazy"
                 />
-                <span className="asset-picker__name">{asset.name}</span>
+                <span className={styles.name}>{asset.name}</span>
               </button>
             </li>
           ))}

@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store';
 import { createScene, loadScenes } from '../../store/scenes';
+import styles from './CreateSceneModal.module.css';
 
 interface CreateSceneModalProps {
   roomId: string;
@@ -48,17 +49,24 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
     }
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={t('room:scenes.modal.dialogLabel')}
-      className="modal-backdrop"
+      className={styles.backdrop}
+      tabIndex={-1}
     >
-      <div className="modal">
+      <div className={styles.dialog}>
         <h2>{t('room:scenes.modal.heading')}</h2>
         <form onSubmit={(e) => void onSubmit(e)} aria-label={t('room:scenes.modal.formLabel')} noValidate>
-          <div className="field">
+          <div className={styles.field}>
             <label htmlFor="scene-name">{t('room:scenes.modal.sceneName')}</label>
             <input
               id="scene-name"
@@ -69,7 +77,7 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
               autoFocus
             />
           </div>
-          <div className="field">
+          <div className={styles.field}>
             <label htmlFor="scene-grid-width">{t('room:scenes.modal.gridWidth')}</label>
             <input
               id="scene-grid-width"
@@ -80,7 +88,7 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
               onChange={(e) => setGridWidth(Number(e.target.value))}
             />
           </div>
-          <div className="field">
+          <div className={styles.field}>
             <label htmlFor="scene-grid-height">{t('room:scenes.modal.gridHeight')}</label>
             <input
               id="scene-grid-height"
@@ -91,7 +99,7 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
               onChange={(e) => setGridHeight(Number(e.target.value))}
             />
           </div>
-          <div className="field">
+          <div className={styles.field}>
             <label htmlFor="scene-grid-size">{t('room:scenes.modal.gridSize')}</label>
             <input
               id="scene-grid-size"
@@ -104,16 +112,16 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
           </div>
 
           {error && (
-            <p role="alert" className="modal__error">
+            <p role="alert" className={styles.error}>
               {error}
             </p>
           )}
 
-          <div className="modal__actions">
-            <button type="button" onClick={onClose} disabled={busy}>
+          <div className={styles.actions}>
+            <button type="button" className={styles.btnCancel} onClick={onClose} disabled={busy}>
               {t('common:btn.cancel')}
             </button>
-            <button type="submit" disabled={busy}>
+            <button type="submit" className={styles.btnSubmit} disabled={busy}>
               {busy ? t('common:btn.creating') : t('common:btn.create')}
             </button>
           </div>

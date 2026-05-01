@@ -12,6 +12,7 @@ import AddTokenButton from './AddTokenButton';
 import AnnotationToolbar, { type AnnotationTool } from './AnnotationToolbar';
 import { getUserPingColor } from './layers/AnnotationLayer';
 import { emitAnnotationPing } from '../../api/socket';
+import styles from './GameCanvas.module.css';
 
 export interface GameCanvasProps {
   scene: SceneDTO;
@@ -116,8 +117,8 @@ export default function GameCanvas({
   }
 
   return (
-    <div ref={containerRef} className="game-canvas" style={{ width: '100%', height: '100%' }}>
-      <div className="canvas-toolbar">
+    <div ref={containerRef} className={styles.gameCanvas}>
+      <div className={styles.toolbar}>
         <AddTokenButton myRole={myRole} sceneId={scene.id} />
         <AnnotationToolbar activeTool={annotationTool} onChange={setAnnotationTool} />
       </div>

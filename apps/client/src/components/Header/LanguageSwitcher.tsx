@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import styles from './Header.module.css';
 
 const LANGS = [
   { code: 'en', flag: '🇬🇧', label: 'English' },
@@ -16,12 +17,12 @@ export default function LanguageSwitcher(): JSX.Element {
   }
 
   return (
-    <div className="language-switcher" role="group" aria-label="Language">
+    <div className={styles.langSwitcher} role="group" aria-label="Language">
       {LANGS.map(({ code, flag, label }) => (
         <button
           key={code}
           type="button"
-          className={`language-switcher__btn${current === code ? ' language-switcher__btn--active' : ''}`}
+          className={current === code ? `${styles.btn} ${styles.btnActive}` : styles.btn}
           onClick={() => handleChange(code)}
           title={label}
           aria-pressed={current === code}

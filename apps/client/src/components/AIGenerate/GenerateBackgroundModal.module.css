@@ -1,0 +1,68 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+}
+.dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  width: 100%;
+  max-width: 680px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+.dialog h2 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.field { display: flex; flex-direction: column; gap: var(--space-xs); }
+.field label { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.field textarea,
+.field select {
+  padding: var(--space-sm);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+.field textarea:focus, .field select:focus { border-color: var(--color-primary); outline: none; }
+.error { color: var(--color-danger); font-size: var(--text-xs); }
+.actions { display: flex; gap: var(--space-sm); justify-content: flex-end; }
+.btnCancel {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.btnSubmit {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.btnSubmit:hover:not(:disabled) { background: var(--color-primary-hover); }
+.preview { display: flex; flex-direction: column; gap: var(--space-sm); align-items: flex-start; }
+.previewImg {
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}

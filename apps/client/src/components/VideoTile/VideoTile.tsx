@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import ConnectionState from '../VideoCall/ConnectionState';
+import styles from './VideoTile.module.css';
 
 interface VideoTileProps {
   /** Display label (typically participant name). */
@@ -27,17 +28,18 @@ export default function VideoTile({
   }, [stream]);
 
   return (
-    <figure className="video-tile" data-state={connectionState ?? 'local'}>
+    <figure className={styles.tile} data-state={connectionState ?? 'local'}>
       <video
         ref={videoRef}
+        className={styles.video}
         autoPlay
         playsInline
         muted={muted}
         aria-label={`Відеовіконце ${label}`}
       />
       {connectionState && <ConnectionState state={connectionState} />}
-      <figcaption className="video-tile__caption">
-        <span className="video-tile__name">{label}</span>
+      <figcaption className={styles.caption}>
+        <span className={styles.name}>{label}</span>
       </figcaption>
     </figure>
   );

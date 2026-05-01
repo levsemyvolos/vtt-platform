@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import styles from './ConnectionState.module.css';
 
 const STATE_ICON: Partial<Record<RTCPeerConnectionState, string>> = {
   new: '⏳',
@@ -22,9 +23,9 @@ export default function ConnectionState({ state }: ConnectionStateProps): JSX.El
   const label = t(labelKey, { defaultValue: state });
 
   return (
-    <div className="connection-state" data-state={state} title={label} role="status" aria-label={label}>
-      <span className="connection-state__icon" aria-hidden="true">{icon}</span>
-      <span className="connection-state__label">{label}</span>
+    <div className={styles.overlay} data-state={state} title={label} role="status" aria-label={label}>
+      <span className={styles.icon} aria-hidden="true">{icon}</span>
+      <span className={styles.label}>{label}</span>
     </div>
   );
 }

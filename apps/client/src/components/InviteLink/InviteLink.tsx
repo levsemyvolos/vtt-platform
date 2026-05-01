@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '../../api/apiFetch';
+import styles from './InviteLink.module.css';
 
 interface InviteTokens {
   playerToken: string;
@@ -46,11 +47,11 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element {
   }
 
   return (
-    <div className="invite-link">
+    <div className={styles.container}>
       {!tokens && !loading && (
         <button
           type="button"
-          className="btn-invite"
+          className={styles.btnInvite}
           onClick={() => void fetchTokens()}
           title={t('room:invite.inviteBtnTitle')}
         >
@@ -58,32 +59,32 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element {
         </button>
       )}
 
-      {loading && <span className="invite-link__status">{t('common:status.loading')}</span>}
+      {loading && <span className={styles.status}>{t('common:status.loading')}</span>}
 
       {error && (
-        <p role="alert" className="invite-link__error">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
 
       {tokens && (
-        <div className="invite-link__panel">
-          <div className="invite-link__row">
-            <span className="invite-link__label">{t('room:invite.playerLabel')}</span>
+        <div className={styles.panel}>
+          <div className={styles.row}>
+            <span className={styles.label}>{t('room:invite.playerLabel')}</span>
             <button
               type="button"
-              className="btn-copy"
+              className={styles.btnCopy}
               onClick={() => void copyToClipboard(tokens.playerToken, 'player')}
               title={`${window.location.origin}/?invite=${tokens.playerToken}`}
             >
               {copied === 'player' ? t('room:invite.copied') : t('room:invite.copyBtn')}
             </button>
           </div>
-          <div className="invite-link__row">
-            <span className="invite-link__label">{t('room:invite.observerLabel')}</span>
+          <div className={styles.row}>
+            <span className={styles.label}>{t('room:invite.observerLabel')}</span>
             <button
               type="button"
-              className="btn-copy"
+              className={styles.btnCopy}
               onClick={() => void copyToClipboard(tokens.observerToken, 'observer')}
               title={`${window.location.origin}/?invite=${tokens.observerToken}`}
             >

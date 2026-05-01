@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import styles from './AnnotationToolbar.module.css';
 
 export type AnnotationTool = 'ping' | 'draw' | 'measure';
 
@@ -16,9 +17,10 @@ interface Props {
 export default function AnnotationToolbar({ activeTool, onChange }: Props): JSX.Element {
   const { t } = useTranslation('room');
   return (
-    <div className="annotation-toolbar">
+    <div className={styles.toolbar} role="toolbar" aria-label={t('annotation.toolbarLabel')}>
       <button
-        className={`annotation-btn${activeTool === 'ping' ? ' active' : ''}`}
+        type="button"
+        className={`${styles.btn}${activeTool === 'ping' ? ` ${styles.btnActive}` : ''}`}
         onClick={() => onChange('ping')}
         title={t('annotation.pingTitle')}
         aria-pressed={activeTool === 'ping'}
@@ -26,16 +28,20 @@ export default function AnnotationToolbar({ activeTool, onChange }: Props): JSX.
         ⊕ Ping
       </button>
       <button
-        className="annotation-btn"
+        type="button"
+        className={styles.btn}
         disabled
         title={t('annotation.drawTitle')}
+        aria-disabled="true"
       >
         ✏ Draw
       </button>
       <button
-        className="annotation-btn"
+        type="button"
+        className={styles.btn}
         disabled
         title={t('annotation.measureTitle')}
+        aria-disabled="true"
       >
         📐 Measure
       </button>
