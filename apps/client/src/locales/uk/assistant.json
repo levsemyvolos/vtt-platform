@@ -4,11 +4,56 @@
     "title": "GM Асистент",
     "closeLabel": "Закрити"
   },
+  "header": {
+    "title": "AI-інструментарій ведучого",
+    "subtitle": "Gemini · Lyria"
+  },
+  "tabs": {
+    "llm": "LLM-асистент",
+    "image": "Генерація зображень",
+    "music": "Генерація музики",
+    "history": "Історія"
+  },
   "context": {
     "npc-description": "NPC",
     "scene-description": "Сцена",
     "srd-lookup": "SRD",
     "free-chat": "Вільний"
+  },
+  "dialogList": {
+    "newBtn": "+ Новий діалог",
+    "listLabel": "Список діалогів"
+  },
+  "conversation": {
+    "empty": "Задайте питання GM-асистенту.",
+    "historyEmpty": "Немає попередніх записів у цій сесії.",
+    "roleUser": "Ви",
+    "roleAssistant": "Асистент",
+    "actions": {
+      "copy": "Копія",
+      "toNotes": "В нотатки",
+      "toChat": "В чат (NPC)",
+      "more": "Ще"
+    },
+    "chips": {
+      "npcMode": "NPC режим"
+    },
+    "imagePromptLabel": "Опишіть зображення…",
+    "musicPromptLabel": "Опишіть музичний настрій…",
+    "imageHint": "Генерація зображень через Imagen. Буде доступно в наступному релізі.",
+    "musicHint": "Генерація музики через Lyria 3. Буде доступно в наступному релізі.",
+    "generateBtn": "Генерувати"
+  },
+  "recent": {
+    "heading": "Останні генерації",
+    "emptyImages": "Зображень ще немає",
+    "playerHeading": "Lyria плеєр",
+    "playBtn": "Відтворити",
+    "scrubBar": "Прогрес відтворення",
+    "quotaHeading": "Ліміти",
+    "quotaLlm": "LLM токени",
+    "quotaImages": "Зображення",
+    "quotaMusic": "Музика"
   },
   "input": {
     "placeholder": "Запитайте GM-асистента… (Ctrl+Enter — відправити)",

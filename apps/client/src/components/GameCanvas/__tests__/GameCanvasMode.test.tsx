@@ -45,15 +45,14 @@ afterEach(() => cleanup());
 
 const MOCK_SCENE: SceneDTO = {
   id: 's1',
+  roomId: 'room-1',
   name: 'Test',
   gridSize: 50,
   gridWidth: 10,
   gridHeight: 10,
   isActive: true,
   isHidden: false,
-  backgroundUrl: null,
   fogMaskBase64: null,
-  currentRound: 0,
   tokens: [],
 };
 
