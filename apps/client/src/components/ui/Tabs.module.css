@@ -1,0 +1,122 @@
+.tabs {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: color var(--transition-fast), background-color var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.tab:disabled,
+.tab[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.label { display: inline-block; }
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-hover);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Variant: underline (sidebar tabs) */
+.variant-underline {
+  gap: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.variant-underline .tab {
+  height: 40px;
+  padding: 0 var(--space-md);
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.variant-underline .tab:hover:not(:disabled) {
+  color: var(--color-text-primary);
+}
+.variant-underline .tab.selected {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Variant: pill (AssistantPanel top tabs) */
+.variant-pill {
+  gap: var(--space-xs);
+  background: var(--color-surface-hover);
+  padding: var(--space-xs);
+  border-radius: var(--radius-md);
+}
+.variant-pill .tab {
+  height: 32px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-sm);
+}
+.variant-pill .tab:hover:not(:disabled):not(.selected) {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+.variant-pill .tab.selected {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Variant: segmented (Dashboard My/Invited) */
+.variant-segmented {
+  gap: 0;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+.variant-segmented .tab {
+  height: 32px;
+  padding: 0 var(--space-lg);
+  border-radius: var(--radius-sm);
+}
+.variant-segmented .tab.selected {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+.variant-segmented .tab.selected .count {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--color-text-inverse);
+}
+
+.unbound {
+  /* Visual hint that feature is in development */
+  position: relative;
+}
+.unbound::after {
+  content: '·';
+  color: var(--color-warning);
+  font-size: 18px;
+  margin-left: 4px;
+  line-height: 0;
+}

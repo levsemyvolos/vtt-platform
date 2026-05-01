@@ -1,0 +1,65 @@
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: background-color var(--transition-fast), color var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.iconBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.size-sm { width: 28px; height: 28px; }
+.size-md { width: 36px; height: 36px; }
+.size-lg { width: 44px; height: 44px; }
+
+/* Solid */
+.variant-solid {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
+}
+.variant-solid:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+/* Outline */
+.variant-outline {
+  background: transparent;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+.variant-outline:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-text-secondary);
+}
+
+/* Ghost (default) */
+.variant-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: transparent;
+}
+.variant-ghost:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+/* Active state — toolbar selection (e.g. Fog active in CanvasToolbar) */
+.active {
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.active:hover:not(:disabled) {
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+}
