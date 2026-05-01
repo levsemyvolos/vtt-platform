@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { loadScenes, activateScene } from '../../store/scenes';
+import { startEditing } from '../../store/room';
 import CreateSceneModal from './CreateSceneModal';
 import styles from './SceneManager.module.css';
 
@@ -86,6 +87,16 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
                 onClick={() => void handleActivate(scene.id)}
               >
                 {activating === scene.id ? t('room:scenes.activating') : t('room:scenes.activateBtn')}
+              </button>
+            )}
+            {isGM && (
+              <button
+                type="button"
+                className={styles.btnActivate}
+                title={t('room:scenes.editBtn')}
+                onClick={() => dispatch(startEditing(scene.id))}
+              >
+                {t('room:scenes.editBtn')}
               </button>
             )}
           </li>

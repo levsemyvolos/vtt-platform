@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Stage } from 'react-konva';
 import type Konva from 'konva';
 import type { Role, SceneDTO } from '@vtt/shared';
-import { useAppSelector } from '../../store';
+import { useAppDispatch, useAppSelector } from '../../store';
+import { selectToken } from '../../store/scene';
 import { useTheme } from '../../hooks/useTheme';
 import BackgroundLayer from './layers/BackgroundLayer';
 import TokenLayer from './layers/TokenLayer';
@@ -19,18 +20,26 @@ export interface GameCanvasProps {
   myUserId: string;
   /** Optional URL for the scene background bitmap (Ф2.2.5). */
   backgroundUrl?: string;
+  /** 'edit' enables fog-drag for GM and token-click-to-select. Default: 'play'. */
+  mode?: 'edit' | 'play';
 }
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
 const ZOOM_STEP = 1.08;
 
+function fogEditActive(myRole: Role, mode: 'edit' | 'play', activeTool: string): boolean {
+  return myRole === 'GM' && (mode === 'edit' || activeTool === 'fog');
+}
+
 export default function GameCanvas({
   scene,
   myRole,
   myUserId,
   backgroundUrl,
+  mode = 'play',
 }: GameCanvasProps): JSX.Element {
+  const dispatch = useAppDispatch();
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
@@ -43,7 +52,7 @@ export default function GameCanvas({
   const stageBg = theme === 'dark' ? '#0f172a' : '#fafafa';
   const fowAlpha = theme === 'dark' ? 0.5 : 0.7;
 
-  const fogEditMode = activeTool === 'fog' && myRole === 'GM';
+  const fogEditMode = fogEditActive(myRole, mode, activeTool);
   const cursor = activeTool === 'ping' ? 'crosshair'
     : activeTool === 'fog' && myRole === 'GM' ? 'cell'
     : activeTool === 'draw' ? 'crosshair'
@@ -143,6 +152,9 @@ export default function GameCanvas({
           gridSize={scene.gridSize}
           myRole={myRole}
           myUserId={myUserId}
+          {...(mode === 'edit' && {
+            onTokenSelect: (id: string) => { dispatch(selectToken(id)); },
+          })}
         />
         <AnnotationLayer />
         <FogOfWarLayer
