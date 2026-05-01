@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
 import { useAppSelector } from '../../store';
 import { apiFetch, ApiError } from '../../api/apiFetch';
+import styles from './AddTokenButton.module.css';
 
 interface AddTokenButtonProps {
   myRole: Role;
@@ -60,7 +61,7 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
     <>
       <button
         type="button"
-        className="canvas-toolbar__btn"
+        className={styles.triggerBtn}
         onClick={() => setShowModal(true)}
         title={t('room:token.addTitle')}
         aria-label={t('room:token.addLabel')}
@@ -69,11 +70,20 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
       </button>
 
       {showModal && (
-        <div role="dialog" aria-modal="true" aria-label={t('room:token.addModalLabel')} className="modal-backdrop">
-          <div className="modal">
+        <div
+          className={styles.backdrop}
+          role="presentation"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('room:token.addModalLabel')}
+            className={styles.modal}
+          >
             <h3>{t('room:token.addModalHeading')}</h3>
             <form onSubmit={(e) => void handleSubmit(e)} aria-label={t('room:token.tokenFormLabel')} noValidate>
-              <div className="field">
+              <div className={styles.field}>
                 <label htmlFor="token-name">{t('common:label.name')}</label>
                 <input
                   id="token-name"
@@ -85,7 +95,7 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
                   autoFocus
                 />
               </div>
-              <div className="field">
+              <div className={styles.field}>
                 <label htmlFor="token-image">{t('room:token.imageUrlLabel')}</label>
                 <input
                   id="token-image"
@@ -96,22 +106,18 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
                   placeholder="https://..."
                 />
               </div>
-              <p className="modal__note">
+              <p className={styles.note}>
                 {t('room:token.tokenPlacedNote', {
                   x: scene ? Math.floor(scene.gridWidth / 2) : '—',
                   y: scene ? Math.floor(scene.gridHeight / 2) : '—',
                 })}
               </p>
-              {error && (
-                <p role="alert" className="modal__error">
-                  {error}
-                </p>
-              )}
-              <div className="modal__actions">
-                <button type="button" onClick={() => setShowModal(false)} disabled={busy}>
+              {error && <p role="alert" className={styles.error}>{error}</p>}
+              <div className={styles.actions}>
+                <button type="button" className={styles.btnCancel} onClick={() => setShowModal(false)} disabled={busy}>
                   {t('common:btn.cancel')}
                 </button>
-                <button type="submit" disabled={busy}>
+                <button type="submit" className={styles.btnSubmit} disabled={busy}>
                   {busy ? t('room:token.adding') : t('room:token.addSubmitBtn')}
                 </button>
               </div>

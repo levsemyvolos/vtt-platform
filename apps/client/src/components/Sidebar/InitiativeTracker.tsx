@@ -23,6 +23,7 @@ import {
   reorderThunk,
 } from '../../store/initiative';
 import { loadMembers } from '../../store/members';
+import styles from './InitiativeTracker.module.css';
 
 interface InitiativeTrackerProps {
   sceneId: string;
@@ -30,11 +31,7 @@ interface InitiativeTrackerProps {
   roomId: string;
 }
 
-export default function InitiativeTracker({
-  sceneId,
-  myRole,
-  roomId,
-}: InitiativeTrackerProps): JSX.Element {
+export default function InitiativeTracker({ sceneId, myRole, roomId }: InitiativeTrackerProps): JSX.Element {
   const { t } = useTranslation(['campaign', 'errors']);
   const dispatch = useAppDispatch();
   const entries = useAppSelector((s) => s.initiative.entries);
@@ -53,9 +50,7 @@ export default function InitiativeTracker({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   useEffect(() => {
-    if (isGM && roomId && !membersState) {
-      void dispatch(loadMembers(roomId));
-    }
+    if (isGM && roomId && !membersState) void dispatch(loadMembers(roomId));
   }, [isGM, roomId, membersState, dispatch]);
 
   function rollInitiative(dexMod = 0): number {
@@ -64,12 +59,8 @@ export default function InitiativeTracker({
   }
 
   function onOpenAdd(): void {
-    setShowAdd(true);
-    setSelectedMemberId('');
-    setCustomName('');
-    setUseCustomName(false);
-    setInitiative(rollInitiative());
-    setError(null);
+    setShowAdd(true); setSelectedMemberId(''); setCustomName('');
+    setUseCustomName(false); setInitiative(rollInitiative()); setError(null);
   }
 
   async function onAdd(e: FormEvent<HTMLFormElement>): Promise<void> {
@@ -84,38 +75,26 @@ export default function InitiativeTracker({
           ].filter(Boolean);
           return all.find((m) => m!.id === selectedMemberId)?.name ?? '';
         })();
-    if (!name) {
-      setError(t('errors:validation.selectMemberOrName'));
-      return;
-    }
-    setBusy(true);
-    setError(null);
+    if (!name) { setError(t('errors:validation.selectMemberOrName')); return; }
+    setBusy(true); setError(null);
     try {
       await dispatch(addEntryThunk({ sceneId, name, initiative })).unwrap();
       setShowAdd(false);
     } catch (err) {
       setError(typeof err === 'string' ? err : t('errors:network.generic'));
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   async function onRemove(entryId: string): Promise<void> {
     setError(null);
-    try {
-      await dispatch(removeEntryThunk({ sceneId, entryId })).unwrap();
-    } catch (err) {
-      setError(typeof err === 'string' ? err : t('errors:network.generic'));
-    }
+    try { await dispatch(removeEntryThunk({ sceneId, entryId })).unwrap(); }
+    catch (err) { setError(typeof err === 'string' ? err : t('errors:network.generic')); }
   }
 
   async function onAdvance(): Promise<void> {
     setError(null);
-    try {
-      await dispatch(advanceTurnThunk({ sceneId })).unwrap();
-    } catch (err) {
-      setError(typeof err === 'string' ? err : t('errors:network.generic'));
-    }
+    try { await dispatch(advanceTurnThunk({ sceneId })).unwrap(); }
+    catch (err) { setError(typeof err === 'string' ? err : t('errors:network.generic')); }
   }
 
   function onDragEnd(e: DragEndEvent): void {
@@ -125,8 +104,7 @@ export default function InitiativeTracker({
     const from = ids.indexOf(String(active.id));
     const to = ids.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
-    const reordered = arrayMove(ids, from, to);
-    dispatch(reorderThunk({ sceneId, orderedIds: reordered }));
+    dispatch(reorderThunk({ sceneId, orderedIds: arrayMove(ids, from, to) }));
   }
 
   const allMembers = membersState
@@ -135,7 +113,7 @@ export default function InitiativeTracker({
 
   function renderAddForm(): JSX.Element {
     return (
-      <form onSubmit={(e) => void onAdd(e)} className="initiative-tracker__form">
+      <form onSubmit={(e) => void onAdd(e)} className={styles.addForm}>
         {allMembers.length > 0 && !useCustomName && (
           <select
             value={selectedMemberId}
@@ -144,19 +122,17 @@ export default function InitiativeTracker({
           >
             <option value="">{t('campaign:initiative.selectMemberDefault')}</option>
             {allMembers.map((m) => (
-              <option key={m!.id} value={m!.id}>
-                {m!.name}
-              </option>
+              <option key={m!.id} value={m!.id}>{m!.name}</option>
             ))}
           </select>
         )}
-        <label className="initiative-tracker__custom-toggle">
+        <label>
           <input
             type="checkbox"
             checked={useCustomName}
             onChange={(e) => setUseCustomName(e.target.checked)}
           />
-          {t('campaign:initiative.customNameToggle')}
+          {' '}{t('campaign:initiative.customNameToggle')}
         </label>
         {useCustomName && (
           <input
@@ -176,27 +152,27 @@ export default function InitiativeTracker({
             aria-label={t('campaign:initiative.initiativeAriaLabel')}
           />
         </label>
-        <button
-          type="button"
-          onClick={() => setInitiative(rollInitiative())}
-          title={t('campaign:initiative.rollTitle')}
-          aria-label={t('campaign:initiative.rollAriaLabel')}
-        >
-          🎲
-        </button>
-        <button type="submit" disabled={busy}>OK</button>
-        <button type="button" onClick={() => setShowAdd(false)} disabled={busy}>×</button>
+        <div className={styles.addActions}>
+          <button
+            type="button"
+            onClick={() => setInitiative(rollInitiative())}
+            aria-label={t('campaign:initiative.rollAriaLabel')}
+          >🎲</button>
+          <button type="submit" className={styles.btnAdd} disabled={busy}>OK</button>
+          <button type="button" className={styles.btnCancel} onClick={() => setShowAdd(false)} disabled={busy}>×</button>
+        </div>
       </form>
     );
   }
 
   return (
-    <div className="initiative-tracker">
-      <header className="initiative-tracker__header">
-        <span>{t('campaign:initiative.roundLabel', { round: currentRound })}</span>
+    <div className={styles.tracker} data-testid="initiative-tracker">
+      <header className={styles.header}>
+        <span className={styles.round}>{t('campaign:initiative.roundLabel', { round: currentRound })}</span>
         {isGM && (
           <button
             type="button"
+            className={styles.btnNext}
             onClick={() => void onAdvance()}
             disabled={busy || entries.length === 0}
             aria-label={t('campaign:initiative.nextTurnLabel')}
@@ -207,11 +183,11 @@ export default function InitiativeTracker({
       </header>
 
       {entries.length === 0 ? (
-        <p className="initiative-tracker__empty">{t('campaign:initiative.empty')}</p>
+        <p className={styles.empty}>{t('campaign:initiative.empty')}</p>
       ) : isGM ? (
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <SortableContext items={entries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
-            <ul className="initiative-tracker__list">
+            <ul className={styles.list}>
               {entries.map((entry) => (
                 <SortableEntry key={entry.id} entry={entry} onRemove={(id) => void onRemove(id)} />
               ))}
@@ -219,7 +195,7 @@ export default function InitiativeTracker({
           </SortableContext>
         </DndContext>
       ) : (
-        <ul className="initiative-tracker__list">
+        <ul className={styles.list}>
           {entries.map((entry) => (
             <ReadOnlyEntry key={entry.id} entry={entry} />
           ))}
@@ -227,16 +203,21 @@ export default function InitiativeTracker({
       )}
 
       {isGM && (
-        <div className="initiative-tracker__actions">
+        <div>
           {!showAdd ? (
-            <button type="button" onClick={onOpenAdd} aria-label={t('campaign:initiative.addLabel')}>
+            <button
+              type="button"
+              className={styles.btnAdd}
+              onClick={onOpenAdd}
+              aria-label={t('campaign:initiative.addLabel')}
+            >
               {t('campaign:initiative.addBtn')}
             </button>
           ) : renderAddForm()}
         </div>
       )}
 
-      {error && <p className="initiative-tracker__error">{error}</p>}
+      {error && <p className={styles.error} role="alert">{error}</p>}
     </div>
   );
 }
@@ -250,31 +231,21 @@ function SortableEntry({ entry, onRemove }: RowProps): JSX.Element {
   const { t } = useTranslation('campaign');
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.6 : 1,
-  };
   return (
     <li
       ref={setNodeRef}
-      style={style}
-      className={`initiative-tracker__item${entry.isCurrent ? ' initiative-tracker__item--current' : ''}`}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
+      className={`${styles.entry}${entry.isCurrent ? ` ${styles.entryActive}` : ''}`}
       {...attributes}
       {...listeners}
     >
-      <span className="initiative-tracker__name">{entry.name}</span>
-      <span className="initiative-tracker__value">{entry.initiative}</span>
-      {entry.isCurrent && (
-        <span className="initiative-tracker__badge">{t('initiative.currentBadge')}</span>
-      )}
+      <span className={styles.initiative}>{entry.initiative}</span>
+      <span className={styles.entryName}>{entry.name}</span>
       {onRemove && (
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(entry.id);
-          }}
+          className={styles.btnRemove}
+          onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
           aria-label={t('initiative.deleteLabel', { name: entry.name })}
         >
           ×
@@ -285,16 +256,10 @@ function SortableEntry({ entry, onRemove }: RowProps): JSX.Element {
 }
 
 function ReadOnlyEntry({ entry }: RowProps): JSX.Element {
-  const { t } = useTranslation('campaign');
   return (
-    <li
-      className={`initiative-tracker__item${entry.isCurrent ? ' initiative-tracker__item--current' : ''}`}
-    >
-      <span className="initiative-tracker__name">{entry.name}</span>
-      <span className="initiative-tracker__value">{entry.initiative}</span>
-      {entry.isCurrent && (
-        <span className="initiative-tracker__badge">{t('initiative.currentBadge')}</span>
-      )}
+    <li className={`${styles.entry}${entry.isCurrent ? ` ${styles.entryActive}` : ''}`}>
+      <span className={styles.initiative}>{entry.initiative}</span>
+      <span className={styles.entryName}>{entry.name}</span>
     </li>
   );
 }

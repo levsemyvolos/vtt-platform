@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchRooms, createRoom, fetchRoom } from '../../store/room';
 import { logout } from '../../store/session';
 import type { RoomDTO } from '@vtt/shared';
+import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -16,69 +17,56 @@ export default function Dashboard() {
   const [gameSystem, setGameSystem] = useState('D&D 5e');
   const [createError, setCreateError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void dispatch(fetchRooms());
-  }, [dispatch]);
+  useEffect(() => { void dispatch(fetchRooms()); }, [dispatch]);
 
   const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!roomName.trim()) {
-      setCreateError(t('errors:validation.roomNameRequired'));
-      return;
-    }
+    if (!roomName.trim()) { setCreateError(t('errors:validation.roomNameRequired')); return; }
     setCreateError(null);
     const result = await dispatch(createRoom({ name: roomName.trim(), gameSystem }));
-    if (createRoom.fulfilled.match(result)) {
-      setShowCreate(false);
-      setRoomName('');
-    }
+    if (createRoom.fulfilled.match(result)) { setShowCreate(false); setRoomName(''); }
   };
 
-  const handleOpen = (room: RoomDTO) => {
-    void dispatch(fetchRoom(room.id));
-  };
+  const handleOpen = (room: RoomDTO) => { void dispatch(fetchRoom(room.id)); };
+  const handleLogout = () => { void dispatch(logout()); };
 
-  const handleLogout = () => {
-    void dispatch(logout());
-  };
+  function statusClass(s: string): string {
+    return s === 'active' ? styles.statusActive : styles.statusIdle;
+  }
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
+    <div className={styles.dashboard}>
+      <header className={styles.header}>
         <h1>{t('room:dashboard.heading')}</h1>
-        <div className="dashboard-user">
+        <div className={styles.userArea}>
           <span>{currentUser?.name}</span>
-          <button type="button" onClick={handleLogout}>
+          <button type="button" className={styles.btnLogout} onClick={handleLogout}>
             {t('common:btn.logout')}
           </button>
         </div>
       </header>
 
-      {status === 'loading' && <p className="loading">{t('common:status.loading')}</p>}
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
+      {status === 'loading' && <p className={styles.loading}>{t('common:status.loading')}</p>}
+      {error && <p role="alert" className={styles.error}>{error}</p>}
 
       {ownRooms.length === 0 && status === 'loaded' && (
-        <p className="empty">{t('room:dashboard.noRooms')}</p>
+        <p className={styles.empty}>{t('room:dashboard.noRooms')}</p>
       )}
 
-      <ul className="room-list">
+      <ul className={styles.roomList}>
         {ownRooms.map((room) => (
-          <li key={room.id} className="room-card">
-            <div className="room-card-info">
-              <strong className="room-name">{room.name}</strong>
-              <span className="room-system">{room.gameSystem}</span>
-              <span className={`room-status status--${room.status}`}>
+          <li key={room.id} className={styles.roomCard} data-testid="room-card">
+            <div className={styles.roomInfo}>
+              <strong className={styles.roomName}>{room.name}</strong>
+              <span className={styles.roomSystem}>{room.gameSystem}</span>
+              <span className={`${styles.roomStatus} ${statusClass(room.status)}`}>
                 {t(`room:status.${room.status}`)}
               </span>
-              <span className="room-members">
+              <span className={styles.roomMembers}>
                 {t('room:dashboard.membersCount', { count: room.members.length })}
               </span>
             </div>
-            <button type="button" onClick={() => handleOpen(room)}>
+            <button type="button" className={styles.btnOpen} onClick={() => handleOpen(room)}>
               {t('common:btn.open')}
             </button>
           </li>
@@ -88,11 +76,11 @@ export default function Dashboard() {
       {showCreate ? (
         <form
           onSubmit={(e) => void handleCreate(e)}
-          className="create-room-form"
+          className={styles.createForm}
           aria-label={t('room:dashboard.formLabel')}
         >
           <h2>{t('room:dashboard.newRoomHeading')}</h2>
-          <div className="field">
+          <div className={styles.field}>
             <label htmlFor="room-name">{t('common:label.name')}</label>
             <input
               id="room-name"
@@ -100,9 +88,10 @@ export default function Dashboard() {
               value={roomName}
               onChange={(e) => setRoomName(e.target.value)}
               required
+              aria-required="true"
             />
           </div>
-          <div className="field">
+          <div className={styles.field}>
             <label htmlFor="room-system">{t('common:label.gameSystem')}</label>
             <input
               id="room-system"
@@ -112,22 +101,18 @@ export default function Dashboard() {
               required
             />
           </div>
-          {createError && (
-            <p role="alert" className="error">
-              {createError}
-            </p>
-          )}
-          <div className="form-actions">
-            <button type="submit" disabled={status === 'loading'}>
+          {createError && <p role="alert" className={styles.fieldError}>{createError}</p>}
+          <div className={styles.formActions}>
+            <button type="submit" className={styles.btnCreate} disabled={status === 'loading'}>
               {t('common:btn.create')}
             </button>
-            <button type="button" onClick={() => setShowCreate(false)}>
+            <button type="button" className={styles.btnCancel} onClick={() => setShowCreate(false)}>
               {t('common:btn.cancel')}
             </button>
           </div>
         </form>
       ) : (
-        <button type="button" className="btn-create" onClick={() => setShowCreate(true)}>
+        <button type="button" className={styles.btnShowCreate} onClick={() => setShowCreate(true)}>
           {t('room:dashboard.createBtn')}
         </button>
       )}

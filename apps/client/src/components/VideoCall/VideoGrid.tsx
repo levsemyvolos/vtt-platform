@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import styles from './VideoGrid.module.css';
 
 interface VideoGridProps {
   /** Total participant count including local (self). */
@@ -6,10 +7,10 @@ interface VideoGridProps {
   children: ReactNode;
 }
 
-function gridModifier(count: number): string {
-  if (count <= 4) return '2x2';
-  if (count <= 6) return '2x3';
-  return '3x3';
+function gridClass(count: number): string {
+  if (count <= 4) return styles.grid2x2 ?? '';
+  if (count <= 6) return styles.grid2x3 ?? '';
+  return styles.grid3x3 ?? '';
 }
 
 /**
@@ -19,7 +20,7 @@ function gridModifier(count: number): string {
 export default function VideoGrid({ count, children }: VideoGridProps): JSX.Element {
   return (
     <div
-      className={`video-grid video-grid--${gridModifier(count)}`}
+      className={`${styles.grid} ${gridClass(count)}`}
       data-count={count}
     >
       {children}

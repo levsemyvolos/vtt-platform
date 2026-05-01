@@ -1,0 +1,174 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+}
+
+.dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  width: 360px;
+  max-width: calc(100vw - var(--space-2xl));
+  max-height: 90dvh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.heading {
+  margin: 0 0 var(--space-lg);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.field {
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.fieldLabel {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: var(--space-sm);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.row {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.row .field {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.colorSection {
+  margin-bottom: var(--space-md);
+}
+
+.colorSwatches {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-top: var(--space-xs);
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.12s, transform 0.12s;
+}
+
+.swatch:hover {
+  transform: scale(1.1);
+}
+
+.swatch--active {
+  border-color: var(--color-text-primary);
+  transform: scale(1.1);
+}
+
+.markerSection {
+  margin-bottom: var(--space-lg);
+}
+
+.markerList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.marker {
+  padding: 3px var(--space-sm);
+  border-radius: 12px;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  background: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  transition: background 0.12s, color 0.12s;
+}
+
+.marker--active {
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  margin-top: var(--space-sm);
+}
+
+.btnCancel {
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: background 0.12s;
+}
+
+.btnCancel:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.btnSave {
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  border: none;
+  color: var(--color-text-inverse);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: background 0.12s;
+}
+
+.btnSave:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btnSave:disabled,
+.btnCancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

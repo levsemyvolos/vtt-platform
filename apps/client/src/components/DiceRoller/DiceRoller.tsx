@@ -4,6 +4,7 @@ import DiceBox from '@3d-dice/dice-box';
 import type { DiceMode } from '@vtt/shared';
 import { useAppSelector } from '../../store';
 import { emitDiceRoll } from '../../api/socket';
+import styles from './DiceRoller.module.css';
 
 interface DiceRollerProps {
   roomId: string;
@@ -13,9 +14,7 @@ interface DiceRollerProps {
  * Dice input + 3D animation (sequence Process_View_DiceRoll).
  *
  * Flow: user types formula → emit `dice:roll` → server returns ChatDicePayload
- * via ack → DiceBox.roll(notation) plays the physics animation locally so the
- * roller sees a tactile result. Other clients receive `chat:dice` broadcast and
- * render text-only (no animation) — the protocol does NOT replicate physics.
+ * via ack → DiceBox.roll(notation) plays the physics animation locally.
  */
 export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
   const { t } = useTranslation('room');
@@ -37,17 +36,8 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
       theme: 'default',
       scale: 6,
     });
-    box
-      .init()
-      .then(() => {
-        dbRef.current = box;
-      })
-      .catch(() => {
-        dbRef.current = null;
-      });
-    return () => {
-      dbRef.current = null;
-    };
+    box.init().then(() => { dbRef.current = box; }).catch(() => { dbRef.current = null; });
+    return () => { dbRef.current = null; };
   }, []);
 
   async function handleRoll(): Promise<void> {
@@ -75,14 +65,14 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
   ];
 
   return (
-    <section className="dice-roller">
+    <section className={styles.roller} aria-label={t('dice.rollerLabel', { defaultValue: 'Dice roller' })}>
       <div
         ref={containerRef}
         id="dice-roller-canvas"
-        className="dice-roller__canvas"
-        style={{ minHeight: 200, position: 'relative' }}
+        className={styles.canvas}
+        aria-hidden="true"
       />
-      <div className="dice-roller__controls">
+      <div className={styles.controls}>
         <input
           aria-label={t('dice.formulaLabel')}
           value={expression}
@@ -98,13 +88,19 @@ export default function DiceRoller({ roomId }: DiceRollerProps): JSX.Element {
             <option key={m.value} value={m.value}>{m.label}</option>
           ))}
         </select>
-        <button onClick={handleRoll} disabled={busy}>
+        <button
+          type="button"
+          className={styles.btnRoll}
+          onClick={() => void handleRoll()}
+          disabled={busy}
+          aria-busy={busy}
+        >
           {t('dice.rollBtn')}
         </button>
       </div>
-      {error && <p className="dice-roller__error">{error}</p>}
+      {error && <p className={styles.error} role="alert">{error}</p>}
       {lastDice?.rollPayload && (
-        <p className="dice-roller__last">
+        <p className={styles.last}>
           {t('dice.lastRoll', {
             expression: lastDice.rollPayload.expression,
             total: lastDice.rollPayload.total,

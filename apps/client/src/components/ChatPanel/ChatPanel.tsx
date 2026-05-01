@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next';
 import type { ChatMode } from '@vtt/shared';
 import { useAppSelector } from '../../store';
 import { emitChatMessage } from '../../api/socket';
+import styles from './ChatPanel.module.css';
 
 interface ChatPanelProps {
   roomId: string;
 }
 
 /**
- * Chat with mode selector (IC / OOC / whisper). Whisper requires a recipientId
- * — entered as the userId of another room member. Dice rolls share the
+ * Chat with mode selector (IC / OOC / whisper). Dice rolls share the
  * messages list (rendered with their rollPayload).
  */
 export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
@@ -28,15 +28,19 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
     setError(null);
     try {
       await emitChatMessage({
-        roomId,
-        text,
-        mode,
+        roomId, text, mode,
         ...(mode === 'whisper' && recipientId ? { recipientId } : {}),
       });
       setText('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Send failed');
     }
+  }
+
+  function modeClass(m: string): string {
+    if (m === 'ooc') return styles.msgOoc;
+    if (m === 'whisper') return styles.msgWhisper;
+    return styles.msgIc;
   }
 
   const MODES: { value: ChatMode; label: string }[] = [
@@ -46,56 +50,63 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
   ];
 
   return (
-    <section className="chat-panel" aria-label={t('chat.panelLabel')}>
-      <ul className="chat-panel__messages">
+    <section className={styles.panel} aria-label={t('chat.panelLabel')}>
+      <ul className={styles.messages}>
         {messages.map((m) => (
-          <li key={m.id} className={`chat-panel__msg chat-panel__msg--${m.mode}`}>
-            <span className="chat-panel__author">{m.userId.slice(0, 6)}</span>
-            <span className="chat-panel__mode">[{m.mode}]</span>
+          <li key={m.id} className={`${styles.msg} ${modeClass(m.mode)}`}>
+            <span className={styles.author}>{m.userId.slice(0, 6)}</span>
+            <span className={styles.mode}>[{m.mode}]</span>
             {m.rollPayload ? (
-              <span className="chat-panel__roll">
+              <span className={styles.roll}>
                 {m.rollPayload.expression} = <strong>{m.rollPayload.total}</strong>{' '}
                 ({m.rollPayload.rolls.join(', ')})
               </span>
             ) : (
-              <span className="chat-panel__text">{m.text}</span>
+              <span className={styles.text}>{m.text}</span>
             )}
           </li>
         ))}
       </ul>
-      <form onSubmit={onSubmit} className="chat-panel__form">
-        <select
-          value={mode}
-          onChange={(e) => setMode(e.target.value as ChatMode)}
-          aria-label={t('chat.modeLabel')}
-        >
-          {MODES.map((m) => (
-            <option key={m.value} value={m.value}>{m.label}</option>
-          ))}
-        </select>
-        {mode === 'whisper' && (
+      <form onSubmit={onSubmit} className={styles.form}>
+        <div className={styles.formRow}>
           <select
-            value={recipientId}
-            onChange={(e) => setRecipientId(e.target.value)}
-            aria-label={t('chat.recipientLabel')}
-            required
+            value={mode}
+            onChange={(e) => setMode(e.target.value as ChatMode)}
+            aria-label={t('chat.modeLabel')}
           >
-            <option value="">{t('chat.selectRecipient')}</option>
-            {members.map((m) => (
-              <option key={m.userId} value={m.userId}>{m.name}</option>
+            {MODES.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>
-        )}
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t('chat.messagePlaceholder')}
-          aria-label={t('chat.panelLabel')}
-        />
-        <button type="submit">{t('common:btn.send')}</button>
+          {mode === 'whisper' && (
+            <select
+              value={recipientId}
+              onChange={(e) => setRecipientId(e.target.value)}
+              aria-label={t('chat.recipientLabel')}
+              required
+            >
+              <option value="">{t('chat.selectRecipient')}</option>
+              {members.map((m) => (
+                <option key={m.userId} value={m.userId}>{m.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        <div className={styles.formRow}>
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t('chat.messagePlaceholder')}
+            aria-label={t('chat.messageInputLabel', { defaultValue: t('chat.panelLabel') })}
+          />
+          <button type="submit" className={styles.btnSend} aria-label={t('common:btn.send')}>
+            {t('common:btn.send')}
+          </button>
+        </div>
+        <p className={styles.hint}>/roll 2d6, /w player, /ooc</p>
       </form>
-      {error && <p className="chat-panel__error">{error}</p>}
+      {error && <p className={styles.error} role="alert">{error}</p>}
     </section>
   );
 }

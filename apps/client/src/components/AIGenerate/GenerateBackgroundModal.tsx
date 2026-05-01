@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AIImageRequest, AIImageResponse, UpdateSceneRequest } from '@vtt/shared';
 import { apiFetch, ApiError } from '../../api/apiFetch';
+import styles from './GenerateBackgroundModal.module.css';
 
 const STYLE_PRESET_KEYS = ['realistic', 'fantasy', 'sci-fi', 'cartoon'] as const;
 type StylePreset = (typeof STYLE_PRESET_KEYS)[number];
@@ -67,13 +68,19 @@ export default function GenerateBackgroundModal({
     }
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
-    <div role="dialog" aria-modal="true" aria-label={t('room:aiGenerate.dialogLabel')} className="modal-backdrop">
-      <div className="modal modal--wide">
+    <div role="dialog" aria-modal="true" aria-label={t('room:aiGenerate.dialogLabel')} className={styles.backdrop}>
+      <div className={styles.dialog}>
         <h2>{t('room:aiGenerate.heading')}</h2>
 
         <form onSubmit={(e) => void handleGenerate(e)} aria-label={t('room:aiGenerate.formLabel')} noValidate>
-          <div className="field">
+          <div className={styles.field}>
             <label htmlFor="ai-prompt">{t('room:aiGenerate.promptLabel')}</label>
             <textarea
               id="ai-prompt"
@@ -86,7 +93,7 @@ export default function GenerateBackgroundModal({
             />
           </div>
 
-          <div className="field">
+          <div className={styles.field}>
             <label htmlFor="ai-style">{t('room:aiGenerate.styleLabel')}</label>
             <select
               id="ai-style"
@@ -101,35 +108,35 @@ export default function GenerateBackgroundModal({
             </select>
           </div>
 
-          <div className="modal__actions">
-            <button type="button" onClick={onClose} disabled={generating || applying}>
+          <div className={styles.actions}>
+            <button type="button" className={styles.btnCancel} onClick={onClose} disabled={generating || applying}>
               {t('common:btn.cancel')}
             </button>
-            <button type="submit" disabled={generating || !prompt.trim()}>
+            <button type="submit" className={styles.btnSubmit} disabled={generating || !prompt.trim()}>
               {generating ? t('room:aiGenerate.generating') : t('room:aiGenerate.generateBtn')}
             </button>
           </div>
         </form>
 
         {error && (
-          <p role="alert" className="modal__error">
+          <p role="alert" className={styles.error}>
             {error}
           </p>
         )}
 
         {preview && (
-          <div className="ai-preview">
+          <div className={styles.preview}>
             <img
               src={preview.previewUrl}
               alt={t('room:aiGenerate.previewAlt')}
-              className="ai-preview__img"
+              className={styles.previewImg}
             />
-            <div className="modal__actions">
+            <div className={styles.actions}>
               <button
                 type="button"
                 onClick={() => void handleUseAsBackground()}
                 disabled={applying}
-                className="btn-primary"
+                className={styles.btnSubmit}
               >
                 {applying ? t('room:aiGenerate.applying') : t('room:aiGenerate.applyBg')}
               </button>

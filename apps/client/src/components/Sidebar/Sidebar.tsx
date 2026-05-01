@@ -9,6 +9,7 @@ import AudioPanel from '../AudioPanel/AudioPanel';
 import AudioPlayer from '../AudioPanel/AudioPlayer';
 import VideoCall from '../VideoCall/VideoCall';
 import AssistantPanel from '../AssistantPanel/AssistantPanel';
+import styles from './Sidebar.module.css';
 
 interface SidebarProps {
   roomId: string;
@@ -34,9 +35,7 @@ function buildTabs(myRole: Role, t: (key: string) => string): TabSpec[] {
   return tabs;
 }
 
-interface PanelProps extends SidebarProps {
-  tab: Tab;
-}
+interface PanelProps extends SidebarProps { tab: Tab; }
 
 function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps): JSX.Element | null {
   const { t } = useTranslation('campaign');
@@ -44,25 +43,19 @@ function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps
     return sceneId ? (
       <InitiativeTracker sceneId={sceneId} myRole={myRole} roomId={roomId} />
     ) : (
-      <p className="sidebar__placeholder">{t('sidebar.noActiveScene')}</p>
+      <p className={styles.placeholder}>{t('sidebar.noActiveScene')}</p>
     );
   }
   if (tab === 'handouts') return <HandoutPanel roomId={roomId} myRole={myRole} />;
   if (tab === 'notes') return <NotesPanel roomId={roomId} myRole={myRole} />;
-  if (tab === 'character')
-    return <CharacterSheet characterId={myCharacterId ?? null} roomId={roomId} myRole={myRole} />;
+  if (tab === 'character') return <CharacterSheet characterId={myCharacterId ?? null} roomId={roomId} myRole={myRole} />;
   if (tab === 'audio') return <AudioPanel roomId={roomId} sceneId={sceneId} myRole={myRole} />;
   return null;
 }
 
 /**
- * Game-room sidebar (рис. 2.12, §2.10). Слоти: Initiative (Ф7.3), Handouts
- * (Ф7.4), Notes (Ф9 GM-only), Character (Ф7.5), Audio (Ф6).
- *
- * Side-effect children mounted unconditionally so playback / video survive
- * tab switches:
- *  - `<AudioPlayer />` — headless `<audio>` driven by `audio:play` events.
- *  - `<VideoCall />`   — `<video>` montage of local + remote WebRTC peers.
+ * Game-room sidebar (рис. 2.12, §2.10). Side-effect children mounted
+ * unconditionally so playback / video survive tab switches.
  */
 export default function Sidebar(props: SidebarProps): JSX.Element {
   const { t } = useTranslation('campaign');
@@ -71,9 +64,9 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   return (
-    <aside className="sidebar" aria-label={t('sidebar.ariaLabel')}>
+    <aside className={styles.sidebar} aria-label={t('sidebar.ariaLabel')}>
       <VideoCall roomId={props.roomId} myUserId={props.myUserId} />
-      <nav className="sidebar__tabs" role="tablist">
+      <nav className={styles.tabs} role="tablist">
         {tabs.map((tabSpec) => (
           <button
             key={tabSpec.id}
@@ -88,15 +81,16 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
         {props.myRole === 'GM' && (
           <button
             type="button"
-            className="sidebar__ai-btn"
+            className={styles.aiBtn}
             onClick={() => setAssistantOpen(true)}
             title={t('sidebar.aiBtn')}
+            aria-label={t('sidebar.aiBtn')}
           >
             AI
           </button>
         )}
       </nav>
-      <div className="sidebar__panel" role="tabpanel">
+      <div className={styles.panel} role="tabpanel">
         <ActivePanel {...props} tab={tab} />
       </div>
       {assistantOpen && (

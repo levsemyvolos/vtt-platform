@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { login, clearError } from '../../store/session';
+import styles from './Auth.module.css';
 
 type Props = {
   onSwitchToRegister: () => void;
@@ -27,10 +28,7 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
     e.preventDefault();
     dispatch(clearError());
     const err = validate();
-    if (err) {
-      setLocalError(err);
-      return;
-    }
+    if (err) { setLocalError(err); return; }
     setLocalError(null);
     void dispatch(login({ email, password }));
   };
@@ -38,10 +36,10 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
   const displayError = localError ?? error;
 
   return (
-    <div className="auth-form">
+    <div className={styles.authForm}>
       <h1>{t('auth:login.heading')}</h1>
       <form onSubmit={handleSubmit} aria-label={t('auth:login.formLabel')}>
-        <div className="field">
+        <div className={styles.field}>
           <label htmlFor="login-email">{t('common:label.email')}</label>
           <input
             id="login-email"
@@ -50,9 +48,10 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
             required
+            aria-required="true"
           />
         </div>
-        <div className="field">
+        <div className={styles.field}>
           <label htmlFor="login-password">{t('common:label.password')}</label>
           <input
             id="login-password"
@@ -61,18 +60,22 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
+            aria-required="true"
           />
         </div>
         {displayError && (
-          <p role="alert" className="error">
-            {displayError}
-          </p>
+          <p role="alert" className={styles.error}>{displayError}</p>
         )}
-        <button type="submit" disabled={status === 'loading'}>
+        <button
+          type="submit"
+          className={styles.submitBtn}
+          disabled={status === 'loading'}
+          aria-busy={status === 'loading'}
+        >
           {status === 'loading' ? t('auth:login.loading') : t('auth:login.submitBtn')}
         </button>
       </form>
-      <div className="auth-links">
+      <div className={styles.links}>
         <button type="button" onClick={onSwitchToRegister}>
           {t('auth:links.switchToRegister')}
         </button>

@@ -10,6 +10,7 @@ import ChatPanel from '../../components/ChatPanel/ChatPanel';
 import DiceRoller from '../../components/DiceRoller/DiceRoller';
 import SceneManager from '../../components/SceneManager/SceneManager';
 import InviteLink from '../../components/InviteLink/InviteLink';
+import styles from './RoomLobby.module.css';
 
 export default function RoomLobby(): JSX.Element | null {
   const dispatch = useAppDispatch();
@@ -18,7 +19,6 @@ export default function RoomLobby(): JSX.Element | null {
   const { currentUser } = useAppSelector((s) => s.session);
   const [sessionStarted, setSessionStarted] = useState(false);
 
-  // Auto-enter the session view when the room is already active server-side.
   useEffect(() => {
     if (currentRoom?.status === 'active') setSessionStarted(true);
   }, [currentRoom?.status]);
@@ -34,8 +34,6 @@ export default function RoomLobby(): JSX.Element | null {
     setSessionStarted(false);
   };
 
-  const handleStartSession = (): void => setSessionStarted(true);
-
   if (sessionStarted) {
     return (
       <SessionView
@@ -47,18 +45,24 @@ export default function RoomLobby(): JSX.Element | null {
     );
   }
 
+  function roleBadgeClass(role: string): string {
+    if (role === 'GM') return styles.roleGm;
+    if (role === 'Player') return styles.rolePlayer;
+    return styles.roleObserver;
+  }
+
   return (
-    <div className="room-lobby">
-      <header className="lobby-header">
-        <button type="button" className="btn-back" onClick={handleLeave}>
+    <div className={styles.lobby}>
+      <header className={styles.lobbyHeader}>
+        <button type="button" className={styles.btnBack} onClick={handleLeave}>
           {t('lobby.backBtn')}
         </button>
         <div>
           <h1>{currentRoom.name}</h1>
-          <span className="room-system">{currentRoom.gameSystem}</span>
+          <span className={styles.roomSystem}>{currentRoom.gameSystem}</span>
         </div>
-        <div className="lobby-header__right">
-          <span className={`lobby-status status--${currentRoom.status}`}>
+        <div className={styles.headerRight}>
+          <span className={`${styles.lobbyStatus} ${currentRoom.status === 'active' ? styles.statusActive : styles.statusIdle}`}>
             {t(`status.${currentRoom.status}`)}
           </span>
           <InviteLink roomId={currentRoom.id} />
@@ -67,17 +71,17 @@ export default function RoomLobby(): JSX.Element | null {
 
       <SceneManager roomId={currentRoom.id} myRole={myRole} />
 
-      <section className="members-section">
+      <section className={styles.membersSection}>
         <h2>{t('lobby.membersHeading', { count: members.length })}</h2>
-        <ul className="member-list">
+        <ul className={styles.memberList}>
           {members.map((member) => (
-            <li key={member.userId} className="member-card">
-              <span className={`role-badge role--${member.role.toLowerCase()}`}>
+            <li key={member.userId} className={styles.memberCard}>
+              <span className={`${styles.roleBadge} ${roleBadgeClass(member.role)}`}>
                 {t(`roles.${member.role}`)}
               </span>
-              <span className="member-name">{member.name}</span>
+              <span className={styles.memberName}>{member.name}</span>
               {member.characterId && (
-                <span className="character-badge" title={t('lobby.characterAttached')}>
+                <span className={styles.characterBadge} title={t('lobby.characterAttached')}>
                   ♟
                 </span>
               )}
@@ -87,15 +91,15 @@ export default function RoomLobby(): JSX.Element | null {
       </section>
 
       {(isGM || currentRoom.status === 'active') && (
-        <div className="gm-controls">
-          <button type="button" className="btn-start" onClick={handleStartSession}>
+        <div className={styles.gmControls}>
+          <button type="button" className={styles.btnStart} onClick={() => setSessionStarted(true)}>
             {isGM ? t('lobby.startSession') : t('lobby.joinSession')}
           </button>
         </div>
       )}
 
       {myMember && (
-        <footer className="lobby-footer">
+        <footer className={styles.lobbyFooter}>
           {t('lobby.yourRole')} <strong>{t(`roles.${myMember.role}`)}</strong>
         </footer>
       )}
@@ -117,7 +121,6 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
   const [hydrating, setHydrating] = useState(false);
   const [hydrateError, setHydrateError] = useState<string | null>(null);
 
-  // Connect socket → join room → request A3 resync. Runs once when the session view mounts.
   useEffect(() => {
     let cancelled = false;
     setHydrating(true);
@@ -135,28 +138,26 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
         if (!cancelled) setHydrating(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [room.id, t]);
 
   return (
-    <div className="game-room">
-      <header className="game-room__header">
-        <button type="button" className="btn-back" onClick={onLeave}>
+    <div className={styles.gameRoom}>
+      <header className={styles.gameRoomHeader}>
+        <button type="button" className={styles.btnBack} onClick={onLeave}>
           {t('room:lobby.exitBtn')}
         </button>
         <h1>{room.name}</h1>
-        <span className="game-room__role">
+        <span className={styles.gameRoomRole}>
           {t('room:lobby.roleLabel')} {t(`room:roles.${myRole}`)}
         </span>
       </header>
-      <div className="game-room__layout">
-        <main className="game-room__canvas">
+      <div className={styles.gameRoomLayout}>
+        <main className={styles.gameRoomCanvas}>
           {scene ? (
             <GameCanvas scene={scene} myRole={myRole} myUserId={currentUser?.id ?? ''} />
           ) : (
-            <div className="game-room__canvas-placeholder">
+            <div className={styles.canvasPlaceholder}>
               {hydrating
                 ? t('room:lobby.sessionLoading')
                 : hydrateError
@@ -165,7 +166,7 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
             </div>
           )}
         </main>
-        <section className="game-room__side">
+        <section className={styles.gameRoomSide}>
           <Sidebar
             roomId={room.id}
             sceneId={scene?.id ?? null}

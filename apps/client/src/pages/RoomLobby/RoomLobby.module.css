@@ -1,0 +1,247 @@
+/* ── Lobby layout ────────────────────────────────────── */
+.lobby {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-xl);
+}
+
+.lobbyHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lobbyHeader h1 {
+  font-size: var(--text-lg);
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.roomSystem {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.lobbyStatus {
+  font-size: var(--text-xs);
+  padding: 2px var(--space-sm);
+  border-radius: 10px;
+}
+
+.statusIdle {
+  background: var(--color-surface-hover);
+  color: var(--color-text-muted);
+}
+
+.statusActive {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.membersSection {
+  margin-top: var(--space-xl);
+}
+
+.membersSection h2 {
+  font-size: var(--text-base);
+  margin-bottom: var(--space-md);
+  color: var(--color-text-primary);
+}
+
+.memberList {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-sm);
+}
+
+/* 2-col on ≥1600px, 1-col at 1280–1600px (sidebar bottom) */
+@media (min-width: 1600px) {
+  .memberList {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.memberCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.roleBadge {
+  font-size: var(--text-xs);
+  padding: 2px var(--space-sm);
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.roleGm {
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+}
+
+.rolePlayer {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.roleObserver {
+  background: var(--color-surface-hover);
+  color: var(--color-text-muted);
+}
+
+.memberName {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.characterBadge {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.gmControls {
+  margin-top: var(--space-xl);
+  display: flex;
+  justify-content: center;
+}
+
+.btnStart {
+  padding: var(--space-sm) var(--space-2xl);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnStart:hover {
+  background: var(--color-primary-hover);
+}
+
+.btnBack {
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.btnBack:hover {
+  background: var(--color-border);
+}
+
+.lobbyFooter {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* ── Game room / session layout ─────────────────────── */
+.gameRoom {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-bg);
+}
+
+.gameRoomHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.gameRoomHeader h1 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.gameRoomRole {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.gameRoomLayout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.gameRoomCanvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-canvas-bg);
+}
+
+.gameRoomSide {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow-y: auto;
+}
+
+/* Sidebar goes to bottom at 1280–1600px */
+@media (max-width: 1600px) {
+  .gameRoomLayout {
+    flex-direction: column;
+  }
+  .gameRoomCanvas {
+    flex: 1;
+    min-height: 500px;
+  }
+  .gameRoomSide {
+    width: 100%;
+    flex-direction: row;
+    flex-shrink: 0;
+    height: 280px;
+    overflow-x: auto;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+.canvasPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  padding: var(--space-xl);
+  text-align: center;
+}

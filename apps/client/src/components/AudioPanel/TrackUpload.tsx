@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AUDIO_MAX_BYTES } from '@vtt/shared';
 import { useAppDispatch } from '../../store';
 import { uploadAudioTrack } from '../../store/audio';
+import styles from './AudioPanel.module.css';
 
 interface TrackUploadProps {
   roomId: string;
@@ -58,7 +59,7 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="audio-upload">
+    <form onSubmit={(e) => void onSubmit(e)} className={styles.uploadForm}>
       <input
         type="text"
         placeholder={t('campaign:audio.trackTitlePlaceholder')}
@@ -81,7 +82,7 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
         />
         {t('campaign:audio.loopLabel')}
       </label>
-      <label className="audio-upload__fade">
+      <label className={styles.editRow}>
         {t('campaign:audio.fadeLabel', { ms: fadeMs })}
         <input
           type="range"
@@ -102,10 +103,10 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
         />
         {t('campaign:audio.bindSceneLabel')}
       </label>
-      <button type="submit" disabled={busy}>
+      <button type="submit" className={styles.btnUpload} disabled={busy}>
         {busy ? t('campaign:audio.uploading') : t('campaign:audio.uploadBtn')}
       </button>
-      {error && <p className="audio-upload__error">{error}</p>}
+      {error && <p className={styles.uploadError}>{error}</p>}
     </form>
   );
 }

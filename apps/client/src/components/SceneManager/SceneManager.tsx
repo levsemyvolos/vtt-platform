@@ -4,6 +4,7 @@ import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { loadScenes, activateScene } from '../../store/scenes';
 import CreateSceneModal from './CreateSceneModal';
+import styles from './SceneManager.module.css';
 
 interface SceneManagerProps {
   roomId: string;
@@ -34,13 +35,13 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
   }
 
   return (
-    <section className="scene-manager">
-      <div className="scene-manager__header">
+    <section className={styles.manager}>
+      <div className={styles.header}>
         <h3>{t('room:scenes.heading')}</h3>
         {isGM && (
           <button
             type="button"
-            className="btn-add-scene"
+            className={styles.btnAdd}
             onClick={() => setShowCreate(true)}
           >
             {t('room:scenes.createBtn')}
@@ -49,19 +50,19 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
       </div>
 
       {status === 'loading' && (
-        <p className="scene-manager__status">{t('common:status.loading')}</p>
+        <p className={styles.status}>{t('common:status.loading')}</p>
       )}
       {status === 'error' && (
-        <p className="scene-manager__status scene-manager__status--error">{error}</p>
+        <p className={`${styles.status} ${styles.statusError}`}>{error}</p>
       )}
 
-      <ul className="scene-list">
+      <ul className={styles.list}>
         {list.map((scene: SceneDTO) => (
-          <li key={scene.id} className="scene-item">
-            <span className="scene-item__name">{scene.name}</span>
+          <li key={scene.id} className={styles.item}>
+            <span className={styles.sceneName}>{scene.name}</span>
             {scene.isActive && (
               <span
-                className="scene-item__badge scene-item__badge--active"
+                className={`${styles.badge} ${styles.badgeActive}`}
                 title={t('room:scenes.currentActiveBadgeTitle')}
               >
                 {t('room:scenes.activeBadge')}
@@ -70,7 +71,7 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
             {isGM && (
               <button
                 type="button"
-                className="btn-activate"
+                className={styles.btnActivate}
                 disabled={scene.isActive || activating === scene.id}
                 title={scene.isActive ? t('room:scenes.alreadyActive') : t('room:scenes.makeActive')}
                 onClick={() => void handleActivate(scene.id)}
@@ -81,7 +82,7 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
           </li>
         ))}
         {list.length === 0 && status === 'idle' && (
-          <li className="scene-item scene-item--empty">
+          <li className={`${styles.item} ${styles.itemEmpty}`}>
             {isGM ? t('room:scenes.noScenesGM') : t('room:scenes.noScenesPlayer')}
           </li>
         )}

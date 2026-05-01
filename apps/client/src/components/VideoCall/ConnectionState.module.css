@@ -1,0 +1,13 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  z-index: var(--z-elevated);
+}
+.icon { font-size: var(--text-xl, 1.5rem); }
+.label { font-size: var(--text-xs); color: #fff; }

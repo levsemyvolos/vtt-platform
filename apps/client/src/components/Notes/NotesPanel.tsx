@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import type { Role } from '@vtt/shared';
+import styles from './NotesPanel.module.css';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
   createNoteThunk,
@@ -61,19 +62,19 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
   }
 
   return (
-    <section className="notes-panel" aria-label={t('campaign:notes.panelAriaLabel')}>
-      <aside className="notes-panel__list">
-        <header className="notes-panel__list-header">
+    <section className={styles.panel} aria-label={t('campaign:notes.panelAriaLabel')}>
+      <aside className={styles.list}>
+        <header className={styles.listHeader}>
           <h3>{t('campaign:notes.heading')}</h3>
-          <button type="button" onClick={onCreateNew} aria-label={t('campaign:notes.createAriaLabel')}>
+          <button type="button" className={styles.btnCreate} onClick={onCreateNew} aria-label={t('campaign:notes.createAriaLabel')}>
             {t('campaign:notes.createBtn')}
           </button>
         </header>
-        <ul>
+        <ul className={styles.listItems}>
           {items.map((n) => (
             <li
               key={n.id}
-              className={current?.id === n.id ? 'notes-panel__list-item--active' : ''}
+              className={current?.id === n.id ? `${styles.listItem} ${styles.listItemActive}` : styles.listItem}
             >
               <button type="button" onClick={() => dispatch(setCurrentNote(n))}>
                 {n.title || t('campaign:notes.untitled')}
@@ -82,31 +83,31 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
           ))}
         </ul>
       </aside>
-      <div className="notes-panel__editor">
+      <div className={styles.editor}>
         {!current ? (
-          <p className="notes-panel__empty">{t('campaign:notes.emptySelect')}</p>
+          <p className={styles.empty}>{t('campaign:notes.emptySelect')}</p>
         ) : (
           <>
             <input
               value={draftTitle}
               onChange={(e) => setDraftTitle(e.target.value)}
               aria-label={t('campaign:notes.titleLabel')}
-              className="notes-panel__title"
+              className={styles.titleInput}
             />
-            <div className="notes-panel__split">
+            <div className={styles.split}>
               <textarea
                 value={draftBody}
                 onChange={(e) => setDraftBody(e.target.value)}
                 aria-label={t('campaign:notes.bodyLabel')}
-                className="notes-panel__textarea"
+                className={styles.textarea}
               />
-              <div className="notes-panel__preview" aria-label={t('campaign:notes.previewLabel')}>
+              <div className={styles.preview} aria-label={t('campaign:notes.previewLabel')}>
                 <ReactMarkdown>{draftBody}</ReactMarkdown>
               </div>
             </div>
-            <div className="notes-panel__actions">
-              <button type="button" onClick={onSave}>{t('common:btn.save')}</button>
-              <button type="button" onClick={onDelete} className="notes-panel__delete">
+            <div className={styles.editorActions}>
+              <button type="button" className={styles.btnSave} onClick={onSave}>{t('common:btn.save')}</button>
+              <button type="button" onClick={onDelete} className={styles.btnDelete}>
                 {t('common:btn.delete')}
               </button>
             </div>

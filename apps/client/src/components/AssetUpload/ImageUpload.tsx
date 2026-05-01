@@ -1,6 +1,7 @@
 import { useRef, useState, type DragEvent, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetDTO } from '@vtt/shared';
+import styles from './ImageUpload.module.css';
 import {
   IMAGE_MAX_BYTES,
   IMAGE_ALLOWED_MIME,
@@ -99,24 +100,24 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
 
   return (
     <div
-      className={`image-upload${dragging ? ' image-upload--dragging' : ''}`}
+      className={dragging ? `${styles.dropZone} ${styles.dropZoneDragging}` : styles.dropZone}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       aria-label={t('room:asset.dropZoneLabel')}
     >
-      <p className="image-upload__hint">
+      <p className={styles.hint}>
         {t('room:asset.dragHint')}{' '}
         <button
           type="button"
-          className="image-upload__browse"
+          className={styles.browse}
           onClick={() => inputRef.current?.click()}
           disabled={busy}
         >
           {t('room:asset.browseBtn')}
         </button>
       </p>
-      <p className="image-upload__formats">
+      <p className={styles.formats}>
         {t('room:asset.formatsHint', { mb: IMAGE_MAX_BYTES / 1024 / 1024 })}
       </p>
 
@@ -130,9 +131,9 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
         aria-label={t('room:asset.fileInputLabel')}
       />
 
-      {progress && <p className="image-upload__progress">{progress}</p>}
+      {progress && <p className={styles.progress}>{progress}</p>}
       {error && (
-        <p role="alert" className="image-upload__error">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       )}

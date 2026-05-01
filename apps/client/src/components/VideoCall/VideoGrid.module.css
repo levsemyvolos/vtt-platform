@@ -1,0 +1,8 @@
+.grid {
+  display: grid;
+  gap: var(--space-xs);
+  width: 100%;
+}
+.grid2x2 { grid-template-columns: repeat(2, 1fr); }
+.grid2x3 { grid-template-columns: repeat(2, 1fr); }
+.grid3x3 { grid-template-columns: repeat(3, 1fr); }

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StatusMarker } from '@vtt/shared';
 import { ALL_STATUS_MARKERS } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { upsertToken } from '../../store/scene';
 import { apiUpdateToken } from '../../api/scenes';
+import styles from './TokenEditModal.module.css';
 
 const COLOR_PRESETS = [
   '#7c5cff', '#ff6b6b', '#51cf66', '#339af0',
@@ -19,8 +20,9 @@ interface TokenEditModalProps {
 export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps): JSX.Element | null {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['room', 'common', 'errors']);
-  const token = useAppSelector((s) => s.scene.current?.tokens.find((t) => t.id === tokenId));
+  const token = useAppSelector((s) => s.scene.current?.tokens.find((tk) => tk.id === tokenId));
   const members = useAppSelector((s) => s.room.members);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const [name, setName] = useState('');
   const [hp, setHp] = useState('');
@@ -40,6 +42,15 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
     setMarkers((token.statusMarkers ?? []) as StatusMarker[]);
     setAssignedUserId(token.assignedUserId ?? '');
   }, [token]);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+    const handleEsc = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   if (!token) return null;
 
@@ -72,72 +83,80 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
 
   return (
     <div
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-      }}
+      className={styles.backdrop}
+      role="presentation"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 24, width: 360, color: '#f5f5f7' }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>{t('room:token.editHeading')}</h3>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('room:token.editHeading')}
+        tabIndex={-1}
+        className={styles.dialog}
+      >
+        <h3 className={styles.heading}>{t('room:token.editHeading')}</h3>
 
-        <label style={{ display: 'block', marginBottom: 12 }}>
-          <span style={{ fontSize: 12, opacity: 0.7 }}>{t('common:label.name')}</span>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>{t('common:label.name')}</span>
           <input
+            className={styles.input}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px',
-              background: '#0f0f1a', border: '1px solid #333', borderRadius: 4, color: '#f5f5f7' }}
+            aria-label={t('common:label.name')}
           />
         </label>
 
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-          <label style={{ flex: 1 }}>
-            <span style={{ fontSize: 12, opacity: 0.7 }}>HP</span>
-            <input type="number" value={hp} onChange={(e) => setHp(e.target.value)}
-              style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px',
-                background: '#0f0f1a', border: '1px solid #333', borderRadius: 4, color: '#f5f5f7' }} />
+        <div className={styles.row}>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>HP</span>
+            <input
+              type="number"
+              className={styles.input}
+              value={hp}
+              onChange={(e) => setHp(e.target.value)}
+              aria-label="HP"
+            />
           </label>
-          <label style={{ flex: 1 }}>
-            <span style={{ fontSize: 12, opacity: 0.7 }}>Max HP</span>
-            <input type="number" value={maxHp} onChange={(e) => setMaxHp(e.target.value)}
-              style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px',
-                background: '#0f0f1a', border: '1px solid #333', borderRadius: 4, color: '#f5f5f7' }} />
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Max HP</span>
+            <input
+              type="number"
+              className={styles.input}
+              value={maxHp}
+              onChange={(e) => setMaxHp(e.target.value)}
+              aria-label="Max HP"
+            />
           </label>
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <span style={{ fontSize: 12, opacity: 0.7, display: 'block', marginBottom: 6 }}>
-            {t('room:token.colorLabel')}
-          </span>
-          <div style={{ display: 'flex', gap: 6 }}>
+        <div className={styles.colorSection}>
+          <span className={styles.fieldLabel}>{t('room:token.colorLabel')}</span>
+          <div className={styles.colorSwatches}>
             {COLOR_PRESETS.map((c) => (
               <button
                 key={c}
+                type="button"
+                className={`${styles.swatch}${color === c ? ` ${styles['swatch--active']}` : ''}`}
+                style={{ background: c }}
                 onClick={() => setColor(c)}
-                style={{
-                  width: 28, height: 28, borderRadius: '50%', background: c, cursor: 'pointer',
-                  border: color === c ? '3px solid #fff' : '2px solid transparent',
-                }}
+                aria-label={`${t('room:token.colorLabel')} ${c}`}
+                aria-pressed={color === c}
               />
             ))}
           </div>
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <span style={{ fontSize: 12, opacity: 0.7, display: 'block', marginBottom: 6 }}>
-            {t('room:token.statusLabel')}
-          </span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        <div className={styles.markerSection}>
+          <span className={styles.fieldLabel}>{t('room:token.statusLabel')}</span>
+          <div className={styles.markerList}>
             {ALL_STATUS_MARKERS.map((m) => (
               <button
                 key={m}
+                type="button"
+                className={`${styles.marker}${markers.includes(m) ? ` ${styles['marker--active']}` : ''}`}
                 onClick={() => toggleMarker(m)}
-                style={{
-                  padding: '3px 8px', borderRadius: 12, fontSize: 11, cursor: 'pointer',
-                  background: markers.includes(m) ? '#7c5cff' : '#333',
-                  color: '#f5f5f7', border: 'none',
-                }}
+                aria-pressed={markers.includes(m)}
               >
                 {m}
               </button>
@@ -145,13 +164,13 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
           </div>
         </div>
 
-        <label style={{ display: 'block', marginBottom: 16 }}>
-          <span style={{ fontSize: 12, opacity: 0.7 }}>{t('room:token.assignedPlayerLabel')}</span>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>{t('room:token.assignedPlayerLabel')}</span>
           <select
+            className={styles.input}
             value={assignedUserId}
             onChange={(e) => setAssignedUserId(e.target.value)}
-            style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px',
-              background: '#0f0f1a', border: '1px solid #333', borderRadius: 4, color: '#f5f5f7' }}
+            aria-label={t('room:token.assignedPlayerLabel')}
           >
             <option value="">{t('room:token.noAssigned')}</option>
             {members.map((m) => (
@@ -160,17 +179,23 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
           </select>
         </label>
 
-        {error && <p style={{ color: '#ff6b6b', fontSize: 12, marginBottom: 8 }}>{error}</p>}
+        {error && <p className={styles.error} role="alert">{error}</p>}
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} disabled={saving}
-            style={{ padding: '8px 16px', borderRadius: 6, background: '#333', border: 'none',
-              color: '#f5f5f7', cursor: 'pointer' }}>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.btnCancel}
+            onClick={onClose}
+            disabled={saving}
+          >
             {t('common:btn.cancel')}
           </button>
-          <button onClick={() => void handleSave()} disabled={saving}
-            style={{ padding: '8px 16px', borderRadius: 6, background: '#7c5cff', border: 'none',
-              color: '#fff', cursor: saving ? 'wait' : 'pointer' }}>
+          <button
+            type="button"
+            className={styles.btnSave}
+            onClick={() => void handleSave()}
+            disabled={saving}
+          >
             {saving ? t('common:btn.saving') : t('common:btn.save')}
           </button>
         </div>

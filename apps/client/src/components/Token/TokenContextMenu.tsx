@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store';
 import { removeToken } from '../../store/scene';
 import { apiDeleteToken } from '../../api/scenes';
+import styles from './TokenContextMenu.module.css';
 
 interface TokenContextMenuProps {
   tokenId: string;
@@ -27,32 +28,44 @@ export default function TokenContextMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
+  useEffect(() => {
+    function handleEsc(e: KeyboardEvent): void {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
   async function handleDelete(): Promise<void> {
     try {
       await apiDeleteToken(tokenId);
       dispatch(removeToken(tokenId));
     } catch {
-      // server error — ignore optimistic; resync will correct
+      // server error — optimistic; resync will correct
     }
     onClose();
   }
 
-  const menuStyle: React.CSSProperties = {
-    position: 'fixed', left: x, top: y, background: '#1a1a2e',
-    border: '1px solid #333', borderRadius: 6, padding: '4px 0',
-    zIndex: 2000, minWidth: 160, boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-  };
-  const itemStyle: React.CSSProperties = {
-    display: 'block', width: '100%', padding: '8px 16px', background: 'none',
-    border: 'none', color: '#f5f5f7', fontSize: 13, cursor: 'pointer', textAlign: 'left',
-  };
-
   return (
-    <div ref={ref} style={menuStyle}>
-      <button style={itemStyle} onClick={() => { onEdit(); onClose(); }}>
+    <div
+      ref={ref}
+      className={styles.menu}
+      style={{ left: x, top: y }}
+      role="menu"
+      aria-label={t('room:token.contextMenuLabel')}
+    >
+      <button
+        className={styles.item}
+        role="menuitem"
+        onClick={() => { onEdit(); onClose(); }}
+      >
         {t('common:btn.edit')}
       </button>
-      <button style={{ ...itemStyle, color: '#ff6b6b' }} onClick={() => void handleDelete()}>
+      <button
+        className={`${styles.item} ${styles['item--danger']}`}
+        role="menuitem"
+        onClick={() => void handleDelete()}
+      >
         {t('common:btn.delete')}
       </button>
     </div>

@@ -1,0 +1,26 @@
+.dropZone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropZoneDragging {
+  border-color: var(--color-primary);
+  background: var(--color-primary-muted);
+}
+.hint { font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-xs); }
+.browse {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.browse:hover { color: var(--color-primary-hover); }
+.formats { font-size: var(--text-xs); color: var(--color-text-muted); }
+.progress { font-size: var(--text-xs); color: var(--color-text-secondary); margin-top: var(--space-xs); }
+.error { color: var(--color-danger); font-size: var(--text-xs); margin-top: var(--space-xs); }
