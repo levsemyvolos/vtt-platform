@@ -37,10 +37,11 @@ export const sendAssistantMessage = createAsyncThunk<
       const assistantMsg: ConversationMessage = { role: 'assistant', content: response.content };
       return { conversationId, userMsg, assistantMsg };
     } catch (err) {
-      if (err instanceof ApiError && err.status === 429) {
-        return rejectWithValue('Перевищено ліміт AI-запитів, спробуйте через хвилину');
+      if (err instanceof ApiError) {
+        if (err.status === 429) return rejectWithValue('errors:rateLimit.aiText');
+        if (err.status >= 500) return rejectWithValue('errors:server.aiUnavailable');
       }
-      return rejectWithValue(err instanceof Error ? err.message : 'Помилка AI-запиту');
+      return rejectWithValue('errors:ai.generic');
     }
   },
 );
@@ -70,7 +71,7 @@ const assistantSlice = createSlice({
       })
       .addCase(sendAssistantMessage.rejected, (state, action) => {
         state.status = 'error';
-        state.error = action.payload ?? 'Помилка AI-запиту';
+        state.error = action.payload ?? 'errors:ai.generic';
       });
   },
 });

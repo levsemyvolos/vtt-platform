@@ -14,13 +14,18 @@ const initialState: ScenesState = {
   error: null,
 };
 
+function toErrorKey(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message.startsWith('errors:')) return err.message;
+  return fallback;
+}
+
 export const loadScenes = createAsyncThunk<SceneDTO[], string, { rejectValue: string }>(
   'scenes/load',
   async (roomId, { rejectWithValue }) => {
     try {
       return await apiFetch<SceneDTO[]>(`/api/rooms/${roomId}/scenes`);
     } catch (err) {
-      return rejectWithValue(err instanceof Error ? err.message : 'Не вдалося завантажити сцени');
+      return rejectWithValue(toErrorKey(err, 'errors:scene.loadFailed'));
     }
   },
 );
@@ -36,17 +41,23 @@ export const createScene = createAsyncThunk<
       body: JSON.stringify(dto),
     });
   } catch (err) {
-    return rejectWithValue(err instanceof Error ? err.message : 'Не вдалося створити сцену');
+    return rejectWithValue(toErrorKey(err, 'errors:network.createFailed'));
   }
 });
 
-export const activateScene = createAsyncThunk<void, string, { rejectValue: string }>(
+// On rejection we re-load scenes from the server: an aborted activate (race
+// with a quick remount) may have already succeeded server-side, so the UI must
+// reflect actual DB state rather than stale Redux.
+export const activateScene = createAsyncThunk<void, string, { rejectValue: string; state: { scenes: ScenesState } }>(
   'scenes/activate',
-  async (sceneId, { rejectWithValue }) => {
+  async (sceneId, { rejectWithValue, dispatch, getState }) => {
     try {
       await apiFetch<void>(`/api/scenes/${sceneId}/activate`, { method: 'POST' });
     } catch (err) {
-      return rejectWithValue(err instanceof Error ? err.message : 'Не вдалося активувати сцену');
+      // Find the room from the scene we tried to activate, to re-fetch its list.
+      const target = getState().scenes.list.find((s) => s.id === sceneId);
+      if (target) void dispatch(loadScenes(target.roomId));
+      return rejectWithValue(toErrorKey(err, 'errors:scene.activateFailed'));
     }
   },
 );
@@ -69,7 +80,7 @@ const scenesSlice = createSlice({
       })
       .addCase(loadScenes.rejected, (state, action) => {
         state.status = 'error';
-        state.error = action.payload ?? 'Помилка';
+        state.error = action.payload ?? 'errors:network.generic';
       })
       .addCase(createScene.fulfilled, (state, action) => {
         state.list.push(action.payload);

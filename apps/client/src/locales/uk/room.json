@@ -28,7 +28,7 @@
     "roleLabel": "Роль:",
     "sessionLoading": "Завантаження сцени…",
     "sessionError": "Помилка: {{message}}",
-    "noActiveScene": "Активної сцени ще немає. Створіть сцену через REST POST /rooms/:id/scenes."
+    "noActiveScene": "Активної сцени ще немає. Створіть сцену в лобі та активуйте її."
   },
   "scenes": {
     "heading": "Сцени",

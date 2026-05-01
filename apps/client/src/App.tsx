@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { RoomDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from './store';
 import { setCurrentRoom } from './store/room';
+import { bootstrapSession } from './store/session';
 import { apiFetch } from './api/apiFetch';
 import { useTheme } from './hooks/useTheme';
 import Login from './pages/Auth/Login';
@@ -23,6 +24,14 @@ export default function App() {
   const { status, currentUser } = useAppSelector((s) => s.session);
   const { currentRoom } = useAppSelector((s) => s.room);
   const [authView, setAuthView] = useState<AuthView>('login');
+
+  // Refresh-token bootstrap on cold mount: if a refresh token persisted from a
+  // previous session, exchange it for a fresh access token before showing login.
+  useEffect(() => {
+    if (status === 'bootstrapping') {
+      void dispatch(bootstrapSession());
+    }
+  }, [dispatch, status]);
 
   // На старті: парсинг ?invite=TOKEN → якщо залогінений і не в кімнаті → POST /rooms/join
   useEffect(() => {
@@ -46,7 +55,9 @@ export default function App() {
   return (
     <DesktopOnlyGuard>
       <Toast />
-      {status !== 'authenticated' || !currentUser ? (
+      {status === 'bootstrapping' ? (
+        <main className="auth-screen" aria-busy="true" />
+      ) : status !== 'authenticated' || !currentUser ? (
         <main className="auth-screen">
           {authView === 'login' && (
             <Login

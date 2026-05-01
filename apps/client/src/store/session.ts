@@ -6,14 +6,14 @@ import { tokenStore } from '../api/tokenStore';
 interface SessionState {
   currentUser: UserPublic | null;
   accessToken: string | null;
-  status: 'idle' | 'loading' | 'authenticated' | 'error';
+  status: 'idle' | 'loading' | 'authenticated' | 'error' | 'bootstrapping';
   error: string | null;
 }
 
 const initialState: SessionState = {
   currentUser: null,
   accessToken: null,
-  status: 'idle',
+  status: tokenStore.getRefresh() ? 'bootstrapping' : 'idle',
   error: null,
 };
 
@@ -61,6 +61,26 @@ export const observerJoin = createAsyncThunk<
     return rejectWithValue(err instanceof Error ? err.message : 'Недійсний код запрошення');
   }
 });
+
+// Restore session from a persisted refresh token after a page reload.
+// Returns null if no refresh token exists or if it has been rejected by the
+// server (in which case the store is cleared).
+export const bootstrapSession = createAsyncThunk<AuthTokenPair | null, void>(
+  'session/bootstrap',
+  async () => {
+    const refreshToken = tokenStore.getRefresh();
+    if (!refreshToken) return null;
+    try {
+      return await apiFetch<AuthTokenPair>('/api/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {
+      tokenStore.clear();
+      return null;
+    }
+  },
+);
 
 export const logout = createAsyncThunk('session/logout', async () => {
   try {
@@ -134,6 +154,21 @@ const sessionSlice = createSlice({
       .addCase(logout.fulfilled, (state) => {
         state.currentUser = null;
         state.accessToken = null;
+        state.status = 'idle';
+        state.error = null;
+      })
+      .addCase(bootstrapSession.pending, (state) => {
+        if (state.status !== 'authenticated') state.status = 'bootstrapping';
+        state.error = null;
+      })
+      .addCase(bootstrapSession.fulfilled, (state, action) => {
+        if (action.payload) {
+          applyTokenPair(state, action.payload);
+        } else {
+          state.status = 'idle';
+        }
+      })
+      .addCase(bootstrapSession.rejected, (state) => {
         state.status = 'idle';
         state.error = null;
       });

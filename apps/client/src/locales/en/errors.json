@@ -37,5 +37,19 @@
     "unauthorized": "Unauthorized",
     "forbidden": "Access denied",
     "serverError": "Server error"
+  },
+  "server": {
+    "generic": "Server error. Please try again later.",
+    "aiUnavailable": "AI service unavailable. Please try again later."
+  },
+  "scene": {
+    "loadFailed": "Failed to load scenes",
+    "activateFailed": "Failed to activate scene"
+  },
+  "rateLimit": {
+    "aiText": "AI request limit reached. Try again in a minute."
+  },
+  "ai": {
+    "generic": "AI request error"
   }
 }

@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import type { RoomDTO, Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearRoom } from '../../store/room';
+import { hydrateScene } from '../../store/scene';
+import { hydrateChat } from '../../store/chat';
+import { hydrateInitiative } from '../../store/initiative';
 import { connectSocket, emitRoomJoin, emitSessionResync } from '../../api/socket';
 import GameCanvas from '../../components/GameCanvas/GameCanvas';
 import Sidebar from '../../components/Sidebar/Sidebar';
@@ -115,6 +118,7 @@ interface SessionViewProps {
 }
 
 function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps): JSX.Element {
+  const dispatch = useAppDispatch();
   const scene = useAppSelector((s) => s.scene.current);
   const { currentUser } = useAppSelector((s) => s.session);
   const { t } = useTranslation(['room', 'errors']);
@@ -129,17 +133,28 @@ function SessionView({ room, myRole, myCharacterId, onLeave }: SessionViewProps)
     (async () => {
       try {
         await emitRoomJoin(room.id);
-        await emitSessionResync(room.id);
+        const payload = await emitSessionResync(room.id);
+        if (!cancelled) {
+          dispatch(hydrateScene(payload.scene));
+          dispatch(hydrateChat(payload.messages));
+          dispatch(hydrateInitiative(payload.initiatives));
+        }
       } catch (err) {
         if (!cancelled) {
-          setHydrateError(err instanceof Error ? err.message : t('errors:network.joinFailed'));
+          const raw = err instanceof Error ? err.message : '';
+          // 404 "Room has no active scene" — це нормальний empty-state, не помилка
+          if (raw.includes('no active scene')) {
+            setHydrateError(null);
+          } else {
+            setHydrateError(raw.startsWith('errors:') ? t(raw as never) : t('errors:network.joinFailed'));
+          }
         }
       } finally {
         if (!cancelled) setHydrating(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [room.id, t]);
+  }, [room.id, t, dispatch]);
 
   return (
     <div className={styles.gameRoom}>
