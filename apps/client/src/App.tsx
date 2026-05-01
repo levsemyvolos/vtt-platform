@@ -10,11 +10,9 @@ import Register from './pages/Auth/Register';
 import ObserverEntry from './pages/Auth/ObserverEntry';
 import Dashboard from './pages/Dashboard/Dashboard';
 import RoomLobby from './pages/RoomLobby/RoomLobby';
-import ThemeToggle from './components/Header/ThemeToggle';
-import LanguageSwitcher from './components/Header/LanguageSwitcher';
+import { AppShell } from './components/layout/AppShell';
 import DesktopOnlyGuard from './components/common/DesktopOnlyGuard';
 import Toast from './components/common/Toast';
-import styles from './App.module.css';
 
 type AuthView = 'login' | 'register' | 'observer';
 
@@ -77,13 +75,9 @@ export default function App() {
           <RoomLobby />
         </main>
       ) : (
-        <main className="dashboard-screen">
-          <header className={styles.topBar}>
-            <LanguageSwitcher />
-            <ThemeToggle />
-          </header>
+        <AppShell>
           <Dashboard />
-        </main>
+        </AppShell>
       )}
     </DesktopOnlyGuard>
   );
