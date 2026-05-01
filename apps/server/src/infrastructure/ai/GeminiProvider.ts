@@ -52,6 +52,33 @@ interface InlinePart {
   inlineData?: { data?: string; mimeType?: string };
 }
 
+/**
+ * Manually unwrap a `google.protobuf.Value` from PredictionServiceClient
+ * responses. The aiplatform `helpers.fromValue` does NOT actually inflate the
+ * proto wrapper for our predict() responses — diagnostic logging on Render
+ * showed payloads arriving as `{structValue: {fields: {bytesBase64Encoded:
+ * {stringValue: "..."}}}}` and `helpers.fromValue` returning `{}`. Walking the
+ * Value oneof ourselves is safer and avoids the SDK quirk.
+ */
+function unwrapProtoValue(v: unknown): unknown {
+  if (v == null || typeof v !== 'object') return v;
+  const val = v as Record<string, unknown>;
+  if ('stringValue' in val) return val.stringValue;
+  if ('numberValue' in val) return val.numberValue;
+  if ('boolValue' in val) return val.boolValue;
+  const struct = val.structValue as { fields?: Record<string, unknown> } | undefined;
+  if (struct?.fields) {
+    const out: Record<string, unknown> = {};
+    for (const [k, f] of Object.entries(struct.fields)) {
+      out[k] = unwrapProtoValue(f);
+    }
+    return out;
+  }
+  const list = val.listValue as { values?: unknown[] } | undefined;
+  if (list?.values) return list.values.map(unwrapProtoValue);
+  return undefined;
+}
+
 export class GeminiProvider implements AIProvider {
   private readonly genai: GoogleGenAI;
   private readonly predictClient: PredictionServiceClient;
@@ -133,33 +160,20 @@ export class GeminiProvider implements AIProvider {
       const [response] = await this.predictClient.predict({
         endpoint: `${this.musicEndpointBase}/${this.musicModel}`,
         instances: [helpers.toValue({ prompt: req.prompt }) as never],
-        // Lyria 2 docs example sets sampleCount; without it some regions
-        // return predictions=[] silently.
         parameters: helpers.toValue({ sampleCount: 1 }) as never,
       });
       const first = (response.predictions ?? [])[0];
-      const decoded = first
-        ? (helpers.fromValue(first as never) as { audioContent?: string; mimeType?: string })
-        : {};
-      if (!decoded.audioContent) {
-        // Diagnostic — surface the exact response shape so we can adjust the
-        // decoder if Vertex changes it. Removed once Lyria 2 settles.
-        // eslint-disable-next-line no-console
-        console.error(
-          '[lyria] empty audio.',
-          'predictions.length=',
-          response.predictions?.length ?? 0,
-          'first keys=',
-          first ? Object.keys(first as object) : null,
-          'first=',
-          JSON.stringify(first ?? null),
-          'decoded=',
-          JSON.stringify(decoded),
-        );
+      // Lyria 2 returns audio under `bytesBase64Encoded` (same field name as
+      // Imagen). Decoded shape verified on prod via diagnostic logging.
+      const decoded = (unwrapProtoValue(first) ?? {}) as {
+        bytesBase64Encoded?: string;
+        mimeType?: string;
+      };
+      if (!decoded.bytesBase64Encoded) {
         throw new Error('Vertex AI returned empty audio payload');
       }
       return {
-        bytes: Buffer.from(decoded.audioContent, 'base64'),
+        bytes: Buffer.from(decoded.bytesBase64Encoded, 'base64'),
         mimeType: decoded.mimeType ?? 'audio/wav',
       };
     } catch (err) {
