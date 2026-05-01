@@ -41,7 +41,7 @@
   },
   "lobby": {
     "backBtn": "← Back",
-    "membersHeading": "Members ({{count}})",
+    "membersHeading": "Members · {{count}}",
     "characterAttached": "Character attached",
     "startSession": "Start Session",
     "joinSession": "Join Session",
@@ -50,7 +50,13 @@
     "roleLabel": "Role:",
     "sessionLoading": "Loading scene…",
     "sessionError": "Error: {{message}}",
-    "noActiveScene": "No active scene. Create a scene in the lobby and activate it."
+    "noActiveScene": "No active scene. Create a scene in the lobby and activate it.",
+    "stepper": {
+      "label": "Connection status",
+      "authenticating": "Authenticating",
+      "loadingScene": "Loading scene",
+      "openingChannel": "Opening WS channel"
+    }
   },
   "scenes": {
     "heading": "Scenes",

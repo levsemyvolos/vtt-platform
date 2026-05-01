@@ -42,7 +42,7 @@
   },
   "lobby": {
     "backBtn": "← Назад",
-    "membersHeading": "Учасники ({{count}})",
+    "membersHeading": "Учасники · {{count}}",
     "characterAttached": "Персонаж прикріплено",
     "startSession": "Розпочати сесію",
     "joinSession": "Приєднатися до сесії",
@@ -51,7 +51,13 @@
     "roleLabel": "Роль:",
     "sessionLoading": "Завантаження сцени…",
     "sessionError": "Помилка: {{message}}",
-    "noActiveScene": "Активної сцени ще немає. Створіть сцену в лобі та активуйте її."
+    "noActiveScene": "Активної сцени ще немає. Створіть сцену в лобі та активуйте її.",
+    "stepper": {
+      "label": "Стан підключення",
+      "authenticating": "Автентифікація",
+      "loadingScene": "Завантаження сцени",
+      "openingChannel": "Відкриття WS-каналу"
+    }
   },
   "scenes": {
     "heading": "Сцени",
