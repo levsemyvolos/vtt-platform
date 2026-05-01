@@ -21,6 +21,7 @@
     "i18next": "^23.16.8",
     "i18next-browser-languagedetector": "^8.0.5",
     "konva": "^9.3.6",
+    "lucide-react": "^0.400.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^14.1.3",
