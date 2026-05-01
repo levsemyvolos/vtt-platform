@@ -29,3 +29,9 @@
   padding: var(--space-xl);
   text-align: center;
 }
+
+@media (max-width: 1400px) {
+  .gameRoom {
+    grid-template-columns: 220px 1fr 320px;
+  }
+}
