@@ -5,6 +5,7 @@ import type { AIImageRequest, AIMusicRequest, AssistantTextRequest } from '@vtt/
 import type { AIService } from '../services/AIService.js';
 import type { AssistantService } from '../services/AssistantService.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
+import { requireRole } from '../middleware/rbac.js';
 import { HttpError } from '../lib/errors.js';
 import { AIQuotaError } from '../infrastructure/ai/AIProvider.js';
 
@@ -42,9 +43,15 @@ function handleError(err: unknown, res: Response): void {
 export function buildAiRouter(aiService: AIService, assistantService: AssistantService): IRouter {
   const router = Router();
 
+  // All AI endpoints are GM-only per Bible §2.18.2 RBAC matrix (table 2.15):
+  // "Виклик AI-генерації (POST /ai/image, /ai/music) | + | − | −". /ai/text is
+  // not in the table, but §2.10.2 (UI) mockup row 9 fixes Assistant Panel as
+  // GM-only too. Player and Observer get HTTP 403 from requireRole, before the
+  // service-account quota is touched.
   router.post(
     '/image',
     jwtAuth,
+    requireRole('GM'),
     aiRateLimiter,
     async (req: Request<object, object, AIImageRequest>, res: Response) => {
       try {
@@ -59,6 +66,7 @@ export function buildAiRouter(aiService: AIService, assistantService: AssistantS
   router.post(
     '/music',
     jwtAuth,
+    requireRole('GM'),
     aiRateLimiter,
     async (req: Request<object, object, AIMusicRequest>, res: Response) => {
       try {
@@ -73,6 +81,7 @@ export function buildAiRouter(aiService: AIService, assistantService: AssistantS
   router.post(
     '/text',
     jwtAuth,
+    requireRole('GM'),
     aiRateLimiter,
     async (req: Request<object, object, AssistantTextRequest>, res: Response) => {
       try {
