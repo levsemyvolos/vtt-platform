@@ -64,7 +64,7 @@ describe('GeminiProvider.generateImage', () => {
     expect(out.mimeType).toBe('image/png');
     expect(Buffer.compare(out.bytes, png)).toBe(0);
     const callArg = mocks.predict.mock.calls[0]?.[0] as { endpoint?: string };
-    expect(callArg.endpoint).toContain('gemini-3.1-flash-image');
+    expect(callArg.endpoint).toContain('imagen-3.0-fast-generate-001');
   });
 
   it('maps gRPC RESOURCE_EXHAUSTED (code 8) to AIQuotaError', async () => {

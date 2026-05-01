@@ -22,9 +22,14 @@ export interface GeminiProviderConfig {
   musicModel?: string;
 }
 
-const DEFAULT_TEXT_MODEL = 'gemini-flash-3-preview';
-const DEFAULT_IMAGE_MODEL = 'gemini-3.1-flash-image';
-const DEFAULT_MUSIC_MODEL = 'lyria-3';
+// Real Vertex AI publisher model IDs as of 2026-05.
+// Bible §2.3 names like `gemini-3.1-flash-image` / `lyria-3` were planning
+// placeholders — Vertex actually exposes Gemini for text, Imagen for image,
+// and a Lyria preview ID for music. Override per-instance via the optional
+// fields on `GeminiProviderConfig` if Google rotates the IDs.
+const DEFAULT_TEXT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_IMAGE_MODEL = 'imagen-3.0-fast-generate-001';
+const DEFAULT_MUSIC_MODEL = 'lyria-001';
 
 function isQuotaError(err: unknown): boolean {
   const code = (err as { code?: number }).code;
