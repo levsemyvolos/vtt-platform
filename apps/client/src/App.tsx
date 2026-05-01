@@ -10,6 +10,7 @@ import Register from './pages/Auth/Register';
 import ObserverEntry from './pages/Auth/ObserverEntry';
 import Dashboard from './pages/Dashboard/Dashboard';
 import RoomLobby from './pages/RoomLobby/RoomLobby';
+import GameRoom from './pages/GameRoom/GameRoom';
 import { AppShell } from './components/layout/AppShell';
 import DesktopOnlyGuard from './components/common/DesktopOnlyGuard';
 import Toast from './components/common/Toast';
@@ -20,7 +21,7 @@ export default function App() {
   useTheme();
   const dispatch = useAppDispatch();
   const { status, currentUser } = useAppSelector((s) => s.session);
-  const { currentRoom } = useAppSelector((s) => s.room);
+  const { currentRoom, sessionActive } = useAppSelector((s) => s.room);
   const [authView, setAuthView] = useState<AuthView>('login');
 
   // Refresh-token bootstrap on cold mount: if a refresh token persisted from a
@@ -69,6 +70,10 @@ export default function App() {
           {authView === 'observer' && (
             <ObserverEntry onSwitchToLogin={() => setAuthView('login')} />
           )}
+        </main>
+      ) : currentRoom && sessionActive ? (
+        <main className="room-screen">
+          <GameRoom />
         </main>
       ) : currentRoom ? (
         <main className="room-screen">

@@ -8,6 +8,7 @@ interface RoomState {
   members: RoomMemberDTO[];
   status: 'idle' | 'loading' | 'loaded' | 'error';
   error: string | null;
+  sessionActive: boolean;
 }
 
 const initialState: RoomState = {
@@ -16,6 +17,7 @@ const initialState: RoomState = {
   members: [],
   status: 'idle',
   error: null,
+  sessionActive: false,
 };
 
 export const fetchRooms = createAsyncThunk<RoomDTO[], void, { rejectValue: string }>(
@@ -74,9 +76,13 @@ const roomSlice = createSlice({
       state.members = [];
       state.status = 'idle';
       state.error = null;
+      state.sessionActive = false;
     },
     updateMembers: (state, action: PayloadAction<RoomMemberDTO[]>) => {
       state.members = action.payload;
+    },
+    startSession: (state) => {
+      state.sessionActive = true;
     },
   },
   extraReducers: (builder) => {
@@ -115,5 +121,5 @@ const roomSlice = createSlice({
   },
 });
 
-export const { setCurrentRoom, clearRoom, updateMembers } = roomSlice.actions;
+export const { setCurrentRoom, clearRoom, updateMembers, startSession } = roomSlice.actions;
 export default roomSlice.reducer;
