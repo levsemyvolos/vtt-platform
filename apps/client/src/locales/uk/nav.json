@@ -1,0 +1,12 @@
+{
+  "nav": {
+    "rooms": "Мої кімнати",
+    "settings": "Налаштування",
+    "comingSoon": "Скоро буде доступно",
+    "comingSoonShort": "скоро",
+    "menu": {
+      "theme": "Тема",
+      "language": "Мова"
+    }
+  }
+}

@@ -5,6 +5,7 @@ import type room from './locales/en/room.json';
 import type campaign from './locales/en/campaign.json';
 import type assistant from './locales/en/assistant.json';
 import type errors from './locales/en/errors.json';
+import type nav from './locales/en/nav.json';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -16,6 +17,7 @@ declare module 'i18next' {
       campaign: typeof campaign;
       assistant: typeof assistant;
       errors: typeof errors;
+      nav: typeof nav;
     };
   }
 }
