@@ -194,7 +194,7 @@ export interface ClientToServerEvents {
   'signal:offer': (payload: SignalingPayload) => void;
   'signal:answer': (payload: SignalingPayload) => void;
   'signal:ice': (payload: SignalingPayload) => void;
-  'annotation:ping': (payload: AnnotationPingPayload) => void;
+  'cursor:ping': (payload: AnnotationPingPayload) => void;
 }
 
 export interface ServerToClientEvents {
@@ -209,7 +209,7 @@ export interface ServerToClientEvents {
   'signal:offer': (payload: SignalingPayload) => void;
   'signal:answer': (payload: SignalingPayload) => void;
   'signal:ice': (payload: SignalingPayload) => void;
-  'annotation:ping': (payload: AnnotationPingPayload) => void;
+  'cursor:ping': (payload: AnnotationPingPayload) => void;
 }
 
 export interface InterServerEvents {

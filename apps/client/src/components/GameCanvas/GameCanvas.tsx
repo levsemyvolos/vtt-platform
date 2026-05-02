@@ -37,7 +37,7 @@ const ZOOM_STEP = 1.08;
  * cursor stays under the cursor across zoom levels.
  *
  * Annotation ping (Ф3.4.1): click on Stage when ping tool is active →
- * emit annotation:ping with canvas-space coordinates.
+ * emit cursor:ping with canvas-space coordinates.
  */
 export default function GameCanvas({
   scene,

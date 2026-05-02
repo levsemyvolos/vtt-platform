@@ -73,7 +73,7 @@ export function getSocket(): TypedClientSocket {
   });
 
   // Ф3.4.1 — ephemeral ping marker; auto-removed after 3 s (§2.16, table 2.14).
-  socket.on('annotation:ping', (payload) => {
+  socket.on('cursor:ping', (payload) => {
     store.dispatch(addPing(payload));
     setTimeout(() => {
       store.dispatch(removePing(payload.timestamp));
@@ -194,5 +194,5 @@ export function emitSessionResync(roomId: string): Promise<SessionResyncPayload>
 
 /** Fire-and-forget ping marker (Ф3.4.1). No ack — server broadcasts and forgets. */
 export function emitAnnotationPing(payload: AnnotationPingPayload): void {
-  getSocket().emit('annotation:ping', payload);
+  getSocket().emit('cursor:ping', payload);
 }
