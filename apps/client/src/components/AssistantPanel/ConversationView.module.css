@@ -203,6 +203,27 @@
   outline-offset: 2px;
 }
 
+.generateBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.previewBox {
+  margin-top: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.previewImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  object-fit: contain;
+  background: var(--color-surface-elevated);
+}
+
 /* History tab */
 .historyGroup {
   padding: var(--space-sm);
