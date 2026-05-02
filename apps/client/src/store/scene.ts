@@ -119,14 +119,15 @@ const sceneSlice = createSlice({
     applyDrawStroke: (state, action: PayloadAction<DrawStrokePayload>) => {
       if (!state.current) return;
       const { strokeId, userId, points, color, width } = action.payload;
-      const idx = state.current.annotations.findIndex((a) => a.strokeId === strokeId);
+      const strokes = state.current.annotations.strokes;
+      const idx = strokes.findIndex((a) => a.strokeId === strokeId);
       const stroke = { strokeId, userId, points, color, width };
-      if (idx >= 0) state.current.annotations[idx] = stroke;
-      else state.current.annotations.push(stroke);
+      if (idx >= 0) strokes[idx] = stroke;
+      else strokes.push(stroke);
     },
     /** Clears all draw strokes from the local scene state (GM draw:clear). */
     clearDrawStrokes: (state) => {
-      if (state.current) state.current.annotations = [];
+      if (state.current) state.current.annotations.strokes = [];
     },
   },
 });

@@ -90,6 +90,38 @@ export interface DrawStroke {
   width: number;
 }
 
+/** Pinned text label on the scene canvas (Ф3.4.4). GM-only. */
+export interface TextAnnotation {
+  id: string;
+  userId: string;
+  x: number;
+  y: number;
+  text: string;
+  fontSize: number;
+  color: string;
+}
+
+/** Pinned image overlay on the scene canvas (Ф3.4.5). GM-only. */
+export interface ImageAnnotation {
+  id: string;
+  userId: string;
+  x: number;
+  y: number;
+  assetId: string;
+  width: number;
+  height: number;
+}
+
+/** Structured container stored in Scene.annotations JSONB. */
+export interface SceneAnnotations {
+  strokes: DrawStroke[];
+  texts: TextAnnotation[];
+  images: ImageAnnotation[];
+}
+
+const EMPTY_SCENE_ANNOTATIONS: SceneAnnotations = { strokes: [], texts: [], images: [] };
+export { EMPTY_SCENE_ANNOTATIONS };
+
 /**
  * Scene snapshot used by GET /rooms/:id/scenes/:sceneId and SessionResyncPayload.
  * Tokens are projected per A6 (RBAC) before being placed in this DTO.
@@ -105,6 +137,6 @@ export interface SceneDTO {
   isHidden: boolean;
   fogMaskBase64: string | null;
   tokens: TokenPublicDTO[];
-  /** Free-draw strokes persisted in DB (Ф3.4.2). */
-  annotations: DrawStroke[];
+  /** Structured canvas annotations — strokes + text labels + image overlays (Ф3.4.2–5). */
+  annotations: SceneAnnotations;
 }

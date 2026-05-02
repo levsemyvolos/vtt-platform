@@ -3,6 +3,7 @@ import type {
   ChatMessageDTO,
   InitiativeEntryDTO,
   SceneDTO,
+  SceneAnnotations,
   ChatMode,
   DiceMode,
 } from '../shared/index';
@@ -55,6 +56,8 @@ export interface SceneUpdatedPayload {
   sceneId: string;
   version: number;
   tokens: TokenPublicDTO[];
+  /** Present when annotations changed (text/image add/delete). Absent on token-only updates. */
+  annotations?: SceneAnnotations;
 }
 
 /**

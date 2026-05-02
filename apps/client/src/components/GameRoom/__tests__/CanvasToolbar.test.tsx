@@ -84,6 +84,20 @@ describe('CanvasToolbar', () => {
     expect(screen.queryByRole('button', { name: /малювання/i })).toBeNull();
   });
 
+  it('Text and Image annotation tools are GM-only — sets activeTool without toast', () => {
+    const store = makeStore();
+    renderToolbar(store, 'GM');
+    fireEvent.click(screen.getByRole('button', { name: /текст/i }));
+    expect(store.getState().canvasViewport.activeTool).toBe('text');
+    expect(store.getState().toast.queue).toHaveLength(0);
+  });
+
+  it('Text annotation tool not visible for Player', () => {
+    const store = makeStore();
+    renderToolbar(store, 'Player');
+    expect(screen.queryByRole('button', { name: /текст/i })).toBeNull();
+  });
+
   it('clicking Music calls onOpenTab("audio")', () => {
     const onOpenTab = vi.fn();
     const store = makeStore();
