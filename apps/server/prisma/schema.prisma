@@ -97,6 +97,8 @@ model Scene {
   isActive          Boolean  @default(false)
   // Current combat round; incremented on wraparound advanceTurn (Ф7.3, A_Initiative).
   currentRound      Int      @default(1)
+  // Persisted free-draw strokes (Ф3.4.2). Stored as DrawStroke[] JSON array; null = empty.
+  annotations       Json?
   createdAt         DateTime @default(now()) @db.Timestamptz(6)
 
   room            Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)

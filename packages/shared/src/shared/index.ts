@@ -81,6 +81,15 @@ export interface InitiativeEntryDTO {
   tokenId?: string;
 }
 
+/** Persisted free-draw stroke (Ф3.4.2). Stored in Scene.annotations JSONB. */
+export interface DrawStroke {
+  strokeId: string;
+  userId: string;
+  points: number[];
+  color: string;
+  width: number;
+}
+
 /**
  * Scene snapshot used by GET /rooms/:id/scenes/:sceneId and SessionResyncPayload.
  * Tokens are projected per A6 (RBAC) before being placed in this DTO.
@@ -96,4 +105,6 @@ export interface SceneDTO {
   isHidden: boolean;
   fogMaskBase64: string | null;
   tokens: TokenPublicDTO[];
+  /** Free-draw strokes persisted in DB (Ф3.4.2). */
+  annotations: DrawStroke[];
 }

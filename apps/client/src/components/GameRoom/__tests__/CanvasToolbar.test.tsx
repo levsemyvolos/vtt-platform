@@ -78,11 +78,10 @@ describe('CanvasToolbar', () => {
     expect(store.getState().toast.queue).toHaveLength(0);
   });
 
-  it('clicking unbound Draw dispatches a toast', () => {
+  it('Draw tool is GM-only — not visible for Player', () => {
     const store = makeStore();
-    renderToolbar(store);
-    fireEvent.click(screen.getByRole('button', { name: /малювання/i }));
-    expect(store.getState().toast.queue).toHaveLength(1);
+    renderToolbar(store, 'Player');
+    expect(screen.queryByRole('button', { name: /малювання/i })).toBeNull();
   });
 
   it('clicking Music calls onOpenTab("audio")', () => {

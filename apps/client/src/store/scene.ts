@@ -5,6 +5,7 @@ import type {
   SceneUpdatedPayload,
   TokenRollbackPayload,
   FogMaskDiffPayload,
+  DrawStrokePayload,
 } from '@vtt/shared';
 import { xorPackedMasks } from '../components/GameCanvas/fogMask';
 
@@ -114,6 +115,19 @@ const sceneSlice = createSlice({
     clearFogMask: (state) => {
       if (state.current) state.current.fogMaskBase64 = null;
     },
+    /** Adds or updates a draw stroke in the local scene state (Ф3.4.2). */
+    applyDrawStroke: (state, action: PayloadAction<DrawStrokePayload>) => {
+      if (!state.current) return;
+      const { strokeId, userId, points, color, width } = action.payload;
+      const idx = state.current.annotations.findIndex((a) => a.strokeId === strokeId);
+      const stroke = { strokeId, userId, points, color, width };
+      if (idx >= 0) state.current.annotations[idx] = stroke;
+      else state.current.annotations.push(stroke);
+    },
+    /** Clears all draw strokes from the local scene state (GM draw:clear). */
+    clearDrawStrokes: (state) => {
+      if (state.current) state.current.annotations = [];
+    },
   },
 });
 
@@ -129,5 +143,7 @@ export const {
   selectToken,
   deselectToken,
   clearFogMask,
+  applyDrawStroke,
+  clearDrawStrokes,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;

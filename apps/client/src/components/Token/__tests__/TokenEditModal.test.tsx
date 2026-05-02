@@ -18,7 +18,7 @@ const mockToken = {
 const mockScene: SceneDTO = {
   id: 'scene-1', roomId: 'room-1', name: 'Scene', gridSize: 50,
   gridWidth: 20, gridHeight: 20, isActive: true, isHidden: false,
-  fogMaskBase64: null, tokens: [mockToken],
+  fogMaskBase64: null, annotations: [], tokens: [mockToken],
 };
 
 function makeStore() {

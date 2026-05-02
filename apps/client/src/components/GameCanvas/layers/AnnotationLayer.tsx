@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Layer, Circle, Line, Text } from 'react-konva';
-import type { AnnotationPingPayload, MeasurePayload } from '@vtt/shared';
+import type { AnnotationPingPayload, MeasurePayload, DrawStroke } from '@vtt/shared';
 import { useAppSelector } from '../../../store';
 
 const PING_DURATION_MS = 3000;
@@ -87,16 +87,36 @@ function RulerLine({ measure, gridSize }: { measure: MeasurePayload; gridSize: n
   );
 }
 
+/** Persistent free-draw stroke (Ф3.4.2). */
+function DrawLine({ stroke }: { stroke: DrawStroke }): JSX.Element {
+  return (
+    <Line
+      points={stroke.points}
+      stroke={stroke.color}
+      strokeWidth={stroke.width}
+      lineCap="round"
+      lineJoin="round"
+      tension={0.3}
+      listening={false}
+    />
+  );
+}
+
 /**
- * Annotation layer — renders ephemeral ping markers (Ф3.4.1) and ruler lines (Ф3.4.3).
+ * Annotation layer — renders ephemeral ping markers (Ф3.4.1), ruler lines (Ф3.4.3)
+ * and persistent free-draw strokes (Ф3.4.2).
  * Layer order: Background → Tokens → Annotations → FoW (§2.13 table 2.9).
  */
 export default function AnnotationLayer({ gridSize = 64 }: { gridSize?: number }): JSX.Element {
   const pings = useAppSelector((s) => s.annotations.activePings);
   const measures = useAppSelector((s) => s.annotations.activeMeasures);
+  const strokes = useAppSelector((s) => s.scene.current?.annotations ?? []);
 
   return (
     <Layer listening={false}>
+      {strokes.map((s) => (
+        <DrawLine key={s.strokeId} stroke={s} />
+      ))}
       {pings.map((ping) => (
         <PingCircle key={ping.timestamp} ping={ping} />
       ))}
