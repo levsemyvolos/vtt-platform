@@ -5,8 +5,10 @@ import type { AIImageRequest, AIMusicRequest, AssistantTextRequest } from '@vtt/
 import type { AIService } from '../services/AIService.js';
 import type { AssistantService } from '../services/AssistantService.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
+import { requireRoomGM } from '../middleware/requireRoomGM.js';
 import { HttpError } from '../lib/errors.js';
 import { AIQuotaError } from '../infrastructure/ai/AIProvider.js';
+import type { RoomRepository } from '../repositories/RoomRepository.js';
 
 /**
  * Per-user rate limiter for AI endpoints — 10 req/min (T10, STRIDE table 2.18).
@@ -39,20 +41,19 @@ function handleError(err: unknown, res: Response): void {
   res.status(500).json({ error: { code: 500, message: 'Internal server error' } });
 }
 
-export function buildAiRouter(aiService: AIService, assistantService: AssistantService): IRouter {
+export function buildAiRouter(
+  aiService: AIService,
+  assistantService: AssistantService,
+  roomRepo: RoomRepository,
+): IRouter {
   const router = Router();
+  const roomGM = requireRoomGM(roomRepo);
 
-  // NOTE: Bible §2.18.2 matrix 2.15 requires GM-only access. Naive
-  // requireRole('GM') does NOT work — `req.user.role` is the *global* role
-  // from JWT (set at registration), but the matrix talks about per-room
-  // membership. A correct enforcer must look up `RoomMember(roomId, userId)`
-  // and assert role===GM. Filed as follow-up: until that middleware lands,
-  // these endpoints rely on jwtAuth + per-user rate limit (§2.18.4 T10
-  // partial mitigation).
   router.post(
     '/image',
     jwtAuth,
     aiRateLimiter,
+    roomGM,
     async (req: Request<object, object, AIImageRequest>, res: Response) => {
       try {
         const result = await aiService.generateImage(req.user!.id, req.body);
@@ -67,6 +68,7 @@ export function buildAiRouter(aiService: AIService, assistantService: AssistantS
     '/music',
     jwtAuth,
     aiRateLimiter,
+    roomGM,
     async (req: Request<object, object, AIMusicRequest>, res: Response) => {
       try {
         const result = await aiService.generateMusic(req.user!.id, req.body);
@@ -81,6 +83,7 @@ export function buildAiRouter(aiService: AIService, assistantService: AssistantS
     '/text',
     jwtAuth,
     aiRateLimiter,
+    roomGM,
     async (req: Request<object, object, AssistantTextRequest>, res: Response) => {
       try {
         const result = await assistantService.generateAssistantText(req.body);

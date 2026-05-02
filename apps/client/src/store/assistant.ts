@@ -21,14 +21,15 @@ const MAX_HISTORY = 10;
 
 export const sendAssistantMessage = createAsyncThunk<
   { conversationId: string; userMsg: ConversationMessage; assistantMsg: ConversationMessage },
-  { context: AssistantContext; prompt: string; conversationId: string },
+  { roomId: string; context: AssistantContext; prompt: string; conversationId: string },
   { rejectValue: string; state: { assistant: AssistantState } }
 >(
   'assistant/send',
-  async ({ context, prompt, conversationId }, { getState, rejectWithValue }) => {
+  async ({ roomId, context, prompt, conversationId }, { getState, rejectWithValue }) => {
     const history = getState().assistant.conversations[conversationId] ?? [];
     try {
       const response = await postAssistantText({
+        roomId,
         context,
         userPrompt: prompt,
         conversationHistory: history.slice(-MAX_HISTORY),
