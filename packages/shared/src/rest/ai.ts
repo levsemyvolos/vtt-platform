@@ -6,6 +6,7 @@ export interface ConversationMessage {
 }
 
 export interface AssistantTextRequest {
+  roomId: string;
   context: AssistantContext;
   userPrompt: string;
   conversationHistory?: ConversationMessage[];

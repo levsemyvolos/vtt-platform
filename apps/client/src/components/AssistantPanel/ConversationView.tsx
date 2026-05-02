@@ -30,7 +30,7 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
   function handleSend(): void {
     const trimmed = text.trim();
     if (!trimmed || status === 'sending') return;
-    void dispatch(sendAssistantMessage({ context: activeContext, prompt: trimmed, conversationId }));
+    void dispatch(sendAssistantMessage({ roomId, context: activeContext, prompt: trimmed, conversationId }));
     setText('');
   }
 

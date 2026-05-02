@@ -98,7 +98,7 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
   assetService = new AssetService(aiProvider, fileStorage, assetRepo);
   const aiService = new AIService(aiProvider, assetService);
   const assistantService = new AssistantService(aiProvider);
-  app.use('/ai', buildAiRouter(aiService, assistantService));
+  app.use('/ai', buildAiRouter(aiService, assistantService, roomRepo));
   app.use('/assets', buildAssetsRouter(assetService, prisma));
 } else {
   // eslint-disable-next-line no-console
