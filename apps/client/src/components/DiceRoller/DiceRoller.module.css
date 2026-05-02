@@ -13,50 +13,14 @@
 
 .controls {
   display: flex;
+  flex-direction: column;
   gap: var(--space-sm);
   padding: var(--space-sm);
   border-top: 1px solid var(--color-border);
-  flex-wrap: wrap;
 }
 
-.controls input {
-  flex: 1;
-  min-width: 80px;
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-}
-
-.controls input:focus {
-  border-color: var(--color-primary);
-}
-
-.controls select {
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-}
-
-.btnRoll {
-  padding: var(--space-xs) var(--space-md);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
-.btnRoll:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+.formulaInput {
+  width: 100%;
 }
 
 .error {

@@ -1,0 +1,37 @@
+.gameRoom {
+  display: grid;
+  grid-template-rows: 48px 44px 1fr 24px;
+  grid-template-columns: 220px 1fr 380px;
+  grid-template-areas:
+    "topbar  topbar  topbar"
+    "toolbar toolbar toolbar"
+    "party   canvas  sidebar"
+    "status  status  status";
+  height: 100dvh;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.canvas {
+  grid-area: canvas;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-canvas-bg);
+}
+
+.canvasPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  padding: var(--space-xl);
+  text-align: center;
+}
+
+@media (max-width: 1400px) {
+  .gameRoom {
+    grid-template-columns: 220px 1fr 320px;
+  }
+}

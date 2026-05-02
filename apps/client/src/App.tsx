@@ -10,30 +10,63 @@ import Register from './pages/Auth/Register';
 import ObserverEntry from './pages/Auth/ObserverEntry';
 import Dashboard from './pages/Dashboard/Dashboard';
 import RoomLobby from './pages/RoomLobby/RoomLobby';
-import ThemeToggle from './components/Header/ThemeToggle';
-import LanguageSwitcher from './components/Header/LanguageSwitcher';
+import GameRoom from './pages/GameRoom/GameRoom';
+import SceneEditor from './pages/SceneEditor/SceneEditor';
+import { AppShell } from './components/layout/AppShell';
 import DesktopOnlyGuard from './components/common/DesktopOnlyGuard';
 import Toast from './components/common/Toast';
-import styles from './App.module.css';
 
 type AuthView = 'login' | 'register' | 'observer';
+
+interface AuthViewsProps {
+  view: AuthView;
+  onSwitch: (v: AuthView) => void;
+}
+
+function AuthViews({ view, onSwitch }: AuthViewsProps): JSX.Element {
+  return (
+    <main className="auth-screen">
+      {view === 'login' && (
+        <Login
+          onSwitchToRegister={() => onSwitch('register')}
+          onSwitchToObserver={() => onSwitch('observer')}
+        />
+      )}
+      {view === 'register' && <Register onSwitchToLogin={() => onSwitch('login')} />}
+      {view === 'observer' && <ObserverEntry onSwitchToLogin={() => onSwitch('login')} />}
+    </main>
+  );
+}
+
+interface RoomViewProps {
+  sessionActive: boolean;
+  editingSceneId: string | null;
+}
+
+function RoomView({ sessionActive, editingSceneId }: RoomViewProps): JSX.Element {
+  if (sessionActive && editingSceneId) {
+    return <main className="room-screen"><SceneEditor /></main>;
+  }
+  if (sessionActive) {
+    return <main className="room-screen"><GameRoom /></main>;
+  }
+  return <main className="room-screen"><RoomLobby /></main>;
+}
 
 export default function App() {
   useTheme();
   const dispatch = useAppDispatch();
   const { status, currentUser } = useAppSelector((s) => s.session);
-  const { currentRoom } = useAppSelector((s) => s.room);
+  const { currentRoom, sessionActive, editingSceneId } = useAppSelector((s) => s.room);
   const [authView, setAuthView] = useState<AuthView>('login');
 
-  // Refresh-token bootstrap on cold mount: if a refresh token persisted from a
-  // previous session, exchange it for a fresh access token before showing login.
   useEffect(() => {
     if (status === 'bootstrapping') {
       void dispatch(bootstrapSession());
     }
   }, [dispatch, status]);
 
-  // На старті: парсинг ?invite=TOKEN → якщо залогінений і не в кімнаті → POST /rooms/join
+  // Parse ?invite=TOKEN on mount and join the room if authenticated
   useEffect(() => {
     if (status !== 'authenticated' || currentRoom) return;
     const params = new URLSearchParams(window.location.search);
@@ -47,9 +80,7 @@ export default function App() {
         dispatch(setCurrentRoom(room));
         window.history.replaceState({}, '', window.location.pathname);
       })
-      .catch(() => {
-        // Endpoint відсутній до Чату 7.4 — тихо ігноруємо, користувач залишається на дашборді
-      });
+      .catch(() => {});
   }, [status, currentRoom, dispatch]);
 
   return (
@@ -58,32 +89,13 @@ export default function App() {
       {status === 'bootstrapping' ? (
         <main className="auth-screen" aria-busy="true" />
       ) : status !== 'authenticated' || !currentUser ? (
-        <main className="auth-screen">
-          {authView === 'login' && (
-            <Login
-              onSwitchToRegister={() => setAuthView('register')}
-              onSwitchToObserver={() => setAuthView('observer')}
-            />
-          )}
-          {authView === 'register' && (
-            <Register onSwitchToLogin={() => setAuthView('login')} />
-          )}
-          {authView === 'observer' && (
-            <ObserverEntry onSwitchToLogin={() => setAuthView('login')} />
-          )}
-        </main>
+        <AuthViews view={authView} onSwitch={setAuthView} />
       ) : currentRoom ? (
-        <main className="room-screen">
-          <RoomLobby />
-        </main>
+        <RoomView sessionActive={sessionActive} editingSceneId={editingSceneId} />
       ) : (
-        <main className="dashboard-screen">
-          <header className={styles.topBar}>
-            <LanguageSwitcher />
-            <ThemeToggle />
-          </header>
+        <AppShell>
           <Dashboard />
-        </main>
+        </AppShell>
       )}
     </DesktopOnlyGuard>
   );

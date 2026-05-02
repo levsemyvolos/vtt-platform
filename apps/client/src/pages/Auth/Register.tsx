@@ -2,7 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { register, clearError } from '../../store/session';
+import { Tabs, Button, Input } from '../../components/ui';
+import { AuthLayout } from '../../components/Auth';
 import styles from './Auth.module.css';
+
+type TabId = 'login' | 'register';
 
 type Props = {
   onSwitchToLogin: () => void;
@@ -17,6 +21,11 @@ export default function Register({ onSwitchToLogin }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const tabItems: ReadonlyArray<{ id: TabId; label: string }> = [
+    { id: 'login', label: t('auth:tabs.login') },
+    { id: 'register', label: t('auth:tabs.register') },
+  ];
 
   const validate = (): string | null => {
     if (name.trim().length < 2) return t('errors:validation.nameTooShort');
@@ -37,62 +46,62 @@ export default function Register({ onSwitchToLogin }: Props) {
   const displayError = localError ?? error;
 
   return (
-    <div className={styles.authForm}>
-      <h1>{t('auth:register.heading')}</h1>
-      <form onSubmit={handleSubmit} aria-label={t('auth:register.formLabel')}>
-        <div className={styles.field}>
-          <label htmlFor="reg-name">{t('auth:register.nameLabel')}</label>
-          <input
-            id="reg-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="name"
-            required
-            aria-required="true"
-          />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="reg-email">{t('common:label.email')}</label>
-          <input
-            id="reg-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-            aria-required="true"
-          />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="reg-password">{t('common:label.password')}</label>
-          <input
-            id="reg-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-            aria-required="true"
-          />
-        </div>
+    <AuthLayout>
+      <h1 className={styles.heading}>{t('auth:headline.register')}</h1>
+      <p className={styles.subtitle}>{t('auth:subtitle')}</p>
+      <div className={styles.tabsRow}>
+        <Tabs
+          variant="pill"
+          items={tabItems}
+          value="register"
+          onChange={(id) => { if (id === 'login') onSwitchToLogin(); }}
+          ariaLabel={t('auth:tabs.register')}
+        />
+      </div>
+      <form onSubmit={handleSubmit} aria-label={t('auth:register.formLabel')} className={styles.form}>
+        <Input
+          label={t('auth:register.nameLabel')}
+          id="reg-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+          required
+          fullWidth
+        />
+        <Input
+          label={t('common:label.email')}
+          id="reg-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          required
+          fullWidth
+        />
+        <Input
+          label={t('common:label.password')}
+          id="reg-password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
+          required
+          fullWidth
+        />
         {displayError && (
           <p role="alert" className={styles.error}>{displayError}</p>
         )}
-        <button
+        <Button
           type="submit"
-          className={styles.submitBtn}
+          variant="primary"
+          fullWidth
+          isLoading={status === 'loading'}
           disabled={status === 'loading'}
-          aria-busy={status === 'loading'}
         >
           {status === 'loading' ? t('auth:register.loading') : t('auth:register.submitBtn')}
-        </button>
+        </Button>
       </form>
-      <div className={styles.links}>
-        <button type="button" onClick={onSwitchToLogin}>
-          {t('auth:register.alreadyHaveAccount')}
-        </button>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

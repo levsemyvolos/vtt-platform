@@ -4,11 +4,56 @@
     "title": "GM Assistant",
     "closeLabel": "Close"
   },
+  "header": {
+    "title": "GM AI Toolkit",
+    "subtitle": "Gemini · Lyria"
+  },
+  "tabs": {
+    "llm": "LLM Assistant",
+    "image": "Image Generation",
+    "music": "Music Generation",
+    "history": "History"
+  },
   "context": {
     "npc-description": "NPC",
     "scene-description": "Scene",
     "srd-lookup": "SRD",
     "free-chat": "Free"
+  },
+  "dialogList": {
+    "newBtn": "+ New Dialogue",
+    "listLabel": "Dialogues list"
+  },
+  "conversation": {
+    "empty": "Ask the GM assistant something.",
+    "historyEmpty": "No previous records in this session.",
+    "roleUser": "You",
+    "roleAssistant": "Assistant",
+    "actions": {
+      "copy": "Copy",
+      "toNotes": "To Notes",
+      "toChat": "To Chat (NPC)",
+      "more": "More"
+    },
+    "chips": {
+      "npcMode": "NPC Mode"
+    },
+    "imagePromptLabel": "Describe the image…",
+    "musicPromptLabel": "Describe the musical mood…",
+    "imageHint": "Image generation via Imagen. Available in the next release.",
+    "musicHint": "Music generation via Lyria 3. Available in the next release.",
+    "generateBtn": "Generate"
+  },
+  "recent": {
+    "heading": "Recent Generations",
+    "emptyImages": "No images yet",
+    "playerHeading": "Lyria Player",
+    "playBtn": "Play",
+    "scrubBar": "Playback progress",
+    "quotaHeading": "Quotas",
+    "quotaLlm": "LLM Tokens",
+    "quotaImages": "Images",
+    "quotaMusic": "Music"
   },
   "input": {
     "placeholder": "Ask the GM assistant… (Ctrl+Enter — send)",

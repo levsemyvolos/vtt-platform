@@ -1,0 +1,36 @@
+.bar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-md);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.value {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sep {
+  color: var(--color-border-strong);
+  font-size: 11px;
+  user-select: none;
+}

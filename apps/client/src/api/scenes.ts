@@ -1,5 +1,5 @@
 import type { SceneDTO, TokenPublicDTO } from '@vtt/shared';
-import type { CreateTokenRequest, UpdateTokenRequest } from '@vtt/shared';
+import type { CreateTokenRequest, UpdateTokenRequest, UpdateSceneRequest } from '@vtt/shared';
 import { apiFetch } from './apiFetch';
 
 /**
@@ -34,4 +34,14 @@ export function apiUpdateToken(
 
 export function apiDeleteToken(tokenId: string): Promise<void> {
   return apiFetch<void>(`/api/tokens/${tokenId}`, { method: 'DELETE' });
+}
+
+export function apiPatchScene(
+  sceneId: string,
+  data: UpdateSceneRequest,
+): Promise<SceneDTO> {
+  return apiFetch<SceneDTO>(`/api/scenes/${sceneId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 }

@@ -1,14 +1,24 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  MessageSquare,
+  Dices,
+  Swords,
+  UserCircle,
+  FileText,
+  StickyNote,
+  Headphones,
+} from 'lucide-react';
 import type { Role } from '@vtt/shared';
+import type { SidebarTab } from '../GameRoom/types';
 import InitiativeTracker from './InitiativeTracker';
 import HandoutPanel from '../Handouts/HandoutPanel';
 import NotesPanel from '../Notes/NotesPanel';
 import CharacterSheet from '../CharacterSheet/CharacterSheet';
 import AudioPanel from '../AudioPanel/AudioPanel';
 import AudioPlayer from '../AudioPanel/AudioPlayer';
-import VideoCall from '../VideoCall/VideoCall';
-import AssistantPanel from '../AssistantPanel/AssistantPanel';
+import ChatPanel from '../ChatPanel/ChatPanel';
+import DiceRoller from '../DiceRoller/DiceRoller';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -17,28 +27,75 @@ interface SidebarProps {
   myRole: Role;
   myCharacterId: string | null;
   myUserId: string;
+  activeTab?: SidebarTab;
+  onTabChange?: (tab: SidebarTab) => void;
 }
-
-type Tab = 'initiative' | 'handouts' | 'notes' | 'character' | 'audio';
 
 interface TabSpec {
-  id: Tab;
+  id: SidebarTab;
+  icon: React.ReactNode;
   label: string;
+  roleFilter?: (role: Role) => boolean;
 }
+
+const ICON_SIZE = 14;
 
 function buildTabs(myRole: Role, t: (key: string) => string): TabSpec[] {
-  const tabs: TabSpec[] = [{ id: 'initiative', label: t('campaign:initiative.sidebarTab') }];
-  if (myRole !== 'Observer') tabs.push({ id: 'handouts', label: t('campaign:handouts.sidebarTab') });
-  if (myRole === 'GM') tabs.push({ id: 'notes', label: t('campaign:notes.sidebarTab') });
-  if (myRole !== 'Observer') tabs.push({ id: 'character', label: t('campaign:character.sidebarTab') });
-  tabs.push({ id: 'audio', label: t('campaign:audio.sidebarTab') });
-  return tabs;
+  const all: TabSpec[] = [
+    {
+      id: 'chat',
+      icon: <MessageSquare size={ICON_SIZE} />,
+      label: t('campaign:chat.sidebarTab'),
+    },
+    {
+      id: 'dice',
+      icon: <Dices size={ICON_SIZE} />,
+      label: t('campaign:dice.sidebarTab'),
+    },
+    {
+      id: 'initiative',
+      icon: <Swords size={ICON_SIZE} />,
+      label: t('campaign:initiative.sidebarTab'),
+    },
+    {
+      id: 'character',
+      icon: <UserCircle size={ICON_SIZE} />,
+      label: t('campaign:character.sidebarTab'),
+      roleFilter: (r) => r !== 'Observer',
+    },
+    {
+      id: 'handouts',
+      icon: <FileText size={ICON_SIZE} />,
+      label: t('campaign:handouts.sidebarTab'),
+      roleFilter: (r) => r !== 'Observer',
+    },
+    {
+      id: 'notes',
+      icon: <StickyNote size={ICON_SIZE} />,
+      label: t('campaign:notes.sidebarTab'),
+      roleFilter: (r) => r === 'GM',
+    },
+    {
+      id: 'audio',
+      icon: <Headphones size={ICON_SIZE} />,
+      label: t('campaign:audio.sidebarTab'),
+    },
+  ];
+  return all.filter((tab) => !tab.roleFilter || tab.roleFilter(myRole));
 }
 
-interface PanelProps extends SidebarProps { tab: Tab; }
+interface PanelProps {
+  tab: SidebarTab;
+  roomId: string;
+  sceneId: string | null;
+  myRole: Role;
+  myCharacterId: string | null;
+}
 
 function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps): JSX.Element | null {
   const { t } = useTranslation('campaign');
+  if (tab === 'chat') return <ChatPanel roomId={roomId} />;
+  if (tab === 'dice') return <DiceRoller roomId={roomId} />;
   if (tab === 'initiative') {
     return sceneId ? (
       <InitiativeTracker sceneId={sceneId} myRole={myRole} roomId={roomId} />
@@ -46,26 +103,27 @@ function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps
       <p className={styles.placeholder}>{t('sidebar.noActiveScene')}</p>
     );
   }
+  if (tab === 'character') return <CharacterSheet characterId={myCharacterId ?? null} roomId={roomId} myRole={myRole} />;
   if (tab === 'handouts') return <HandoutPanel roomId={roomId} myRole={myRole} />;
   if (tab === 'notes') return <NotesPanel roomId={roomId} myRole={myRole} />;
-  if (tab === 'character') return <CharacterSheet characterId={myCharacterId ?? null} roomId={roomId} myRole={myRole} />;
   if (tab === 'audio') return <AudioPanel roomId={roomId} sceneId={sceneId} myRole={myRole} />;
   return null;
 }
 
-/**
- * Game-room sidebar (рис. 2.12, §2.10). Side-effect children mounted
- * unconditionally so playback / video survive tab switches.
- */
 export default function Sidebar(props: SidebarProps): JSX.Element {
   const { t } = useTranslation('campaign');
+  const [internalTab, setInternalTab] = useState<SidebarTab>('initiative');
+  const tab = props.activeTab ?? internalTab;
+  const setTab = props.onTabChange ?? setInternalTab;
+
   const tabs = buildTabs(props.myRole, t as (key: string) => string);
-  const [tab, setTab] = useState<Tab>('initiative');
-  const [assistantOpen, setAssistantOpen] = useState(false);
 
   return (
-    <aside className={styles.sidebar} aria-label={t('sidebar.ariaLabel')}>
-      <VideoCall roomId={props.roomId} myUserId={props.myUserId} />
+    <aside
+      className={styles.sidebar}
+      aria-label={t('sidebar.ariaLabel')}
+      style={{ gridArea: 'sidebar' }}
+    >
       <nav className={styles.tabs} role="tablist">
         {tabs.map((tabSpec) => (
           <button
@@ -73,29 +131,25 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
             type="button"
             role="tab"
             aria-selected={tab === tabSpec.id}
+            className={`${styles.tabBtn}${tab === tabSpec.id ? ` ${styles.tabBtnActive}` : ''}`}
             onClick={() => setTab(tabSpec.id)}
+            title={tabSpec.label}
+            aria-label={tabSpec.label}
           >
-            {tabSpec.label}
+            <span className={styles.tabIcon} aria-hidden>{tabSpec.icon}</span>
+            <span className={styles.tabLabel}>{tabSpec.label}</span>
           </button>
         ))}
-        {props.myRole === 'GM' && (
-          <button
-            type="button"
-            className={styles.aiBtn}
-            onClick={() => setAssistantOpen(true)}
-            title={t('sidebar.aiBtn')}
-            aria-label={t('sidebar.aiBtn')}
-          >
-            AI
-          </button>
-        )}
       </nav>
       <div className={styles.panel} role="tabpanel">
-        <ActivePanel {...props} tab={tab} />
+        <ActivePanel
+          tab={tab}
+          roomId={props.roomId}
+          sceneId={props.sceneId}
+          myRole={props.myRole}
+          myCharacterId={props.myCharacterId}
+        />
       </div>
-      {assistantOpen && (
-        <AssistantPanel roomId={props.roomId} onClose={() => setAssistantOpen(false)} />
-      )}
       <AudioPlayer />
     </aside>
   );

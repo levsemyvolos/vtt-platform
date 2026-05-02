@@ -23,6 +23,7 @@ import {
   reorderThunk,
 } from '../../store/initiative';
 import { loadMembers } from '../../store/members';
+import { Button, IconButton, Avatar } from '../ui';
 import styles from './InitiativeTracker.module.css';
 
 interface InitiativeTrackerProps {
@@ -157,9 +158,19 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
             type="button"
             onClick={() => setInitiative(rollInitiative())}
             aria-label={t('campaign:initiative.rollAriaLabel')}
-          >🎲</button>
-          <button type="submit" className={styles.btnAdd} disabled={busy}>OK</button>
-          <button type="button" className={styles.btnCancel} onClick={() => setShowAdd(false)} disabled={busy}>×</button>
+          >
+            D
+          </button>
+          <Button type="submit" variant="primary" size="sm" disabled={busy}>OK</Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAdd(false)}
+            disabled={busy}
+          >
+            &times;
+          </Button>
         </div>
       </form>
     );
@@ -168,17 +179,20 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
   return (
     <div className={styles.tracker} data-testid="initiative-tracker">
       <header className={styles.header}>
-        <span className={styles.round}>{t('campaign:initiative.roundLabel', { round: currentRound })}</span>
+        <span className={`eyebrow ${styles.round}`}>
+          {t('campaign:initiative.roundLabel', { round: currentRound })}
+        </span>
         {isGM && (
-          <button
+          <Button
             type="button"
-            className={styles.btnNext}
+            variant="secondary"
+            size="sm"
             onClick={() => void onAdvance()}
             disabled={busy || entries.length === 0}
             aria-label={t('campaign:initiative.nextTurnLabel')}
           >
             {t('campaign:initiative.nextTurnBtn')}
-          </button>
+          </Button>
         )}
       </header>
 
@@ -205,14 +219,16 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
       {isGM && (
         <div>
           {!showAdd ? (
-            <button
+            <Button
               type="button"
-              className={styles.btnAdd}
+              variant="primary"
+              size="sm"
+              fullWidth
               onClick={onOpenAdd}
               aria-label={t('campaign:initiative.addLabel')}
             >
               {t('campaign:initiative.addBtn')}
-            </button>
+            </Button>
           ) : renderAddForm()}
         </div>
       )}
@@ -240,16 +256,17 @@ function SortableEntry({ entry, onRemove }: RowProps): JSX.Element {
       {...listeners}
     >
       <span className={styles.initiative}>{entry.initiative}</span>
+      <Avatar size="sm" name={entry.name} className={styles.entryAvatar} />
       <span className={styles.entryName}>{entry.name}</span>
       {onRemove && (
-        <button
-          type="button"
-          className={styles.btnRemove}
-          onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
+        <IconButton
+          variant="ghost"
+          size="sm"
           aria-label={t('initiative.deleteLabel', { name: entry.name })}
+          onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
         >
-          ×
-        </button>
+          &times;
+        </IconButton>
       )}
     </li>
   );
@@ -259,6 +276,7 @@ function ReadOnlyEntry({ entry }: RowProps): JSX.Element {
   return (
     <li className={`${styles.entry}${entry.isCurrent ? ` ${styles.entryActive}` : ''}`}>
       <span className={styles.initiative}>{entry.initiative}</span>
+      <Avatar size="sm" name={entry.name} className={styles.entryAvatar} />
       <span className={styles.entryName}>{entry.name}</span>
     </li>
   );

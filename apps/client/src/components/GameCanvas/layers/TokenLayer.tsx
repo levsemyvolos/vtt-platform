@@ -16,6 +16,8 @@ interface TokenLayerProps {
   gridSize: number;
   myRole: Role;
   myUserId: string;
+  /** When provided, token left-click calls this instead of opening TokenEditModal. */
+  onTokenSelect?: (tokenId: string) => void;
 }
 
 const STATUS_COLORS: Record<StatusMarker, string> = {
@@ -36,11 +38,13 @@ const STATUS_COLORS: Record<StatusMarker, string> = {
  * DOM-inside-Konva constraint).
  */
 export default function TokenLayer({
-  sceneId, tokens, gridSize, myRole, myUserId,
+  sceneId, tokens, gridSize, myRole, myUserId, onTokenSelect,
 }: TokenLayerProps): JSX.Element {
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   const [editTokenId, setEditTokenId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ tokenId: string; x: number; y: number } | null>(null);
+
+  const handleEditClick = onTokenSelect ?? (myRole === 'GM' ? setEditTokenId : undefined);
 
   return (
     <>
@@ -61,9 +65,9 @@ export default function TokenLayer({
             draggable={myRole === 'GM' || token.assignedUserId === myUserId}
             onGhostMove={setGhost}
             onGhostEnd={() => setGhost(null)}
-            onEditClick={myRole === 'GM' ? setEditTokenId : undefined}
+            onEditClick={handleEditClick}
             onContextMenu={
-              myRole === 'GM'
+              myRole === 'GM' && !onTokenSelect
                 ? (id, x, y) => setCtxMenu({ tokenId: id, x, y })
                 : undefined
             }

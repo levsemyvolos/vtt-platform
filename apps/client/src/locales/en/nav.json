@@ -1,0 +1,12 @@
+{
+  "nav": {
+    "rooms": "My rooms",
+    "settings": "Settings",
+    "comingSoon": "Coming soon",
+    "comingSoonShort": "soon",
+    "menu": {
+      "theme": "Theme",
+      "language": "Language"
+    }
+  }
+}

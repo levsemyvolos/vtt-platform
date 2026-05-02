@@ -8,21 +8,20 @@
   gap: var(--space-sm);
 }
 
-.header h3 {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
+.eyebrow {
+  color: var(--color-text-muted);
 }
 
 .volume {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
 }
 
-.volume input[type="range"] { width: 80px; }
+.slider {
+  width: 80px;
+  accent-color: var(--color-primary);
+}
 
 .list { list-style: none; display: flex; flex-direction: column; gap: var(--space-xs); }
 
@@ -35,9 +34,19 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   flex-wrap: wrap;
+  transition: border-color 0.15s;
 }
 
-.itemPlaying { border-color: var(--color-success); }
+.itemPlaying {
+  border-color: var(--color-primary);
+  background: var(--color-primary-muted);
+}
+
+.playIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
 
 .trackTitle {
   flex: 1;
@@ -56,29 +65,7 @@
   color: var(--color-text-muted);
 }
 
-.badgePlaying { background: var(--color-success-bg); color: var(--color-success); }
-
-.controls { display: flex; gap: var(--space-xs); align-items: center; }
-
-.btnControl {
-  padding: 2px var(--space-sm);
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  transition: background 0.12s;
-}
-
-.btnControl:hover:not(:disabled) { background: var(--color-surface-hover); }
-
-.btnDelete {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
-}
-
-.btnDelete:hover { background: var(--color-danger-bg) !important; }
+.controls { display: flex; gap: 2px; align-items: center; }
 
 .editRow {
   width: 100%;
@@ -98,11 +85,9 @@
   color: var(--color-text-secondary);
 }
 
-.editRow input[type="range"] { width: 80px; }
-
 .empty { color: var(--color-text-muted); font-size: var(--text-sm); text-align: center; padding: var(--space-lg); }
 
-/* TrackUpload */
+/* TrackUpload inherits from global */
 .uploadForm {
   display: flex;
   flex-direction: column;
@@ -133,7 +118,7 @@
   font-size: var(--text-sm);
 }
 
-.uploadField input[type="text"]:focus { border-color: var(--color-primary); }
+.uploadField input[type="text"]:focus { border-color: var(--color-primary); outline: none; }
 
 .btnUpload {
   padding: var(--space-xs) var(--space-md);
