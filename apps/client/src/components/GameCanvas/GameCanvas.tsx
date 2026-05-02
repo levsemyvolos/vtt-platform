@@ -11,7 +11,7 @@ import AnnotationLayer from './layers/AnnotationLayer';
 import FogOfWarLayer from './layers/FogOfWarLayer';
 import AddTokenButton from './AddTokenButton';
 import { getUserPingColor } from './layers/AnnotationLayer';
-import { emitAnnotationPing } from '../../api/socket';
+import { emitAnnotationPing, emitMeasure } from '../../api/socket';
 import styles from './GameCanvas.module.css';
 
 export interface GameCanvasProps {
@@ -27,6 +27,8 @@ export interface GameCanvasProps {
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
 const ZOOM_STEP = 1.08;
+/** Throttle ruler broadcast to ~15 fps. */
+const RULER_THROTTLE_MS = 67;
 
 function fogEditActive(myRole: Role, mode: 'edit' | 'play', activeTool: string): boolean {
   return myRole === 'GM' && (mode === 'edit' || activeTool === 'fog');
@@ -44,6 +46,10 @@ export default function GameCanvas({
   const stageRef = useRef<Konva.Stage | null>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
 
+  // Ruler drag state
+  const rulerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastRulerEmitRef = useRef<number>(0);
+
   const theme = useTheme();
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
@@ -54,6 +60,7 @@ export default function GameCanvas({
 
   const fogEditMode = fogEditActive(myRole, mode, activeTool);
   const cursor = activeTool === 'ping' ? 'crosshair'
+    : activeTool === 'ruler' ? 'crosshair'
     : activeTool === 'fog' && myRole === 'GM' ? 'cell'
     : activeTool === 'draw' ? 'crosshair'
     : 'default';
@@ -78,6 +85,14 @@ export default function GameCanvas({
     stage.batchDraw();
   }, [viewportZoom]);
 
+  function getSceneCoords(stage: Konva.Stage): { x: number; y: number } | null {
+    const scale = stage.scaleX();
+    const pos = stage.position();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return null;
+    return { x: (pointer.x - pos.x) / scale, y: (pointer.y - pos.y) / scale };
+  }
+
   function handleWheel(e: Konva.KonvaEventObject<WheelEvent>): void {
     e.evt.preventDefault();
     const stage = e.target.getStage();
@@ -100,26 +115,53 @@ export default function GameCanvas({
     });
   }
 
+  function handleStageMouseDown(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (activeTool !== 'ruler') return;
+    const stage = e.target.getStage();
+    if (!stage) return;
+    const coords = getSceneCoords(stage);
+    if (!coords) return;
+    rulerStartRef.current = coords;
+  }
+
+  function handleStageMouseMove(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (activeTool !== 'ruler' || !rulerStartRef.current || !roomId) return;
+    const now = Date.now();
+    if (now - lastRulerEmitRef.current < RULER_THROTTLE_MS) return;
+    lastRulerEmitRef.current = now;
+
+    const stage = e.target.getStage();
+    if (!stage) return;
+    const coords = getSceneCoords(stage);
+    if (!coords) return;
+
+    emitMeasure({
+      roomId,
+      sceneId: scene.id,
+      from: rulerStartRef.current,
+      to: coords,
+      userId: myUserId,
+    });
+  }
+
+  function handleStageMouseUp(): void {
+    if (activeTool !== 'ruler') return;
+    rulerStartRef.current = null;
+  }
+
   function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>): void {
     if (activeTool !== 'ping') return;
     if (e.target !== e.target.getStage()) return;
 
     const stage = e.target.getStage();
     if (!stage || !roomId) return;
-
-    const scale = stage.scaleX();
-    const pos = stage.position();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-
-    const x = (pointer.x - pos.x) / scale;
-    const y = (pointer.y - pos.y) / scale;
+    const coords = getSceneCoords(stage);
+    if (!coords) return;
 
     emitAnnotationPing({
       roomId,
       sceneId: scene.id,
-      x,
-      y,
+      ...coords,
       color: getUserPingColor(myUserId),
       userId: myUserId,
       timestamp: Date.now(),
@@ -135,8 +177,11 @@ export default function GameCanvas({
         ref={stageRef}
         width={size.width}
         height={size.height}
-        draggable
+        draggable={activeTool !== 'ruler'}
         onWheel={handleWheel}
+        onMouseDown={handleStageMouseDown}
+        onMouseMove={handleStageMouseMove}
+        onMouseUp={handleStageMouseUp}
         onClick={handleStageClick}
         style={{ background: stageBg }}
       >
@@ -156,7 +201,7 @@ export default function GameCanvas({
             onTokenSelect: (id: string) => { dispatch(selectToken(id)); },
           })}
         />
-        <AnnotationLayer />
+        <AnnotationLayer gridSize={scene.gridSize} />
         <FogOfWarLayer
           fogMaskBase64={scene.fogMaskBase64}
           gridSize={scene.gridSize}

@@ -1,22 +1,25 @@
-import type { AnnotationPingPayload } from '@vtt/shared';
+import type { AnnotationPingPayload, MeasurePayload } from '@vtt/shared';
 
-/** Sink for `cursor:ping` broadcasts — abstracted to keep the service WSS-agnostic. */
-export type AnnotationBroadcaster = (roomId: string, payload: AnnotationPingPayload) => void;
+/** Broadcast sinks for ephemeral annotation events — abstracted for WSS-agnostic testing. */
+export interface AnnotationBroadcast {
+  ping: (roomId: string, payload: AnnotationPingPayload) => void;
+  measure: (roomId: string, payload: MeasurePayload) => void;
+}
 
 /**
- * Ephemeral-annotation service (Ф3.4.1).
+ * Ephemeral-annotation service (Ф3.4.1, Ф3.4.3).
  *
- * Ping markers are never persisted — the service only forwards the payload
- * to the room via the injected broadcaster. No DB interaction, no OCC, no
- * rollback — just fire-and-forget broadcast.
- *
- * Any role (GM / Player / Observer) may send a ping; the handler enforces
- * that the socket is joined to the claimed roomId before calling this method.
+ * All payloads are fire-and-forget; no DB interaction, no OCC, no rollback.
+ * Role restrictions are enforced at the socket handler level, not here.
  */
 export class AnnotationService {
-  constructor(private readonly broadcast: AnnotationBroadcaster) {}
+  constructor(private readonly broadcast: AnnotationBroadcast) {}
 
   broadcastPing(payload: AnnotationPingPayload): void {
-    this.broadcast(payload.roomId, payload);
+    this.broadcast.ping(payload.roomId, payload);
+  }
+
+  broadcastMeasure(payload: MeasurePayload): void {
+    this.broadcast.measure(payload.roomId, payload);
   }
 }

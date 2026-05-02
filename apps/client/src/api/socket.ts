@@ -11,6 +11,7 @@ import type {
   ChatMessageDTO,
   SignalingPayload,
   AnnotationPingPayload,
+  MeasurePayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
@@ -18,7 +19,7 @@ import { applySceneUpdate, applyTokenRollback, applyFogDiff } from '../store/sce
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
-import { addPing, removePing } from '../store/annotations';
+import { addPing, removePing, upsertMeasure, removeMeasure } from '../store/annotations';
 
 export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -78,6 +79,21 @@ export function getSocket(): TypedClientSocket {
     setTimeout(() => {
       store.dispatch(removePing(payload.timestamp));
     }, 3000);
+  });
+
+  // Ф3.4.3 — ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.
+  const measureTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  socket.on('measure:start', (payload) => {
+    store.dispatch(upsertMeasure(payload));
+    const existing = measureTimers.get(payload.userId);
+    if (existing) clearTimeout(existing);
+    measureTimers.set(
+      payload.userId,
+      setTimeout(() => {
+        store.dispatch(removeMeasure(payload.userId));
+        measureTimers.delete(payload.userId);
+      }, 5000),
+    );
   });
 
   return socket;
@@ -195,4 +211,9 @@ export function emitSessionResync(roomId: string): Promise<SessionResyncPayload>
 /** Fire-and-forget ping marker (Ф3.4.1). No ack — server broadcasts and forgets. */
 export function emitAnnotationPing(payload: AnnotationPingPayload): void {
   getSocket().emit('cursor:ping', payload);
+}
+
+/** Fire-and-forget ruler update (Ф3.4.3). No ack — server broadcasts and forgets. */
+export function emitMeasure(payload: MeasurePayload): void {
+  getSocket().emit('measure:start', payload);
 }

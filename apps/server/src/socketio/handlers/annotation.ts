@@ -1,34 +1,41 @@
-import type { AnnotationPingPayload } from '@vtt/shared';
+import type { AnnotationPingPayload, MeasurePayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
-import type { AnnotationService } from '../../services/AnnotationService.js';
+import type { AnnotationBroadcast } from '../../services/AnnotationService.js';
 
 /**
- * Builds a `cursor:ping` broadcaster bound to the room.
+ * Builds broadcast sinks for ephemeral annotation events.
  *
- * Wire-up: pass the returned function to `AnnotationService` so the service
- * stays WSS-agnostic — easier to unit-test with a stub broadcaster.
+ * Returns an object so new event types can be added without changing the
+ * AnnotationService constructor signature.
  */
-export function buildAnnotationBroadcaster(
-  io: TypedServer,
-): (roomId: string, payload: AnnotationPingPayload) => void {
-  return (roomId, payload) => {
-    io.to(roomId).emit('cursor:ping', payload);
+export function buildAnnotationBroadcaster(io: TypedServer): AnnotationBroadcast {
+  return {
+    ping: (roomId: string, payload: AnnotationPingPayload) => {
+      io.to(roomId).emit('cursor:ping', payload);
+    },
+    measure: (roomId: string, payload: MeasurePayload) => {
+      io.to(roomId).emit('measure:start', payload);
+    },
   };
 }
 
 /**
- * Registers the `cursor:ping` listener for a socket connection.
+ * Registers ephemeral-annotation listeners for a connected socket.
  *
- * Guard: the socket must be joined to `payload.roomId` — off-room pings are
- * silently dropped (prevents cross-room spoofing). No RBAC role restriction:
- * Ф3.4.1 allows any role to send a ping.
+ * `cursor:ping` — any role; `measure:start` — any role (Ф3.4.3).
+ * Both guards: socket must be joined to the claimed roomId (prevents cross-room spoofing).
  */
 export function registerAnnotationHandlers(
   socket: TypedSocket,
-  annotationService: AnnotationService,
+  annotationService: import('../../services/AnnotationService.js').AnnotationService,
 ): void {
   socket.on('cursor:ping', (payload: AnnotationPingPayload) => {
     if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
     annotationService.broadcastPing(payload);
+  });
+
+  socket.on('measure:start', (payload: MeasurePayload) => {
+    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+    annotationService.broadcastMeasure(payload);
   });
 }

@@ -70,12 +70,12 @@ describe('CanvasToolbar', () => {
     expect(store.getState().canvasViewport.activeTool).toBe('ping');
   });
 
-  it('clicking unbound Ruler dispatches a toast', () => {
+  it('clicking Ruler sets activeTool to ruler (Ф3.4.3 — ruler is bound)', () => {
     const store = makeStore();
     renderToolbar(store);
     fireEvent.click(screen.getByRole('button', { name: /лінійка/i }));
-    expect(store.getState().toast.queue).toHaveLength(1);
-    expect(store.getState().toast.queue[0]?.variant).toBe('info');
+    expect(store.getState().canvasViewport.activeTool).toBe('ruler');
+    expect(store.getState().toast.queue).toHaveLength(0);
   });
 
   it('clicking unbound Draw dispatches a toast', () => {
