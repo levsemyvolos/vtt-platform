@@ -1,6 +1,6 @@
 import type { AnnotationPingPayload } from '@vtt/shared';
 
-/** Sink for `annotation:ping` broadcasts — abstracted to keep the service WSS-agnostic. */
+/** Sink for `cursor:ping` broadcasts — abstracted to keep the service WSS-agnostic. */
 export type AnnotationBroadcaster = (roomId: string, payload: AnnotationPingPayload) => void;
 
 /**

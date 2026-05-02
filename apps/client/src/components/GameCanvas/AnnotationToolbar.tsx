@@ -11,7 +11,7 @@ interface Props {
 /**
  * Annotation toolbar overlaid at the top-right of GameCanvas.
  *
- * Ping (Ф3.4.1) — active by default; emits annotation:ping on Stage click.
+ * Ping (Ф3.4.1) — active by default; emits cursor:ping on Stage click.
  * Draw (Ф3.4.2) and Measure (Ф3.4.3) — closed, deferred to roadmap R3b.
  */
 export default function AnnotationToolbar({ activeTool, onChange }: Props): JSX.Element {
