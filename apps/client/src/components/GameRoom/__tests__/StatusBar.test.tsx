@@ -31,6 +31,7 @@ function makeScene(overrides?: Partial<SceneDTO>): SceneDTO {
     isActive: true,
     isHidden: false,
     fogMaskBase64: null,
+    annotations: [],
     tokens: [],
     ...overrides,
   };

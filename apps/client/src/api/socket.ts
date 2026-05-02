@@ -12,6 +12,7 @@ import type {
   SignalingPayload,
   AnnotationPingPayload,
   MeasurePayload,
+  DrawStrokePayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
@@ -20,6 +21,7 @@ import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
 import { addPing, removePing, upsertMeasure, removeMeasure } from '../store/annotations';
+import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
 
 export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -79,6 +81,14 @@ export function getSocket(): TypedClientSocket {
     setTimeout(() => {
       store.dispatch(removePing(payload.timestamp));
     }, 3000);
+  });
+
+  // Ф3.4.2 — persistent free-draw stroke broadcast from server after GM persistence.
+  socket.on('draw:stroke', (payload) => {
+    store.dispatch(applyDrawStroke(payload));
+  });
+  socket.on('draw:clear', () => {
+    store.dispatch(clearDrawStrokes());
   });
 
   // Ф3.4.3 — ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.
@@ -216,4 +226,14 @@ export function emitAnnotationPing(payload: AnnotationPingPayload): void {
 /** Fire-and-forget ruler update (Ф3.4.3). No ack — server broadcasts and forgets. */
 export function emitMeasure(payload: MeasurePayload): void {
   getSocket().emit('measure:start', payload);
+}
+
+/** Fire-and-forget draw stroke (Ф3.4.2). GM-only — server enforces RBAC. */
+export function emitDrawStroke(payload: DrawStrokePayload): void {
+  getSocket().emit('draw:stroke', payload);
+}
+
+/** Clears all strokes in the scene. GM-only. */
+export function emitDrawClear(roomId: string, sceneId: string): void {
+  getSocket().emit('draw:clear', { roomId, sceneId });
 }

@@ -63,6 +63,7 @@ function toSceneDTOFromEntity(scene: {
     isHidden: scene.isHidden,
     fogMaskBase64: scene.fogMaskBase64,
     tokens: [],
+    annotations: [],
   };
 }
 

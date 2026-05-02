@@ -13,7 +13,9 @@ import { buildCharactersRouter } from './routes/characters.js';
 import { buildAudioRouter } from './routes/audio.js';
 import { buildAudioBroadcaster } from './socketio/handlers/audio.js';
 import { buildAnnotationBroadcaster } from './socketio/handlers/annotation.js';
+import { buildDrawBroadcaster } from './socketio/handlers/draw.js';
 import { AnnotationService } from './services/AnnotationService.js';
+import { DrawService } from './services/DrawService.js';
 import { AudioService } from './services/AudioService.js';
 import { AudioTrackRepository } from './repositories/AudioTrackRepository.js';
 import { TurnConfigProvider } from './services/TurnConfigProvider.js';
@@ -135,6 +137,16 @@ const annotationService = new AnnotationService({
   measure: (roomId, payload) => _annotationBroadcast.measure(roomId, payload),
 });
 
+// Deferred draw broadcaster (same pattern as annotation).
+let _drawBroadcast: ReturnType<typeof buildDrawBroadcaster> = {
+  stroke: () => {},
+  clear: () => {},
+};
+const drawService = new DrawService(prisma, {
+  stroke: (roomId, payload) => _drawBroadcast.stroke(roomId, payload),
+  clear: (roomId, sceneId) => _drawBroadcast.clear(roomId, sceneId),
+});
+
 const io = buildSocketIo(httpServer, {
   sceneService,
   diceService,
@@ -142,11 +154,13 @@ const io = buildSocketIo(httpServer, {
   resyncService,
   initiativeService,
   annotationService,
+  drawService,
   rooms: roomRepo,
   jwtSecret,
   corsOrigin: process.env['CLIENT_URL'] ?? 'http://localhost:5173',
 });
 _annotationBroadcast = buildAnnotationBroadcaster(io);
+_drawBroadcast = buildDrawBroadcaster(io);
 
 // ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------
 app.use(buildInitiativeRouter(initiativeService, roomRepo, io));

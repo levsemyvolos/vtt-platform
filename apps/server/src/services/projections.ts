@@ -8,6 +8,7 @@ import type {
   ChatMode,
   DiceMode,
   StatusMarker,
+  DrawStroke,
 } from '@vtt/shared';
 
 /**
@@ -63,6 +64,9 @@ export function projectScene(
     const projected = projectToken(t, viewerRole, viewerId);
     if (projected) tokens.push(projected);
   }
+  const annotations: DrawStroke[] = Array.isArray(scene.annotations)
+    ? (scene.annotations as unknown as DrawStroke[])
+    : [];
   return {
     id: scene.id,
     roomId: scene.roomId,
@@ -74,6 +78,7 @@ export function projectScene(
     isHidden: scene.isHidden,
     fogMaskBase64: scene.fogMaskBase64,
     tokens,
+    annotations,
   };
 }
 

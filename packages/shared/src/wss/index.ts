@@ -140,6 +140,23 @@ export type AudioPlayPayload =
     };
 
 /**
+ * Persistent free-draw stroke (Ф3.4.2, table 2.14).
+ * Stored in Scene.annotations JSONB; broadcast to room after server persists.
+ * GM-only: handler enforces role before saving.
+ */
+export interface DrawStrokePayload {
+  roomId: string;
+  sceneId: string;
+  /** Flat [x0,y0, x1,y1, ...] point array — Konva polyline format. */
+  points: number[];
+  color: string;
+  width: number;
+  userId: string;
+  /** Client-generated stroke id (UUID) for idempotent upserts. */
+  strokeId: string;
+}
+
+/**
  * Ephemeral ruler broadcast (Ф3.4.3, table 2.14).
  * Never persisted — server forwards to room; client auto-fades 5 s after last update.
  */
@@ -208,6 +225,8 @@ export interface ClientToServerEvents {
   'signal:ice': (payload: SignalingPayload) => void;
   'cursor:ping': (payload: AnnotationPingPayload) => void;
   'measure:start': (payload: MeasurePayload) => void;
+  'draw:stroke': (payload: DrawStrokePayload) => void;
+  'draw:clear': (payload: { roomId: string; sceneId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -224,6 +243,8 @@ export interface ServerToClientEvents {
   'signal:ice': (payload: SignalingPayload) => void;
   'cursor:ping': (payload: AnnotationPingPayload) => void;
   'measure:start': (payload: MeasurePayload) => void;
+  'draw:stroke': (payload: DrawStrokePayload) => void;
+  'draw:clear': (payload: { roomId: string; sceneId: string }) => void;
 }
 
 export interface InterServerEvents {

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Stage } from 'react-konva';
 import type Konva from 'konva';
+import { randomUUID } from '../../utils/uuid';
 import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { selectToken } from '../../store/scene';
+import { selectToken, applyDrawStroke } from '../../store/scene';
 import { useTheme } from '../../hooks/useTheme';
 import BackgroundLayer from './layers/BackgroundLayer';
 import TokenLayer from './layers/TokenLayer';
@@ -11,7 +12,7 @@ import AnnotationLayer from './layers/AnnotationLayer';
 import FogOfWarLayer from './layers/FogOfWarLayer';
 import AddTokenButton from './AddTokenButton';
 import { getUserPingColor } from './layers/AnnotationLayer';
-import { emitAnnotationPing, emitMeasure } from '../../api/socket';
+import { emitAnnotationPing, emitMeasure, emitDrawStroke } from '../../api/socket';
 import styles from './GameCanvas.module.css';
 
 export interface GameCanvasProps {
@@ -29,6 +30,8 @@ const ZOOM_MAX = 4;
 const ZOOM_STEP = 1.08;
 /** Throttle ruler broadcast to ~15 fps. */
 const RULER_THROTTLE_MS = 67;
+/** Minimum distance between recorded draw points (px) to avoid redundant points. */
+const DRAW_MIN_DIST = 4;
 
 function fogEditActive(myRole: Role, mode: 'edit' | 'play', activeTool: string): boolean {
   return myRole === 'GM' && (mode === 'edit' || activeTool === 'fog');
@@ -50,6 +53,11 @@ export default function GameCanvas({
   const rulerStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastRulerEmitRef = useRef<number>(0);
 
+  // Draw stroke state
+  const drawStrokeIdRef = useRef<string | null>(null);
+  const drawPointsRef = useRef<number[]>([]);
+  const lastDrawPtRef = useRef<{ x: number; y: number } | null>(null);
+
   const theme = useTheme();
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
@@ -61,8 +69,8 @@ export default function GameCanvas({
   const fogEditMode = fogEditActive(myRole, mode, activeTool);
   const cursor = activeTool === 'ping' ? 'crosshair'
     : activeTool === 'ruler' ? 'crosshair'
-    : activeTool === 'fog' && myRole === 'GM' ? 'cell'
     : activeTool === 'draw' ? 'crosshair'
+    : activeTool === 'fog' && myRole === 'GM' ? 'cell'
     : 'default';
 
   useEffect(() => {
@@ -116,37 +124,63 @@ export default function GameCanvas({
   }
 
   function handleStageMouseDown(e: Konva.KonvaEventObject<MouseEvent>): void {
-    if (activeTool !== 'ruler') return;
     const stage = e.target.getStage();
     if (!stage) return;
     const coords = getSceneCoords(stage);
     if (!coords) return;
-    rulerStartRef.current = coords;
+
+    if (activeTool === 'ruler') {
+      rulerStartRef.current = coords;
+    } else if (activeTool === 'draw' && myRole === 'GM') {
+      drawStrokeIdRef.current = randomUUID();
+      drawPointsRef.current = [coords.x, coords.y];
+      lastDrawPtRef.current = coords;
+    }
   }
 
   function handleStageMouseMove(e: Konva.KonvaEventObject<MouseEvent>): void {
-    if (activeTool !== 'ruler' || !rulerStartRef.current || !roomId) return;
-    const now = Date.now();
-    if (now - lastRulerEmitRef.current < RULER_THROTTLE_MS) return;
-    lastRulerEmitRef.current = now;
-
     const stage = e.target.getStage();
     if (!stage) return;
-    const coords = getSceneCoords(stage);
-    if (!coords) return;
 
-    emitMeasure({
-      roomId,
-      sceneId: scene.id,
-      from: rulerStartRef.current,
-      to: coords,
-      userId: myUserId,
-    });
+    if (activeTool === 'ruler' && rulerStartRef.current && roomId) {
+      const now = Date.now();
+      if (now - lastRulerEmitRef.current < RULER_THROTTLE_MS) return;
+      lastRulerEmitRef.current = now;
+      const coords = getSceneCoords(stage);
+      if (!coords) return;
+      emitMeasure({ roomId, sceneId: scene.id, from: rulerStartRef.current, to: coords, userId: myUserId });
+    } else if (activeTool === 'draw' && myRole === 'GM' && drawStrokeIdRef.current) {
+      const coords = getSceneCoords(stage);
+      if (!coords) return;
+      const last = lastDrawPtRef.current;
+      if (last) {
+        const dx = coords.x - last.x;
+        const dy = coords.y - last.y;
+        if (Math.sqrt(dx * dx + dy * dy) < DRAW_MIN_DIST) return;
+      }
+      drawPointsRef.current.push(coords.x, coords.y);
+      lastDrawPtRef.current = coords;
+
+      // Optimistic local update
+      const strokeId = drawStrokeIdRef.current;
+      const color = getUserPingColor(myUserId);
+      dispatch(applyDrawStroke({ roomId, sceneId: scene.id, strokeId, userId: myUserId, points: [...drawPointsRef.current], color, width: 3 }));
+    }
   }
 
   function handleStageMouseUp(): void {
-    if (activeTool !== 'ruler') return;
-    rulerStartRef.current = null;
+    if (activeTool === 'ruler') {
+      rulerStartRef.current = null;
+    } else if (activeTool === 'draw' && myRole === 'GM' && drawStrokeIdRef.current && roomId) {
+      const strokeId = drawStrokeIdRef.current;
+      const points = [...drawPointsRef.current];
+      if (points.length >= 4) {
+        emitDrawStroke({ roomId, sceneId: scene.id, strokeId, userId: myUserId, points, color: getUserPingColor(myUserId), width: 3 });
+      }
+      drawStrokeIdRef.current = null;
+      drawPointsRef.current = [];
+      lastDrawPtRef.current = null;
+    }
   }
 
   function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>): void {
@@ -168,6 +202,8 @@ export default function GameCanvas({
     });
   }
 
+  const isDraggable = activeTool !== 'ruler' && activeTool !== 'draw';
+
   return (
     <div ref={containerRef} className={styles.gameCanvas} style={{ cursor }}>
       <div className={styles.toolbar}>
@@ -177,7 +213,7 @@ export default function GameCanvas({
         ref={stageRef}
         width={size.width}
         height={size.height}
-        draggable={activeTool !== 'ruler'}
+        draggable={isDraggable}
         onWheel={handleWheel}
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleStageMouseMove}
