@@ -40,7 +40,7 @@ interface ToolDef {
 const TOOL_DEFS: ToolDef[] = [
   { tool: 'select', icon: <MousePointer2 size={16} /> },
   { tool: 'ping',   icon: <MapPin size={16} /> },
-  { tool: 'ruler',  icon: <Ruler size={16} />,     unbound: true },
+  { tool: 'ruler',  icon: <Ruler size={16} /> },
   { tool: 'draw',   icon: <PenTool size={16} />,   unbound: true },
   { tool: 'fog',    icon: <Cloud size={16} />,      gmOnly: true },
   { tool: 'text',   icon: <Type size={16} />,       unbound: true },

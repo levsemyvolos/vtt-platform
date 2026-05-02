@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { AnnotationService } from '../../src/services/AnnotationService.js';
-import type { AnnotationPingPayload } from '@vtt/shared';
+import type { AnnotationPingPayload, MeasurePayload } from '@vtt/shared';
 
-function makePayload(overrides?: Partial<AnnotationPingPayload>): AnnotationPingPayload {
+function makePingPayload(overrides?: Partial<AnnotationPingPayload>): AnnotationPingPayload {
   return {
     roomId: 'room-1',
     sceneId: 'scene-1',
@@ -15,27 +15,62 @@ function makePayload(overrides?: Partial<AnnotationPingPayload>): AnnotationPing
   };
 }
 
+function makeMeasurePayload(overrides?: Partial<MeasurePayload>): MeasurePayload {
+  return {
+    roomId: 'room-1',
+    sceneId: 'scene-1',
+    from: { x: 0, y: 0 },
+    to: { x: 100, y: 100 },
+    userId: 'user-1',
+    ...overrides,
+  };
+}
+
+function makeBroadcast() {
+  return { ping: vi.fn(), measure: vi.fn() };
+}
+
 describe('AnnotationService.broadcastPing', () => {
-  it('calls broadcaster with the correct roomId and full payload', () => {
-    const broadcast = vi.fn();
+  it('calls broadcast.ping with the correct roomId and full payload', () => {
+    const broadcast = makeBroadcast();
     const svc = new AnnotationService(broadcast);
-    const payload = makePayload();
+    const payload = makePingPayload();
 
     svc.broadcastPing(payload);
 
-    expect(broadcast).toHaveBeenCalledOnce();
-    expect(broadcast).toHaveBeenCalledWith('room-1', payload);
+    expect(broadcast.ping).toHaveBeenCalledOnce();
+    expect(broadcast.ping).toHaveBeenCalledWith('room-1', payload);
   });
 
   it('any role may ping — no RBAC guard inside the service', () => {
-    // The service has no role field; the socket handler enforces roomId membership
-    // only. This test confirms the service does not throw or filter by role.
-    const broadcast = vi.fn();
+    const broadcast = makeBroadcast();
     const svc = new AnnotationService(broadcast);
 
-    svc.broadcastPing(makePayload({ userId: 'observer-xyz' }));
-    svc.broadcastPing(makePayload({ userId: 'player-abc' }));
+    svc.broadcastPing(makePingPayload({ userId: 'observer-xyz' }));
+    svc.broadcastPing(makePingPayload({ userId: 'player-abc' }));
 
-    expect(broadcast).toHaveBeenCalledTimes(2);
+    expect(broadcast.ping).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('AnnotationService.broadcastMeasure', () => {
+  it('calls broadcast.measure with the correct roomId and full payload', () => {
+    const broadcast = makeBroadcast();
+    const svc = new AnnotationService(broadcast);
+    const payload = makeMeasurePayload();
+
+    svc.broadcastMeasure(payload);
+
+    expect(broadcast.measure).toHaveBeenCalledOnce();
+    expect(broadcast.measure).toHaveBeenCalledWith('room-1', payload);
+  });
+
+  it('does not call broadcast.ping when measure is sent', () => {
+    const broadcast = makeBroadcast();
+    const svc = new AnnotationService(broadcast);
+
+    svc.broadcastMeasure(makeMeasurePayload());
+
+    expect(broadcast.ping).not.toHaveBeenCalled();
   });
 });

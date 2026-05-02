@@ -125,11 +125,14 @@ const characterService = new CharacterService(characterRepo, fileStorage, assetS
 const jwtSecret = process.env['JWT_SECRET'];
 if (!jwtSecret) throw new Error('JWT_SECRET env var is required');
 
-// Deferred broadcaster: captures io after buildSocketIo returns (any socket
-// event arrives only after server.listen(), so the broadcaster is always set).
-let _annotationEmit: ReturnType<typeof buildAnnotationBroadcaster> = () => {};
-const annotationService = new AnnotationService((roomId, payload) => {
-  _annotationEmit(roomId, payload);
+// Deferred broadcaster: captured after buildSocketIo returns.
+let _annotationBroadcast: ReturnType<typeof buildAnnotationBroadcaster> = {
+  ping: () => {},
+  measure: () => {},
+};
+const annotationService = new AnnotationService({
+  ping: (roomId, payload) => _annotationBroadcast.ping(roomId, payload),
+  measure: (roomId, payload) => _annotationBroadcast.measure(roomId, payload),
 });
 
 const io = buildSocketIo(httpServer, {
@@ -143,7 +146,7 @@ const io = buildSocketIo(httpServer, {
   jwtSecret,
   corsOrigin: process.env['CLIENT_URL'] ?? 'http://localhost:5173',
 });
-_annotationEmit = buildAnnotationBroadcaster(io);
+_annotationBroadcast = buildAnnotationBroadcaster(io);
 
 // ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------
 app.use(buildInitiativeRouter(initiativeService, roomRepo, io));

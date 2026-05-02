@@ -140,6 +140,18 @@ export type AudioPlayPayload =
     };
 
 /**
+ * Ephemeral ruler broadcast (Ф3.4.3, table 2.14).
+ * Never persisted — server forwards to room; client auto-fades 5 s after last update.
+ */
+export interface MeasurePayload {
+  roomId: string;
+  sceneId: string;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  userId: string;
+}
+
+/**
  * Ephemeral attention-marker broadcast (Ф3.4.1, table 2.14 row 13).
  * Never persisted — server forwards to room and the client auto-fades in 3 s.
  */
@@ -195,6 +207,7 @@ export interface ClientToServerEvents {
   'signal:answer': (payload: SignalingPayload) => void;
   'signal:ice': (payload: SignalingPayload) => void;
   'cursor:ping': (payload: AnnotationPingPayload) => void;
+  'measure:start': (payload: MeasurePayload) => void;
 }
 
 export interface ServerToClientEvents {
@@ -210,6 +223,7 @@ export interface ServerToClientEvents {
   'signal:answer': (payload: SignalingPayload) => void;
   'signal:ice': (payload: SignalingPayload) => void;
   'cursor:ping': (payload: AnnotationPingPayload) => void;
+  'measure:start': (payload: MeasurePayload) => void;
 }
 
 export interface InterServerEvents {
