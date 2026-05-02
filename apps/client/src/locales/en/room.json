@@ -1,11 +1,33 @@
 {
   "dashboard": {
-    "heading": "Game Rooms",
-    "createBtn": "+ New Room",
+    "heading": "My Rooms",
+    "subheading": "{{active}} active · {{total}} total",
+    "createBtn": "+ Create Room",
     "noRooms": "No rooms yet. Create your first!",
     "membersCount": "{{count}} members",
+    "membersCount_one": "{{count}} member",
     "newRoomHeading": "New Room",
-    "formLabel": "new room form"
+    "formLabel": "new room form",
+    "tabs": {
+      "my": "My",
+      "invited": "Invited"
+    },
+    "search": {
+      "placeholder": "search rooms…"
+    },
+    "card": {
+      "role": "Role: {{role}}"
+    },
+    "createCard": {
+      "heading": "Create a new room",
+      "subheading": "Pick a system and invite players"
+    },
+    "empty": {
+      "myHeading": "You have no rooms yet",
+      "mySubheading": "Create your first room — and invite players via link.",
+      "invitedHeading": "No active invitations",
+      "invitedSubheading": "When you are invited to a room, it will appear here."
+    }
   },
   "status": {
     "lobby": "Lobby",
@@ -19,7 +41,7 @@
   },
   "lobby": {
     "backBtn": "← Back",
-    "membersHeading": "Members ({{count}})",
+    "membersHeading": "Members · {{count}}",
     "characterAttached": "Character attached",
     "startSession": "Start Session",
     "joinSession": "Join Session",
@@ -28,7 +50,13 @@
     "roleLabel": "Role:",
     "sessionLoading": "Loading scene…",
     "sessionError": "Error: {{message}}",
-    "noActiveScene": "No active scene. Create a scene in the lobby and activate it."
+    "noActiveScene": "No active scene. Create a scene in the lobby and activate it.",
+    "stepper": {
+      "label": "Connection status",
+      "authenticating": "Authenticating",
+      "loadingScene": "Loading scene",
+      "openingChannel": "Opening WS channel"
+    }
   },
   "scenes": {
     "heading": "Scenes",
@@ -49,7 +77,8 @@
       "gridHeight": "Height (cells)",
       "gridSize": "Cell size (px)",
       "formLabel": "new scene form"
-    }
+    },
+    "editBtn": "Edit"
   },
   "chat": {
     "panelLabel": "Chat panel",
@@ -130,6 +159,38 @@
     "progressUrl": "Getting URL…",
     "progressUpload": "Uploading…",
     "progressSave": "Saving…"
+  },
+  "sceneEditor": {
+    "title": "Scene Editor",
+    "breadcrumb": "Editing",
+    "breadcrumbLabel": "Breadcrumbs",
+    "doneBtn": "Done",
+    "leftToolbar": {
+      "label": "Left editor toolbar",
+      "background": "Background",
+      "grid": "Grid",
+      "tokens": "Tokens",
+      "fog": "Fog"
+    },
+    "rightToolbar": {
+      "heading": "Properties"
+    },
+    "placeholder": "Select an element to edit",
+    "bg": {
+      "aiBtn": "Generate AI"
+    },
+    "grid": {
+      "sizeLabel": "Cell size (px)",
+      "widthLabel": "Width (cells)",
+      "heightLabel": "Height (cells)",
+      "saveBtn": "Save"
+    },
+    "fog": {
+      "clearBtn": "Clear fog (reveal all)"
+    },
+    "properties": {
+      "noSelection": "Click a token on the canvas to select it"
+    }
   },
   "aiGenerate": {
     "dialogLabel": "Generate Background",

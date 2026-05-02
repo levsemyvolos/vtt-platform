@@ -1,13 +1,12 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AssistantContext, ConversationMessage } from '@vtt/shared';
-import { useAppDispatch, useAppSelector } from '../../store';
-import { sendAssistantMessage, setActiveContext } from '../../store/assistant';
-import MessageList from './MessageList';
-import InputBar from './InputBar';
+import { Tabs } from '../ui';
+import type { TabItem } from '../ui';
+import DialogList from './DialogList';
+import ConversationView from './ConversationView';
+import type { MainTab } from './ConversationView';
+import RecentGenerations from './RecentGenerations';
 import styles from './AssistantPanel.module.css';
-
-const EMPTY_MESSAGES: ConversationMessage[] = [];
-const TAB_IDS: AssistantContext[] = ['npc-description', 'scene-description', 'srd-lookup', 'free-chat'];
 
 interface AssistantPanelProps {
   roomId: string;
@@ -15,18 +14,23 @@ interface AssistantPanelProps {
 }
 
 export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps): JSX.Element {
-  const dispatch = useAppDispatch();
-  const { t } = useTranslation(['assistant', 'errors']);
-  const activeContext = useAppSelector((s) => s.assistant.activeContext);
-  const status = useAppSelector((s) => s.assistant.status);
-  const error = useAppSelector((s) => s.assistant.error);
-  const conversationId = `${roomId}:${activeContext}`;
-  const messages = useAppSelector((s) => s.assistant.conversations[conversationId] ?? EMPTY_MESSAGES);
+  const { t } = useTranslation('assistant');
+  const [mainTab, setMainTab] = useState<MainTab>('llm');
+
+  const tabs: ReadonlyArray<TabItem<MainTab>> = [
+    { id: 'llm', label: t('tabs.llm') },
+    { id: 'image', label: t('tabs.image') },
+    { id: 'music', label: t('tabs.music') },
+    { id: 'history', label: t('tabs.history') },
+  ];
 
   return (
-    <div className={styles.panel} role="dialog" aria-label={t('panel.dialogLabel')}>
+    <div className={styles.overlay} role="dialog" aria-label={t('header.title')}>
       <div className={styles.header}>
-        <span className={styles.title}>{t('panel.title')}</span>
+        <div className={styles.headerInfo}>
+          <span className={styles.title}>{t('header.title')}</span>
+          <span className={styles.subtitle}>{t('header.subtitle')}</span>
+        </div>
         <button
           type="button"
           className={styles.closeBtn}
@@ -36,30 +40,20 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
           ✕
         </button>
       </div>
-      <nav className={styles.tabs} role="tablist">
-        {TAB_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={activeContext === id}
-            className={`${styles.tab}${activeContext === id ? ` ${styles.tabActive}` : ''}`}
-            onClick={() => dispatch(setActiveContext(id))}
-          >
-            {t(`context.${id}`)}
-          </button>
-        ))}
-      </nav>
-      <MessageList messages={messages} />
-      {error && status === 'error' && (
-        <p className={styles.error} role="alert">
-          {error.startsWith('errors:') ? t(error as never) : error}
-        </p>
-      )}
-      <InputBar
-        onSend={(prompt) => void dispatch(sendAssistantMessage({ context: activeContext, prompt, conversationId }))}
-        disabled={status === 'sending'}
-      />
+      <div className={styles.tabsBar}>
+        <Tabs
+          variant="pill"
+          items={tabs}
+          value={mainTab}
+          onChange={setMainTab}
+          ariaLabel={t('header.title')}
+        />
+      </div>
+      <div className={styles.body}>
+        <DialogList roomId={roomId} />
+        <ConversationView roomId={roomId} mainTab={mainTab} />
+        <RecentGenerations />
+      </div>
     </div>
   );
 }

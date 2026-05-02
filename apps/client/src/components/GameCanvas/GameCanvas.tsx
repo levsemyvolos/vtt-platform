@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Stage } from 'react-konva';
 import type Konva from 'konva';
 import type { Role, SceneDTO } from '@vtt/shared';
-import { useAppSelector } from '../../store';
+import { useAppDispatch, useAppSelector } from '../../store';
+import { selectToken } from '../../store/scene';
 import { useTheme } from '../../hooks/useTheme';
 import BackgroundLayer from './layers/BackgroundLayer';
 import TokenLayer from './layers/TokenLayer';
 import AnnotationLayer from './layers/AnnotationLayer';
 import FogOfWarLayer from './layers/FogOfWarLayer';
 import AddTokenButton from './AddTokenButton';
-import AnnotationToolbar, { type AnnotationTool } from './AnnotationToolbar';
 import { getUserPingColor } from './layers/AnnotationLayer';
 import { emitAnnotationPing } from '../../api/socket';
 import styles from './GameCanvas.module.css';
@@ -20,39 +20,43 @@ export interface GameCanvasProps {
   myUserId: string;
   /** Optional URL for the scene background bitmap (Ф2.2.5). */
   backgroundUrl?: string;
+  /** 'edit' enables fog-drag for GM and token-click-to-select. Default: 'play'. */
+  mode?: 'edit' | 'play';
 }
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 4;
 const ZOOM_STEP = 1.08;
 
-/**
- * Top-level Konva `Stage` that composes the four scene layers in the order
- * mandated by §2.13 table 2.9 (Background → Tokens → Annotations → FoW).
- *
- * Pan: drag on empty stage area (Stage `draggable`). Token drags do not
- * propagate so the field never accidentally pans while moving a token.
- *
- * Zoom: mouse wheel, anchored to cursor position so the cell under the
- * cursor stays under the cursor across zoom levels.
- *
- * Annotation ping (Ф3.4.1): click on Stage when ping tool is active →
- * emit cursor:ping with canvas-space coordinates.
- */
+function fogEditActive(myRole: Role, mode: 'edit' | 'play', activeTool: string): boolean {
+  return myRole === 'GM' && (mode === 'edit' || activeTool === 'fog');
+}
+
 export default function GameCanvas({
   scene,
   myRole,
   myUserId,
   backgroundUrl,
+  mode = 'play',
 }: GameCanvasProps): JSX.Element {
+  const dispatch = useAppDispatch();
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
-  const [annotationTool, setAnnotationTool] = useState<AnnotationTool>('ping');
 
   const theme = useTheme();
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
+  const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
+  const viewportZoom = useAppSelector((s) => s.canvasViewport.zoom);
+
   const stageBg = theme === 'dark' ? '#0f172a' : '#fafafa';
   const fowAlpha = theme === 'dark' ? 0.5 : 0.7;
+
+  const fogEditMode = fogEditActive(myRole, mode, activeTool);
+  const cursor = activeTool === 'ping' ? 'crosshair'
+    : activeTool === 'fog' && myRole === 'GM' ? 'cell'
+    : activeTool === 'draw' ? 'crosshair'
+    : 'default';
 
   useEffect(() => {
     const el = containerRef.current;
@@ -65,6 +69,14 @@ export default function GameCanvas({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Apply zoom from canvasViewport Redux when it changes via toolbar buttons
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.scale({ x: viewportZoom, y: viewportZoom });
+    stage.batchDraw();
+  }, [viewportZoom]);
 
   function handleWheel(e: Konva.KonvaEventObject<WheelEvent>): void {
     e.evt.preventDefault();
@@ -89,8 +101,7 @@ export default function GameCanvas({
   }
 
   function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>): void {
-    if (annotationTool !== 'ping') return;
-    // Only fire on direct Stage click, not on token or other shape clicks.
+    if (activeTool !== 'ping') return;
     if (e.target !== e.target.getStage()) return;
 
     const stage = e.target.getStage();
@@ -101,7 +112,6 @@ export default function GameCanvas({
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    // Convert from viewport to scene-space (undo pan + zoom).
     const x = (pointer.x - pos.x) / scale;
     const y = (pointer.y - pos.y) / scale;
 
@@ -117,12 +127,12 @@ export default function GameCanvas({
   }
 
   return (
-    <div ref={containerRef} className={styles.gameCanvas}>
+    <div ref={containerRef} className={styles.gameCanvas} style={{ cursor }}>
       <div className={styles.toolbar}>
         <AddTokenButton myRole={myRole} sceneId={scene.id} />
-        <AnnotationToolbar activeTool={annotationTool} onChange={setAnnotationTool} />
       </div>
       <Stage
+        ref={stageRef}
         width={size.width}
         height={size.height}
         draggable
@@ -142,6 +152,9 @@ export default function GameCanvas({
           gridSize={scene.gridSize}
           myRole={myRole}
           myUserId={myUserId}
+          {...(mode === 'edit' && {
+            onTokenSelect: (id: string) => { dispatch(selectToken(id)); },
+          })}
         />
         <AnnotationLayer />
         <FogOfWarLayer
@@ -153,6 +166,11 @@ export default function GameCanvas({
           fowAlpha={fowAlpha}
         />
       </Stage>
+      {fogEditMode && (
+        <div className={styles.fogEditBadge} aria-live="polite">
+          Fog edit mode
+        </div>
+      )}
     </div>
   );
 }

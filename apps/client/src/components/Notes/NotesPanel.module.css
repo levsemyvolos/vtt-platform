@@ -20,10 +20,8 @@
   margin-bottom: var(--space-sm);
 }
 
-.listHeader h3 {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
+.eyebrow {
+  color: var(--color-text-muted);
 }
 
 .listItems { list-style: none; display: flex; flex-direction: column; gap: 2px; }

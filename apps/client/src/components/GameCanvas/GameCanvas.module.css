@@ -12,3 +12,19 @@
   display: flex;
   gap: var(--space-sm);
 }
+
+.fogEditBadge {
+  position: absolute;
+  bottom: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-primary-muted);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  pointer-events: none;
+  z-index: var(--z-elevated);
+}

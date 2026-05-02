@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import styles from './MeshCeilingBanner.module.css';
 
@@ -6,8 +7,12 @@ export default function MeshCeilingBanner(): JSX.Element {
   const { t } = useTranslation('room');
   return (
     <div className={styles.banner} role="alert" aria-live="polite">
-      <span className={styles.icon} aria-hidden="true">⚠</span>
-      {t('mesh.ceiling')}
+      <AlertTriangle
+        size={14}
+        aria-hidden="true"
+        style={{ color: 'var(--color-warning)', flexShrink: 0 }}
+      />
+      <span>{t('mesh.ceiling')}</span>
     </div>
   );
 }

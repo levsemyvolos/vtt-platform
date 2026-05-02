@@ -1,56 +1,67 @@
-/* Design tokens — light theme (default) */
+/* Design tokens — light theme (default — теплий пергамент)
+ *
+ * Палітра витягнута з legacy SVG мокапів
+ * (04_Розділ_2/_output/images/mockups/legacy/*.svg).
+ * Dark — канонічна "темна fantasy"; Light — high-contrast аналог.
+ */
 :root {
   /* Backgrounds */
-  --color-bg: #fafafa;
+  --color-bg: #f4f2ec;
   --color-surface: #ffffff;
-  --color-surface-elevated: #f8fafc;
-  --color-surface-hover: #f1f5f9;
+  --color-surface-elevated: #fbfaf6;
+  --color-surface-hover: #ece9df;
 
   /* Borders */
-  --color-border: #e2e8f0;
-  --color-border-strong: #cbd5e1;
+  --color-border: #d9d2be;
+  --color-border-strong: #b8ae8c;
 
   /* Text */
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94a3b8;
-  --color-text-inverse: #ffffff;
+  --color-text-primary: #1a1614;
+  --color-text-secondary: #5a574e;
+  --color-text-muted: #8c8779;
+  --color-text-inverse: #fbfaf6;
 
-  /* Primary (indigo) */
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
-  --color-primary-active: #4338ca;
-  --color-primary-muted: #e0e7ff;
+  /* Primary (bronze — light analog of gold) */
+  --color-primary: #8c6e2a;
+  --color-primary-hover: #6f571f;
+  --color-primary-active: #543f12;
+  --color-primary-muted: #f0e6cc;
 
   /* Secondary */
-  --color-secondary: #64748b;
-  --color-secondary-hover: #475569;
+  --color-secondary: #5a574e;
+  --color-secondary-hover: #1a1614;
 
   /* Semantic — success */
-  --color-success: #16a34a;
-  --color-success-bg: #f0fdf4;
+  --color-success: #2f7a4d;
+  --color-success-bg: #e8f5ee;
 
   /* Semantic — warning */
-  --color-warning: #d97706;
-  --color-warning-bg: #fffbeb;
+  --color-warning: #b66a00;
+  --color-warning-bg: #fcf2dd;
 
   /* Semantic — danger */
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
-  --color-danger-bg: #fef2f2;
+  --color-danger: #b53a2b;
+  --color-danger-hover: #8d2c20;
+  --color-danger-bg: #fbe7e3;
 
   /* Semantic — info */
-  --color-info: #2563eb;
-  --color-info-bg: #eff6ff;
+  --color-info: #2c5d8f;
+  --color-info-bg: #e3eef9;
+
+  /* Game-system accents (room-card category bars) */
+  --color-system-dnd: #8c6e2a;       /* gold/bronze */
+  --color-system-homebrew: #4a76aa;  /* blue */
+  --color-system-coc: #8e5da6;       /* purple */
+  --color-system-pathfinder: #4f8b6e; /* green */
 
   /* Overlay */
-  --color-overlay: rgba(0, 0, 0, 0.5);
+  --color-overlay: rgba(26, 22, 20, 0.5);
 
   /* Canvas */
-  --color-canvas-bg: #fafafa;
-  --color-canvas-grid: rgba(0, 0, 0, 0.12);
-  --color-fow-fill: #000000;
-  --color-fow-alpha: 0.7;
+  --color-canvas-bg: #f4f2ec;
+  --color-canvas-grid: rgba(26, 22, 20, 0.08);
+  --color-fow-fill: #1a1614;
+  --color-fow-alpha: 0.65;
 
   /* Spacing */
   --space-xs: 4px;
@@ -59,74 +70,109 @@
   --space-lg: 16px;
   --space-xl: 24px;
   --space-2xl: 32px;
+  --space-3xl: 48px;
 
   /* Typography */
   --text-xs: 12px;
   --text-sm: 14px;
   --text-base: 16px;
   --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+
+  /* Font stacks */
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --font-letterspaced: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  /* Letter-spacing */
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.05em;
+  --tracking-eyebrow: 0.15em;
 
   /* Border radius */
   --radius-sm: 4px;
   --radius-md: 8px;
-  --radius-lg: 16px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 2px 0 rgba(26, 22, 20, 0.06);
+  --shadow-md: 0 4px 8px -2px rgba(26, 22, 20, 0.10), 0 2px 4px -2px rgba(26, 22, 20, 0.08);
+  --shadow-lg: 0 12px 20px -4px rgba(26, 22, 20, 0.14), 0 4px 8px -4px rgba(26, 22, 20, 0.10);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
 
   /* Z-index */
   --z-background: -1;
   --z-base: 0;
   --z-elevated: 100;
+  --z-sticky: 200;
+  --z-modal-backdrop: 350;
   --z-modal: 400;
+  --z-popover: 600;
   --z-toast: 800;
 }
 
-/* Dark theme overrides */
+/* Dark theme — канонічна fantasy-палітра з legacy SVG */
 [data-theme="dark"] {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-elevated: #263348;
-  --color-surface-hover: #334155;
+  --color-bg: #0f1117;
+  --color-surface: #171a24;
+  --color-surface-elevated: #1f2330;
+  --color-surface-hover: #1a1d26;
 
-  --color-border: #334155;
-  --color-border-strong: #475569;
+  --color-border: #2a2e3c;
+  --color-border-strong: #3a3f4f;
 
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-text-inverse: #0f172a;
+  --color-text-primary: #e6e6ea;
+  --color-text-secondary: #8a8f9e;
+  --color-text-muted: #5a5f6e;
+  --color-text-inverse: #12141c;
 
-  --color-primary: #818cf8;
-  --color-primary-hover: #6366f1;
-  --color-primary-active: #4f46e5;
-  --color-primary-muted: #1e1b4b;
+  --color-primary: #c8a24a;
+  --color-primary-hover: #d4b566;
+  --color-primary-active: #b5912f;
+  --color-primary-muted: #3a2f18;
 
-  --color-secondary: #94a3b8;
+  --color-secondary: #8a8f9e;
   --color-secondary-hover: #cbd5e1;
 
-  --color-success: #4ade80;
-  --color-success-bg: #052e16;
+  --color-success: #7fb59a;
+  --color-success-bg: #14241c;
 
-  --color-warning: #fbbf24;
-  --color-warning-bg: #1c1400;
+  --color-warning: #e0a857;
+  --color-warning-bg: #2a1f10;
 
-  --color-danger: #f87171;
-  --color-danger-hover: #ef4444;
-  --color-danger-bg: #1a0505;
+  --color-danger: #d97a6c;
+  --color-danger-hover: #e89282;
+  --color-danger-bg: #2a1612;
 
-  --color-info: #60a5fa;
-  --color-info-bg: #0c1a3d;
+  --color-info: #6a9bd8;
+  --color-info-bg: #122236;
 
-  --color-overlay: rgba(0, 0, 0, 0.7);
+  --color-system-dnd: #c8a24a;
+  --color-system-homebrew: #6a9bd8;
+  --color-system-coc: #b07bc4;
+  --color-system-pathfinder: #7fb59a;
 
-  --color-canvas-bg: #0f172a;
-  --color-canvas-grid: rgba(255, 255, 255, 0.1);
-  --color-fow-alpha: 0.5;
+  --color-overlay: rgba(0, 0, 0, 0.65);
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --color-canvas-bg: #1a1d26;
+  --color-canvas-grid: rgba(200, 162, 74, 0.08);
+  --color-fow-fill: #000000;
+  --color-fow-alpha: 0.7;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 20px -4px rgba(0, 0, 0, 0.6), 0 4px 8px -4px rgba(0, 0, 0, 0.5);
+
+  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
 }

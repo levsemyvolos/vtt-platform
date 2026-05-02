@@ -1,0 +1,51 @@
+.card {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast),
+              transform var(--transition-fast);
+  overflow: hidden;
+}
+
+.dashed {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--color-border-strong);
+  box-shadow: none;
+}
+
+.interactive {
+  cursor: pointer;
+}
+.interactive:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-strong);
+}
+.interactive:active {
+  transform: translateY(1px);
+}
+
+/* Category accent bars (top 4px line) */
+.card[class*="accent-"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.accent-dnd::before        { background: var(--color-system-dnd); }
+.accent-homebrew::before   { background: var(--color-system-homebrew); }
+.accent-coc::before        { background: var(--color-system-coc); }
+.accent-pathfinder::before { background: var(--color-system-pathfinder); }
+
+/* Invitation — full gold border instead of top bar */
+.accent-invitation {
+  border-color: var(--color-primary);
+  border-width: 1.5px;
+}
+.accent-invitation::before { display: none; }

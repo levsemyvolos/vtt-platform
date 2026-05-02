@@ -1,0 +1,43 @@
+{
+  "topBar": {
+    "breadcrumb": "Кімнати",
+    "wssHealthOnline": "WSS активний",
+    "wssHealthOffline": "WSS відключено",
+    "noScene": "Оберіть сцену",
+    "settingsDisabled": "Налаштування (незабаром)",
+    "logout": "Вийти",
+    "editScene": "Редагувати сцену"
+  },
+  "toolbar": {
+    "select": "Вибір",
+    "ping": "Пінг",
+    "ruler": "Лінійка",
+    "draw": "Малювання",
+    "fog": "Туман",
+    "text": "Текст",
+    "image": "Зображення",
+    "music": "Музика",
+    "ai": "AI-помічник",
+    "zoomIn": "Збільшити",
+    "zoomOut": "Зменшити",
+    "zoomFit": "За розміром",
+    "zoomReset": "100%",
+    "unboundToast": "Інструмент у розробці; буде увімкнено в наступному релізі"
+  },
+  "party": {
+    "eyebrow": "УЧАСНИКИ"
+  },
+  "statusBar": {
+    "scene": "Сцена",
+    "grid": "Сітка",
+    "tokens": "Токенів",
+    "light": "Освітлення",
+    "autosave": "Auto-save",
+    "fowOn": "вмк.",
+    "fowOff": "вимк.",
+    "noScene": "—"
+  },
+  "migration": {
+    "aiMoved": "AI-помічник переїхав на головну панель інструментів"
+  }
+}

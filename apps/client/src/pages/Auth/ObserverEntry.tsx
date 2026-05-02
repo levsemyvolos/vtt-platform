@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { observerJoin, clearError } from '../../store/session';
 import { fetchRoom } from '../../store/room';
+import { Button, Input } from '../../components/ui';
+import { AuthLayout } from '../../components/Auth';
 import styles from './Auth.module.css';
 
 type Props = {
@@ -41,50 +43,50 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
   const displayError = localError ?? error;
 
   return (
-    <div className={styles.authForm}>
-      <h1>{t('auth:observer.heading')}</h1>
-      <form onSubmit={(e) => void handleSubmit(e)} aria-label={t('auth:observer.formLabel')}>
-        <div className={styles.field}>
-          <label htmlFor="obs-code">{t('auth:observer.inviteCodeLabel')}</label>
-          <input
-            id="obs-code"
-            type="text"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            autoComplete="off"
-            required
-            aria-required="true"
-          />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="obs-name">{t('auth:observer.yourNameLabel')}</label>
-          <input
-            id="obs-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="name"
-            required
-            aria-required="true"
-          />
-        </div>
+    <AuthLayout>
+      <h1 className={styles.heading}>{t('auth:observer.heading')}</h1>
+      <form
+        onSubmit={(e) => void handleSubmit(e)}
+        aria-label={t('auth:observer.formLabel')}
+        className={styles.form}
+      >
+        <Input
+          label={t('auth:observer.inviteCodeLabel')}
+          id="obs-code"
+          type="text"
+          value={inviteCode}
+          onChange={(e) => setInviteCode(e.target.value)}
+          autoComplete="off"
+          required
+          fullWidth
+        />
+        <Input
+          label={t('auth:observer.yourNameLabel')}
+          id="obs-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+          required
+          fullWidth
+        />
         {displayError && (
           <p role="alert" className={styles.error}>{displayError}</p>
         )}
-        <button
+        <Button
           type="submit"
-          className={styles.submitBtn}
+          variant="primary"
+          fullWidth
+          isLoading={status === 'loading'}
           disabled={status === 'loading'}
-          aria-busy={status === 'loading'}
         >
-          {status === 'loading' ? t('auth:observer.loading') : t('auth:observer.submitBtn')}
-        </button>
+          {t('auth:observer.submitBtn')}
+        </Button>
       </form>
-      <div className={styles.links}>
-        <button type="button" onClick={onSwitchToLogin}>
-          {t('auth:links.backToLogin')}
-        </button>
-      </div>
-    </div>
+      <div className={styles.divider} />
+      <Button type="button" variant="ghost" fullWidth onClick={onSwitchToLogin}>
+        {t('auth:links.backToLogin')}
+      </Button>
+    </AuthLayout>
   );
 }

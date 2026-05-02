@@ -3,10 +3,10 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 type SupportedLng = 'en' | 'uk';
-type NS = 'common' | 'auth' | 'room' | 'campaign' | 'assistant' | 'errors';
+type NS = 'common' | 'auth' | 'room' | 'campaign' | 'assistant' | 'errors' | 'nav' | 'gameroom';
 
 const SUPPORTED_LNGS: SupportedLng[] = ['en', 'uk'];
-const NAMESPACES: NS[] = ['common', 'auth', 'room', 'campaign', 'assistant', 'errors'];
+const NAMESPACES: NS[] = ['common', 'auth', 'room', 'campaign', 'assistant', 'errors', 'nav', 'gameroom'];
 
 async function loadLocale(lang: SupportedLng, ns: NS): Promise<unknown> {
   const mod = await import(`../locales/${lang}/${ns}.json`);

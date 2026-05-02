@@ -16,11 +16,13 @@ html {
 body {
   background: var(--color-bg);
   color: var(--color-text-primary);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: 1.5;
   min-height: 100dvh;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color var(--transition-base), color var(--transition-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Typography */
@@ -69,6 +71,16 @@ svg {
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Eyebrow — uppercase mini-label, як у legacy SVG (`УЧАСНИКИ · 5`, `D&D 5e · АКТИВНА`). */
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--color-text-muted);
+  font-family: var(--font-letterspaced);
 }
 
 /* Scrollbar (Webkit) */
