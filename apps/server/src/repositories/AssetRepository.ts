@@ -25,4 +25,18 @@ export class AssetRepository {
   async deleteById(id: string): Promise<void> {
     await this.db.asset.delete({ where: { id } });
   }
+
+  /**
+   * Returns assets for a room, optionally filtered by MIME type prefix.
+   * @param roomId Room UUID
+   * @param mimePrefix e.g. 'image/' or 'audio/' — pass empty string for all
+   */
+  findByRoomAndType(roomId: string, mimePrefix: string): Promise<import('@prisma/client').Asset[]> {
+    return this.db.asset.findMany({
+      where: mimePrefix
+        ? { roomId, mimeType: { startsWith: mimePrefix } }
+        : { roomId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

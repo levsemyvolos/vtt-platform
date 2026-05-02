@@ -103,6 +103,29 @@ export class AssetService {
   }
 
   /**
+   * Lists assets for a room, optionally filtered by type category.
+   * @param roomId Room UUID
+   * @param type 'image' | 'audio' | 'pdf' | 'all'
+   * @returns AssetDTO[] with presigned URLs
+   */
+  async listByRoomAndType(roomId: string, type: string): Promise<AssetDTO[]> {
+    const mimePrefix =
+      type === 'image' ? 'image/' :
+      type === 'audio' ? 'audio/' :
+      type === 'pdf'   ? 'application/pdf' : '';
+    const assets = await this.repo.findByRoomAndType(roomId, mimePrefix);
+    return Promise.all(
+      assets.map(async (a) => ({
+        id: a.id,
+        url: await this.storage.getPresignedUrl(a.storageKey),
+        type: a.mimeType,
+        name: a.storageKey.split('/').pop() ?? a.id,
+        roomId: a.roomId,
+      })),
+    );
+  }
+
+  /**
    * Persists a user-supplied binary (PDF, image, etc.) WITHOUT going through
    * the AI pipeline. Used by character PDF import (Ф9.3) and any future
    * direct-upload flow.
