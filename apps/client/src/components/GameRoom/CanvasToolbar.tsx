@@ -19,7 +19,6 @@ import type { CanvasTool } from '../../store/canvasViewport';
 import { setActiveTool, zoomIn, zoomOut, fit, setZoom } from '../../store/canvasViewport';
 import { startEditing } from '../../store/room';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { useUnboundFeatureToast } from '../../hooks/useUnboundFeatureToast';
 import { IconButton } from '../ui';
 import type { SidebarTab } from './types';
 import styles from './CanvasToolbar.module.css';
@@ -34,7 +33,6 @@ interface ToolDef {
   tool: CanvasTool;
   icon: React.ReactNode;
   gmOnly?: boolean;
-  unbound?: boolean;
 }
 
 const TOOL_DEFS: ToolDef[] = [
@@ -57,8 +55,6 @@ export default function CanvasToolbar({
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
   const zoom = useAppSelector((s) => s.canvasViewport.zoom);
   const currentSceneId = useAppSelector((s) => s.scene.current?.id ?? null);
-  const warnUnbound = useUnboundFeatureToast();
-
   const toolLabels: Record<CanvasTool, string> = {
     select: t('toolbar.select'),
     ping:   t('toolbar.ping'),
@@ -72,7 +68,6 @@ export default function CanvasToolbar({
   function handleTool(def: ToolDef): void {
     if (def.gmOnly && myRole !== 'GM') return;
     dispatch(setActiveTool(def.tool));
-    if (def.unbound) warnUnbound(def.tool);
   }
 
   const zoomPct = `${Math.round(zoom * 100)}%`;
