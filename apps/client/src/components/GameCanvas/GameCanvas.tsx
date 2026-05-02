@@ -11,6 +11,7 @@ import TokenLayer from './layers/TokenLayer';
 import AnnotationLayer from './layers/AnnotationLayer';
 import FogOfWarLayer from './layers/FogOfWarLayer';
 import AddTokenButton from './AddTokenButton';
+import TextAnnotationModal from './TextAnnotationModal';
 import { getUserPingColor } from './layers/AnnotationLayer';
 import { emitAnnotationPing, emitMeasure, emitDrawStroke } from '../../api/socket';
 import styles from './GameCanvas.module.css';
@@ -58,6 +59,9 @@ export default function GameCanvas({
   const drawPointsRef = useRef<number[]>([]);
   const lastDrawPtRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Text annotation pending click (Ф3.4.4)
+  const [textAnnCoords, setTextAnnCoords] = useState<{ x: number; y: number } | null>(null);
+
   const theme = useTheme();
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
@@ -70,6 +74,8 @@ export default function GameCanvas({
   const cursor = activeTool === 'ping' ? 'crosshair'
     : activeTool === 'ruler' ? 'crosshair'
     : activeTool === 'draw' ? 'crosshair'
+    : activeTool === 'text' && myRole === 'GM' ? 'text'
+    : activeTool === 'image' && myRole === 'GM' ? 'crosshair'
     : activeTool === 'fog' && myRole === 'GM' ? 'cell'
     : 'default';
 
@@ -184,25 +190,27 @@ export default function GameCanvas({
   }
 
   function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>): void {
-    if (activeTool !== 'ping') return;
     if (e.target !== e.target.getStage()) return;
-
     const stage = e.target.getStage();
-    if (!stage || !roomId) return;
+    if (!stage) return;
     const coords = getSceneCoords(stage);
     if (!coords) return;
 
-    emitAnnotationPing({
-      roomId,
-      sceneId: scene.id,
-      ...coords,
-      color: getUserPingColor(myUserId),
-      userId: myUserId,
-      timestamp: Date.now(),
-    });
+    if (activeTool === 'ping' && roomId) {
+      emitAnnotationPing({
+        roomId,
+        sceneId: scene.id,
+        ...coords,
+        color: getUserPingColor(myUserId),
+        userId: myUserId,
+        timestamp: Date.now(),
+      });
+    } else if (activeTool === 'text' && myRole === 'GM') {
+      setTextAnnCoords(coords);
+    }
   }
 
-  const isDraggable = activeTool !== 'ruler' && activeTool !== 'draw';
+  const isDraggable = activeTool !== 'ruler' && activeTool !== 'draw' && activeTool !== 'text' && activeTool !== 'image';
 
   return (
     <div ref={containerRef} className={styles.gameCanvas} style={{ cursor }}>
@@ -251,6 +259,14 @@ export default function GameCanvas({
         <div className={styles.fogEditBadge} aria-live="polite">
           Fog edit mode
         </div>
+      )}
+      {textAnnCoords && (
+        <TextAnnotationModal
+          sceneId={scene.id}
+          x={textAnnCoords.x}
+          y={textAnnCoords.y}
+          onClose={() => setTextAnnCoords(null)}
+        />
       )}
     </div>
   );

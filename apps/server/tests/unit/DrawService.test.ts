@@ -20,7 +20,7 @@ function makeStrokePayload(overrides?: Partial<DrawStrokePayload>): DrawStrokePa
   };
 }
 
-function makePrisma(existingAnnotations: unknown[] = []) {
+function makePrisma(existingAnnotations: unknown = null) {
   return {
     scene: {
       findUnique: vi.fn().mockResolvedValue({ annotations: existingAnnotations }),
@@ -39,7 +39,7 @@ describe('DrawService.addStroke', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('persists the stroke and broadcasts to the room', async () => {
-    const prisma = makePrisma([]);
+    const prisma = makePrisma(null);
     const { broadcast, strokeFn } = makeBroadcast();
     const svc = new DrawService(prisma as never, broadcast);
     const payload = makeStrokePayload();
@@ -49,28 +49,30 @@ describe('DrawService.addStroke', () => {
     expect(prisma.scene.update).toHaveBeenCalledOnce();
     const updateArg = prisma.scene.update.mock.calls[0][0];
     expect(updateArg.where.id).toBe(SCENE_ID);
-    expect(Array.isArray(updateArg.data.annotations)).toBe(true);
-    expect(updateArg.data.annotations).toHaveLength(1);
-    expect(updateArg.data.annotations[0].strokeId).toBe('stroke-abc');
+    const saved = updateArg.data.annotations as { strokes: unknown[] };
+    expect(Array.isArray(saved.strokes)).toBe(true);
+    expect(saved.strokes).toHaveLength(1);
+    expect((saved.strokes[0] as { strokeId: string }).strokeId).toBe('stroke-abc');
 
     expect(strokeFn).toHaveBeenCalledWith(ROOM_ID, payload);
   });
 
   it('upserts when strokeId already exists (idempotent)', async () => {
-    const existing = [{ strokeId: 'stroke-abc', userId: USER_ID, points: [0, 0], color: '#000', width: 1 }];
-    const prisma = makePrisma(existing);
+    const existingStrokes = [{ strokeId: 'stroke-abc', userId: USER_ID, points: [0, 0], color: '#000', width: 1 }];
+    const prisma = makePrisma({ strokes: existingStrokes, texts: [], images: [] });
     const { broadcast } = makeBroadcast();
     const svc = new DrawService(prisma as never, broadcast);
 
     await svc.addStroke(makeStrokePayload({ color: '#ff0000', points: [1, 2, 3, 4] }));
 
     const updateArg = prisma.scene.update.mock.calls[0][0];
-    expect(updateArg.data.annotations).toHaveLength(1);
-    expect(updateArg.data.annotations[0].color).toBe('#ff0000');
+    const saved = updateArg.data.annotations as { strokes: unknown[] };
+    expect(saved.strokes).toHaveLength(1);
+    expect((saved.strokes[0] as { color: string }).color).toBe('#ff0000');
   });
 
   it('caches strokes — second stroke does not re-query the DB', async () => {
-    const prisma = makePrisma([]);
+    const prisma = makePrisma(null);
     const { broadcast } = makeBroadcast();
     const svc = new DrawService(prisma as never, broadcast);
 
@@ -79,22 +81,24 @@ describe('DrawService.addStroke', () => {
 
     expect(prisma.scene.findUnique).toHaveBeenCalledOnce();
     const lastUpdate = prisma.scene.update.mock.calls[1][0];
-    expect(lastUpdate.data.annotations).toHaveLength(2);
+    expect((lastUpdate.data.annotations as { strokes: unknown[] }).strokes).toHaveLength(2);
   });
 });
 
 describe('DrawService.clearStrokes', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('resets the JSONB to an empty array and broadcasts clear', async () => {
-    const prisma = makePrisma([{ strokeId: 's1', userId: USER_ID, points: [], color: '#000', width: 1 }]);
+  it('resets strokes to empty array and broadcasts clear', async () => {
+    const existing = { strokes: [{ strokeId: 's1', userId: USER_ID, points: [], color: '#000', width: 1 }], texts: [], images: [] };
+    const prisma = makePrisma(existing);
     const { broadcast, clearFn } = makeBroadcast();
     const svc = new DrawService(prisma as never, broadcast);
 
     await svc.clearStrokes(ROOM_ID, SCENE_ID);
 
     const updateArg = prisma.scene.update.mock.calls[0][0];
-    expect(updateArg.data.annotations).toEqual([]);
+    const saved = updateArg.data.annotations as { strokes: unknown[] };
+    expect(saved.strokes).toEqual([]);
     expect(clearFn).toHaveBeenCalledWith(ROOM_ID, SCENE_ID);
   });
 });

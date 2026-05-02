@@ -8,8 +8,8 @@ import type {
   ChatMode,
   DiceMode,
   StatusMarker,
-  DrawStroke,
 } from '@vtt/shared';
+import { parseAnnotations } from './DrawService.js';
 
 /**
  * A6 RBAC-projection of Token → TokenPublicDTO (§2.17.6).
@@ -64,9 +64,7 @@ export function projectScene(
     const projected = projectToken(t, viewerRole, viewerId);
     if (projected) tokens.push(projected);
   }
-  const annotations: DrawStroke[] = Array.isArray(scene.annotations)
-    ? (scene.annotations as unknown as DrawStroke[])
-    : [];
+  const annotations = parseAnnotations(scene.annotations);
   return {
     id: scene.id,
     roomId: scene.roomId,

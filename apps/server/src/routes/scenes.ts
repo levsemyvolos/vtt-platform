@@ -12,6 +12,7 @@ import { SceneService } from '../services/SceneService.js';
 import { SceneRepository } from '../repositories/SceneRepository.js';
 import { TokenRepository } from '../repositories/TokenRepository.js';
 import { RoomRepository } from '../repositories/RoomRepository.js';
+import type { SceneAnnotationService } from '../services/SceneAnnotationService.js';
 import { prisma } from '../lib/prisma.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
 import { requireRole } from '../middleware/rbac.js';
@@ -63,7 +64,7 @@ function toSceneDTOFromEntity(scene: {
     isHidden: scene.isHidden,
     fogMaskBase64: scene.fogMaskBase64,
     tokens: [],
-    annotations: [],
+    annotations: { strokes: [], texts: [], images: [] },
   };
 }
 
@@ -227,3 +228,68 @@ tokensRouter.delete(
     }
   },
 );
+
+// ---------- Annotation endpoints (Ф3.4.4–5) ----------
+
+export function buildAnnotationsRouter(annotationService: SceneAnnotationService): IRouter {
+  const router = Router({ mergeParams: true });
+
+  // POST /scenes/:id/annotations/text — GM adds a text label
+  router.post(
+    '/scenes/:id/annotations/text',
+    jwtAuth,
+    async (req: Request<{ id: string }>, res: Response) => {
+      try {
+        const scene = await prisma.scene.findUnique({ where: { id: req.params.id } });
+        if (!scene) throw new HttpError(404, 'Scene not found');
+        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role);
+        if (role !== 'GM') throw new HttpError(403, 'GM-only');
+        const { x, y, text, fontSize, color } = req.body as { x: number; y: number; text: string; fontSize?: number; color?: string };
+        if (!text) throw new HttpError(400, 'text is required');
+        const textPayload: { x: number; y: number; text: string; fontSize?: number; color?: string } = { x, y, text };
+        if (fontSize !== undefined) textPayload.fontSize = fontSize;
+        if (color !== undefined) textPayload.color = color;
+        const annotations = await annotationService.addText(req.params.id, req.user!.id, textPayload);
+        res.status(201).json(annotations);
+      } catch (err) { handleError(err, res); }
+    },
+  );
+
+  // POST /scenes/:id/annotations/image — GM adds an image overlay
+  router.post(
+    '/scenes/:id/annotations/image',
+    jwtAuth,
+    async (req: Request<{ id: string }>, res: Response) => {
+      try {
+        const scene = await prisma.scene.findUnique({ where: { id: req.params.id } });
+        if (!scene) throw new HttpError(404, 'Scene not found');
+        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role);
+        if (role !== 'GM') throw new HttpError(403, 'GM-only');
+        const { x, y, assetId, width, height } = req.body as { x: number; y: number; assetId: string; width?: number; height?: number };
+        if (!assetId) throw new HttpError(400, 'assetId is required');
+        const imgPayload: { x: number; y: number; assetId: string; width?: number; height?: number } = { x, y, assetId };
+        if (width !== undefined) imgPayload.width = width;
+        if (height !== undefined) imgPayload.height = height;
+        const annotations = await annotationService.addImage(req.params.id, req.user!.id, imgPayload);
+        res.status(201).json(annotations);
+      } catch (err) { handleError(err, res); }
+    },
+  );
+
+  // DELETE /scenes/:id/annotations/:annId — GM or author removes annotation
+  router.delete(
+    '/scenes/:id/annotations/:annId',
+    jwtAuth,
+    async (req: Request<{ id: string; annId: string }>, res: Response) => {
+      try {
+        const scene = await prisma.scene.findUnique({ where: { id: req.params.id } });
+        if (!scene) throw new HttpError(404, 'Scene not found');
+        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role);
+        await annotationService.removeAnnotation(req.params.id, req.params.annId, req.user!.id, role ?? 'Player');
+        res.status(204).send();
+      } catch (err) { handleError(err, res); }
+    },
+  );
+
+  return router;
+}

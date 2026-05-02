@@ -53,7 +53,7 @@ const MOCK_SCENE: SceneDTO = {
   isActive: true,
   isHidden: false,
   fogMaskBase64: null,
-  annotations: [],
+  annotations: { strokes: [], texts: [], images: [] },
   tokens: [],
 };
 

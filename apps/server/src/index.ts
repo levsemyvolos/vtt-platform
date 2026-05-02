@@ -16,6 +16,8 @@ import { buildAnnotationBroadcaster } from './socketio/handlers/annotation.js';
 import { buildDrawBroadcaster } from './socketio/handlers/draw.js';
 import { AnnotationService } from './services/AnnotationService.js';
 import { DrawService } from './services/DrawService.js';
+import { SceneAnnotationService } from './services/SceneAnnotationService.js';
+import { buildAnnotationsRouter } from './routes/scenes.js';
 import { AudioService } from './services/AudioService.js';
 import { AudioTrackRepository } from './repositories/AudioTrackRepository.js';
 import { TurnConfigProvider } from './services/TurnConfigProvider.js';
@@ -161,6 +163,12 @@ const io = buildSocketIo(httpServer, {
 });
 _annotationBroadcast = buildAnnotationBroadcaster(io);
 _drawBroadcast = buildDrawBroadcaster(io);
+
+// SceneAnnotationService — wired after io is built so it can broadcast scene:updated.
+const sceneAnnotationService = new SceneAnnotationService(prisma, drawService, (roomId, payload) => {
+  io.to(roomId).emit('scene:updated', payload);
+});
+app.use(buildAnnotationsRouter(sceneAnnotationService));
 
 // ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------
 app.use(buildInitiativeRouter(initiativeService, roomRepo, io));

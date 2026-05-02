@@ -1,22 +1,36 @@
 import type { PrismaClient } from '@prisma/client';
-import type { DrawStrokePayload, DrawStroke } from '@vtt/shared';
+import type { DrawStrokePayload, DrawStroke, SceneAnnotations } from '@vtt/shared';
 
 export interface DrawBroadcast {
   stroke: (roomId: string, payload: DrawStrokePayload) => void;
   clear: (roomId: string, sceneId: string) => void;
 }
 
+/** Parses raw JSONB value from Prisma into SceneAnnotations (handles both structured and legacy flat-array formats). */
+export function parseAnnotations(raw: unknown): SceneAnnotations {
+  if (!raw) return { strokes: [], texts: [], images: [] };
+  if (Array.isArray(raw)) {
+    // Legacy format from Б4 — flat DrawStroke[] array; migrate on read.
+    return { strokes: raw as DrawStroke[], texts: [], images: [] };
+  }
+  const obj = raw as Partial<SceneAnnotations>;
+  return {
+    strokes: Array.isArray(obj.strokes) ? (obj.strokes as DrawStroke[]) : [],
+    texts: Array.isArray(obj.texts) ? obj.texts : [],
+    images: Array.isArray(obj.images) ? obj.images : [],
+  };
+}
+
 /**
  * Manages persisted free-draw strokes (Ф3.4.2).
  *
- * Strokes are stored in `Scene.annotations` JSONB as `DrawStroke[]`.
- * In-memory cache avoids a read-before-write on every stroke; the cache is
- * populated lazily on first stroke for a given scene.
+ * Strokes are stored inside `Scene.annotations.strokes` JSONB.
+ * In-memory cache avoids a read-before-write on every stroke.
  *
  * Only GM may call `addStroke`/`clearStrokes` — the socket handler enforces RBAC.
  */
 export class DrawService {
-  private readonly cache = new Map<string, DrawStroke[]>();
+  private readonly cache = new Map<string, SceneAnnotations>();
 
   constructor(
     private readonly prisma: PrismaClient,
@@ -24,8 +38,8 @@ export class DrawService {
   ) {}
 
   async addStroke(payload: DrawStrokePayload): Promise<void> {
-    const strokes = await this.getStrokes(payload.sceneId);
-    const existing = strokes.findIndex((s) => s.strokeId === payload.strokeId);
+    const annotations = await this.getAnnotations(payload.sceneId);
+    const existing = annotations.strokes.findIndex((s) => s.strokeId === payload.strokeId);
     const stroke: DrawStroke = {
       strokeId: payload.strokeId,
       userId: payload.userId,
@@ -34,38 +48,38 @@ export class DrawService {
       width: payload.width,
     };
     if (existing >= 0) {
-      strokes[existing] = stroke;
+      annotations.strokes[existing] = stroke;
     } else {
-      strokes.push(stroke);
+      annotations.strokes.push(stroke);
     }
-    await this.persist(payload.sceneId, strokes);
+    await this.persist(payload.sceneId, annotations);
     this.broadcast.stroke(payload.roomId, payload);
   }
 
   async clearStrokes(roomId: string, sceneId: string): Promise<void> {
-    this.cache.set(sceneId, []);
-    await this.persist(sceneId, []);
+    const annotations = await this.getAnnotations(sceneId);
+    annotations.strokes = [];
+    await this.persist(sceneId, annotations);
     this.broadcast.clear(roomId, sceneId);
   }
 
-  private async getStrokes(sceneId: string): Promise<DrawStroke[]> {
+  async getAnnotations(sceneId: string): Promise<SceneAnnotations> {
     if (this.cache.has(sceneId)) return this.cache.get(sceneId)!;
     const scene = await this.prisma.scene.findUnique({
       where: { id: sceneId },
       select: { annotations: true },
     });
-    const strokes = Array.isArray(scene?.annotations)
-      ? (scene!.annotations as unknown as DrawStroke[])
-      : [];
-    this.cache.set(sceneId, strokes);
-    return strokes;
+    const parsed = parseAnnotations(scene?.annotations);
+    this.cache.set(sceneId, parsed);
+    return parsed;
   }
 
-  private async persist(sceneId: string, strokes: DrawStroke[]): Promise<void> {
+  async persist(sceneId: string, annotations: SceneAnnotations): Promise<void> {
+    this.cache.set(sceneId, annotations);
     await this.prisma.scene.update({
       where: { id: sceneId },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json accepts any[]
-      data: { annotations: strokes as any },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json accepts any
+      data: { annotations: annotations as any },
     });
   }
 }

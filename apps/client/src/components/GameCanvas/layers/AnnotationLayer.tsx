@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Layer, Circle, Line, Text } from 'react-konva';
-import type { AnnotationPingPayload, MeasurePayload, DrawStroke } from '@vtt/shared';
+import type { AnnotationPingPayload, MeasurePayload, DrawStroke, TextAnnotation } from '@vtt/shared';
 import { useAppSelector } from '../../../store';
 
 const PING_DURATION_MS = 3000;
@@ -87,6 +87,25 @@ function RulerLine({ measure, gridSize }: { measure: MeasurePayload; gridSize: n
   );
 }
 
+/** Pinned text label (Ф3.4.4). */
+function TextLabel({ ann }: { ann: TextAnnotation }): JSX.Element {
+  return (
+    <Text
+      x={ann.x}
+      y={ann.y}
+      text={ann.text}
+      fontSize={ann.fontSize}
+      fill={ann.color}
+      fontStyle="bold"
+      shadowColor="rgba(0,0,0,0.6)"
+      shadowBlur={4}
+      shadowOffsetX={1}
+      shadowOffsetY={1}
+      listening={false}
+    />
+  );
+}
+
 /** Persistent free-draw stroke (Ф3.4.2). */
 function DrawLine({ stroke }: { stroke: DrawStroke }): JSX.Element {
   return (
@@ -110,12 +129,16 @@ function DrawLine({ stroke }: { stroke: DrawStroke }): JSX.Element {
 export default function AnnotationLayer({ gridSize = 64 }: { gridSize?: number }): JSX.Element {
   const pings = useAppSelector((s) => s.annotations.activePings);
   const measures = useAppSelector((s) => s.annotations.activeMeasures);
-  const strokes = useAppSelector((s) => s.scene.current?.annotations ?? []);
+  const strokes = useAppSelector((s) => s.scene.current?.annotations.strokes ?? []);
+  const texts = useAppSelector((s) => s.scene.current?.annotations.texts ?? []);
 
   return (
     <Layer listening={false}>
       {strokes.map((s) => (
         <DrawLine key={s.strokeId} stroke={s} />
+      ))}
+      {texts.map((ann) => (
+        <TextLabel key={ann.id} ann={ann} />
       ))}
       {pings.map((ping) => (
         <PingCircle key={ping.timestamp} ping={ping} />

@@ -43,8 +43,8 @@ const TOOL_DEFS: ToolDef[] = [
   { tool: 'ruler',  icon: <Ruler size={16} /> },
   { tool: 'draw',   icon: <PenTool size={16} />,   gmOnly: true },
   { tool: 'fog',    icon: <Cloud size={16} />,      gmOnly: true },
-  { tool: 'text',   icon: <Type size={16} />,       unbound: true },
-  { tool: 'image',  icon: <ImageIcon size={16} />,  unbound: true },
+  { tool: 'text',   icon: <Type size={16} />,       gmOnly: true },
+  { tool: 'image',  icon: <ImageIcon size={16} />,  gmOnly: true },
 ];
 
 export default function CanvasToolbar({

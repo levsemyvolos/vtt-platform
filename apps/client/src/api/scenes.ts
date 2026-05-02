@@ -1,4 +1,4 @@
-import type { SceneDTO, TokenPublicDTO } from '@vtt/shared';
+import type { SceneDTO, TokenPublicDTO, SceneAnnotations } from '@vtt/shared';
 import type { CreateTokenRequest, UpdateTokenRequest, UpdateSceneRequest } from '@vtt/shared';
 import { apiFetch } from './apiFetch';
 
@@ -44,4 +44,28 @@ export function apiPatchScene(
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+}
+
+export function apiAddTextAnnotation(
+  sceneId: string,
+  payload: { x: number; y: number; text: string; fontSize?: number; color?: string },
+): Promise<SceneAnnotations> {
+  return apiFetch<SceneAnnotations>(`/api/scenes/${sceneId}/annotations/text`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function apiAddImageAnnotation(
+  sceneId: string,
+  payload: { x: number; y: number; assetId: string; width?: number; height?: number },
+): Promise<SceneAnnotations> {
+  return apiFetch<SceneAnnotations>(`/api/scenes/${sceneId}/annotations/image`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function apiDeleteAnnotation(sceneId: string, annId: string): Promise<void> {
+  return apiFetch<void>(`/api/scenes/${sceneId}/annotations/${annId}`, { method: 'DELETE' });
 }
