@@ -40,9 +40,14 @@
     },
     "imagePromptLabel": "Describe the image…",
     "musicPromptLabel": "Describe the musical mood…",
-    "imageHint": "Image generation via Imagen. Available in the next release.",
-    "musicHint": "Music generation via Lyria 3. Available in the next release.",
-    "generateBtn": "Generate"
+    "imageHint": "Image generation via Imagen 3 (Vertex AI). Requires a configured GCP key.",
+    "musicHint": "Music generation via Lyria 3 (Vertex AI). Requires a configured GCP key.",
+    "generateBtn": "Generate",
+    "generating": "Generating…",
+    "generateError": "Generation failed. Please try again.",
+    "rateLimitError": "Rate limit exceeded. Please wait a minute.",
+    "imagePreviewAlt": "Generated image",
+    "audioUnsupported": "Your browser does not support audio."
   },
   "recent": {
     "heading": "Recent Generations",

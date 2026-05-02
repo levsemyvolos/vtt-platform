@@ -1,10 +1,10 @@
 import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
-import type { ConversationMessage } from '@vtt/shared';
+import type { ConversationMessage, AIImageRequest, AIImageResponse, AIMusicRequest, AIMusicResponse } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { sendAssistantMessage } from '../../store/assistant';
-import { useUnboundFeatureToast } from '../../hooks/useUnboundFeatureToast';
+import { apiFetch, ApiError } from '../../api/apiFetch';
 import styles from './ConversationView.module.css';
 
 export type MainTab = 'llm' | 'image' | 'music' | 'history';
@@ -102,15 +102,46 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
 
 interface GeneratePanelProps {
   type: 'image' | 'music';
+  roomId: string;
 }
 
-function GeneratePanel({ type }: GeneratePanelProps): JSX.Element {
+function GeneratePanel({ type, roomId }: GeneratePanelProps): JSX.Element {
   const { t } = useTranslation('assistant');
-  const showUnbound = useUnboundFeatureToast();
-  const [text, setText] = useState('');
-  const featureName = type === 'image' ? 'AI Image Generation' : 'AI Music Generation';
+  const [prompt, setPrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [imageResult, setImageResult] = useState<AIImageResponse | null>(null);
+  const [musicResult, setMusicResult] = useState<AIMusicResponse | null>(null);
+
   const promptLabel = type === 'image' ? t('conversation.imagePromptLabel') : t('conversation.musicPromptLabel');
   const hint = type === 'image' ? t('conversation.imageHint') : t('conversation.musicHint');
+
+  async function handleGenerate(): Promise<void> {
+    if (!prompt.trim() || generating) return;
+    setGenerating(true);
+    setError(null);
+    setImageResult(null);
+    setMusicResult(null);
+    try {
+      if (type === 'image') {
+        const body: AIImageRequest = { prompt: prompt.trim(), roomId };
+        const res = await apiFetch<AIImageResponse>('/api/ai/image', { method: 'POST', body: JSON.stringify(body) });
+        setImageResult(res);
+      } else {
+        const body: AIMusicRequest = { prompt: prompt.trim(), roomId };
+        const res = await apiFetch<AIMusicResponse>('/api/ai/music', { method: 'POST', body: JSON.stringify(body) });
+        setMusicResult(res);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        setError(t('conversation.rateLimitError'));
+      } else {
+        setError(err instanceof Error ? err.message : t('conversation.generateError'));
+      }
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <div className={styles.conversation}>
@@ -118,19 +149,34 @@ function GeneratePanel({ type }: GeneratePanelProps): JSX.Element {
         <p className={styles.generateHint}>{hint}</p>
         <textarea
           className={styles.textarea}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
           placeholder={promptLabel}
           rows={4}
           aria-label={promptLabel}
+          disabled={generating}
         />
         <button
           type="button"
           className={styles.generateBtn}
-          onClick={() => showUnbound(featureName)}
+          onClick={() => void handleGenerate()}
+          disabled={generating || !prompt.trim()}
         >
-          {t('conversation.generateBtn')}
+          {generating ? t('conversation.generating') : t('conversation.generateBtn')}
         </button>
+        {error && <p className={styles.error} role="alert">{error}</p>}
+        {imageResult && (
+          <div className={styles.previewBox}>
+            <img src={imageResult.previewUrl} alt={t('conversation.imagePreviewAlt')} className={styles.previewImg} />
+          </div>
+        )}
+        {musicResult && (
+          <div className={styles.previewBox}>
+            <audio controls src={musicResult.previewUrl} style={{ width: '100%' }}>
+              {t('conversation.audioUnsupported')}
+            </audio>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -182,6 +228,6 @@ interface ConversationViewProps {
 
 export default function ConversationView({ roomId, mainTab }: ConversationViewProps): JSX.Element {
   if (mainTab === 'llm') return <LlmPanel roomId={roomId} />;
-  if (mainTab === 'image' || mainTab === 'music') return <GeneratePanel type={mainTab} />;
+  if (mainTab === 'image' || mainTab === 'music') return <GeneratePanel type={mainTab} roomId={roomId} />;
   return <HistoryPanel roomId={roomId} />;
 }
