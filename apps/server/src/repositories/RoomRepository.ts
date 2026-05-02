@@ -47,6 +47,38 @@ export class RoomRepository {
   }
 
   /**
+   * Returns rooms filtered by the user's relationship to them.
+   *
+   * - 'owned'   → rooms where user is the owner (GM)
+   * - 'invited' → rooms where user has a character but is NOT the owner (Player)
+   * - 'all'     → union of both
+   *
+   * Membership tracking: Player membership is inferred via `Character.ownerId`
+   * (no dedicated RoomMember table in MVP). Observer membership is not tracked.
+   */
+  findByUserAndRole(userId: string, filter: 'owned' | 'invited' | 'all'): Promise<Room[]> {
+    if (filter === 'owned') {
+      return this.db.room.findMany({ where: { ownerId: userId } });
+    }
+    if (filter === 'invited') {
+      return this.db.room.findMany({
+        where: {
+          characters: { some: { ownerId: userId } },
+          NOT: { ownerId: userId },
+        },
+      });
+    }
+    return this.db.room.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { characters: { some: { ownerId: userId } } },
+        ],
+      },
+    });
+  }
+
+  /**
    * Resolves the effective role of `userId` inside `roomId`.
    *
    * MVP rules (no dedicated RoomMember table yet):

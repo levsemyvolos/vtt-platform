@@ -147,6 +147,42 @@ describe('RoomService.joinAsObserver', () => {
   });
 });
 
+describe('RoomService.listByUserAndRole', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('filter=owned delegates to findByUserAndRole with "owned"', async () => {
+    const findByUserAndRole = vi.fn().mockResolvedValue([]);
+    const repo = makeRoomRepo({ findByUserAndRole } as unknown as Partial<RoomRepository>);
+    const service = new RoomService(repo);
+
+    await service.listByUserAndRole('u1', 'owned');
+
+    expect(findByUserAndRole).toHaveBeenCalledWith('u1', 'owned');
+  });
+
+  it('filter=invited delegates to findByUserAndRole with "invited"', async () => {
+    const findByUserAndRole = vi.fn().mockResolvedValue([]);
+    const repo = makeRoomRepo({ findByUserAndRole } as unknown as Partial<RoomRepository>);
+    const service = new RoomService(repo);
+
+    await service.listByUserAndRole('u1', 'invited');
+
+    expect(findByUserAndRole).toHaveBeenCalledWith('u1', 'invited');
+  });
+
+  it('defaults to "all" when no filter is passed', async () => {
+    const findByUserAndRole = vi.fn().mockResolvedValue([]);
+    const repo = makeRoomRepo({ findByUserAndRole } as unknown as Partial<RoomRepository>);
+    const service = new RoomService(repo);
+
+    await service.listByUserAndRole('u1');
+
+    expect(findByUserAndRole).toHaveBeenCalledWith('u1', 'all');
+  });
+});
+
 describe('RoomService.getMembersProjection', () => {
   beforeEach(() => {
     vi.clearAllMocks();

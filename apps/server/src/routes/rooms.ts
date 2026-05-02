@@ -48,16 +48,16 @@ function toRoomDTO(room: Room, members: RoomMemberDTO[] = []): RoomDTO {
 
 roomsRouter.get('/', jwtAuth, async (req: Request, res: Response) => {
   try {
-    const rooms = await roomService.listByOwner(req.user!.id);
-    // Owned rooms — members snapshot is GM-only by definition (creator), no DB hit needed
-    const dtos = rooms.map((room) => {
-      const gmMember: RoomMemberDTO = {
-        userId: room.ownerId,
-        name: '',
-        role: 'GM',
-      };
-      return toRoomDTO(room, [gmMember]);
-    });
+    const rawFilter = req.query['filter'] as string | undefined;
+    const filter: 'owned' | 'invited' | 'all' =
+      rawFilter === 'owned' || rawFilter === 'invited' ? rawFilter : 'all';
+    const rooms = await roomService.listByUserAndRole(req.user!.id, filter);
+    const dtos = await Promise.all(
+      rooms.map(async (room) => {
+        const members = await roomService.getMembersProjection(room.id);
+        return toRoomDTO(room, members);
+      }),
+    );
     res.json(dtos);
   } catch (err) {
     handleError(err, res);

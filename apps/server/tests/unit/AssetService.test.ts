@@ -44,11 +44,16 @@ function makeStorage(): { storage: FileStorageAdapter; mocks: StorageMocks } {
   return { storage: mocks as unknown as FileStorageAdapter, mocks };
 }
 
-function makeRepo(): { repo: AssetRepository; mocks: RepoMocks } {
-  const mocks: RepoMocks = {
+interface RepoMocksExt extends RepoMocks {
+  findByRoomAndType: MockedFunction<AssetRepository['findByRoomAndType']>;
+}
+
+function makeRepo(): { repo: AssetRepository; mocks: RepoMocksExt } {
+  const mocks: RepoMocksExt = {
     findById: vi.fn(),
     create: vi.fn(),
     deleteById: vi.fn(),
+    findByRoomAndType: vi.fn(),
   };
   return { repo: mocks as unknown as AssetRepository, mocks };
 }
@@ -104,6 +109,45 @@ describe('AssetService.storeAiAsset', () => {
     // Parallel: both started before either ended.
     expect(order.indexOf('put:start')).toBeLessThan(order.indexOf('repo:end'));
     expect(order.indexOf('repo:start')).toBeLessThan(order.indexOf('put:end'));
+  });
+});
+
+describe('AssetService.listByRoomAndType', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('returns AssetDTOs with presigned URLs for all assets in room', async () => {
+    const { provider } = makeAi();
+    const { storage, mocks: storageMocks } = makeStorage();
+    const { repo, mocks: repoMocks } = makeRepo();
+
+    repoMocks.findByRoomAndType.mockResolvedValue([
+      { id: 'a1', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'image/png', size: BigInt(4), storageKey: 'rooms/r/image/a.png', createdAt: new Date() },
+      { id: 'a2', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'audio/wav', size: BigInt(8), storageKey: 'rooms/r/audio/b.wav', createdAt: new Date() },
+    ]);
+    storageMocks.getPresignedUrl.mockResolvedValue('https://signed.example/url');
+
+    const service = new AssetService(provider, storage, repo);
+    const dtos = await service.listByRoomAndType(ROOM_ID, 'all');
+
+    expect(dtos).toHaveLength(2);
+    expect(dtos[0].id).toBe('a1');
+    expect(dtos[0].url).toBe('https://signed.example/url');
+    expect(dtos[0]).not.toHaveProperty('storageKey');
+    expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, '');
+  });
+
+  it('passes image/ prefix when type=image', async () => {
+    const { provider } = makeAi();
+    const { storage, mocks: storageMocks } = makeStorage();
+    const { repo, mocks: repoMocks } = makeRepo();
+
+    repoMocks.findByRoomAndType.mockResolvedValue([]);
+    storageMocks.getPresignedUrl.mockResolvedValue('https://signed.example/url');
+
+    const service = new AssetService(provider, storage, repo);
+    await service.listByRoomAndType(ROOM_ID, 'image');
+
+    expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, 'image/');
   });
 });
 

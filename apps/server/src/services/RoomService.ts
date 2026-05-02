@@ -37,6 +37,17 @@ export class RoomService {
   }
 
   /**
+   * Returns rooms for a user filtered by their role relationship.
+   * 'all' (default) returns both owned and invited rooms.
+   */
+  async listByUserAndRole(
+    userId: string,
+    filter: 'owned' | 'invited' | 'all' = 'all',
+  ): Promise<Room[]> {
+    return this.rooms.findByUserAndRole(userId, filter);
+  }
+
+  /**
    * @param roomId Room UUID
    * @returns Room with owner relation
    * @throws HttpError 404 if not found
