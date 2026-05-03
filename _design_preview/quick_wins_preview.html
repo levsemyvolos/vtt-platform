@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<title>VTT — Quick Wins: Before / After</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   ВЕРХНЯ ОБОЛОНКА СТОРІНКИ — нейтральна, щоб не заважати
+   ========================================================= */
+:root{
+  --page-bg:#1a1d26;
+  --page-text:#e6e6ea;
+  --page-mute:#8a8f9e;
+  --page-line:#2a2e3c;
+  --page-card:#171a24;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--page-bg);color:var(--page-text);font-family:'Inter',sans-serif;font-size:15px;line-height:1.55}
+.page{max-width:1280px;margin:0 auto;padding:48px 32px 96px}
+h1.page-title{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:48px;letter-spacing:-0.01em;margin-bottom:8px}
+h1.page-title em{font-style:italic;color:#c8a24a}
+.page-lede{color:var(--page-mute);font-size:16px;max-width:760px;margin-bottom:48px}
+
+.step{margin-bottom:64px;border-top:1px solid var(--page-line);padding-top:32px}
+.step-num{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.32em;color:#c8a24a;text-transform:uppercase;margin-bottom:10px}
+.step h2{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:30px;margin-bottom:8px}
+.step .desc{color:var(--page-mute);max-width:820px;margin-bottom:24px;font-size:14px}
+.step .desc b{color:var(--page-text);font-weight:600}
+
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.frame{border:1px solid var(--page-line);border-radius:8px;overflow:hidden;background:var(--page-card)}
+.frame-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.25em;text-transform:uppercase;padding:10px 14px;border-bottom:1px solid var(--page-line);color:var(--page-mute);display:flex;justify-content:space-between;align-items:center}
+.frame-label.before{color:#8a8f9e}
+.frame-label.after{color:#c8a24a}
+.frame-body{padding:32px;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:14px}
+
+/* =========================================================
+   СПІЛЬНІ "КОМПОНЕНТИ ДЛЯ ДЕМО" — імітація поточного UI
+   (поточний baseline = темна fantasy палітра з tokens.css)
+   ========================================================= */
+.demo-card{
+  background:#171a24;
+  border:1px solid #2a2e3c;
+  border-radius:12px;
+  padding:24px;
+  color:#e6e6ea;
+}
+.demo-h{font-size:20px;font-weight:600;margin-bottom:8px;font-family:'Inter',sans-serif}
+.demo-sub{color:#8a8f9e;font-size:14px;margin-bottom:16px}
+.demo-btn{display:inline-block;background:#c8a24a;color:#12141c;padding:10px 18px;border-radius:8px;border:0;font-weight:600;font-size:14px;cursor:pointer}
+.demo-input{display:block;width:100%;padding:10px 12px;border-radius:8px;border:1px solid #2a2e3c;background:#0f1117;color:#e6e6ea;font-size:14px}
+.demo-eyebrow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;color:#5a5f6e;margin-bottom:8px;font-family:'Inter',sans-serif}
+
+/* =========================================================
+   ШАГ 1 — Cormorant Garamond для заголовків
+   ========================================================= */
+.step1-after .demo-h{
+  font-family:'Cormorant Garamond',serif;
+  font-weight:500;
+  font-size:32px;
+  letter-spacing:-0.01em;
+  line-height:1.1;
+}
+.step1-after .demo-h em{
+  font-style:italic;
+  color:#c8a24a;
+  font-weight:400;
+}
+
+/* =========================================================
+   ШАГ 2 — Italic-золото для емфазису (showcase окремо)
+   ========================================================= */
+.step2-before h3, .step2-after h3{
+  font-family:'Cormorant Garamond',serif;
+  font-weight:500;
+  font-size:34px;
+  letter-spacing:-0.01em;
+}
+.step2-after h3 em{
+  font-style:italic;
+  color:#c8a24a;
+  font-weight:400;
+}
+
+/* =========================================================
+   ШАГ 3 — Eyebrow тюнинг (mono + tracking 0.32em + gold)
+   ========================================================= */
+.step3-after .demo-eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.32em;
+  color:#c8a24a;
+  display:flex;align-items:center;gap:10px;
+}
+.step3-after .demo-eyebrow::before{
+  content:'';width:24px;height:1px;background:#c8a24a;
+}
+
+/* =========================================================
+   ШАГ 4 — Кутові золоті брекети (.framed)
+   ========================================================= */
+.step4-after .demo-card{position:relative}
+.step4-after .demo-card::before,
+.step4-after .demo-card::after{
+  content:'';position:absolute;width:24px;height:24px;
+}
+.step4-after .demo-card::before{
+  top:-1px;left:-1px;
+  border-top:1px solid #c8a24a;
+  border-left:1px solid #c8a24a;
+}
+.step4-after .demo-card::after{
+  bottom:-1px;right:-1px;
+  border-bottom:1px solid #c8a24a;
+  border-right:1px solid #c8a24a;
+}
+
+/* =========================================================
+   ШАГ 5 — Engraved shadows для inputs/buttons
+   ========================================================= */
+.step5-after .demo-input{
+  box-shadow:
+    inset 0 1px 0 rgba(0,0,0,.5),
+    inset 0 -1px 0 rgba(255,220,160,.04),
+    inset 0 0 0 1px rgba(0,0,0,.3);
+  border-color:#1a1d26;
+  background:#0a0c12;
+}
+.step5-after .demo-btn{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.25),
+    inset 0 -1px 0 rgba(0,0,0,.35),
+    0 2px 4px rgba(0,0,0,.4);
+}
+
+/* =========================================================
+   ШАГ 6 — Halo (glow) на hover/focus primary
+   ========================================================= */
+.step6-after .demo-btn{
+  transition:box-shadow .25s ease, transform .15s ease;
+  box-shadow:
+    0 0 0 1px rgba(201,163,90,.18),
+    0 0 28px -4px rgba(214,85,42,.25),
+    0 0 60px -10px rgba(201,163,90,.15);
+}
+.step6-after .demo-btn:hover{
+  box-shadow:
+    0 0 0 1px rgba(201,163,90,.4),
+    0 0 36px -2px rgba(214,85,42,.45),
+    0 0 80px -8px rgba(201,163,90,.3);
+}
+
+/* =========================================================
+   ШАГ 7 — Декоративний divider (manuscript fold)
+   ========================================================= */
+.step7-before hr{border:0;border-top:1px solid #2a2e3c;margin:14px 0}
+.step7-after hr{
+  border:0;height:1px;
+  background:linear-gradient(90deg, transparent, #c8a24a 50%, transparent);
+  opacity:.5;margin:14px 0;
+}
+.step7-after hr + hr{
+  margin-top:4px;opacity:.2;
+}
+
+/* =========================================================
+   ШАГ 8 — Атмосферний фон (paper + grain)
+   Демо: окрема "сцена" зі своїм фоном замість всього body
+   ========================================================= */
+.scene{
+  position:relative;
+  background:#0f1117;
+  background-image:
+    radial-gradient(ellipse 600px 400px at 20% 0%, rgba(200,162,74,.08), transparent 60%),
+    radial-gradient(ellipse 500px 300px at 100% 30%, rgba(214,85,42,.06), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 50% 110%, rgba(110,20,17,.07), transparent 60%);
+  overflow:hidden;
+}
+.step8-after .scene::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.9  0 0 0 0 0.85  0 0 0 0 0.7  0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.18'/></svg>");
+  opacity:.35;mix-blend-mode:overlay;
+}
+.scene .demo-card{position:relative;z-index:1;background:rgba(23,26,36,.85);backdrop-filter:blur(2px)}
+
+/* =========================================================
+   ШАГ 9 — Sigil-логотип (метал + інкрустація)
+   ========================================================= */
+.brand{display:flex;align-items:center;gap:14px}
+.brand-name{font-family:'Inter',sans-serif;font-weight:600;font-size:18px}
+.step9-before .sigil-old{
+  width:44px;height:44px;border-radius:8px;
+  background:#c8a24a;color:#12141c;
+  display:grid;place-items:center;font-weight:700;font-size:20px;
+}
+.step9-after .brand-name{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:24px;font-style:italic;letter-spacing:.01em}
+.step9-after .sigil{
+  width:48px;height:48px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 30% 25%, #4a3a26 0%, #1a130c 60%, #050302 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,160,.15),
+    inset 0 -1px 0 rgba(0,0,0,.7),
+    0 6px 14px -4px rgba(0,0,0,.7);
+  display:grid;place-items:center;
+}
+.step9-after .sigil::after{
+  content:'';position:absolute;inset:6px;border-radius:50%;
+  border:1px solid #c8a24a;opacity:.55;
+}
+.step9-after .sigil span{
+  color:#c8a24a;font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:20px;line-height:1;
+  filter:drop-shadow(0 0 6px rgba(200,162,74,.6));
+  position:relative;z-index:1;
+}
+
+/* =========================================================
+   ШАГ 10 — Ember-акцент (третій сигнальний колір)
+   ========================================================= */
+.token-row{display:flex;gap:18px;align-items:center}
+.token{
+  width:48px;height:48px;border-radius:50%;
+  background:radial-gradient(circle at 30% 25%, #6a5a3a 0%, #2a2218 60%, #0a0805 100%);
+  border:1px solid #2a2e3c;
+}
+.token.active-old{border:2px solid #c8a24a;box-shadow:0 0 0 2px rgba(200,162,74,.2)}
+.step10-after .token.active-new{
+  border:2px solid #d6552a;
+  box-shadow:
+    0 0 0 1px rgba(214,85,42,.4),
+    0 0 18px -2px rgba(214,85,42,.6),
+    0 0 32px -4px rgba(214,85,42,.35);
+}
+.turn-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:#8a8f9e;margin-bottom:8px}
+.step10-after .turn-label{color:#d6552a}
+
+/* =========================================================
+   ШАГ 11 (фінал) — повний composite: все разом
+   ========================================================= */
+.final{
+  position:relative;
+  background:#0a0809;
+  background-image:
+    radial-gradient(ellipse 800px 500px at 25% -5%, rgba(200,162,74,.10), transparent 60%),
+    radial-gradient(ellipse 600px 400px at 100% 30%, rgba(214,85,42,.07), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 50% 110%, rgba(110,20,17,.08), transparent 60%);
+  border-radius:8px;padding:48px;overflow:hidden;
+  border:1px solid #2a2218;
+}
+.final::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.9  0 0 0 0 0.85  0 0 0 0 0.7  0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.18'/></svg>");
+  opacity:.35;mix-blend-mode:overlay;
+}
+.final-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.final .brand{margin-bottom:24px}
+.final .demo-eyebrow{
+  font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.32em;color:#c8a24a;
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;
+}
+.final .demo-eyebrow::before{content:'';width:24px;height:1px;background:#c8a24a}
+.final h2.final-h{
+  font-family:'Cormorant Garamond',serif;font-weight:500;font-size:40px;letter-spacing:-0.01em;
+  line-height:1.05;color:#e8dcc4;margin-bottom:12px;
+}
+.final h2.final-h em{font-style:italic;color:#c8a24a;font-weight:400}
+.final p.final-p{color:#9a8c75;font-size:14px;margin-bottom:24px;max-width:380px}
+.final .frame-card{
+  position:relative;background:rgba(23,18,16,.7);border:1px solid #2a2218;
+  border-radius:0;padding:24px;backdrop-filter:blur(2px);
+}
+.final .frame-card::before,.final .frame-card::after{content:'';position:absolute;width:24px;height:24px}
+.final .frame-card::before{top:-1px;left:-1px;border-top:1px solid #c8a24a;border-left:1px solid #c8a24a}
+.final .frame-card::after{bottom:-1px;right:-1px;border-bottom:1px solid #c8a24a;border-right:1px solid #c8a24a}
+.final .frame-card .demo-h{
+  font-family:'Cormorant Garamond',serif;font-weight:500;font-size:24px;color:#e8dcc4;margin-bottom:8px;
+}
+.final .frame-card .demo-h em{font-style:italic;color:#c8a24a;font-weight:400}
+.final .frame-card .demo-sub{color:#9a8c75}
+.final .demo-input{
+  background:#0a0805;border-color:#1a1410;color:#e8dcc4;
+  box-shadow:inset 0 1px 0 rgba(0,0,0,.5),inset 0 -1px 0 rgba(255,220,160,.04),inset 0 0 0 1px rgba(0,0,0,.3);
+  margin-bottom:14px;
+}
+.final .demo-btn{
+  background:#c8a24a;color:#12141c;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -1px 0 rgba(0,0,0,.35),
+    0 0 0 1px rgba(201,163,90,.18),0 0 28px -4px rgba(214,85,42,.25),0 0 60px -10px rgba(201,163,90,.15);
+}
+.final hr.fold{border:0;height:1px;background:linear-gradient(90deg,transparent,#c8a24a 50%,transparent);opacity:.4;margin:18px 0}
+.final .sigil{width:44px;height:44px}
+.final .brand-name{color:#e8dcc4}
+
+.legend{
+  margin-top:48px;padding:20px 24px;border:1px dashed #2a2e3c;border-radius:8px;
+  font-size:13px;color:var(--page-mute);
+}
+.legend b{color:var(--page-text)}
+.legend .tag{
+  display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10px;
+  letter-spacing:.2em;text-transform:uppercase;padding:2px 8px;border:1px solid #2a2e3c;border-radius:4px;margin-right:6px;
+}
+.tag.a{color:#7fb59a;border-color:#2a4032}
+.tag.b{color:#e0a857;border-color:#3a2f18}
+.tag.c{color:#d97a6c;border-color:#3a1f1c}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1 class="page-title">VTT — Quick Wins: <em>before / after</em></h1>
+  <p class="page-lede">11 кроків від найпростіших (1 рядок CSS) до фінальної композиції. Зліва — як виглядає зараз; справа — як буде після правки. Жоден компонент React не змінюється — лише стилі.</p>
+
+  <!-- ============== ШАГ 1 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 01 · Tier A · 5 хвилин</div>
+    <h2>Шрифт <em style="font-family:'Cormorant Garamond',serif;font-style:italic;color:#c8a24a">Cormorant Garamond</em> для заголовків</h2>
+    <p class="desc">Зараз h1/h2 — це <b>Inter Bold</b>. Стає <b>Cormorant Garamond Medium</b>. Без зміни тексту, без зміни розміру — лише гарнітура. Це найбільший візуальний стрибок з усіх правок.</p>
+    <div class="compare">
+      <div class="frame"><div class="frame-label before">До · Inter</div>
+        <div class="frame-body"><div class="demo-card">
+          <div class="demo-eyebrow">Кампанія · D&D 5e</div>
+          <div class="demo-h">Гробниця Анігіляції</div>
+          <div class="demo-sub">Сесія №7 · 5 учасників · активна</div>
+        </div></div>
+      </div>
+      <div class="frame step1-after"><div class="frame-label after">Після · Cormorant</div>
+        <div class="frame-body"><div class="demo-card">
+          <div class="demo-eyebrow">Кампанія · D&D 5e</div>
+          <div class="demo-h">Гробниця Анігіляції</div>
+          <div class="demo-sub">Сесія №7 · 5 учасників · активна</div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 2 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 02 · Tier A · 1 рядок CSS</div>
+    <h2>Italic-золото для емфазису в заголовках</h2>
+    <p class="desc">Одне слово в заголовку обертається у <code>&lt;em&gt;</code> — і автоматично стає курсивом золотого кольору. Дає "manuscript-momentum" безкоштовно.</p>
+    <div class="compare">
+      <div class="frame step2-before"><div class="frame-label before">До</div>
+        <div class="frame-body" style="text-align:center"><h3>Створіть свою першу кімнату</h3></div>
+      </div>
+      <div class="frame step2-after"><div class="frame-label after">Після</div>
+        <div class="frame-body" style="text-align:center"><h3>Створіть свою <em>першу</em> кімнату</h3></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 3 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 03 · Tier A · оновлення 1 класу</div>
+    <h2>Eyebrow: моноширинний + золотий + риска</h2>
+    <p class="desc">Клас <code>.eyebrow</code> уже існує. Збільшуємо letter-spacing з 0.15em до 0.32em, переключаємо на JetBrains Mono, додаємо золоту риску перед текстом.</p>
+    <div class="compare">
+      <div class="frame"><div class="frame-label before">До</div>
+        <div class="frame-body"><div class="demo-card">
+          <div class="demo-eyebrow">Учасники · 5</div>
+          <div class="demo-h" style="font-family:'Cormorant Garamond',serif;font-weight:500;font-size:28px">Таверна "Зелений Дракон"</div>
+        </div></div>
+      </div>
+      <div class="frame step3-after"><div class="frame-label after">Після</div>
+        <div class="frame-body"><div class="demo-card">
+          <div class="demo-eyebrow">Учасники · 5</div>
+          <div class="demo-h" style="font-family:'Cormorant Garamond',serif;font-weight:500;font-size:28px">Таверна "Зелений Дракон"</div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 4 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 04 · Tier B · одна утиліта <code>.framed</code></div>
+    <h2>Кутові золоті брекети на картках</h2>
+    <p class="desc">Декоративні L-куточки в кутах карток — псевдо-елементи <code>::before</code> і <code>::after</code>. Жодного нового DOM. Застосовується точково: RoomCard, Modal, AuthLayout.</p>
+    <div class="compare">
+      <div class="frame"><div class="frame-label before">До</div>
+        <div class="frame-body"><div class="demo-card">
+          <div class="demo-eyebrow">D&D 5e · Активна</div>
+          <div class="demo-h" style="font-family:'Cormorant Garamond',serif;font-weight:500;font-size:24px">Підземелля Драконів</div>
+          <div class="demo-sub">3 гравці · створено 2 дні тому</div>
+        </div></div>
+      </div>
+      <div class="frame step4-after"><div class="frame-label after">Після</div>
+        <div class="frame-body"><div class="demo-card">
+          <div class="demo-eyebrow">D&D 5e · Активна</div>
+          <div class="demo-h" style="font-family:'Cormorant Garamond',serif;font-weight:500;font-size:24px">Підземелля Драконів</div>
+          <div class="demo-sub">3 гравці · створено 2 дні тому</div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 5 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 05 · Tier B · нова shadow-змінна</div>
+    <h2>Engraved shadows — "ввігнуті" поля та "опуклі" кнопки</h2>
+    <p class="desc">Inset-тіні створюють відчуття гравірування на металі. Поля вводу виглядають заглибленими в поверхню; primary-кнопки — підняті.</p>
+    <div class="compare">
+      <div class="frame"><div class="frame-label before">До</div>
+        <div class="frame-body">
+          <input class="demo-input" placeholder="Ім'я персонажа" value="Аеліндра">
+          <button class="demo-btn">Створити</button>
+        </div>
+      </div>
+      <div class="frame step5-after"><div class="frame-label after">Після</div>
+        <div class="frame-body">
+          <input class="demo-input" placeholder="Ім'я персонажа" value="Аеліндра">
+          <button class="demo-btn">Створити</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 6 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 06 · Tier B · одна змінна <code>--halo</code></div>
+    <h2>Halo (золоте сяйво) на primary-кнопках</h2>
+    <p class="desc">Багатошарова <code>box-shadow</code> з золотом і ember-помаранчевим. Ховай мишу над кнопкою справа — сяйво посилюється.</p>
+    <div class="compare">
+      <div class="frame"><div class="frame-label before">До</div>
+        <div class="frame-body" style="align-items:center"><button class="demo-btn">Розпочати сесію</button></div>
+      </div>
+      <div class="frame step6-after"><div class="frame-label after">Після · наведи курсор</div>
+        <div class="frame-body" style="align-items:center"><button class="demo-btn">Розпочати сесію</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 7 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 07 · Tier B · 1 правило для <code>hr</code></div>
+    <h2>Декоративний "manuscript fold" замість сірої лінії</h2>
+    <p class="desc">Звичайний <code>border-bottom</code> або <code>&lt;hr&gt;</code> замінюється на градієнт від прозорого через золото до прозорого. Виглядає як золотий перетин рукопису.</p>
+    <div class="compare">
+      <div class="frame step7-before"><div class="frame-label before">До</div>
+        <div class="frame-body"><div class="demo-card" style="padding:18px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;margin-bottom:4px">Розділ I</div>
+          <hr><hr>
+          <div class="demo-sub">Подорож починається</div>
+        </div></div>
+      </div>
+      <div class="frame step7-after"><div class="frame-label after">Після</div>
+        <div class="frame-body"><div class="demo-card" style="padding:18px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;margin-bottom:4px">Розділ I</div>
+          <hr><hr>
+          <div class="demo-sub">Подорож починається</div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 8 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 08 · Tier A · 1 правило для <code>body</code></div>
+    <h2>Атмосферний фон: paper + film grain</h2>
+    <p class="desc">Радіальні градієнти (золото зверху, ember справа, темно-вишневий знизу) + SVG-noise через <code>body::before</code>. Pointer-events: none — нічого не клікабельно крізь нього.</p>
+    <div class="compare">
+      <div class="frame"><div class="frame-label before">До · плоский фон</div>
+        <div class="scene" style="padding:32px"><div class="demo-card">
+          <div class="demo-eyebrow">Сесія · 19:00</div>
+          <div class="demo-h" style="font-family:'Cormorant Garamond',serif;font-weight:500;font-size:24px">Темрява згущується</div>
+          <div class="demo-sub">Партія входить до храму</div>
+        </div></div>
+      </div>
+      <div class="frame step8-after"><div class="frame-label after">Після · текстура</div>
+        <div class="scene" style="padding:32px"><div class="demo-card">
+          <div class="demo-eyebrow">Сесія · 19:00</div>
+          <div class="demo-h" style="font-family:'Cormorant Garamond',serif;font-weight:500;font-size:24px">Темрява згущується</div>
+          <div class="demo-sub">Партія входить до храму</div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 9 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 09 · Tier C · обгортка Logo.tsx</div>
+    <h2>Sigil-логотип: круглий метал з інкрустацією</h2>
+    <p class="desc">Замість квадратного золотого блока — круглий "медальйон" з радіальним металевим градієнтом, золотим кільцем і світінням знаку. Текст бренду переходить на курсивний Cormorant.</p>
+    <div class="compare">
+      <div class="frame step9-before"><div class="frame-label before">До</div>
+        <div class="frame-body" style="align-items:center;justify-content:center">
+          <div class="brand">
+            <div class="sigil-old">A</div>
+            <div class="brand-name">Arcana VTT</div>
+          </div>
+        </div>
+      </div>
+      <div class="frame step9-after"><div class="frame-label after">Після</div>
+        <div class="frame-body" style="align-items:center;justify-content:center">
+          <div class="brand">
+            <div class="sigil"><span>A</span></div>
+            <div class="brand-name">Arcana <em style="color:#c8a24a">VTT</em></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 10 ============== -->
+  <section class="step">
+    <div class="step-num">Крок 10 · Tier C · 1 новий токен <code>--color-ember</code></div>
+    <h2>Ember — третій сигнальний колір (активний хід, ping, critical)</h2>
+    <p class="desc">Помаранчево-вугільний (<code>#d6552a</code>) як акцент дії. Зараз активний токен в ініціативі — золотий (як і все інше); після — ember зі світінням, читається миттєво.</p>
+    <div class="compare">
+      <div class="frame"><div class="frame-label before">До · золотий обідок</div>
+        <div class="frame-body" style="align-items:center">
+          <div class="turn-label">Хід · Аеліндра</div>
+          <div class="token-row">
+            <div class="token active-old"></div>
+            <div class="token"></div>
+            <div class="token"></div>
+            <div class="token"></div>
+          </div>
+        </div>
+      </div>
+      <div class="frame step10-after"><div class="frame-label after">Після · ember halo</div>
+        <div class="frame-body" style="align-items:center">
+          <div class="turn-label">Хід · Аеліндра</div>
+          <div class="token-row">
+            <div class="token active-new"></div>
+            <div class="token"></div>
+            <div class="token"></div>
+            <div class="token"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== ШАГ 11 — ФІНАЛ ============== -->
+  <section class="step">
+    <div class="step-num">Крок 11 · Composite · усі 10 кроків разом</div>
+    <h2>Як це виглядає, коли все застосовано одночасно</h2>
+    <p class="desc">Один фрагмент екрану (привітання + форма входу) з усіма правками: фон з текстурою, sigil, eyebrow з рискою, серифний заголовок з italic-золотом, картка з кутовими брекетами, engraved input, halo на кнопці, золотий fold-divider.</p>
+    <div class="final">
+      <div class="final-inner">
+        <div>
+          <div class="brand">
+            <div class="sigil"><span>A</span></div>
+            <div class="brand-name" style="font-family:'Cormorant Garamond',serif;font-weight:500;font-size:24px;font-style:italic">Arcana <em style="color:#c8a24a">VTT</em></div>
+          </div>
+          <div class="demo-eyebrow">Розділ I · Початок</div>
+          <h2 class="final-h">Ласкаво просимо до <em>гримуару</em></h2>
+          <p class="final-p">Платформа для майстрів та гравців настільних рольових ігор з AI-помічником, відеозв'язком та 3D-кубиками.</p>
+          <hr class="fold">
+        </div>
+        <div class="frame-card">
+          <div class="demo-h">Вхід до <em>таверни</em></div>
+          <div class="demo-sub" style="margin-bottom:18px">Введіть свої облікові дані</div>
+          <input class="demo-input" placeholder="Email" value="gm@arcana.vtt">
+          <input class="demo-input" placeholder="Пароль" type="password" value="••••••••">
+          <button class="demo-btn">Увійти до сесії</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <div style="margin-bottom:10px;color:var(--page-text);font-weight:600">Легенда складності</div>
+    <div><span class="tag a">Tier A</span> 5 хв–1 год · кроки 01, 02, 03, 08 — найбезпечніше, найбільший ефект</div>
+    <div style="margin-top:6px"><span class="tag b">Tier B</span> 2–4 год · кроки 04, 05, 06, 07 — точкові утиліти, локальні правки</div>
+    <div style="margin-top:6px"><span class="tag c">Tier C</span> 4–8 год · кроки 09, 10 — невеликі рефакторинги Logo + 1 новий токен</div>
+  </div>
+
+</div>
+</body>
+</html>
