@@ -27,6 +27,7 @@ export const tokenUpdateSchema = z.object({
   statusMarkers: z.array(z.string().max(32)).max(20).optional(),
   assignedUserId: z.string().uuid().nullable().optional(),
   isHidden: z.boolean().optional(),
+  imageAssetId: z.string().uuid().nullable().optional(),
 });
 
 export type TokenCreateInput = z.infer<typeof tokenCreateSchema>;

@@ -343,6 +343,11 @@ export class SceneService {
         ? { connect: { id: patch.assignedUserId } }
         : { disconnect: true };
     }
+    if (patch.imageAssetId !== undefined) {
+      data.imageAsset = patch.imageAssetId
+        ? { connect: { id: patch.imageAssetId } }
+        : { disconnect: true };
+    }
     return data;
   }
 
