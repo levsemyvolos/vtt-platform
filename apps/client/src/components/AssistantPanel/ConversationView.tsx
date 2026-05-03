@@ -1,9 +1,9 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useState, useEffect, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import type { ConversationMessage, AIImageRequest, AIImageResponse, AIMusicRequest, AIMusicResponse } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { sendAssistantMessage } from '../../store/assistant';
+import { sendAssistantMessage, fetchAssistantHistory } from '../../store/assistant';
 import { apiFetch, ApiError } from '../../api/apiFetch';
 import styles from './ConversationView.module.css';
 
@@ -26,6 +26,11 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
     (s): ConversationMessage[] => s.assistant.conversations[conversationId] ?? [],
   );
   const [text, setText] = useState('');
+
+  // Load persisted history from DB on mount (F5-safe)
+  useEffect(() => {
+    void dispatch(fetchAssistantHistory({ roomId }));
+  }, [dispatch, roomId]);
 
   function handleSend(): void {
     const trimmed = text.trim();
