@@ -22,6 +22,7 @@ function handleError(err: unknown, res: Response): void {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: { code: err.status, message: err.message } });
   } else {
+    console.error('[Auth API Error]', err);
     res.status(500).json({ error: { code: 500, message: 'Internal server error' } });
   }
 }
