@@ -1,5 +1,6 @@
 /**
  * Wave 6.3.3 — Regression tests for currentRoomId localStorage persistence (BUG-001-F5).
+ * Wave 6.5.1 — Regression tests for fetchRooms URL formation with sort/order/filter (B6-BUG-002).
  *
  * Verifies that:
  *  - setCurrentRoom writes the room ID to localStorage
@@ -8,13 +9,16 @@
  *  - fetchRoom.rejected removes the stale room ID from localStorage
  *  - removeRoom clears localStorage when the removed room was the currentRoom
  *  - deleteRoom.fulfilled clears localStorage when the deleted room was the currentRoom
+ *  - fetchRooms without opts → /api/rooms (no query string)
+ *  - fetchRooms with sort/order/filter → correct query string forwarded to apiFetch
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import roomReducer, {
   setCurrentRoom,
   clearRoom,
   removeRoom,
   fetchRoom,
+  fetchRooms,
   deleteRoom,
   getPersistedRoomId,
 } from '../room';
@@ -162,5 +166,66 @@ describe('deleteRoom thunk', () => {
     const action = deleteRoom.fulfilled('room-other', '', 'room-other');
     roomReducer(withRoom, action);
     expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-active');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// B6-BUG-002 — fetchRooms URL formation with sort/order/filter
+// ---------------------------------------------------------------------------
+
+// We mock apiFetch at the module level so we can inspect the URL it was called with.
+vi.mock('../../api/apiFetch', () => ({
+  apiFetch: vi.fn().mockResolvedValue([]),
+}));
+
+import { configureStore } from '@reduxjs/toolkit';
+import { apiFetch } from '../../api/apiFetch';
+
+const apiFetchMock = apiFetch as ReturnType<typeof vi.fn>;
+
+function makeStoreForSort() {
+  return configureStore({ reducer: { room: roomReducer } });
+}
+
+describe('B6-BUG-002: fetchRooms URL formation', () => {
+  beforeEach(() => {
+    apiFetchMock.mockClear();
+    apiFetchMock.mockResolvedValue([]);
+  });
+
+  it('no opts → calls /api/rooms without query string', async () => {
+    const store = makeStoreForSort();
+    await store.dispatch(fetchRooms(undefined));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/rooms');
+  });
+
+  it('sort=name, order=asc → ?sort=name&order=asc', async () => {
+    const store = makeStoreForSort();
+    await store.dispatch(fetchRooms({ sort: 'name', order: 'asc' }));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/rooms?sort=name&order=asc');
+  });
+
+  it('sort=lastActive, order=desc → ?sort=lastActive&order=desc', async () => {
+    const store = makeStoreForSort();
+    await store.dispatch(fetchRooms({ sort: 'lastActive', order: 'desc' }));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/rooms?sort=lastActive&order=desc');
+  });
+
+  it('filter=owned → ?filter=owned', async () => {
+    const store = makeStoreForSort();
+    await store.dispatch(fetchRooms({ filter: 'owned' }));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/rooms?filter=owned');
+  });
+
+  it('sort=created, order=asc, filter=invited → all three params present', async () => {
+    const store = makeStoreForSort();
+    await store.dispatch(fetchRooms({ sort: 'created', order: 'asc', filter: 'invited' }));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/rooms?sort=created&order=asc&filter=invited');
+  });
+
+  it('empty opts {} → /api/rooms without query string', async () => {
+    const store = makeStoreForSort();
+    await store.dispatch(fetchRooms({}));
+    expect(apiFetchMock).toHaveBeenCalledWith('/api/rooms');
   });
 });
