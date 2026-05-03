@@ -5,11 +5,23 @@ import { apiFetch } from '../api/apiFetch';
 import { tokenStore } from '../api/tokenStore';
 import { addToast } from './toast';
 
+/**
+ * Wave 6.2 — error source discrimination.
+ *
+ * - 'bootstrap'  : network/5xx during bootstrapSession → show BootstrapLoader with retry.
+ * - 'authForm'   : login/register/observerJoin rejected (4xx) → show inline error in form.
+ * - 'transient'  : one-off soft errors (e.g. refresh 5xx while authenticated) → toast only.
+ * - null         : no error, or error already cleared.
+ */
+export type ErrorSource = 'bootstrap' | 'authForm' | 'transient' | null;
+
 interface SessionState {
   currentUser: UserPublic | null;
   accessToken: string | null;
   status: 'idle' | 'loading' | 'authenticated' | 'error' | 'bootstrapping';
   error: string | null;
+  /** Discriminates the error origin so consumers can react appropriately (Wave 6.2). */
+  errorSource: ErrorSource;
   /** Invite code pre-filled when the user lands on /?invite=TOKEN while unauthenticated (Wave 2.2). */
   prefilledInviteCode: string | null;
 }
@@ -19,6 +31,7 @@ const initialState: SessionState = {
   accessToken: null,
   status: tokenStore.getRefresh() ? 'bootstrapping' : 'idle',
   error: null,
+  errorSource: null,
   prefilledInviteCode: null,
 };
 
@@ -124,6 +137,8 @@ function applyTokenPair(state: SessionState, payload: AuthTokenPair): void {
   state.status = 'authenticated';
   state.currentUser = payload.user;
   state.accessToken = payload.accessToken;
+  state.error = null;
+  state.errorSource = null;
   tokenStore.setAccess(payload.accessToken);
   tokenStore.setRefresh(payload.refreshToken);
 }
@@ -140,11 +155,13 @@ const sessionSlice = createSlice({
       state.accessToken = null;
       state.status = 'idle';
       state.error = null;
+      state.errorSource = null;
       state.prefilledInviteCode = null;
       tokenStore.clear();
     },
     clearError: (state) => {
       state.error = null;
+      state.errorSource = null;
     },
     /** Wave 2.2 — store invite code from URL for ObserverEntry pre-fill. */
     setPrefilledInviteCode: (state, action: PayloadAction<string | null>) => {
@@ -156,54 +173,69 @@ const sessionSlice = createSlice({
       .addCase(login.pending, (state) => {
         state.status = 'loading';
         state.error = null;
+        state.errorSource = null;
       })
       .addCase(login.fulfilled, (state, action) => {
         applyTokenPair(state, action.payload);
       })
+      // Wave 6.2: login rejected → stay 'idle' so AuthViews stay visible; errorSource='authForm'
+      // so that Login.tsx inline error renders and BootstrapLoader does NOT trigger.
       .addCase(login.rejected, (state, action) => {
-        state.status = 'error';
+        state.status = 'idle';
         state.error = action.payload ?? 'Помилка входу';
+        state.errorSource = 'authForm';
       })
       .addCase(register.pending, (state) => {
         state.status = 'loading';
         state.error = null;
+        state.errorSource = null;
       })
       .addCase(register.fulfilled, (state, action) => {
         applyTokenPair(state, action.payload);
       })
+      // Wave 6.2: register rejected → 'idle' + errorSource='authForm'.
       .addCase(register.rejected, (state, action) => {
-        state.status = 'error';
+        state.status = 'idle';
         state.error = action.payload ?? 'Помилка реєстрації';
+        state.errorSource = 'authForm';
       })
       .addCase(observerJoin.pending, (state) => {
         state.status = 'loading';
         state.error = null;
+        state.errorSource = null;
       })
       .addCase(observerJoin.fulfilled, (state, action) => {
         applyTokenPair(state, action.payload);
       })
+      // Wave 6.2: observerJoin rejected → 'idle' + errorSource='authForm'.
       .addCase(observerJoin.rejected, (state, action) => {
-        state.status = 'error';
+        state.status = 'idle';
         state.error = action.payload ?? 'Помилка входу';
+        state.errorSource = 'authForm';
       })
       .addCase(logout.fulfilled, (state) => {
         state.currentUser = null;
         state.accessToken = null;
         state.status = 'idle';
         state.error = null;
+        state.errorSource = null;
       })
       .addCase(bootstrapSession.pending, (state) => {
         if (state.status !== 'authenticated') state.status = 'bootstrapping';
         state.error = null;
+        state.errorSource = null;
       })
       .addCase(bootstrapSession.fulfilled, (state, action) => {
         if (action.payload) {
           applyTokenPair(state, action.payload as AuthTokenPair);
         } else {
           state.status = 'idle';
+          state.errorSource = null;
         }
       })
       // Wave 3.1 — distinguish abort vs network error vs 401.
+      // Wave 6.2 — only bootstrap errors set errorSource='bootstrap', so App.tsx
+      //            shows BootstrapLoader only for this case (not for authForm errors).
       .addCase(bootstrapSession.rejected, (state, action) => {
         if (action.payload === 'ABORTED') {
           // F5 mid-flight — keep bootstrapping so App re-fires the thunk.
@@ -212,9 +244,11 @@ const sessionSlice = createSlice({
           // Server unreachable — do NOT log out; let BootstrapLoader show retry.
           state.status = 'error';
           state.error = 'errors:network.loadFailed';
+          state.errorSource = 'bootstrap';
         } else {
           state.status = 'idle';
           state.error = null;
+          state.errorSource = null;
         }
       });
   },
