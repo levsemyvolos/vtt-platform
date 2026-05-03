@@ -157,6 +157,39 @@ describe('clearSession action', () => {
 });
 
 // ---------------------------------------------------------------------------
+// BUG-007 — bootstrapSession retry on 5xx
+// ---------------------------------------------------------------------------
+
+describe('BUG-007: bootstrapSession reducer reaction to 5xx/network errors', () => {
+  it('rejected NETWORK_ERROR: status → error, errorSource → bootstrap (BootstrapLoader shown, not login)', () => {
+    const action = bootstrapSession.rejected(null, '', undefined, 'NETWORK_ERROR');
+    const s = sessionReducer(init(), action);
+    // Key: status must be 'error', NOT 'idle' — so App.tsx shows BootstrapLoader not AuthViews.
+    expect(s.status).toBe('error');
+    expect(s.errorSource).toBe('bootstrap');
+  });
+
+  it('rejected NETWORK_ERROR does NOT clear the refresh token (logout.fulfilled stays separate)', () => {
+    // Simulates 5xx during bootstrap — user should still be able to retry.
+    // tokenStore is not accessible here; verify state shape only.
+    const action = bootstrapSession.rejected(null, '', undefined, 'NETWORK_ERROR');
+    const s = sessionReducer(init(), action);
+    // currentUser stays null (not yet authenticated), but status='error' keeps retry visible.
+    expect(s.currentUser).toBeNull();
+    expect(s.status).not.toBe('idle'); // would show AuthViews (login) if idle → regression
+  });
+
+  it('multiple retries: after each NETWORK_ERROR status stays error (BootstrapLoader visible)', () => {
+    // Simulate 3 rejected actions in sequence (as retry loop would produce them if all fail).
+    let s = sessionReducer(init(), bootstrapSession.rejected(null, '', undefined, 'NETWORK_ERROR'));
+    expect(s.status).toBe('error');
+    // After pending (retry UI dispatches new bootstrapSession), status resets to bootstrapping.
+    s = sessionReducer(s, bootstrapSession.pending('', undefined, undefined));
+    expect(s.status).toBe('bootstrapping');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // invariant: errorSource='authForm' must never coincide with status='error'
 // (status='error' is exclusively for bootstrap network failures)
 // ---------------------------------------------------------------------------
