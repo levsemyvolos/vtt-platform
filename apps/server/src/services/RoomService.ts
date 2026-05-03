@@ -204,64 +204,32 @@ export class RoomService {
     const room = await this.rooms.findById(roomId);
     if (!room) throw new HttpError(404, 'Room not found');
 
-    // Characters give us the "assigned character" relationship for players.
-    const characters = await this.db.character.findMany({
-      where: { roomId },
-      distinct: ['ownerId'],
-      include: { owner: true },
-    });
-
-    // RoomMember gives us persistent invite-joined players (R-Persistent-Membership).
-    const roomMembers = await this.db.roomMember.findMany({
-      where: { roomId },
-      include: { user: true },
-    });
+    const [characters, roomMembers] = await Promise.all([
+      this.db.character.findMany({
+        where: { roomId },
+        distinct: ['ownerId'],
+        include: { owner: true },
+      }),
+      this.db.roomMember.findMany({
+        where: { roomId },
+        include: { user: true },
+      }),
+    ]);
 
     const members: RoomMemberDTO[] = [
-      {
-        userId: room.owner.id,
-        name: room.owner.displayName,
-        role: 'GM',
-      },
+      { userId: room.owner.id, name: room.owner.displayName, role: 'GM' },
     ];
-
-    // Build a userId → characterId map from characters for quick lookup.
-    const charMap = new Map<string, string>();
-    for (const c of characters) {
-      if (!charMap.has(c.owner.id)) charMap.set(c.owner.id, c.id);
-    }
-
-    // Union of character-owners and RoomMember rows (both are valid player sources).
+    const charMap = new Map(characters.map((c) => [c.ownerId, c.id]));
     const playerIds = new Set<string>();
 
-    // First pass: character-derived players
-    for (const c of characters) {
-      if (c.owner.id === room.owner.id) continue; // GM owning a character — skip
-      if (!playerIds.has(c.owner.id)) {
-        playerIds.add(c.owner.id);
-        members.push({
-          userId: c.owner.id,
-          name: c.owner.displayName,
-          role: 'Player',
-          characterId: c.id,
-        });
-      }
-    }
+    const addPlayer = (userId: string, name: string) => {
+      if (userId === room.owner.id || playerIds.has(userId)) return;
+      playerIds.add(userId);
+      members.push({ userId, name, role: 'Player', characterId: charMap.get(userId) });
+    };
 
-    // Second pass: invite-joined players without a character yet
-    for (const rm of roomMembers) {
-      if (rm.userId === room.owner.id) continue; // skip GM
-      if (!playerIds.has(rm.userId)) {
-        playerIds.add(rm.userId);
-        const cid = charMap.get(rm.userId);
-        members.push({
-          userId: rm.userId,
-          name: rm.user.displayName,
-          role: 'Player',
-          ...(cid !== undefined ? { characterId: cid } : {}),
-        });
-      }
-    }
+    characters.forEach((c) => addPlayer(c.ownerId, c.owner.displayName));
+    roomMembers.forEach((rm) => addPlayer(rm.userId, rm.user.displayName));
 
     return members;
   }
