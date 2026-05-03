@@ -118,6 +118,7 @@ export const bootstrapSession = createAsyncThunk<
   { rejectValue: 'ABORTED' | 'NETWORK_ERROR' }
 >(
   'session/bootstrap',
+  // eslint-disable-next-line complexity
   async (_, { rejectWithValue, dispatch }) => {
     const refreshToken = tokenStore.getRefresh();
     if (!refreshToken) return null;

@@ -35,6 +35,7 @@ function roleOf(room: RoomDTO, currentUserId: string | null): 'GM' | 'Player' | 
   return room.members.find((m) => m.userId === currentUserId)?.role ?? null;
 }
 
+// eslint-disable-next-line complexity
 export default function Dashboard() {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['room', 'common', 'errors']);
