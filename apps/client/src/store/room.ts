@@ -2,6 +2,26 @@ import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/tool
 import type { RoomDTO, RoomMemberDTO, CreateRoomRequest } from '@vtt/shared';
 import { apiFetch } from '../api/apiFetch';
 
+/** localStorage key used to persist the active room ID across page reloads (BUG-001-F5). */
+const PERSISTED_ROOM_KEY = 'vtt_current_room_id';
+
+/** Returns the persisted room ID from localStorage, or null if none. */
+export function getPersistedRoomId(): string | null {
+  try {
+    return localStorage.getItem(PERSISTED_ROOM_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveRoomId(id: string): void {
+  try { localStorage.setItem(PERSISTED_ROOM_KEY, id); } catch { /* ignore */ }
+}
+
+function clearRoomId(): void {
+  try { localStorage.removeItem(PERSISTED_ROOM_KEY); } catch { /* ignore */ }
+}
+
 interface UpdateRoomPayload {
   id: string;
   name?: string;
@@ -108,6 +128,8 @@ const roomSlice = createSlice({
       state.currentRoom = action.payload;
       state.members = action.payload.members;
       state.status = 'loaded';
+      // BUG-001-F5: persist room ID so F5 can restore lobby navigation.
+      saveRoomId(action.payload.id);
     },
     clearRoom: (state) => {
       state.currentRoom = null;
@@ -115,6 +137,8 @@ const roomSlice = createSlice({
       state.status = 'idle';
       state.error = null;
       state.sessionActive = false;
+      // BUG-001-F5: clear persisted room ID when user leaves the room.
+      clearRoomId();
     },
     updateMembers: (state, action: PayloadAction<RoomMemberDTO[]>) => {
       state.members = action.payload;
@@ -144,6 +168,7 @@ const roomSlice = createSlice({
         state.currentRoom = null;
         state.members = [];
         state.sessionActive = false;
+        clearRoomId();
       }
     },
   },
@@ -175,10 +200,14 @@ const roomSlice = createSlice({
         state.status = 'loaded';
         state.currentRoom = action.payload;
         state.members = action.payload.members;
+        // BUG-001-F5: keep localStorage in sync when fetchRoom restores the room.
+        saveRoomId(action.payload.id);
       })
       .addCase(fetchRoom.rejected, (state, action) => {
         state.status = 'error';
         state.error = action.payload ?? 'Помилка завантаження';
+        // BUG-001-F5: room no longer accessible (deleted/forbidden) — clear stale persisted ID.
+        clearRoomId();
       })
       .addCase(updateRoom.fulfilled, (state, action) => {
         const idx = state.ownRooms.findIndex((r) => r.id === action.payload.id);
@@ -196,6 +225,7 @@ const roomSlice = createSlice({
           state.currentRoom = null;
           state.members = [];
           state.sessionActive = false;
+          clearRoomId();
         }
       })
       .addCase(deleteRoom.rejected, (state, action) => {
