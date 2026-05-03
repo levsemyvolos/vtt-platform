@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearRoom, startSession } from '../../store/room';
 import { logout, selectIsObserver } from '../../store/session';
 import { apiFetch } from '../../api/apiFetch';
-import { connectSocket } from '../../api/socket';
+import { connectSocket, emitRoomJoin } from '../../api/socket';
 import SceneManager from '../../components/SceneManager/SceneManager';
 import InviteLink from '../../components/InviteLink/InviteLink';
 import { ConnectionStepper } from '../../components/Lobby';
@@ -16,6 +17,15 @@ export default function RoomLobby(): JSX.Element | null {
   const { currentRoom, members } = useAppSelector((s) => s.room);
   const { currentUser } = useAppSelector((s) => s.session);
   const isObserver = useAppSelector(selectIsObserver);
+
+  const roomId = currentRoom?.id;
+
+  // Connect socket and join the room channel so we receive room:started from server.
+  useEffect(() => {
+    if (!roomId) return;
+    connectSocket();
+    void emitRoomJoin(roomId);
+  }, [roomId]);
 
   if (!currentRoom) return null;
 
@@ -34,15 +44,15 @@ export default function RoomLobby(): JSX.Element | null {
 
   const handleEnterSession = (): void => {
     if (isGM) {
-      // GM: call API to set room status=active and broadcast room:started to all.
-      // GM will also receive room:started via WS and transition automatically.
-      connectSocket();
+      // GM: call API to set room status=active — server broadcasts room:started
+      // to all room members (including GM) via WS. All lobby clients auto-transition.
       void apiFetch(`/api/rooms/${currentRoom.id}/start`, { method: 'POST' });
     } else {
       // Player/Observer: join voluntarily when session is already active.
       dispatch(startSession());
     }
   };
+
 
   function roleBadgeClass(role: string): string {
     if (role === 'GM') return styles.roleGm as string;
