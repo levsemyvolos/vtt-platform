@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TurnConfigResponse, UserPublic } from '@vtt/shared';
+import type { RoomMemberDTO, TurnConfigResponse } from '@vtt/shared';
 import styles from './VideoCall.module.css';
 import { store, useAppDispatch, useAppSelector } from '../../store';
 import {
@@ -24,9 +24,10 @@ const MESH_CEILING = 6;
 interface VideoCallProps {
   roomId: string;
   myUserId: string;
+  members: RoomMemberDTO[];
 }
 
-export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Element {
+export default function VideoCall({ roomId, myUserId, members }: VideoCallProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { micEnabled, cameraEnabled, localStreamReady, peers, meshCeilingReached } =
     useAppSelector((s) => s.media);
@@ -57,16 +58,12 @@ export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Ele
     }
 
     async function autoCallPeers(manager: PeerManager): Promise<void> {
-      const membersState = store.getState().members.byRoom[roomId];
-      if (!membersState) return;
-      const allMembers: UserPublic[] = [
-        ...(membersState.gm ? [membersState.gm] : []),
-        ...membersState.players,
-        ...membersState.observers,
-      ];
-      for (const member of allMembers) {
-        if (!cancelled && member.id !== myUserId && myUserId < member.id) {
-          await manager.call(member.id);
+      // members prop is populated by session:resync in GameRoom (parent effect).
+      // Use lexicographic order so only the lower-ID peer sends the offer,
+      // preventing double-offers between each pair.
+      for (const member of members) {
+        if (!cancelled && member.userId !== myUserId && myUserId < member.userId) {
+          await manager.call(member.userId);
         }
       }
     }
@@ -168,7 +165,28 @@ export default function VideoCall({ roomId, myUserId }: VideoCallProps): JSX.Ele
       managerRef.current = null;
       dispatch(resetMedia());
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- members intentionally excluded: handled by reactive effect below
   }, [roomId, myUserId, dispatch]);
+
+
+  // Reactive peer calling: fires when members arrive from session:resync.
+  // The main bootstrap effect runs before GameRoom's emitSessionResync completes,
+  // so members is empty at that point. This effect retries once members are known.
+  const calledRef = useRef(false);
+  useEffect(() => {
+    if (calledRef.current) return;
+    if (!managerRef.current) return;
+    if (members.length === 0) return;
+    calledRef.current = true;
+    const manager = managerRef.current;
+    void (async () => {
+      for (const member of members) {
+        if (member.userId !== myUserId && myUserId < member.userId) {
+          await manager.call(member.userId);
+        }
+      }
+    })();
+  }, [members, myUserId]);
 
   function onToggleMic(): void {
     const next = !micEnabled;

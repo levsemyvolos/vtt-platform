@@ -34,7 +34,8 @@ export class SessionRepository {
    * @param id Session UUID to delete
    */
   async deleteById(id: string): Promise<void> {
-    await this.db.session.delete({ where: { id } });
+    // deleteMany is idempotent — no P2025 if session already deleted (stale cookie scenario).
+    await this.db.session.deleteMany({ where: { id } });
   }
 
   /**

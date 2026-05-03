@@ -31,7 +31,7 @@ export default function PartyColumn({ roomId, myUserId }: PartyColumnProps): JSX
       </p>
 
       <div className={styles.videoWrap}>
-        <VideoCall roomId={roomId} myUserId={myUserId} />
+      <VideoCall roomId={roomId} myUserId={myUserId} members={members} />
       </div>
 
       <ul className={styles.memberList} role="list">
