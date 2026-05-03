@@ -50,6 +50,7 @@ function makeStore(role: 'GM' | 'Player') {
         accessToken: 'tok',
         status: 'authenticated' as const,
         error: null,
+        errorSource: null,
         prefilledInviteCode: null,
       },
     },

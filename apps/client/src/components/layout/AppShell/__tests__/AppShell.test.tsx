@@ -13,6 +13,7 @@ interface SessionState {
   accessToken: string | null;
   status: 'idle' | 'loading' | 'authenticated' | 'error' | 'bootstrapping';
   error: string | null;
+  errorSource: 'bootstrap' | 'authForm' | 'transient' | null;
   prefilledInviteCode: string | null;
 }
 
@@ -22,6 +23,7 @@ function makeStore(opts: { user?: { name: string; email: string; id: string } | 
     accessToken: 't',
     status: 'authenticated',
     error: null,
+    errorSource: null,
     prefilledInviteCode: null,
   };
   return configureStore({

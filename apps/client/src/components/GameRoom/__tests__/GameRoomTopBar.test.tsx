@@ -52,6 +52,7 @@ function makeStore() {
         accessToken: 'tok',
         status: 'authenticated' as const,
         error: null,
+        errorSource: null,
         prefilledInviteCode: null,
       },
     },
