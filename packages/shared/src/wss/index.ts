@@ -260,6 +260,7 @@ export interface ServerToClientEvents {
   'measure:start': (payload: MeasurePayload) => void;
   'draw:stroke': (payload: DrawStrokePayload) => void;
   'draw:clear': (payload: { roomId: string; sceneId: string }) => void;
+  'scene:activated': (payload: { sceneId: string; roomId: string }) => void;
 }
 
 export interface InterServerEvents {

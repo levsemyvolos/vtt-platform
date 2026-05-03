@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
+import type { SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { stopEditing } from '../../store/room';
+import { hydrateScene } from '../../store/scene';
+import { apiFetch } from '../../api/apiFetch';
 import { EditorTopBar, EditorToolbarLeft, EditorToolbarRight } from '../../components/SceneEditor';
 import GameCanvas from '../../components/GameCanvas/GameCanvas';
 import styles from './SceneEditor.module.css';
@@ -17,8 +20,16 @@ export default function SceneEditor(): JSX.Element | null {
   useEffect(() => {
     if (myRole !== 'GM') {
       dispatch(stopEditing());
+      return;
     }
-  }, [myRole, dispatch]);
+    if (editingSceneId) {
+      apiFetch<SceneDTO>(`/api/scenes/${editingSceneId}`)
+        .then((snapshot) => {
+          dispatch(hydrateScene(snapshot));
+        })
+        .catch(console.error);
+    }
+  }, [myRole, dispatch, editingSceneId]);
 
   if (!currentRoom || myRole !== 'GM') return null;
 
