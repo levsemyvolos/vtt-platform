@@ -1,7 +1,7 @@
 {
   "hero": {
     "title": "VTT Platform",
-    "subtitle": "AI-assisted virtual tabletop for tabletop RPGs"
+    "subtitle": "AI-assisted virtual tabletop for TTRPGs"
   },
   "cta": {
     "login": "Sign In",
@@ -22,5 +22,5 @@
       "desc": "Chat, initiative tracker, notes, handouts, and dice roller"
     }
   },
-  "footer": "Thesis project · KPI · 2026"
+  "footer": "© 2026 VTT Platform · v0.0.1"
 }
