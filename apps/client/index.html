@@ -16,6 +16,26 @@
     <meta name="description" content="Web platform for tabletop RPG support — VTT з AI-помічником, WebRTC мешем, 3D-кубиками." />
   </head>
   <body>
+    <!-- Wave 3.3 — Apply persisted theme BEFORE React renders to prevent auth-screen flash. -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('preferences');
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            var theme = parsed && parsed.theme;
+            if (theme === 'dark' || theme === 'light') {
+              document.documentElement.dataset.theme = theme;
+              return;
+            }
+          }
+        } catch (_) {}
+        // Fallback: respect system preference.
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

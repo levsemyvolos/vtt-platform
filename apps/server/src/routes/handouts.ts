@@ -8,6 +8,8 @@ import type { HandoutService } from '../services/HandoutService.js';
 import type { HandoutRepository } from '../repositories/HandoutRepository.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
+import { validate } from '../middleware/validate.js';
+import { handoutCreateSchema } from '../schemas/handout.schema.js';
 import { HttpError } from '../lib/errors.js';
 
 function handleError(err: unknown, res: Response): void {
@@ -56,6 +58,7 @@ export function buildHandoutsRouter(
   router.post(
     '/rooms/:roomId/handouts',
     jwtAuth,
+    validate(handoutCreateSchema),
     async (
       req: Request<{ roomId: string }, object, HandoutCreateRequest>,
       res: Response,

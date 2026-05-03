@@ -47,35 +47,85 @@ export class RoomRepository {
   }
 
   /**
-   * Returns rooms filtered by the user's relationship to them.
+   * @param id Room UUID
+   * @param data partial update (name, gameSystem, lastActiveAt)
+   * @returns updated Room
+   */
+  updateById(id: string, data: Prisma.RoomUpdateInput): Promise<Room> {
+    return this.db.room.update({ where: { id }, data });
+  }
+
+  /**
+   * Deletes a room by ID. Cascade is enforced by Prisma schema (onDelete: Cascade).
+   * @param id Room UUID
+   */
+  deleteById(id: string): Promise<Room> {
+    return this.db.room.delete({ where: { id } });
+  }
+
+  /**
+   * @param ownerId GM user UUID
+   * @returns count of rooms owned by that user
+   */
+  countByOwner(ownerId: string): Promise<number> {
+    return this.db.room.count({ where: { ownerId } });
+  }
+
+  /**
+   * Returns rooms filtered by the user's relationship to them, with optional sorting.
    *
    * - 'owned'   → rooms where user is the owner (GM)
-   * - 'invited' → rooms where user has a character but is NOT the owner (Player)
+   * - 'invited' → rooms where user has a RoomMember record OR a character
+   *               but is NOT the owner (Player)
    * - 'all'     → union of both
    *
-   * Membership tracking: Player membership is inferred via `Character.ownerId`
-   * (no dedicated RoomMember table in MVP). Observer membership is not tracked.
+   * @param sort  field to sort by (default: lastActiveAt)
+   * @param order sort direction (default: desc)
+   *
+   * R-Persistent-Membership: now uses RoomMember table as primary source;
+   * Character.ownerId kept as a secondary source for backwards compat.
    */
-  findByUserAndRole(userId: string, filter: 'owned' | 'invited' | 'all'): Promise<Room[]> {
+  findByUserAndRole(
+    userId: string,
+    filter: 'owned' | 'invited' | 'all',
+    sort: 'lastActive' | 'created' | 'name' = 'lastActive',
+    order: 'asc' | 'desc' = 'desc',
+  ): Promise<Room[]> {
+    const orderBy = this._buildOrderBy(sort, order);
     if (filter === 'owned') {
-      return this.db.room.findMany({ where: { ownerId: userId } });
+      return this.db.room.findMany({ where: { ownerId: userId }, orderBy });
     }
     if (filter === 'invited') {
       return this.db.room.findMany({
         where: {
-          characters: { some: { ownerId: userId } },
           NOT: { ownerId: userId },
+          OR: [
+            { members: { some: { userId } } },
+            { characters: { some: { ownerId: userId } } },
+          ],
         },
+        orderBy,
       });
     }
     return this.db.room.findMany({
       where: {
         OR: [
           { ownerId: userId },
+          { members: { some: { userId } } },
           { characters: { some: { ownerId: userId } } },
         ],
       },
+      orderBy,
     });
+  }
+
+  private _buildOrderBy(
+    sort: 'lastActive' | 'created' | 'name',
+    order: 'asc' | 'desc',
+  ): Prisma.RoomOrderByWithRelationInput {
+    if (sort === 'created') return { createdAt: order };
+    if (sort === 'name') return { name: order };
+    return { lastActiveAt: order };
   }
 
   /**

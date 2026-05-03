@@ -41,6 +41,7 @@ model User {
   sentMessages      ChatMessage[]      @relation("ChatMessageSender")
   receivedMessages  ChatMessage[]      @relation("ChatMessageRecipient")
   assets            Asset[]            @relation("AssetOwner")
+  roomMemberships   RoomMember[]
 }
 
 model Room {
@@ -52,6 +53,7 @@ model Room {
   inviteTokenPlayer   String     @unique @db.VarChar(64)
   inviteTokenObserver String   @unique @db.VarChar(64)
   createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  lastActiveAt        DateTime @default(now()) @db.Timestamptz(6)
 
   owner       User          @relation(fields: [ownerId], references: [id])
   scenes      Scene[]
@@ -61,6 +63,23 @@ model Room {
   audioTracks AudioTrack[]
   characters  Character[]
   assets      Asset[]       @relation("AssetRoom")
+  members     RoomMember[]
+}
+
+/// Persistent player membership — written on invite-join, used for lobby roster
+/// and for listing rooms the user was invited to (R-Persistent-Membership).
+model RoomMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  roomId    String   @db.Uuid
+  userId    String   @db.Uuid
+  role      String   @db.VarChar(16) @default("Player")
+  joinedAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
 }
 
 model Asset {

@@ -48,6 +48,8 @@ export default function CreateRoomModal({ onClose }: CreateRoomModalProps) {
           aria-required="true"
           fullWidth
           autoFocus
+          maxLength={100}
+          showCounter
         />
 
         <fieldset className={styles.systemRow}>
@@ -69,6 +71,8 @@ export default function CreateRoomModal({ onClose }: CreateRoomModalProps) {
             onChange={(e) => setSystem(e.target.value)}
             required
             fullWidth
+            maxLength={50}
+            showCounter
           />
         </fieldset>
 

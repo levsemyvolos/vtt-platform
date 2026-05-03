@@ -1,4 +1,4 @@
-import { Layers, Settings } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Logo from '../../ui/Logo';
 import UserChip from './UserChip';
@@ -9,7 +9,6 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   active: boolean;
-  disabled?: boolean;
 }
 
 export default function LeftNav() {
@@ -21,13 +20,6 @@ export default function LeftNav() {
       label: t('nav.rooms'),
       icon: <Layers size={18} />,
       active: true,
-    },
-    {
-      id: 'settings',
-      label: t('nav.settings'),
-      icon: <Settings size={18} />,
-      active: false,
-      disabled: true,
     },
   ];
 
@@ -45,18 +37,13 @@ export default function LeftNav() {
             className={[
               styles.item,
               it.active ? styles.active : '',
-              it.disabled ? styles.disabled : '',
             ]
               .filter(Boolean)
               .join(' ')}
-            disabled={it.disabled}
             aria-current={it.active ? 'page' : undefined}
-            aria-disabled={it.disabled || undefined}
-            title={it.disabled ? t('nav.comingSoon') : undefined}
           >
             <span className={styles.icon} aria-hidden="true">{it.icon}</span>
             <span className={styles.label}>{it.label}</span>
-            {it.disabled && <span className={styles.hint}>{t('nav.comingSoonShort')}</span>}
           </button>
         ))}
       </nav>

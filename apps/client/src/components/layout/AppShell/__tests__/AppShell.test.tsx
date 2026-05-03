@@ -13,6 +13,7 @@ interface SessionState {
   accessToken: string | null;
   status: 'idle' | 'loading' | 'authenticated' | 'error' | 'bootstrapping';
   error: string | null;
+  prefilledInviteCode: string | null;
 }
 
 function makeStore(opts: { user?: { name: string; email: string; id: string } | null }) {
@@ -21,6 +22,7 @@ function makeStore(opts: { user?: { name: string; email: string; id: string } | 
     accessToken: 't',
     status: 'authenticated',
     error: null,
+    prefilledInviteCode: null,
   };
   return configureStore({
     reducer: { session: sessionReducer, preferences: preferencesReducer },
@@ -41,7 +43,7 @@ describe('AppShell', () => {
     expect(screen.getByTestId('content').textContent).toBe('Dashboard goes here');
   });
 
-  it('renders LeftNav with active "Мої кімнати" and disabled "Налаштування"', () => {
+  it('renders LeftNav with active "Мої кімнати" nav item', () => {
     const store = makeStore({});
     render(
       <Provider store={store}>
@@ -51,11 +53,9 @@ describe('AppShell', () => {
       </Provider>,
     );
     const items = screen.getAllByRole('button');
-    // First button is the rooms nav-item; should be marked aria-current="page"
+    // The rooms nav-item should be marked aria-current="page"
     const rooms = items.find((b) => b.getAttribute('aria-current') === 'page');
     expect(rooms).toBeTruthy();
-    const disabled = items.find((b) => b.getAttribute('aria-disabled') === 'true');
-    expect(disabled).toBeTruthy();
   });
 
   it('shows UserChip with current user name and toggles dropdown', () => {

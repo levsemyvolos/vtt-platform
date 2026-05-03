@@ -232,7 +232,19 @@ export interface ClientToServerEvents {
   'draw:clear': (payload: { roomId: string; sceneId: string }) => void;
 }
 
+export interface MemberJoinedPayload {
+  roomId: string;
+  member: import('../rest/index').RoomMemberDTO;
+}
+
+export interface RoomDeletedPayload {
+  roomId: string;
+  reason?: string;
+}
+
 export interface ServerToClientEvents {
+  'room:member-joined': (payload: MemberJoinedPayload) => void;
+  'room:deleted': (payload: RoomDeletedPayload) => void;
   'scene:updated': (payload: SceneUpdatedPayload) => void;
   'token:rollback': (payload: TokenRollbackPayload) => void;
   'chat:dice': (payload: ChatDicePayload) => void;

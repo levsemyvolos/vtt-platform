@@ -16,6 +16,9 @@ import type { SceneAnnotationService } from '../services/SceneAnnotationService.
 import { prisma } from '../lib/prisma.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
 import { requireRole } from '../middleware/rbac.js';
+import { validate } from '../middleware/validate.js';
+import { sceneCreateSchema, sceneUpdateSchema } from '../schemas/scene.schema.js';
+import { tokenCreateSchema, tokenUpdateSchema } from '../schemas/token.schema.js';
 import { HttpError } from '../lib/errors.js';
 
 const sceneService = new SceneService(
@@ -96,6 +99,7 @@ roomScenesSubRouter.post(
   '/',
   jwtAuth,
   requireRole('GM', 'Player'),
+  validate(sceneCreateSchema),
   async (
     req: Request<{ id: string }, object, CreateSceneRequest>,
     res: Response,
@@ -115,6 +119,7 @@ scenesRouter.patch(
   '/:sceneId',
   jwtAuth,
   requireRole('GM', 'Player'),
+  validate(sceneUpdateSchema),
   async (
     req: Request<{ sceneId: string }, object, UpdateSceneRequest>,
     res: Response,
@@ -171,6 +176,7 @@ scenesRouter.get(
 scenesRouter.post(
   '/:sceneId/tokens',
   jwtAuth,
+  validate(tokenCreateSchema),
   async (
     req: Request<{ sceneId: string }, object, CreateTokenRequest>,
     res: Response,
@@ -193,6 +199,7 @@ export const tokensRouter: IRouter = Router({ mergeParams: true });
 tokensRouter.patch(
   '/:id',
   jwtAuth,
+  validate(tokenUpdateSchema),
   async (req: Request<{ id: string }, object, UpdateTokenRequest>, res: Response) => {
     try {
       const token = await prisma.token.findUnique({ where: { id: req.params.id } });

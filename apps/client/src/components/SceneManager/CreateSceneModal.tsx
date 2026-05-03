@@ -73,7 +73,7 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              maxLength={80}
+              maxLength={100}
               autoFocus
             />
           </div>

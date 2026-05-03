@@ -5,7 +5,7 @@ import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearRoom } from '../../store/room';
 import { activateScene, loadScenes } from '../../store/scenes';
-import { logout } from '../../store/session';
+import { logout, selectIsObserver } from '../../store/session';
 import { Logo, Badge, Avatar } from '../ui';
 import { getSocket } from '../../api/socket';
 import styles from './GameRoomTopBar.module.css';
@@ -46,6 +46,7 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
   const sceneList = useAppSelector((s) => s.scenes.list);
   const activeScene = useAppSelector((s) => s.scene.current);
   const wssConnected = useWssConnected();
+  const isObserver = useAppSelector(selectIsObserver);
 
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -56,7 +57,12 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
   }, [currentRoom?.id, dispatch]);
 
   function handleBack(): void {
-    dispatch(clearRoom());
+    // Observers have no Dashboard to return to — dispatch logout instead.
+    if (isObserver) {
+      void dispatch(logout());
+    } else {
+      dispatch(clearRoom());
+    }
   }
 
   function handleSceneChange(sceneId: string): void {
@@ -73,7 +79,12 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
   return (
     <header className={styles.topBar} role="banner">
       <div className={styles.left}>
-        <button type="button" className={styles.logoBtn} onClick={handleBack} aria-label="Dashboard">
+        <button
+          type="button"
+          className={styles.logoBtn}
+          onClick={handleBack}
+          aria-label={isObserver ? t('topBar.logout') : 'Dashboard'}
+        >
           <Logo size={28} />
         </button>
         <span className={styles.sep} aria-hidden>/</span>

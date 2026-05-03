@@ -13,7 +13,8 @@
     "close": "Close",
     "send": "Send",
     "activate": "Activate",
-    "add": "Add"
+    "add": "Add",
+    "more": "More actions"
   },
   "label": {
     "name": "Name",
@@ -35,5 +36,10 @@
   "desktopGuard": {
     "title": "Mobile / tablet not supported",
     "subtitle": "Please use a desktop browser with a width of at least 1280 px."
+  },
+  "loader": {
+    "connecting": "Connecting to server…",
+    "waking": "Server is waking up, hold on…",
+    "retry": "Try again"
   }
 }

@@ -6,6 +6,7 @@ import { Tabs, Button, Input } from '../../components/ui';
 import { AuthLayout } from '../../components/Auth';
 import styles from './Auth.module.css';
 
+
 type TabId = 'login' | 'register';
 
 type Props = {
@@ -16,7 +17,7 @@ type Props = {
 export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props) {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['auth', 'common', 'errors']);
-  const { status, error } = useAppSelector((s) => s.session);
+  const { status, error, prefilledInviteCode } = useAppSelector((s) => s.session);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,12 +43,29 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
     void dispatch(login({ email, password }));
   };
 
-  const displayError = localError ?? error;
+  // Translate i18n keys that may arrive from Redux (e.g. 'errors:server.generic').
+  const rawError = localError ?? error;
+  const displayError = rawError
+    ? /^[\w]+:[\w.]+$/.test(rawError) ? t(rawError as never, rawError) : rawError
+    : null;
 
   return (
     <AuthLayout>
       <h1 className={styles.heading}>{t('auth:headline.login')}</h1>
-      <p className={styles.subtitle}>{t('auth:subtitle')}</p>
+      {prefilledInviteCode ? (
+        <p className={styles.subtitle}>
+          {t('auth:observer.invitePrefilled')}{' '}
+          <button
+            type="button"
+            className={styles.inlineLink}
+            onClick={onSwitchToObserver}
+          >
+            {t('auth:observer.linkLabel')}
+          </button>
+        </p>
+      ) : (
+        <p className={styles.subtitle}>{t('auth:subtitle')}</p>
+      )}
       <div className={styles.tabsRow}>
         <Tabs
           variant="pill"

@@ -18,11 +18,25 @@ import { SessionRepository } from '../repositories/SessionRepository.js';
 import { AuthService } from '../services/AuthService.js';
 import { prisma } from '../lib/prisma.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
+import { requireRole } from '../middleware/rbac.js';
+import { requireBoundRoom } from '../middleware/requireBoundRoom.js';
+import { validate } from '../middleware/validate.js';
+import { roomCreateSchema, roomUpdateSchema } from '../schemas/room.schema.js';
+import type { RoomUpdateInput } from '../schemas/room.schema.js';
 import { HttpError } from '../lib/errors.js';
+import type { TypedServer } from '../socketio/types.js';
 
 const roomService = new RoomService(new RoomRepository(prisma), prisma);
 const userRepo = new UserRepository(prisma);
 const authService = new AuthService(userRepo, new SessionRepository(prisma));
+
+// io is injected after socket.io server is built (see index.ts — buildRoomsRouter).
+let _io: TypedServer | null = null;
+
+export function buildRoomsRouter(io: TypedServer): IRouter {
+  _io = io;
+  return roomsRouter;
+}
 
 export const roomsRouter: IRouter = Router();
 
@@ -43,15 +57,24 @@ function toRoomDTO(room: Room, members: RoomMemberDTO[] = []): RoomDTO {
     ownerId: room.ownerId,
     members,
     createdAt: room.createdAt.toISOString(),
+    lastActiveAt: (room as Room & { lastActiveAt?: Date }).lastActiveAt?.toISOString() ?? room.createdAt.toISOString(),
   };
 }
 
-roomsRouter.get('/', jwtAuth, async (req: Request, res: Response) => {
+roomsRouter.get('/', jwtAuth, requireRole('GM', 'Player'), async (req: Request, res: Response) => {
   try {
     const rawFilter = req.query['filter'] as string | undefined;
     const filter: 'owned' | 'invited' | 'all' =
       rawFilter === 'owned' || rawFilter === 'invited' ? rawFilter : 'all';
-    const rooms = await roomService.listByUserAndRole(req.user!.id, filter);
+
+    const rawSort = req.query['sort'] as string | undefined;
+    const sort: 'lastActive' | 'created' | 'name' =
+      rawSort === 'lastActive' || rawSort === 'created' || rawSort === 'name' ? rawSort : 'lastActive';
+
+    const rawOrder = req.query['order'] as string | undefined;
+    const order: 'asc' | 'desc' = rawOrder === 'asc' ? 'asc' : 'desc';
+
+    const rooms = await roomService.listByUserAndRole(req.user!.id, filter, sort, order);
     const dtos = await Promise.all(
       rooms.map(async (room) => {
         const members = await roomService.getMembersProjection(room.id);
@@ -67,6 +90,8 @@ roomsRouter.get('/', jwtAuth, async (req: Request, res: Response) => {
 roomsRouter.post(
   '/',
   jwtAuth,
+  requireRole('GM', 'Player'),
+  validate(roomCreateSchema),
   async (req: Request<object, object, CreateRoomRequest>, res: Response) => {
     try {
       const { name, gameSystem } = req.body;
@@ -79,7 +104,7 @@ roomsRouter.post(
   },
 );
 
-roomsRouter.get('/:id', jwtAuth, async (req: Request<{ id: string }>, res: Response) => {
+roomsRouter.get('/:id', jwtAuth, requireBoundRoom, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const room = await roomService.getById(req.params.id);
     const members = await roomService.getMembersProjection(req.params.id);
@@ -93,6 +118,8 @@ roomsRouter.get('/:id', jwtAuth, async (req: Request<{ id: string }>, res: Respo
  * POST /rooms/join — Player joins a room via invite token.
  * Body: { token: string } (raw playerToken from invite URL)
  * Returns the resolved RoomDTO with members snapshot.
+ * Side-effect: broadcasts `room:member-joined` to the room channel so the
+ * GM's Lobby updates in real-time without a page refresh.
  */
 roomsRouter.post(
   '/join',
@@ -101,9 +128,21 @@ roomsRouter.post(
     try {
       const token = req.body.token?.trim();
       if (!token) throw new HttpError(400, 'Missing invite token');
-      const room = await roomService.joinByInvite(token);
+      const room = await roomService.joinByInvite(token, req.user!.id);
       const members = await roomService.getMembersProjection(room.id);
-      res.json(toRoomDTO(room, members));
+      const dto = toRoomDTO(room, members);
+
+      // Emit real-time event to all room subscribers (GM Lobby) so the member
+      // list updates without a page refresh (§2.16 room:member-joined).
+      const newMember = members.find((m) => m.userId === req.user!.id);
+      if (newMember && _io) {
+        _io.to(room.id).emit('room:member-joined', {
+          roomId: room.id,
+          member: newMember,
+        });
+      }
+
+      res.json(dto);
     } catch (err) {
       handleError(err, res);
     }
@@ -145,9 +184,11 @@ roomsRouter.post(
         id: user.id,
         email: user.email,
         name: user.displayName,
+        role: 'observer',
+        boundRoomId: room.id,
       };
       const ua = String(req.headers['user-agent'] ?? '');
-      const tokens = await authService.issueObserverTokens(userPublic, ua);
+      const tokens = await authService.issueObserverTokens(userPublic, room.id, ua);
       const body: ObserverJoinResponse = { ...tokens, roomId: room.id };
       res.status(201).json(body);
     } catch (err) {
@@ -163,6 +204,46 @@ roomsRouter.post(
     try {
       const tokens = await roomService.getInviteTokens(req.params.id, req.user!.id);
       res.json(tokens);
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+);
+
+/**
+ * PATCH /rooms/:id — update room name/gameSystem (GM-owner only).
+ * Body: RoomUpdateInput = { name?, gameSystem? }
+ * Returns updated RoomDTO with members snapshot.
+ */
+roomsRouter.patch(
+  '/:id',
+  jwtAuth,
+  requireRole('GM', 'Player'),
+  validate(roomUpdateSchema),
+  async (req: Request<{ id: string }, object, RoomUpdateInput>, res: Response) => {
+    try {
+      const room = await roomService.update(req.params.id, req.user!.id, req.body);
+      const members = await roomService.getMembersProjection(room.id);
+      res.json(toRoomDTO(room, members));
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+);
+
+/**
+ * DELETE /rooms/:id — delete room (GM-owner only, cascades all children).
+ * Broadcasts `room:deleted` to all room subscribers BEFORE deletion so clients
+ * can redirect before the room disappears from the DB.
+ */
+roomsRouter.delete(
+  '/:id',
+  jwtAuth,
+  requireRole('GM', 'Player'),
+  async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      await roomService.delete(req.params.id, req.user!.id, _io);
+      res.status(200).json({ deleted: true });
     } catch (err) {
       handleError(err, res);
     }

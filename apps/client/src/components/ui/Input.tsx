@@ -8,6 +8,11 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   fullWidth?: boolean;
+  /**
+   * When `showCounter` is true and `maxLength` is set, renders a character
+   * counter below the field in the format "32/100" (MIN-008).
+   */
+  showCounter?: boolean;
 }
 
 function cls(...parts: ReadonlyArray<string | false | null | undefined>): string {
@@ -23,12 +28,17 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     leftIcon,
     rightIcon,
     fullWidth = false,
+    showCounter = false,
     className,
     id,
     ...rest
   },
   ref,
 ) {
+  const currentLength =
+    showCounter && rest.maxLength != null
+      ? String(rest.value ?? '').length
+      : null;
   const reactId = useId();
   const inputId = id ?? `in-${reactId}`;
   const hintId = hint ? `${inputId}-hint` : '';
@@ -75,6 +85,17 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       {error && (
         <span id={errorId} role="alert" className={styles.errorMsg}>
           {error}
+        </span>
+      )}
+      {currentLength !== null && !error && (
+        <span
+          className={cls(
+            styles.counter,
+            currentLength >= (rest.maxLength ?? 0) ? styles.counterLimit : '',
+          )}
+          aria-live="polite"
+        >
+          {currentLength}/{rest.maxLength}
         </span>
       )}
     </div>

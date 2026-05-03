@@ -1,6 +1,7 @@
 .background {
   min-height: 100dvh;
-  background: linear-gradient(180deg, #12141C 0%, #0A0B12 100%);
+  /* Wave 3.3 — use CSS variables so the auth screen respects the active theme. */
+  background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,7 +19,7 @@
   height: 360px;
   background: radial-gradient(
     ellipse at center top,
-    rgba(200, 162, 74, 0.15) 0%,
+    var(--color-primary-muted) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -41,6 +42,16 @@
   letter-spacing: 3px;
   color: var(--color-text-primary);
   text-transform: uppercase;
+}
+
+.controls {
+  position: absolute;
+  top: var(--space-xl);
+  right: var(--space-xl);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  z-index: 1;
 }
 
 .card {

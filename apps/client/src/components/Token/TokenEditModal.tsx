@@ -104,6 +104,7 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
             value={name}
             onChange={(e) => setName(e.target.value)}
             aria-label={t('common:label.name')}
+            maxLength={60}
           />
         </label>
 

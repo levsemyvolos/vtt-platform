@@ -93,3 +93,15 @@
   padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-sm);
 }
+
+.counter {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+  user-select: none;
+}
+
+.counterLimit {
+  color: var(--color-danger);
+  font-weight: 600;
+}

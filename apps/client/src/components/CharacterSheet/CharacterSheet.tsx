@@ -475,6 +475,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
             disabled={readOnly}
             aria-label={t('campaign:character.nameInputLabel')}
             className={styles.name}
+            maxLength={100}
           />
           <div className={styles.vitalsInline}>
             <span className={styles.vitalChip}>HP {sheet.hp}/{sheet.maxHp}</span>
