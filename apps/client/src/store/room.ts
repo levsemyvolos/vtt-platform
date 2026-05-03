@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { RoomDTO, RoomMemberDTO, CreateRoomRequest } from '@vtt/shared';
 import { apiFetch } from '../api/apiFetch';
+import { addToast } from './toast';
 
 // B6-BUG-002: typed query option types for fetchRooms.
 export type SortField = 'lastActive' | 'created' | 'name';
@@ -109,12 +110,15 @@ export const fetchRoom = createAsyncThunk<RoomDTO, string, { rejectValue: string
 
 export const updateRoom = createAsyncThunk<RoomDTO, UpdateRoomPayload, { rejectValue: string }>(
   'room/updateRoom',
-  async ({ id, ...body }, { rejectWithValue }) => {
+  async ({ id, ...body }, { dispatch, rejectWithValue }) => {
     try {
-      return await apiFetch<RoomDTO>(`/api/rooms/${id}`, {
+      const room = await apiFetch<RoomDTO>(`/api/rooms/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
+      // B6-MIN-001: success toast after rename
+      dispatch(addToast('success', 'room:edit.success'));
+      return room;
     } catch (err) {
       return rejectWithValue(
         err instanceof Error ? err.message : 'Не вдалося оновити кімнату',
@@ -125,9 +129,11 @@ export const updateRoom = createAsyncThunk<RoomDTO, UpdateRoomPayload, { rejectV
 
 export const deleteRoom = createAsyncThunk<string, string, { rejectValue: string }>(
   'room/deleteRoom',
-  async (roomId, { rejectWithValue }) => {
+  async (roomId, { dispatch, rejectWithValue }) => {
     try {
       await apiFetch<{ deleted: boolean }>(`/api/rooms/${roomId}`, { method: 'DELETE' });
+      // B6-MIN-002: success toast after delete
+      dispatch(addToast('success', 'room:delete.success'));
       return roomId;
     } catch (err) {
       return rejectWithValue(
