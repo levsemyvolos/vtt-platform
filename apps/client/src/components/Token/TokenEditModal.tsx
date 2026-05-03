@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { StatusMarker } from '@vtt/shared';
+import type { StatusMarker, AssetDTO } from '@vtt/shared';
 import { ALL_STATUS_MARKERS } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { upsertToken } from '../../store/scene';
 import { apiUpdateToken } from '../../api/scenes';
+import ImageUpload from '../AssetUpload/ImageUpload';
 import styles from './TokenEditModal.module.css';
 
 const COLOR_PRESETS = [
@@ -22,6 +23,7 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
   const { t } = useTranslation(['room', 'common', 'errors']);
   const token = useAppSelector((s) => s.scene.current?.tokens.find((tk) => tk.id === tokenId));
   const members = useAppSelector((s) => s.room.members);
+  const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
   const dialogRef = useRef<HTMLDivElement>(null);
 
   const [name, setName] = useState('');
@@ -30,6 +32,9 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
   const [color, setColor] = useState('#7c5cff');
   const [markers, setMarkers] = useState<StatusMarker[]>([]);
   const [assignedUserId, setAssignedUserId] = useState('');
+  const [imageAssetId, setImageAssetId] = useState<string | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [showUploader, setShowUploader] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +46,10 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
     setColor(token.color ?? '#7c5cff');
     setMarkers((token.statusMarkers ?? []) as StatusMarker[]);
     setAssignedUserId(token.assignedUserId ?? '');
+    // Reset image state on token change
+    setImageAssetId(null);
+    setImagePreviewUrl(token.imageUrl || null);
+    setShowUploader(false);
   }, [token]);
 
   useEffect(() => {
@@ -60,6 +69,12 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
     );
   }
 
+  function handleImageUploaded(asset: AssetDTO): void {
+    setImageAssetId(asset.id);
+    setImagePreviewUrl(asset.url);
+    setShowUploader(false);
+  }
+
   async function handleSave(): Promise<void> {
     setSaving(true);
     setError(null);
@@ -71,6 +86,7 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
         color,
         statusMarkers: markers,
         assignedUserId: assignedUserId || null,
+        ...(imageAssetId !== null ? { imageAssetId } : {}),
       });
       dispatch(upsertToken(updated));
       onClose();
@@ -107,6 +123,33 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
             maxLength={60}
           />
         </label>
+
+        {/* Token image section */}
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>{t('room:token.imageLabel', 'Token Image')}</span>
+          {imagePreviewUrl && !showUploader && (
+            <div style={{ marginBottom: 'var(--space-xs)' }}>
+              <img
+                src={imagePreviewUrl}
+                alt={t('room:token.imagePreviewAlt', 'Token image')}
+                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+              />
+            </div>
+          )}
+          {showUploader && roomId ? (
+            <ImageUpload roomId={roomId} onUploaded={handleImageUploaded} />
+          ) : (
+            <button
+              type="button"
+              className={styles.btnCancel}
+              style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
+              onClick={() => setShowUploader(true)}
+              disabled={saving || !roomId}
+            >
+              {imagePreviewUrl ? t('room:token.changeImage', 'Change image') : t('room:token.uploadImage', 'Upload image')}
+            </button>
+          )}
+        </div>
 
         <div className={styles.row}>
           <label className={styles.field}>
