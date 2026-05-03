@@ -16,6 +16,10 @@ const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 interface RefreshPayload {
   sub: string;
   sid: string;
+  /** Per-room role baked into refresh token so rotateRefresh can re-issue correct access token. */
+  role: Role;
+  /** Observer only — room UUID scope-binding preserved across token rotation. */
+  boundRoomId?: string;
 }
 
 function signAccess(userId: string, role: Role, sessionId: string, boundRoomId?: string): string {
@@ -24,10 +28,10 @@ function signAccess(userId: string, role: Role, sessionId: string, boundRoomId?:
   return jwt.sign(payload, JWT_SECRET!, { expiresIn: ACCESS_TTL_SEC });
 }
 
-function signRefresh(userId: string, sessionId: string): string {
-  return jwt.sign({ sub: userId, sid: sessionId }, JWT_SECRET!, {
-    expiresIn: '30d',
-  });
+function signRefresh(userId: string, sessionId: string, role: Role, boundRoomId?: string): string {
+  const payload: Record<string, unknown> = { sub: userId, sid: sessionId, role };
+  if (boundRoomId !== undefined) payload['boundRoomId'] = boundRoomId;
+  return jwt.sign(payload, JWT_SECRET!, { expiresIn: '30d' });
 }
 
 function toUserPublic(user: {
@@ -35,7 +39,7 @@ function toUserPublic(user: {
   email: string;
   displayName: string;
 }): UserPublic {
-  return { id: user.id, email: user.email, name: user.displayName, role: 'user' };
+  return { id: user.id, email: user.email, name: user.displayName };
 }
 
 export class AuthService {
@@ -129,9 +133,10 @@ export class AuthService {
     if (!user) throw new HttpError(401, 'User not found');
 
     // 5. Generate new tokens + hash BEFORE modifying DB (so DB stays consistent on hash failure)
+    // Role and boundRoomId are preserved from the original refresh token payload.
     const newSessionId = randomUUID();
-    const newAccessToken = signAccess(userId, 'Player', newSessionId);
-    const newRefreshToken = signRefresh(userId, newSessionId);
+    const newAccessToken = signAccess(userId, payload.role, newSessionId, payload.boundRoomId);
+    const newRefreshToken = signRefresh(userId, newSessionId, payload.role, payload.boundRoomId);
     const newRefreshHash = await bcrypt.hash(newRefreshToken, 12);
 
     // 6. Atomic session swap: DELETE old, INSERT new
@@ -144,11 +149,16 @@ export class AuthService {
       userAgent: session.userAgent,
     });
 
+    const userPublic = toUserPublic(user);
+    // Preserve Observer identity across refresh — client uses role to detect observer routing.
+    if (payload.role === 'Observer' && payload.boundRoomId !== undefined) {
+      userPublic.boundRoomId = payload.boundRoomId;
+    }
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
       expiresIn: ACCESS_TTL_SEC,
-      user: toUserPublic(user),
+      user: userPublic,
     };
   }
 
@@ -185,7 +195,7 @@ export class AuthService {
   ): Promise<AuthTokenPair> {
     const sessionId = randomUUID();
     const accessToken = signAccess(userId, role, sessionId, boundRoomId);
-    const refreshToken = signRefresh(userId, sessionId);
+    const refreshToken = signRefresh(userId, sessionId, role, boundRoomId);
     const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
     await this.sessions.create({
       id: sessionId,
