@@ -2,7 +2,7 @@
   "dashboard": {
     "heading": "My Rooms",
     "subheading": "{{active}} active · {{total}} total",
-    "createBtn": "+ Create Room",
+    "createBtn": "Create Room",
     "noRooms": "No rooms yet. Create your first!",
     "membersCount": "{{count}} members",
     "membersCount_one": "{{count}} member",
