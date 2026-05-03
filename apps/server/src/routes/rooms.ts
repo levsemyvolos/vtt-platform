@@ -184,7 +184,6 @@ roomsRouter.post(
         id: user.id,
         email: user.email,
         name: user.displayName,
-        role: 'observer',
         boundRoomId: room.id,
       };
       const ua = String(req.headers['user-agent'] ?? '');
