@@ -4,6 +4,7 @@ import { Plus, Search } from 'lucide-react';
 import type { RoomDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchRooms, fetchRoom } from '../../store/room';
+import type { FetchRoomsOpts } from '../../store/room';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Tabs, { type TabItem } from '../../components/ui/Tabs';
@@ -46,8 +47,11 @@ export default function Dashboard() {
   const [sort, setSort] = useState<SortField>('lastActive');
   const [order, setOrder] = useState<SortOrder>('desc');
 
+  // B6-BUG-002: pass sort/order/filter on mount so server-side sort is applied from the start.
   useEffect(() => {
-    void dispatch(fetchRooms());
+    const opts: FetchRoomsOpts = { sort, order, filter: tab === 'my' ? 'owned' : 'invited' };
+    void dispatch(fetchRooms(opts));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   const { my, invited } = useMemo(
@@ -76,8 +80,13 @@ export default function Dashboard() {
   const handleSortChange = (newSort: SortField, newOrder: SortOrder) => {
     setSort(newSort);
     setOrder(newOrder);
-    // Re-fetch with new sort params so server-side sort is applied.
-    void dispatch(fetchRooms());
+    // B6-BUG-002: pass updated sort/order to fetchRooms so server re-sorts.
+    const opts: FetchRoomsOpts = {
+      sort: newSort,
+      order: newOrder,
+      filter: tab === 'my' ? 'owned' : 'invited',
+    };
+    void dispatch(fetchRooms(opts));
   };
 
   return (

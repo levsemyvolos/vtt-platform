@@ -2,6 +2,17 @@ import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/tool
 import type { RoomDTO, RoomMemberDTO, CreateRoomRequest } from '@vtt/shared';
 import { apiFetch } from '../api/apiFetch';
 
+// B6-BUG-002: typed query option types for fetchRooms.
+export type SortField = 'lastActive' | 'created' | 'name';
+export type SortOrder = 'asc' | 'desc';
+export type RoomFilter = 'owned' | 'invited' | 'all';
+
+export interface FetchRoomsOpts {
+  sort?: SortField;
+  order?: SortOrder;
+  filter?: RoomFilter;
+}
+
 /** localStorage key used to persist the active room ID across page reloads (BUG-001-F5). */
 const PERSISTED_ROOM_KEY = 'vtt_current_room_id';
 
@@ -48,11 +59,17 @@ const initialState: RoomState = {
   editingSceneId: null,
 };
 
-export const fetchRooms = createAsyncThunk<RoomDTO[], void, { rejectValue: string }>(
+export const fetchRooms = createAsyncThunk<RoomDTO[], FetchRoomsOpts | undefined, { rejectValue: string }>(
   'room/fetchRooms',
-  async (_, { rejectWithValue }) => {
+  async (opts, { rejectWithValue }) => {
     try {
-      return await apiFetch<RoomDTO[]>('/api/rooms');
+      // B6-BUG-002: pass sort/order/filter as query params so server-side sort is applied.
+      const params = new URLSearchParams();
+      if (opts?.sort) params.set('sort', opts.sort);
+      if (opts?.order) params.set('order', opts.order);
+      if (opts?.filter) params.set('filter', opts.filter);
+      const query = params.size > 0 ? `?${params.toString()}` : '';
+      return await apiFetch<RoomDTO[]>(`/api/rooms${query}`);
     } catch (err) {
       return rejectWithValue(
         err instanceof Error ? err.message : 'Не вдалося завантажити кімнати',
