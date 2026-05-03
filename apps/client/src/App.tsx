@@ -73,7 +73,7 @@ export default function App() {
   useTheme();
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['room', 'errors', 'auth']);
-  const { status, currentUser } = useAppSelector((s) => s.session);
+  const { status, currentUser, errorSource } = useAppSelector((s) => s.session);
   const { currentRoom, sessionActive, editingSceneId } = useAppSelector((s) => s.room);
   const isObserver = useAppSelector(selectIsObserver);
   const observerBoundRoomId = useAppSelector(selectObserverBoundRoomId);
@@ -146,7 +146,9 @@ export default function App() {
   return (
     <DesktopOnlyGuard>
       <Toast />
-      {status === 'bootstrapping' || status === 'error' || inviteJoining || observerLoadingRoom ? (
+      {/* Wave 6.2: BootstrapLoader only for bootstrap-level errors (network/5xx), NOT for
+           authForm rejections (login 401, register 409, observer invalid invite). */}
+      {status === 'bootstrapping' || (status === 'error' && errorSource === 'bootstrap') || inviteJoining || observerLoadingRoom ? (
         <BootstrapLoader networkError={status === 'error'} onRetry={() => void dispatch(bootstrapSession())} />
       ) : status !== 'authenticated' || !currentUser ? (
         <AuthViews view={authView} onSwitch={setAuthView} />
