@@ -227,9 +227,13 @@ export default sessionSlice.reducer;
 // Selectors
 // ---------------------------------------------------------------------------
 
-/** True when the authenticated user is an anonymous Observer (account-tier). */
+/**
+ * True when the authenticated user is an anonymous Observer.
+ * Observers are identified by the presence of boundRoomId in their UserPublic
+ * (set by POST /rooms/join-invite and preserved across token refresh).
+ */
 export const selectIsObserver = (state: { session: SessionState }): boolean =>
-  state.session.currentUser?.role === 'observer';
+  state.session.currentUser?.boundRoomId !== undefined;
 
 /** Returns the boundRoomId from the Observer's UserPublic, or undefined. */
 export const selectObserverBoundRoomId = (state: { session: SessionState }): string | undefined =>

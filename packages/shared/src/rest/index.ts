@@ -2,9 +2,7 @@ export interface UserPublic {
   id: string;
   email: string;
   name: string;
-  /** JWT role — present in auth responses (login/register/observer). 'user' maps to GM/Player scope. */
-  role?: 'user' | 'observer';
-  /** UUID of the room this Observer token is bound to. Present only when role === 'observer'. */
+  /** UUID of the room this Observer token is bound to. Present only when the user is an Observer. */
   boundRoomId?: string;
 }
 
