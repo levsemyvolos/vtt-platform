@@ -76,7 +76,6 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding }: Props) 
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoComplete="name"
-          required
           fullWidth
         />
         <Input
@@ -86,7 +85,6 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding }: Props) 
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
-          required
           fullWidth
         />
         <Input
@@ -96,7 +94,6 @@ export default function Register({ onSwitchToLogin, onSwitchToLanding }: Props) 
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="new-password"
-          required
           fullWidth
         />
         {displayError && (

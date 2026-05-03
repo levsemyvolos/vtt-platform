@@ -82,7 +82,6 @@ export default function ObserverEntry({ onSwitchToLogin, onSwitchToLanding }: Pr
           value={inviteCode}
           onChange={(e) => { if (!isPrefilled) setInviteCode(e.target.value); }}
           autoComplete="off"
-          required
           fullWidth
           disabled={isPrefilled}
         />
@@ -93,7 +92,6 @@ export default function ObserverEntry({ onSwitchToLogin, onSwitchToLanding }: Pr
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoComplete="name"
-          required
           fullWidth
           ref={nameInputRef}
         />
