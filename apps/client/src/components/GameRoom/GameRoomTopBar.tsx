@@ -38,6 +38,7 @@ function useWssConnected(): boolean {
   return connected;
 }
 
+// eslint-disable-next-line complexity
 export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('gameroom');

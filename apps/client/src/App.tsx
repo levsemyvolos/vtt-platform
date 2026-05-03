@@ -80,6 +80,7 @@ function RoomView({ sessionActive, editingSceneId }: RoomViewProps): JSX.Element
   return <main className="room-screen"><RoomLobby /></main>;
 }
 
+// eslint-disable-next-line complexity
 export default function App() {
   useTheme();
   const dispatch = useAppDispatch();

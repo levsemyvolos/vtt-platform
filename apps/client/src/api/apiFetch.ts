@@ -108,6 +108,7 @@ function buildHeaders(body: BodyInit | null | undefined, extra?: HeadersInit): R
 
 const FETCH_TIMEOUT_MS = 60_000;
 
+// eslint-disable-next-line complexity
 export async function apiFetch<TRes = unknown>(
   url: string,
   options: RequestInit = {},

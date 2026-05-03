@@ -13,7 +13,7 @@ export interface LogoProps extends Omit<SVGProps<SVGSVGElement>, 'children'> {
  * Design: bold condensed "VTT" letterform rendered as inline SVG paths.
  * Variant A — typographic (no geometric dice shapes to avoid Roll20 trademark similarity).
  */
-export default function Logo({ size = 24, withDot: _withDot, ...rest }: LogoProps) {
+export default function Logo({ size = 24, ...rest }: LogoProps) {
   // Scale factor: base design is 56×24 viewBox, scale to requested size preserving aspect ratio
   const width = Math.round(size * (56 / 24));
   return (
