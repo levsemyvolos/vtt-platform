@@ -7,45 +7,34 @@ export interface LogoProps extends Omit<SVGProps<SVGSVGElement>, 'children'> {
 }
 
 /**
- * D20-inspired logo mark.
- * Uses currentColor (--color-primary via inline style) so it adapts to both
- * light and dark themes without any JavaScript.
+ * Typographic "VTT" logo mark.
+ * Uses currentColor so it adapts to light/dark themes via CSS variable --color-primary.
  *
- * Geometry: simplified icosahedron face projection — top pentagon fan + bottom strip.
+ * Design: bold condensed "VTT" letterform rendered as inline SVG paths.
+ * Variant A — typographic (no geometric dice shapes to avoid Roll20 trademark similarity).
  */
 export default function Logo({ size = 24, withDot: _withDot, ...rest }: LogoProps) {
+  // Scale factor: base design is 56×24 viewBox, scale to requested size preserving aspect ratio
+  const width = Math.round(size * (56 / 24));
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width={size}
+      width={width}
       height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinejoin="round"
-      strokeLinecap="round"
+      viewBox="0 0 56 24"
+      fill="currentColor"
+      stroke="none"
       role="img"
       aria-label="VTT Logo"
       style={{ color: 'var(--color-primary)' }}
       {...rest}
     >
-      {/* Outer pentagon (top half of D20) */}
-      <polygon points="12,2 21,8.5 17.5,19 6.5,19 3,8.5" />
-      {/* Inner triangle — "20" face */}
-      <polygon points="12,5.5 18.5,10 15,17 9,17 5.5,10" opacity="0.35" fill="currentColor" stroke="none" />
-      {/* Top cap line */}
-      <line x1="12" y1="2" x2="12" y2="5.5" />
-      {/* Left diagonal */}
-      <line x1="3" y1="8.5" x2="5.5" y2="10" />
-      {/* Right diagonal */}
-      <line x1="21" y1="8.5" x2="18.5" y2="10" />
-      {/* Bottom left */}
-      <line x1="6.5" y1="19" x2="9" y2="17" />
-      {/* Bottom right */}
-      <line x1="17.5" y1="19" x2="15" y2="17" />
-      {/* Center "20" dot */}
-      <circle cx="12" cy="11.5" r="1.5" fill="currentColor" stroke="none" />
+      {/* V — bold condensed letterform */}
+      <path d="M0 2 L4 2 L9 16 L14 2 L18 2 L11 22 L7 22 Z" />
+      {/* T (first) — bold condensed letterform */}
+      <path d="M20 2 L36 2 L36 6 L30 6 L30 22 L26 22 L26 6 L20 6 Z" />
+      {/* T (second) — bold condensed letterform */}
+      <path d="M38 2 L54 2 L54 6 L48 6 L48 22 L44 22 L44 6 L38 6 Z" />
     </svg>
   );
 }
