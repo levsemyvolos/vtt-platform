@@ -1,0 +1,26 @@
+{
+  "hero": {
+    "title": "VTT Platform",
+    "subtitle": "AI-assisted virtual tabletop for TTRPGs"
+  },
+  "cta": {
+    "login": "Sign In",
+    "register": "Create Account",
+    "observer": "Join as Observer"
+  },
+  "features": {
+    "realtime": {
+      "title": "Shared Game Table",
+      "desc": "Real-time canvas with tokens, scenes, and fog of war"
+    },
+    "ai": {
+      "title": "AI Assistant",
+      "desc": "Generate descriptions, images, and music for your campaign"
+    },
+    "tools": {
+      "title": "Full Toolset",
+      "desc": "Chat, initiative tracker, notes, handouts, and dice roller"
+    }
+  },
+  "footer": "© 2026 VTT Platform · v0.0.1"
+}

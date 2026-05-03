@@ -28,6 +28,8 @@ function makeStore(opts: {
         accessToken: 't',
         status: opts.sessionStatus ?? 'authenticated',
         error: null,
+        errorSource: null,
+        prefilledInviteCode: null,
       },
       room: {
         currentRoom: null,

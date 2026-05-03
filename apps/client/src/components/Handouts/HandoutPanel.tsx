@@ -93,6 +93,7 @@ function GmView({ roomId, items }: GmViewProps): JSX.Element {
             placeholder={t('campaign:handouts.titlePlaceholder')}
             aria-label={t('campaign:handouts.titleAriaLabel')}
             required
+            maxLength={100}
           />
           <textarea
             value={body}

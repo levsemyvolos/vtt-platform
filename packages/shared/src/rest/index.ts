@@ -2,6 +2,8 @@ export interface UserPublic {
   id: string;
   email: string;
   name: string;
+  /** UUID of the room this Observer token is bound to. Present only when the user is an Observer. */
+  boundRoomId?: string;
 }
 
 export interface AuthTokenPair {
@@ -28,6 +30,7 @@ export interface RoomDTO {
   ownerId: string;
   members: RoomMemberDTO[];
   createdAt: string;
+  lastActiveAt: string;
 }
 
 export interface CreateRoomRequest {
@@ -144,6 +147,8 @@ export interface UpdateTokenRequest {
   statusMarkers?: string[];
   assignedUserId?: string | null;
   isHidden?: boolean;
+  /** UUID of an uploaded Asset to use as token image. */
+  imageAssetId?: string | null;
 }
 
 // ---------- Чат 7.2 — музичний супровід (Ф6) ----------

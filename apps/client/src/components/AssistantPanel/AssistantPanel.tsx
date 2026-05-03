@@ -52,7 +52,7 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
       <div className={styles.body}>
         <DialogList roomId={roomId} />
         <ConversationView roomId={roomId} mainTab={mainTab} />
-        <RecentGenerations />
+        <RecentGenerations roomId={roomId} />
       </div>
     </div>
   );

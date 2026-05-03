@@ -16,18 +16,22 @@ const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 interface RefreshPayload {
   sub: string;
   sid: string;
+  /** Per-room role baked into refresh token so rotateRefresh can re-issue correct access token. */
+  role: Role;
+  /** Observer only — room UUID scope-binding preserved across token rotation. */
+  boundRoomId?: string;
 }
 
-function signAccess(userId: string, role: Role, sessionId: string): string {
-  return jwt.sign({ sub: userId, role, sid: sessionId }, JWT_SECRET!, {
-    expiresIn: ACCESS_TTL_SEC,
-  });
+function signAccess(userId: string, role: Role, sessionId: string, boundRoomId?: string): string {
+  const payload: Record<string, unknown> = { sub: userId, role, sid: sessionId };
+  if (boundRoomId !== undefined) payload['boundRoomId'] = boundRoomId;
+  return jwt.sign(payload, JWT_SECRET!, { expiresIn: ACCESS_TTL_SEC });
 }
 
-function signRefresh(userId: string, sessionId: string): string {
-  return jwt.sign({ sub: userId, sid: sessionId }, JWT_SECRET!, {
-    expiresIn: '30d',
-  });
+function signRefresh(userId: string, sessionId: string, role: Role, boundRoomId?: string): string {
+  const payload: Record<string, unknown> = { sub: userId, sid: sessionId, role };
+  if (boundRoomId !== undefined) payload['boundRoomId'] = boundRoomId;
+  return jwt.sign(payload, JWT_SECRET!, { expiresIn: '30d' });
 }
 
 function toUserPublic(user: {
@@ -129,9 +133,10 @@ export class AuthService {
     if (!user) throw new HttpError(401, 'User not found');
 
     // 5. Generate new tokens + hash BEFORE modifying DB (so DB stays consistent on hash failure)
+    // Role and boundRoomId are preserved from the original refresh token payload.
     const newSessionId = randomUUID();
-    const newAccessToken = signAccess(userId, 'Player', newSessionId);
-    const newRefreshToken = signRefresh(userId, newSessionId);
+    const newAccessToken = signAccess(userId, payload.role, newSessionId, payload.boundRoomId);
+    const newRefreshToken = signRefresh(userId, newSessionId, payload.role, payload.boundRoomId);
     const newRefreshHash = await bcrypt.hash(newRefreshToken, 12);
 
     // 6. Atomic session swap: DELETE old, INSERT new
@@ -144,11 +149,16 @@ export class AuthService {
       userAgent: session.userAgent,
     });
 
+    const userPublic = toUserPublic(user);
+    // Preserve Observer identity across refresh — client uses role to detect observer routing.
+    if (payload.role === 'Observer' && payload.boundRoomId !== undefined) {
+      userPublic.boundRoomId = payload.boundRoomId;
+    }
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
       expiresIn: ACCESS_TTL_SEC,
-      user: toUserPublic(user),
+      user: userPublic,
     };
   }
 
@@ -164,11 +174,16 @@ export class AuthService {
    * Used by POST /rooms/join-invite where the route handler creates the
    * anonymous User via UserRepository, then delegates token issuance here.
    * @param userPublic public projection of the freshly-created user
+   * @param roomId UUID of the room the observer is bound to (scope-binding per §2.18)
    * @param userAgent HTTP User-Agent header value
-   * @returns AuthTokenPair with role='Observer' baked into the access JWT
+   * @returns AuthTokenPair with role='Observer' and boundRoomId baked into the access JWT
    */
-  async issueObserverTokens(userPublic: UserPublic, userAgent = ''): Promise<AuthTokenPair> {
-    return this.issueTokenPair(userPublic.id, 'Observer', userPublic, userAgent);
+  async issueObserverTokens(
+    userPublic: UserPublic,
+    roomId: string,
+    userAgent = '',
+  ): Promise<AuthTokenPair> {
+    return this.issueTokenPair(userPublic.id, 'Observer', userPublic, userAgent, roomId);
   }
 
   private async issueTokenPair(
@@ -176,10 +191,11 @@ export class AuthService {
     role: Role,
     userPublic: UserPublic,
     userAgent: string,
+    boundRoomId?: string,
   ): Promise<AuthTokenPair> {
     const sessionId = randomUUID();
-    const accessToken = signAccess(userId, role, sessionId);
-    const refreshToken = signRefresh(userId, sessionId);
+    const accessToken = signAccess(userId, role, sessionId, boundRoomId);
+    const refreshToken = signRefresh(userId, sessionId, role, boundRoomId);
     const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
     await this.sessions.create({
       id: sessionId,

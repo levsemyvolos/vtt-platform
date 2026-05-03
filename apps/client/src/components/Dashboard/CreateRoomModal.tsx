@@ -44,10 +44,10 @@ export default function CreateRoomModal({ onClose }: CreateRoomModalProps) {
           label={t('common:label.name')}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          required
-          aria-required="true"
           fullWidth
           autoFocus
+          maxLength={100}
+          showCounter
         />
 
         <fieldset className={styles.systemRow}>
@@ -67,8 +67,9 @@ export default function CreateRoomModal({ onClose }: CreateRoomModalProps) {
           <Input
             value={system}
             onChange={(e) => setSystem(e.target.value)}
-            required
             fullWidth
+            maxLength={50}
+            showCounter
           />
         </fieldset>
 

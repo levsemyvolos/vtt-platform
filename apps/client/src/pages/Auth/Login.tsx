@@ -6,17 +6,19 @@ import { Tabs, Button, Input } from '../../components/ui';
 import { AuthLayout } from '../../components/Auth';
 import styles from './Auth.module.css';
 
+
 type TabId = 'login' | 'register';
 
 type Props = {
   onSwitchToRegister: () => void;
   onSwitchToObserver: () => void;
+  onSwitchToLanding?: () => void;
 };
 
-export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props) {
+export default function Login({ onSwitchToRegister, onSwitchToObserver, onSwitchToLanding }: Props) {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['auth', 'common', 'errors']);
-  const { status, error } = useAppSelector((s) => s.session);
+  const { status, error, prefilledInviteCode } = useAppSelector((s) => s.session);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,12 +44,34 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
     void dispatch(login({ email, password }));
   };
 
-  const displayError = localError ?? error;
+  // Translate i18n keys that may arrive from Redux (e.g. 'errors:server.generic').
+  const rawError = localError ?? error;
+  const displayError = rawError
+    ? /^[\w]+:[\w.]+$/.test(rawError) ? t(rawError as never, rawError) : rawError
+    : null;
 
   return (
     <AuthLayout>
+      {onSwitchToLanding && (
+        <button type="button" className={styles.backLink} onClick={onSwitchToLanding}>
+          {t('auth:links.backToLanding')}
+        </button>
+      )}
       <h1 className={styles.heading}>{t('auth:headline.login')}</h1>
-      <p className={styles.subtitle}>{t('auth:subtitle')}</p>
+      {prefilledInviteCode ? (
+        <p className={styles.subtitle}>
+          {t('auth:observer.invitePrefilled')}{' '}
+          <button
+            type="button"
+            className={styles.inlineLink}
+            onClick={onSwitchToObserver}
+          >
+            {t('auth:observer.linkLabel')}
+          </button>
+        </p>
+      ) : (
+        <p className={styles.subtitle}>{t('auth:subtitle')}</p>
+      )}
       <div className={styles.tabsRow}>
         <Tabs
           variant="pill"
@@ -65,7 +89,6 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
-          required
           fullWidth
         />
         <Input
@@ -75,7 +98,6 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
-          required
           fullWidth
         />
         {displayError && (

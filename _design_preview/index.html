@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<title>VTT Quick Wins — вибір концепту</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#f4f4f5;color:#18181b;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px;line-height:1.5;min-height:100vh;
+}
+.wrap{max-width:980px;margin:0 auto;padding:48px 24px}
+h1{font-size:24px;font-weight:600;margin-bottom:8px}
+.sub{color:#52525b;font-size:14px;margin-bottom:32px;max-width:680px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{
+  display:block;text-decoration:none;color:inherit;
+  background:#fff;border:1px solid #d4d4d8;border-radius:6px;padding:24px;
+  transition:border-color .15s,transform .15s;
+}
+.card:hover{border-color:#71717a;transform:translateY(-2px)}
+.tag{font-size:11px;color:#71717a;font-family:ui-monospace,monospace;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em}
+.name{font-size:18px;font-weight:600;margin-bottom:6px}
+.desc{font-size:13px;color:#52525b;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid #e4e4e7}
+th{color:#71717a;font-weight:500;font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.sw{display:inline-block;width:14px;height:14px;border-radius:2px;border:1px solid rgba(0,0,0,.1);vertical-align:middle;margin-right:6px}
+.go{font-size:12px;color:#2563eb;font-family:ui-monospace,monospace}
+.diff{margin-top:32px;background:#fff;border:1px solid #d4d4d8;border-radius:6px;padding:20px;font-size:13px}
+.diff h2{font-size:14px;font-weight:600;margin-bottom:12px}
+.diff ul{padding-left:20px;color:#52525b}
+.diff li{margin-bottom:4px}
+.diff li b{color:#18181b}
+.diff li code{background:#f4f4f5;padding:1px 4px;border-radius:3px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>VTT Quick Wins — два концепти Claude Design</h1>
+  <p class="sub">Папка <code>vtt design/</code> містить два окремих handoff. Це РІЗНІ системи зі своїми токенами, шрифтами, правилами. Сторінки виконані нейтрально (без атмосфери) — стилі застосовуються лише в порівняльних блоках.</p>
+
+  <div class="cards">
+    <a class="card" href="quick_wins_ash_and_dawn.html">
+      <div class="tag">Концепт 01 — Ash & Dawn</div>
+      <div class="name">Ash & Dawn</div>
+      <div class="desc">7 кроків. Фокус: дві сильно контрастні теми (обсидіан / пергамент), <b>EB Garamond</b>, гострі квадратні форми, правила-обмеження ("ember only on active hour", "wound red — never on button").</div>
+      <table>
+        <tr><th>Шрифт</th><td>EB Garamond + JetBrains Mono</td></tr>
+        <tr><th>Радіус</th><td>0px (square only)</td></tr>
+        <tr><th>Tracking eyebrow</th><td>0.42em</td></tr>
+        <tr><th>Grain</th><td>0.55 opacity</td></tr>
+        <tr><th>Ash dark</th><td><span class="sw" style="background:#050507"></span><span class="sw" style="background:#7a6038"></span><span class="sw" style="background:#a8420a"></span><span class="sw" style="background:#d8cdb6"></span></td></tr>
+        <tr><th>Dawn light</th><td><span class="sw" style="background:#f0e8d4"></span><span class="sw" style="background:#8a5a14"></span><span class="sw" style="background:#1c1408"></span><span class="sw" style="background:#8a2818"></span></td></tr>
+      </table>
+      <div class="go">→ quick_wins_ash_and_dawn.html</div>
+    </a>
+
+    <a class="card" href="quick_wins_midnight_ritual.html">
+      <div class="tag">Концепт 02 — Midnight Ritual & Sacred Dawn</div>
+      <div class="name">Midnight Ritual & Sacred Dawn</div>
+      <div class="desc">9 кроків. Фокус: кругла геометрія (sigil-медальйон, pill-toggle), <b>Cormorant Garamond</b>, halo-system, анімовані pulse-dot бейджі, ping-meter, multi-layer atmospheric paper.</div>
+      <table>
+        <tr><th>Шрифт</th><td>Cormorant Garamond + JetBrains Mono</td></tr>
+        <tr><th>Радіус</th><td>4px / 50% / 999px (mix)</td></tr>
+        <tr><th>Tracking eyebrow</th><td>0.32em</td></tr>
+        <tr><th>Grain</th><td>0.35–0.8 (radial dots)</td></tr>
+        <tr><th>Midnight dark</th><td><span class="sw" style="background:#0a0809"></span><span class="sw" style="background:#c9a35a"></span><span class="sw" style="background:#d6552a"></span><span class="sw" style="background:#e8dcc4"></span></td></tr>
+        <tr><th>Sacred light</th><td><span class="sw" style="background:#f3ead6"></span><span class="sw" style="background:#b88a2c"></span><span class="sw" style="background:#b94a1d"></span><span class="sw" style="background:#3a2614"></span></td></tr>
+      </table>
+      <div class="go">→ quick_wins_midnight_ritual.html</div>
+    </a>
+  </div>
+
+  <div class="diff" style="background:#dcfce7;border-color:#86efac">
+    <h2 style="color:#14532d">⚡ Фінальні артефакти (готові до імплементації)</h2>
+    <ul style="color:#14532d">
+      <li>📄 <a href="quick_wins_hybrid.html" style="color:#14532d;font-weight:600">quick_wins_hybrid.html</a> — гібридний концепт (design system, source of truth)</li>
+      <li>🖥 <a href="prototype_dashboard.html" style="color:#14532d;font-weight:600">prototype_dashboard.html</a> — живий прототип Dashboard (повна сторінка, обидві теми)</li>
+      <li>📋 <a href="IMPLEMENTATION_PLAN.md" style="color:#14532d;font-weight:600">IMPLEMENTATION_PLAN.md</a> — повний план імплементації (7 фаз, ~5–8 днів)</li>
+      <li>🎯 <a href="favicon_obscure.svg" style="color:#14532d;font-weight:600">favicon_obscure.svg</a> — favicon для tab браузера</li>
+      <li>📝 <a href="notes.html" style="color:#14532d;font-weight:600">notes.html</a> — інструмент нотаток (для майбутніх рішень)</li>
+    </ul>
+  </div>
+
+  <div class="diff">
+    <h2>Чим вони реально відрізняються (інженерно)</h2>
+    <ul>
+      <li><b>Шрифт:</b> Ash → <code>EB Garamond</code> (важчий, "пам'ятниковий"); Midnight → <code>Cormorant Garamond</code> (повітряний, ритуальний). Ці шрифти не взаємозамінні.</li>
+      <li><b>Геометрія:</b> Ash жорстко забороняє <code>border-radius</code> (тільки square). Midnight активно змішує радіуси — sigil 50%, pill 999px, картки 4px.</li>
+      <li><b>Tracking eyebrow:</b> Ash 0.42em (ширше, "штамп архіву"). Midnight 0.32em (вужче, "ілюмінована позначка").</li>
+      <li><b>Кольорова логіка ember:</b> Ash — ember <code>#a8420a</code> + <code>#d36418</code> вживається <b>тільки</b> на одному активному елементі (правило "active hour"). Midnight — ember <code>#d6552a</code> вживається щедріше: у halo, у CTA, у gradients.</li>
+      <li><b>Червоний:</b> Ash має правило "<code>blood-hi</code> never on a button". Midnight таких обмежень не має.</li>
+      <li><b>Бейджі:</b> у Midnight є <b>анімований pulse-dot</b> для LIVE/DANGER (1.6s ease-in-out keyframes). У Ash бейджів-pulse немає.</li>
+      <li><b>Sigil:</b> Midnight має круглий металевий медальйон з <code>token-metal</code> radial gradient + glowing rune. У Ash брендування — текстове, без sigil.</li>
+      <li><b>Grain:</b> Ash — <code>feTurbulence</code> SVG-noise з opacity 0.55 і <code>mix-blend</code>: overlay/multiply (залежно від теми). Midnight — radial dots (pointillism), opacity 0.35/0.8 + <code>mix-blend</code> screen/overlay.</li>
+      <li><b>Тема toggle:</b> Ash — square <b>dial</b> "ASH/DAWN" (час дня). Midnight — round <b>pill</b> "Midnight/Sacred Dawn".</li>
+      <li><b>Ping-meter:</b> існує тільки в Midnight (4 золоті стовпчики у топбарі). У Ash немає.</li>
+      <li><b>"4 words" манифест:</b> існує тільки в Ash (cover Landing-сторінки). У Midnight немає.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

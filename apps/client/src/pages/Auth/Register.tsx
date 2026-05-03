@@ -10,9 +10,10 @@ type TabId = 'login' | 'register';
 
 type Props = {
   onSwitchToLogin: () => void;
+  onSwitchToLanding?: () => void;
 };
 
-export default function Register({ onSwitchToLogin }: Props) {
+export default function Register({ onSwitchToLogin, onSwitchToLanding }: Props) {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['auth', 'common', 'errors']);
   const { status, error } = useAppSelector((s) => s.session);
@@ -43,10 +44,19 @@ export default function Register({ onSwitchToLogin }: Props) {
     void dispatch(register({ email, password, name: name.trim() }));
   };
 
-  const displayError = localError ?? error;
+  // Translate i18n keys that may arrive from Redux (e.g. 'errors:server.generic').
+  const rawError = localError ?? error;
+  const displayError = rawError
+    ? /^[\w]+:[\w.]+$/.test(rawError) ? t(rawError as never, rawError) : rawError
+    : null;
 
   return (
     <AuthLayout>
+      {onSwitchToLanding && (
+        <button type="button" className={styles.backLink} onClick={onSwitchToLanding}>
+          {t('auth:links.backToLanding')}
+        </button>
+      )}
       <h1 className={styles.heading}>{t('auth:headline.register')}</h1>
       <p className={styles.subtitle}>{t('auth:subtitle')}</p>
       <div className={styles.tabsRow}>
@@ -66,7 +76,6 @@ export default function Register({ onSwitchToLogin }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoComplete="name"
-          required
           fullWidth
         />
         <Input
@@ -76,7 +85,6 @@ export default function Register({ onSwitchToLogin }: Props) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
-          required
           fullWidth
         />
         <Input
@@ -86,7 +94,6 @@ export default function Register({ onSwitchToLogin }: Props) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="new-password"
-          required
           fullWidth
         />
         {displayError && (

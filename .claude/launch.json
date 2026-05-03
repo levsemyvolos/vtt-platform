@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "VTT Server",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@vtt/server", "dev"],
+      "port": 4000
+    },
+    {
+      "name": "VTT Client",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@vtt/client", "dev"],
+      "port": 5173
+    }
+  ]
+}

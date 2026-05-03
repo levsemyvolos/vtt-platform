@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Film } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearRoom } from '../../store/room';
 import { activateScene, loadScenes } from '../../store/scenes';
-import { logout } from '../../store/session';
+import { logout, selectIsObserver } from '../../store/session';
 import { Logo, Badge, Avatar } from '../ui';
+import ThemeToggle from '../Header/ThemeToggle';
+import LanguageSwitcher from '../Header/LanguageSwitcher';
 import { getSocket } from '../../api/socket';
 import styles from './GameRoomTopBar.module.css';
 
@@ -36,6 +38,7 @@ function useWssConnected(): boolean {
   return connected;
 }
 
+// eslint-disable-next-line complexity
 export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('gameroom');
@@ -46,8 +49,29 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
   const sceneList = useAppSelector((s) => s.scenes.list);
   const activeScene = useAppSelector((s) => s.scene.current);
   const wssConnected = useWssConnected();
+  const isObserver = useAppSelector(selectIsObserver);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close avatar dropdown on click-outside or Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onMouseDown = (e: MouseEvent): void => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     if (currentRoom?.id) {
@@ -56,7 +80,12 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
   }, [currentRoom?.id, dispatch]);
 
   function handleBack(): void {
-    dispatch(clearRoom());
+    // Observers have no Dashboard to return to — dispatch logout instead.
+    if (isObserver) {
+      void dispatch(logout());
+    } else {
+      dispatch(clearRoom());
+    }
   }
 
   function handleSceneChange(sceneId: string): void {
@@ -73,7 +102,12 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
   return (
     <header className={styles.topBar} role="banner">
       <div className={styles.left}>
-        <button type="button" className={styles.logoBtn} onClick={handleBack} aria-label="Dashboard">
+        <button
+          type="button"
+          className={styles.logoBtn}
+          onClick={handleBack}
+          aria-label={isObserver ? t('topBar.logout') : 'Dashboard'}
+        >
           <Logo size={28} />
         </button>
         <span className={styles.sep} aria-hidden>/</span>
@@ -118,7 +152,7 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
           {tRoom(`roles.${myRole}`)}
         </Badge>
 
-        <div className={styles.avatarWrap}>
+        <div className={styles.avatarWrap} ref={menuRef}>
           <button
             type="button"
             className={styles.avatarBtn}
@@ -133,14 +167,12 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
           </button>
           {menuOpen && (
             <div className={styles.dropdown} role="menu">
-              <button
-                type="button"
-                className={`${styles.menuItem} ${styles.menuItemDisabled}`}
-                disabled
-                role="menuitem"
-              >
-                {t('topBar.settingsDisabled')}
-              </button>
+              <div className={styles.menuSection}>
+                <ThemeToggle />
+              </div>
+              <div className={styles.menuSection}>
+                <LanguageSwitcher />
+              </div>
               <button
                 type="button"
                 className={styles.menuItem}

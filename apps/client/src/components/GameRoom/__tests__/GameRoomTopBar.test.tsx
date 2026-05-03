@@ -25,6 +25,7 @@ const room: RoomDTO = {
   ownerId: 'u1',
   members: [member],
   createdAt: '2026-01-01T00:00:00Z',
+  lastActiveAt: '2026-01-01T00:00:00Z',
 };
 
 function makeStore() {
@@ -51,6 +52,8 @@ function makeStore() {
         accessToken: 'tok',
         status: 'authenticated' as const,
         error: null,
+        errorSource: null,
+        prefilledInviteCode: null,
       },
     },
   });

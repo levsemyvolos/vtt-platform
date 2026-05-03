@@ -36,7 +36,8 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element {
   }
 
   async function copyToClipboard(token: string, type: 'player' | 'observer'): Promise<void> {
-    const url = `${window.location.origin}/?invite=${token}`;
+    const prefix = type === 'player' ? 'p_' : 'o_';
+    const url = `${window.location.origin}/?invite=${prefix}${token}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(type);
@@ -75,7 +76,7 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element {
               type="button"
               className={styles.btnCopy}
               onClick={() => void copyToClipboard(tokens.playerToken, 'player')}
-              title={`${window.location.origin}/?invite=${tokens.playerToken}`}
+              title={`${window.location.origin}/?invite=p_${tokens.playerToken}`}
             >
               {copied === 'player' ? t('room:invite.copied') : t('room:invite.copyBtn')}
             </button>
@@ -86,7 +87,7 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element {
               type="button"
               className={styles.btnCopy}
               onClick={() => void copyToClipboard(tokens.observerToken, 'observer')}
-              title={`${window.location.origin}/?invite=${tokens.observerToken}`}
+              title={`${window.location.origin}/?invite=o_${tokens.observerToken}`}
             >
               {copied === 'observer' ? t('room:invite.copied') : t('room:invite.copyBtn')}
             </button>

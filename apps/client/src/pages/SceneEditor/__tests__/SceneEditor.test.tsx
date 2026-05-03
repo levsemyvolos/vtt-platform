@@ -30,6 +30,7 @@ const MOCK_ROOM = {
   status: 'active' as const,
   members: [],
   createdAt: '2026-01-01',
+  lastActiveAt: '2026-01-01',
 };
 
 const MOCK_USER = { id: 'u1', email: 'gm@test.com', name: 'GM User' };
@@ -49,6 +50,8 @@ function makeStore(role: 'GM' | 'Player') {
         accessToken: 'tok',
         status: 'authenticated' as const,
         error: null,
+        errorSource: null,
+        prefilledInviteCode: null,
       },
     },
   });

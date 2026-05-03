@@ -1,5 +1,6 @@
 {
   "validation": {
+    "generic": "Invalid input. Please check the fields.",
     "emailInvalid": "Enter a valid email",
     "passwordTooShort": "Password must be at least 8 characters",
     "nameTooShort": "Name must be at least 2 characters",
@@ -30,7 +31,9 @@
     "uploadFailed": "Upload error",
     "generateFailed": "Generation error",
     "applyFailed": "Failed to apply background",
-    "characterCreateFailed": "Character creation error"
+    "characterCreateFailed": "Character creation error",
+    "timeout": "Request timed out. Please try again.",
+    "failed": "Network error. Check your connection."
   },
   "api": {
     "rateLimitExceeded": "AI request limit reached. Try again in a minute.",
@@ -51,5 +54,14 @@
   },
   "ai": {
     "generic": "AI request error"
+  },
+  "invite": {
+    "failed": "Failed to join the room",
+    "expired": "Invite link is invalid or expired",
+    "observerWhileLoggedIn": "This is an observer link. Sign out or open in a private window."
+  },
+  "rooms": {
+    "limitReached": "Room limit reached ({{limit}}). Delete an old room to create a new one.",
+    "limitReachedShort": "Room limit reached"
   }
 }

@@ -1,13 +1,15 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import type { AssistantContext, ConversationMessage } from '@vtt/shared';
+import type { AssistantContext, ConversationMessage, AssistantMessageDTO, AssistantHistoryResponse } from '@vtt/shared';
 import { postAssistantText } from '../api/ai';
-import { ApiError } from '../api/apiFetch';
+import { apiFetch, ApiError } from '../api/apiFetch';
 
 interface AssistantState {
   conversations: Record<string, ConversationMessage[]>;
   activeContext: AssistantContext;
   status: 'idle' | 'sending' | 'error';
   error: string | null;
+  /** Whether history has been loaded from DB for the current room. */
+  historyLoaded: Record<string, boolean>;
 }
 
 const initialState: AssistantState = {
@@ -15,9 +17,38 @@ const initialState: AssistantState = {
   activeContext: 'npc-description',
   status: 'idle',
   error: null,
+  historyLoaded: {},
 };
 
 const MAX_HISTORY = 10;
+
+/**
+ * Loads persisted AI chat history for a room from the server.
+ * Called on Lobby/GameRoom mount — makes chat F5-safe.
+ */
+export const fetchAssistantHistory = createAsyncThunk<
+  { roomId: string; messages: AssistantMessageDTO[] },
+  { roomId: string },
+  { rejectValue: string; state: { assistant: AssistantState } }
+>(
+  'assistant/fetchHistory',
+  async ({ roomId }, { getState, rejectWithValue }) => {
+    // Avoid duplicate fetches in same session
+    if (getState().assistant.historyLoaded[roomId]) {
+      return { roomId, messages: [] };
+    }
+    try {
+      const data = await apiFetch<AssistantHistoryResponse>(`/api/ai/messages?roomId=${roomId}`);
+      return { roomId, messages: data.messages };
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        // Observer or unauthenticated — not an error, just no history
+        return { roomId, messages: [] };
+      }
+      return rejectWithValue('errors:ai.historyFailed');
+    }
+  },
+);
 
 export const sendAssistantMessage = createAsyncThunk<
   { conversationId: string; userMsg: ConversationMessage; assistantMsg: ConversationMessage },
@@ -36,6 +67,17 @@ export const sendAssistantMessage = createAsyncThunk<
       });
       const userMsg: ConversationMessage = { role: 'user', content: prompt };
       const assistantMsg: ConversationMessage = { role: 'assistant', content: response.content };
+
+      // Persist both messages to DB (fire-and-forget — don't block UI)
+      void apiFetch('/api/ai/messages', {
+        method: 'POST',
+        body: JSON.stringify({ roomId, role: 'user', content: prompt }),
+      }).catch(() => {/* non-critical */});
+      void apiFetch('/api/ai/messages', {
+        method: 'POST',
+        body: JSON.stringify({ roomId, role: 'assistant', content: response.content }),
+      }).catch(() => {/* non-critical */});
+
       return { conversationId, userMsg, assistantMsg };
     } catch (err) {
       if (err instanceof ApiError) {
@@ -60,6 +102,21 @@ const assistantSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(fetchAssistantHistory.fulfilled, (state, action) => {
+        const { roomId, messages } = action.payload;
+        state.historyLoaded[roomId] = true;
+        // Group messages by context prefix — messages have no context; put them under 'free-chat'
+        if (messages.length > 0) {
+          const conversationId = `${roomId}:free-chat`;
+          const existing = state.conversations[conversationId] ?? [];
+          if (existing.length === 0) {
+            state.conversations[conversationId] = messages.map((m) => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+            }));
+          }
+        }
+      })
       .addCase(sendAssistantMessage.pending, (state) => {
         state.status = 'sending';
         state.error = null;

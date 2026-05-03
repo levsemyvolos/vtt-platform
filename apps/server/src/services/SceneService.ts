@@ -338,12 +338,21 @@ export class SceneService {
     if (patch.color !== undefined) data.color = patch.color;
     if (patch.statusMarkers !== undefined) data.statusMarkers = patch.statusMarkers;
     if (patch.isHidden !== undefined) data.isHidden = patch.isHidden;
+    this.assignTokenRelations(data, patch);
+    return data;
+  }
+
+  private assignTokenRelations(data: Prisma.TokenUpdateInput, patch: UpdateTokenRequest): void {
     if (patch.assignedUserId !== undefined) {
       data.assignedUser = patch.assignedUserId
         ? { connect: { id: patch.assignedUserId } }
         : { disconnect: true };
     }
-    return data;
+    if (patch.imageAssetId !== undefined) {
+      data.imageAsset = patch.imageAssetId
+        ? { connect: { id: patch.imageAssetId } }
+        : { disconnect: true };
+    }
   }
 
   async deleteToken(tokenId: string, requesterRole: Role): Promise<void> {

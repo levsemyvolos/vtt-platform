@@ -2,7 +2,7 @@
   "dashboard": {
     "heading": "My Rooms",
     "subheading": "{{active}} active · {{total}} total",
-    "createBtn": "+ Create Room",
+    "createBtn": "Create Room",
     "noRooms": "No rooms yet. Create your first!",
     "membersCount": "{{count}} members",
     "membersCount_one": "{{count}} member",
@@ -110,7 +110,8 @@
     "playerLabel": "Player:",
     "observerLabel": "Observer:",
     "copied": "Copied!",
-    "copyBtn": "Copy"
+    "copyBtn": "Copy",
+    "joined": "Joined room {{name}}"
   },
   "token": {
     "editHeading": "Edit Token",
@@ -192,6 +193,33 @@
       "noSelection": "Click a token on the canvas to select it"
     }
   },
+  "edit": {
+    "menuItem": "Rename",
+    "title": "Edit Room",
+    "submit": "Save",
+    "success": "Room updated"
+  },
+  "delete": {
+    "menuItem": "Delete",
+    "title": "Delete Room",
+    "confirm": "This action is irreversible. All scenes, tokens, and records of room «{{name}}» will be deleted. Type the room name to confirm.",
+    "typeName": "Enter room name",
+    "submitBtn": "Delete",
+    "success": "Room deleted"
+  },
+  "deletedByGM": "Room deleted by the GM",
+  "lastActive": {
+    "label": "Last active: {{time}}"
+  },
+  "sortBy": {
+    "label": "Sort by",
+    "lastActive": "Last activity",
+    "created": "Creation date",
+    "name": "Name",
+    "orderAsc": "Ascending",
+    "orderDesc": "Descending"
+  },
+  "limitCounter": "{{used}}/{{limit}} rooms",
   "aiGenerate": {
     "dialogLabel": "Generate Background",
     "heading": "Generate Scene Background (AI)",

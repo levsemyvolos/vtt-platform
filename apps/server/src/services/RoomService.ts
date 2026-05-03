@@ -3,6 +3,9 @@ import type { Room, PrismaClient } from '@prisma/client';
 import type { RoomMemberDTO } from '@vtt/shared';
 import { RoomRepository, type RoomWithOwner } from '../repositories/RoomRepository.js';
 import { HttpError } from '../lib/errors.js';
+import type { TypedServer } from '../socketio/types.js';
+import type { RoomUpdateInput } from '../schemas/room.schema.js';
+import type { Prisma } from '@prisma/client';
 
 export class RoomService {
   constructor(
@@ -12,12 +15,19 @@ export class RoomService {
 
   /**
    * Creates room with unique invite tokens for Player and Observer roles.
+   * Enforces ROOM_LIMIT_PER_USER (default 20) before creating.
    * @param ownerId GM user UUID
    * @param name room display name (≤ 128 chars)
    * @param gameSystem ruleset label, e.g. "D&D 5e" (≤ 64 chars)
    * @returns created Room
+   * @throws HttpError 403 ROOM_LIMIT_REACHED if limit exceeded
    */
   async create(ownerId: string, name: string, gameSystem = 'D&D 5e'): Promise<Room> {
+    const ROOM_LIMIT = parseInt(process.env.ROOM_LIMIT_PER_USER ?? '20', 10);
+    const count = await this.rooms.countByOwner(ownerId);
+    if (count >= ROOM_LIMIT) {
+      throw new HttpError(403, 'ROOM_LIMIT_REACHED');
+    }
     return this.rooms.create({
       id: randomUUID(),
       owner: { connect: { id: ownerId } },
@@ -29,6 +39,55 @@ export class RoomService {
   }
 
   /**
+   * Updates a room's name and/or gameSystem. Only the room owner can update.
+   * @param roomId Room UUID
+   * @param requesterId requester UUID (must be owner)
+   * @param dto partial update data
+   * @returns updated Room
+   * @throws HttpError 404 if not found, 403 if not owner
+   */
+  async update(roomId: string, requesterId: string, dto: RoomUpdateInput): Promise<Room> {
+    const room = await this.rooms.findById(roomId);
+    if (!room) throw new HttpError(404, 'Room not found');
+    if (room.ownerId !== requesterId) throw new HttpError(403, 'Only room owner can edit this room');
+    const updateData: Prisma.RoomUpdateInput = {};
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.gameSystem !== undefined) updateData.gameSystem = dto.gameSystem;
+    return this.rooms.updateById(roomId, updateData);
+  }
+
+  /**
+   * Deletes a room. Only the room owner can delete.
+   * Broadcasts `room:deleted` to all subscribers BEFORE deletion so clients
+   * can redirect before the room disappears from the DB (cascade is in Prisma schema).
+   * @param roomId Room UUID
+   * @param requesterId requester UUID (must be owner)
+   * @param io optional socket.io server for broadcasting
+   * @throws HttpError 404 if not found, 403 if not owner
+   */
+  async delete(roomId: string, requesterId: string, io?: TypedServer | null): Promise<void> {
+    const room = await this.rooms.findById(roomId);
+    if (!room) throw new HttpError(404, 'Room not found');
+    if (room.ownerId !== requesterId) throw new HttpError(403, 'Only room owner can delete this room');
+
+    // Broadcast BEFORE deletion so clients receive the event while they are still
+    // in the socket.io room channel.
+    if (io) {
+      io.to(roomId).emit('room:deleted', { roomId, reason: 'deleted_by_owner' });
+    }
+
+    await this.rooms.deleteById(roomId);
+  }
+
+  /**
+   * Bumps lastActiveAt to now for a room. Used to track "last session" time.
+   * @param roomId Room UUID
+   */
+  async touchActivity(roomId: string): Promise<void> {
+    await this.rooms.updateById(roomId, { lastActiveAt: new Date() } as Prisma.RoomUpdateInput);
+  }
+
+  /**
    * @param ownerId GM user UUID
    * @returns all rooms owned by that user
    */
@@ -37,14 +96,17 @@ export class RoomService {
   }
 
   /**
-   * Returns rooms for a user filtered by their role relationship.
+   * Returns rooms for a user filtered by their role relationship, with optional sorting.
    * 'all' (default) returns both owned and invited rooms.
+   * Default sort is lastActive desc (most recently used first).
    */
   async listByUserAndRole(
     userId: string,
     filter: 'owned' | 'invited' | 'all' = 'all',
+    sort: 'lastActive' | 'created' | 'name' = 'lastActive',
+    order: 'asc' | 'desc' = 'desc',
   ): Promise<Room[]> {
-    return this.rooms.findByUserAndRole(userId, filter);
+    return this.rooms.findByUserAndRole(userId, filter, sort, order);
   }
 
   /**
@@ -81,16 +143,29 @@ export class RoomService {
   }
 
   /**
-   * Validates a player invite token and returns the target Room.
-   * Persistent membership tracking is deferred (R-Persistent-Membership);
-   * this method only resolves token → Room.
+   * Validates a player invite token, upserts a RoomMember record, and returns
+   * the target Room. Implements R-Persistent-Membership.
    * @param playerToken raw player invite token
+   * @param userId the authenticated user joining
    * @returns Room
    * @throws HttpError 404 if token does not match any room
    */
-  async joinByInvite(playerToken: string): Promise<Room> {
+  async joinByInvite(playerToken: string, userId?: string): Promise<Room> {
     const room = await this.rooms.findByPlayerInviteToken(playerToken);
     if (!room) throw new HttpError(404, 'Invalid invite token');
+
+    // Persist membership so the lobby roster and "invited" tab work after F5.
+    if (userId && this.db) {
+      // Skip if the user is the room owner (they are already the GM).
+      if (room.ownerId !== userId) {
+        await this.db.roomMember.upsert({
+          where: { roomId_userId: { roomId: room.id, userId } },
+          create: { roomId: room.id, userId, role: 'Player' },
+          update: { role: 'Player' },
+        });
+      }
+    }
+
     return room;
   }
 
@@ -128,27 +203,35 @@ export class RoomService {
     }
     const room = await this.rooms.findById(roomId);
     if (!room) throw new HttpError(404, 'Room not found');
-    const characters = await this.db.character.findMany({
-      where: { roomId },
-      distinct: ['ownerId'],
-      include: { owner: true },
-    });
+
+    const [characters, roomMembers] = await Promise.all([
+      this.db.character.findMany({
+        where: { roomId },
+        distinct: ['ownerId'],
+        include: { owner: true },
+      }),
+      this.db.roomMember.findMany({
+        where: { roomId },
+        include: { user: true },
+      }),
+    ]);
+
     const members: RoomMemberDTO[] = [
-      {
-        userId: room.owner.id,
-        name: room.owner.displayName,
-        role: 'GM',
-      },
+      { userId: room.owner.id, name: room.owner.displayName, role: 'GM' },
     ];
-    for (const c of characters) {
-      if (c.owner.id === room.owner.id) continue; // GM owning a character — skip duplicate
-      members.push({
-        userId: c.owner.id,
-        name: c.owner.displayName,
-        role: 'Player',
-        characterId: c.id,
-      });
-    }
+    const charMap = new Map(characters.map((c) => [c.ownerId, c.id]));
+    const playerIds = new Set<string>();
+
+    const addPlayer = (userId: string, name: string) => {
+      if (userId === room.owner.id || playerIds.has(userId)) return;
+      playerIds.add(userId);
+      const cid = charMap.get(userId);
+      members.push({ userId, name, role: 'Player', ...(cid !== undefined ? { characterId: cid } : {}) });
+    };
+
+    characters.forEach((c) => addPlayer(c.ownerId, c.owner.displayName));
+    roomMembers.forEach((rm) => addPlayer(rm.userId, rm.user.displayName));
+
     return members;
   }
 }

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from 'express';
 import type { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import type { AIImageRequest, AIMusicRequest, AssistantTextRequest } from '@vtt/shared';
+import type { AIImageRequest, AIMusicRequest, AssistantTextRequest, SaveAssistantMessageRequest } from '@vtt/shared';
 import type { AIService } from '../services/AIService.js';
 import type { AssistantService } from '../services/AssistantService.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
@@ -88,6 +88,69 @@ export function buildAiRouter(
       try {
         const result = await assistantService.generateAssistantText(req.body);
         res.status(200).json(result);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  /**
+   * POST /ai/messages
+   * Persists a user or assistant message to DB (Ф8.1, LEV-MANUAL-004).
+   * RBAC: jwtAuth only — GM or Player can save messages for their room.
+   */
+  router.post(
+    '/messages',
+    jwtAuth,
+    async (req: Request<object, object, SaveAssistantMessageRequest>, res: Response) => {
+      try {
+        const { roomId, role, content } = req.body;
+        if (!roomId || !role || !content) {
+          res.status(400).json({ error: { code: 400, message: 'roomId, role, content are required' } });
+          return;
+        }
+        if (role !== 'user' && role !== 'assistant') {
+          res.status(400).json({ error: { code: 400, message: 'role must be user or assistant' } });
+          return;
+        }
+        const dto = await assistantService.saveMessage({ roomId, role, content }, req.user!.id);
+        res.status(201).json(dto);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  /**
+   * GET /ai/messages?roomId=<uuid>
+   * Returns persisted assistant message history for a room (Ф8.1, LEV-MANUAL-004).
+   * RBAC: jwtAuth — GM or room member.
+   */
+  router.get(
+    '/messages',
+    jwtAuth,
+    async (req: Request, res: Response) => {
+      try {
+        const roomId = req.query['roomId'] as string | undefined;
+        if (!roomId) {
+          res.status(400).json({ error: { code: 400, message: 'roomId query param is required' } });
+          return;
+        }
+        // RBAC: verify caller is room owner or member
+        const room = await roomRepo.findById(roomId);
+        if (!room) {
+          res.status(404).json({ error: { code: 404, message: 'Room not found' } });
+          return;
+        }
+        if (room.ownerId !== req.user!.id) {
+          const isMember = await roomRepo.isMember(roomId, req.user!.id);
+          if (!isMember) {
+            res.status(403).json({ error: { code: 403, message: 'Not a room member' } });
+            return;
+          }
+        }
+        const result = await assistantService.getHistory(roomId);
+        res.json(result);
       } catch (err) {
         handleError(err, res);
       }

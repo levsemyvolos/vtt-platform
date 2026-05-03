@@ -1,7 +1,7 @@
 import express from 'express';
 import { createServer } from 'http';
 import { authRouter } from './routes/auth.js';
-import { roomsRouter } from './routes/rooms.js';
+import { roomsRouter, buildRoomsRouter } from './routes/rooms.js';
 import { scenesRouter, roomScenesSubRouter, tokensRouter } from './routes/scenes.js';
 import { buildAiRouter } from './routes/ai.js';
 import { buildAssetsRouter } from './routes/assets.js';
@@ -43,6 +43,7 @@ import { AssetRepository } from './repositories/AssetRepository.js';
 import { HandoutRepository } from './repositories/HandoutRepository.js';
 import { NoteRepository } from './repositories/NoteRepository.js';
 import { CharacterRepository } from './repositories/CharacterRepository.js';
+import { AssistantMessageRepository } from './repositories/AssistantMessageRepository.js';
 import { GeminiProvider } from './infrastructure/ai/GeminiProvider.js';
 import { GcsFileStorageAdapter } from './infrastructure/storage/GcsFileStorageAdapter.js';
 import type { FileStorageAdapter } from './infrastructure/storage/FileStorageAdapter.js';
@@ -74,6 +75,7 @@ const handoutRepo = new HandoutRepository(prisma);
 const noteRepo = new NoteRepository(prisma);
 const characterRepo = new CharacterRepository(prisma);
 const audioRepo = new AudioTrackRepository(prisma);
+const assistantMsgRepo = new AssistantMessageRepository(prisma);
 
 // ---------- AI + Storage wiring (vertical 3, §2.13.4) ----------
 const gcpProjectId = process.env['GCP_PROJECT_ID'];
@@ -95,9 +97,9 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
     bucketName: gcsBucket,
     serviceAccountKeyJson: gcpKeyJson,
   });
-  assetService = new AssetService(aiProvider, fileStorage, assetRepo);
+  assetService = new AssetService(aiProvider, fileStorage, assetRepo, prisma);
   const aiService = new AIService(aiProvider, assetService);
-  const assistantService = new AssistantService(aiProvider);
+  const assistantService = new AssistantService(aiProvider, assistantMsgRepo);
   app.use('/ai', buildAiRouter(aiService, assistantService, roomRepo));
   app.use('/assets', buildAssetsRouter(assetService, prisma));
 } else {
@@ -163,6 +165,8 @@ const io = buildSocketIo(httpServer, {
 });
 _annotationBroadcast = buildAnnotationBroadcaster(io);
 _drawBroadcast = buildDrawBroadcaster(io);
+// Inject io into roomsRouter so POST /rooms/join can emit room:member-joined.
+buildRoomsRouter(io);
 
 // SceneAnnotationService — wired after io is built so it can broadcast scene:updated.
 const sceneAnnotationService = new SceneAnnotationService(prisma, drawService, (roomId, payload) => {
@@ -201,6 +205,7 @@ if (fileStorage) {
 const sceneActivationListener = audioService;
 if (sceneActivationListener) {
   sceneService.onSceneActivated = (roomId, sceneId) => {
+    io.to(roomId).emit('scene:activated', { roomId, sceneId });
     void sceneActivationListener.handleSceneSwitch(roomId, sceneId);
   };
 }

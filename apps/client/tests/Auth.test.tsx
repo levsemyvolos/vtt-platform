@@ -25,6 +25,7 @@ vi.mock('../src/api/apiFetch', () => ({
 import { apiFetch, ApiError } from '../src/api/apiFetch';
 import sessionReducer from '../src/store/session';
 import roomReducer from '../src/store/room';
+import preferencesReducer from '../src/store/preferences';
 import Login from '../src/pages/Auth/Login';
 import Register from '../src/pages/Auth/Register';
 
@@ -32,7 +33,7 @@ const mockApiFetch = vi.mocked(apiFetch);
 
 function makeStore() {
   return configureStore({
-    reducer: { session: sessionReducer, room: roomReducer },
+    reducer: { session: sessionReducer, room: roomReducer, preferences: preferencesReducer },
   });
 }
 
