@@ -225,7 +225,8 @@ export class RoomService {
     const addPlayer = (userId: string, name: string) => {
       if (userId === room.owner.id || playerIds.has(userId)) return;
       playerIds.add(userId);
-      members.push({ userId, name, role: 'Player', characterId: charMap.get(userId) });
+      const cid = charMap.get(userId);
+      members.push({ userId, name, role: 'Player', ...(cid !== undefined ? { characterId: cid } : {}) });
     };
 
     characters.forEach((c) => addPlayer(c.ownerId, c.owner.displayName));
