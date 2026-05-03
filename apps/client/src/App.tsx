@@ -46,10 +46,21 @@ function AuthViews({ view, onSwitch }: AuthViewsProps): JSX.Element {
         <Login
           onSwitchToRegister={() => onSwitch('register')}
           onSwitchToObserver={() => onSwitch('observer')}
+          onSwitchToLanding={() => onSwitch('landing')}
         />
       )}
-      {view === 'register' && <Register onSwitchToLogin={() => onSwitch('login')} />}
-      {view === 'observer' && <ObserverEntry onSwitchToLogin={() => onSwitch('login')} />}
+      {view === 'register' && (
+        <Register
+          onSwitchToLogin={() => onSwitch('login')}
+          onSwitchToLanding={() => onSwitch('landing')}
+        />
+      )}
+      {view === 'observer' && (
+        <ObserverEntry
+          onSwitchToLogin={() => onSwitch('login')}
+          onSwitchToLanding={() => onSwitch('landing')}
+        />
+      )}
     </main>
   );
 }
@@ -88,6 +99,16 @@ export default function App() {
   const [inviteJoining, setInviteJoining] = useState(false);
   // B7-BUG-004: idempotency guard — prevent the invite effect from firing more than once.
   const inviteHandled = useRef(false);
+  // R2-MIN-009: track previous auth status to detect logout transition.
+  const prevStatusRef = useRef(status);
+
+  // R2-MIN-006: after logout (authenticated → idle) send user back to landing.
+  useEffect(() => {
+    if (prevStatusRef.current === 'authenticated' && status === 'idle') {
+      setAuthView('landing');
+    }
+    prevStatusRef.current = status;
+  }, [status]);
 
   // Wave 3.1 — handle 'bootstrapping' and 'error' (network unreachable).
   // 'error' is shown via BootstrapLoader which has a manual retry button;
