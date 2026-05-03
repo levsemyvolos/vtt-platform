@@ -55,7 +55,8 @@
   },
   "invite": {
     "failed": "Failed to join the room",
-    "expired": "Invite link is invalid or expired"
+    "expired": "Invite link is invalid or expired",
+    "observerWhileLoggedIn": "This is an observer link. Sign out or open in a private window."
   },
   "rooms": {
     "limitReached": "Room limit reached ({{limit}}). Delete an old room to create a new one.",
