@@ -18,10 +18,10 @@ interface RefreshPayload {
   sid: string;
 }
 
-function signAccess(userId: string, role: Role, sessionId: string): string {
-  return jwt.sign({ sub: userId, role, sid: sessionId }, JWT_SECRET!, {
-    expiresIn: ACCESS_TTL_SEC,
-  });
+function signAccess(userId: string, role: Role, sessionId: string, boundRoomId?: string): string {
+  const payload: Record<string, unknown> = { sub: userId, role, sid: sessionId };
+  if (boundRoomId !== undefined) payload['boundRoomId'] = boundRoomId;
+  return jwt.sign(payload, JWT_SECRET!, { expiresIn: ACCESS_TTL_SEC });
 }
 
 function signRefresh(userId: string, sessionId: string): string {
@@ -35,7 +35,7 @@ function toUserPublic(user: {
   email: string;
   displayName: string;
 }): UserPublic {
-  return { id: user.id, email: user.email, name: user.displayName };
+  return { id: user.id, email: user.email, name: user.displayName, role: 'user' };
 }
 
 export class AuthService {
@@ -164,11 +164,16 @@ export class AuthService {
    * Used by POST /rooms/join-invite where the route handler creates the
    * anonymous User via UserRepository, then delegates token issuance here.
    * @param userPublic public projection of the freshly-created user
+   * @param roomId UUID of the room the observer is bound to (scope-binding per §2.18)
    * @param userAgent HTTP User-Agent header value
-   * @returns AuthTokenPair with role='Observer' baked into the access JWT
+   * @returns AuthTokenPair with role='Observer' and boundRoomId baked into the access JWT
    */
-  async issueObserverTokens(userPublic: UserPublic, userAgent = ''): Promise<AuthTokenPair> {
-    return this.issueTokenPair(userPublic.id, 'Observer', userPublic, userAgent);
+  async issueObserverTokens(
+    userPublic: UserPublic,
+    roomId: string,
+    userAgent = '',
+  ): Promise<AuthTokenPair> {
+    return this.issueTokenPair(userPublic.id, 'Observer', userPublic, userAgent, roomId);
   }
 
   private async issueTokenPair(
@@ -176,9 +181,10 @@ export class AuthService {
     role: Role,
     userPublic: UserPublic,
     userAgent: string,
+    boundRoomId?: string,
   ): Promise<AuthTokenPair> {
     const sessionId = randomUUID();
-    const accessToken = signAccess(userId, role, sessionId);
+    const accessToken = signAccess(userId, role, sessionId, boundRoomId);
     const refreshToken = signRefresh(userId, sessionId);
     const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
     await this.sessions.create({

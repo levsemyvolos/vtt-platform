@@ -43,7 +43,11 @@ export default function Register({ onSwitchToLogin }: Props) {
     void dispatch(register({ email, password, name: name.trim() }));
   };
 
-  const displayError = localError ?? error;
+  // Translate i18n keys that may arrive from Redux (e.g. 'errors:server.generic').
+  const rawError = localError ?? error;
+  const displayError = rawError
+    ? /^[\w]+:[\w.]+$/.test(rawError) ? t(rawError as never, rawError) : rawError
+    : null;
 
   return (
     <AuthLayout>

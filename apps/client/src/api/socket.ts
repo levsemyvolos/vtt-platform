@@ -22,6 +22,7 @@ import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
 import { addPing, removePing, upsertMeasure, removeMeasure } from '../store/annotations';
 import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
+import { upsertRoomMember, removeRoom } from '../store/room';
 
 export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -89,6 +90,16 @@ export function getSocket(): TypedClientSocket {
   });
   socket.on('draw:clear', () => {
     store.dispatch(clearDrawStrokes());
+  });
+
+  // Wave 2.1 — real-time member roster update when a player joins via invite link.
+  socket.on('room:member-joined', (payload) => {
+    store.dispatch(upsertRoomMember(payload.member));
+  });
+
+  // Wave 4.1 — room deleted by GM: remove from store; UI components react via selector.
+  socket.on('room:deleted', (payload) => {
+    store.dispatch(removeRoom(payload.roomId));
   });
 
   // Ф3.4.3 — ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.

@@ -9,6 +9,8 @@ import type { CharacterService } from '../services/CharacterService.js';
 import type { CharacterRepository } from '../repositories/CharacterRepository.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
+import { validate } from '../middleware/validate.js';
+import { characterCreateSchema, characterUpdateSchema } from '../schemas/character.schema.js';
 import { HttpError } from '../lib/errors.js';
 
 function handleError(err: unknown, res: Response): void {
@@ -62,6 +64,7 @@ export function buildCharactersRouter(
   router.post(
     '/rooms/:roomId/characters',
     jwtAuth,
+    validate(characterCreateSchema),
     async (
       req: Request<{ roomId: string }, object, CharacterCreateRequest>,
       res: Response,
@@ -116,6 +119,7 @@ export function buildCharactersRouter(
   router.patch(
     '/characters/:id',
     jwtAuth,
+    validate(characterUpdateSchema),
     async (req: Request<{ id: string }, object, CharacterUpdateRequest>, res: Response) => {
       try {
         const existing = await characterRepo.findById(req.params.id);

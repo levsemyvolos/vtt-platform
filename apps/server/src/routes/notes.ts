@@ -4,6 +4,8 @@ import type { NoteCreateRequest, NoteUpdateRequest } from '@vtt/shared';
 import type { NoteService } from '../services/NoteService.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
+import { validate } from '../middleware/validate.js';
+import { noteCreateSchema, noteUpdateSchema } from '../schemas/note.schema.js';
 import { HttpError } from '../lib/errors.js';
 
 function handleError(err: unknown, res: Response): void {
@@ -49,6 +51,7 @@ export function buildNotesRouter(
   router.post(
     '/rooms/:roomId/notes',
     jwtAuth,
+    validate(noteCreateSchema),
     async (
       req: Request<{ roomId: string }, object, NoteCreateRequest>,
       res: Response,
@@ -89,6 +92,7 @@ export function buildNotesRouter(
   router.patch(
     '/notes/:id',
     jwtAuth,
+    validate(noteUpdateSchema),
     async (req: Request<{ id: string }, object, NoteUpdateRequest>, res: Response) => {
       try {
         const dto = await noteService.update(req.params.id, req.user!.id, req.body);

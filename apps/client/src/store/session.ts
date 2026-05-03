@@ -1,13 +1,17 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import i18next from 'i18next';
 import type { UserPublic, AuthTokenPair, ObserverJoinResponse } from '@vtt/shared';
 import { apiFetch } from '../api/apiFetch';
 import { tokenStore } from '../api/tokenStore';
+import { addToast } from './toast';
 
 interface SessionState {
   currentUser: UserPublic | null;
   accessToken: string | null;
   status: 'idle' | 'loading' | 'authenticated' | 'error' | 'bootstrapping';
   error: string | null;
+  /** Invite code pre-filled when the user lands on /?invite=TOKEN while unauthenticated (Wave 2.2). */
+  prefilledInviteCode: string | null;
 }
 
 const initialState: SessionState = {
@@ -15,6 +19,7 @@ const initialState: SessionState = {
   accessToken: null,
   status: tokenStore.getRefresh() ? 'bootstrapping' : 'idle',
   error: null,
+  prefilledInviteCode: null,
 };
 
 export const login = createAsyncThunk<
@@ -36,12 +41,17 @@ export const register = createAsyncThunk<
   AuthTokenPair,
   { email: string; password: string; name: string },
   { rejectValue: string }
->('session/register', async (payload, { rejectWithValue }) => {
+>('session/register', async (payload, { rejectWithValue, dispatch }) => {
   try {
-    return await apiFetch<AuthTokenPair>('/api/auth/register', {
+    const result = await apiFetch<AuthTokenPair>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    // Welcome toast — uses i18next directly since we're outside React context.
+    const name = result.user?.name ?? payload.name;
+    const msg = i18next.t('auth:register.welcome', { name, defaultValue: `Welcome, ${name}!` });
+    dispatch(addToast('success', msg));
+    return result;
   } catch (err) {
     return rejectWithValue(err instanceof Error ? err.message : 'Помилка реєстрації');
   }
@@ -62,12 +72,22 @@ export const observerJoin = createAsyncThunk<
   }
 });
 
-// Restore session from a persisted refresh token after a page reload.
-// Returns null if no refresh token exists or if it has been rejected by the
-// server (in which case the store is cleared).
-export const bootstrapSession = createAsyncThunk<AuthTokenPair | null, void>(
+/**
+ * Restore session from a persisted refresh token after a page reload.
+ *
+ * Wave 3.1 — differentiates error types to avoid spurious logouts:
+ *   - AbortError (F5 double-press interrupts the in-flight request) →
+ *     return a special sentinel so the reducer retries instead of going idle.
+ *   - HTTP 401 → token is invalid/expired → clear and go idle (real logout).
+ *   - Network / 5xx → server unreachable → keep token, set 'error' status.
+ */
+export const bootstrapSession = createAsyncThunk<
+  AuthTokenPair | null | 'ABORTED' | 'NETWORK_ERROR',
+  void,
+  { rejectValue: 'ABORTED' | 'NETWORK_ERROR' }
+>(
   'session/bootstrap',
-  async () => {
+  async (_, { rejectWithValue }) => {
     const refreshToken = tokenStore.getRefresh();
     if (!refreshToken) return null;
     try {
@@ -75,9 +95,19 @@ export const bootstrapSession = createAsyncThunk<AuthTokenPair | null, void>(
         method: 'POST',
         body: JSON.stringify({ refreshToken }),
       });
-    } catch {
-      tokenStore.clear();
-      return null;
+    } catch (err) {
+      // AbortError: the fetch was cancelled mid-flight (e.g. rapid F5).
+      // Do NOT clear the token — retry will succeed.
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return rejectWithValue('ABORTED');
+      }
+      // ApiError with 401 — token rejected by server. Clear and go idle.
+      if (err instanceof Error && 'status' in err && (err as { status: number }).status === 401) {
+        tokenStore.clear();
+        return null;
+      }
+      // Network failure or 5xx — keep token, signal error state for retry UX.
+      return rejectWithValue('NETWORK_ERROR');
     }
   },
 );
@@ -110,10 +140,15 @@ const sessionSlice = createSlice({
       state.accessToken = null;
       state.status = 'idle';
       state.error = null;
+      state.prefilledInviteCode = null;
       tokenStore.clear();
     },
     clearError: (state) => {
       state.error = null;
+    },
+    /** Wave 2.2 — store invite code from URL for ObserverEntry pre-fill. */
+    setPrefilledInviteCode: (state, action: PayloadAction<string | null>) => {
+      state.prefilledInviteCode = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -163,17 +198,39 @@ const sessionSlice = createSlice({
       })
       .addCase(bootstrapSession.fulfilled, (state, action) => {
         if (action.payload) {
-          applyTokenPair(state, action.payload);
+          applyTokenPair(state, action.payload as AuthTokenPair);
         } else {
           state.status = 'idle';
         }
       })
-      .addCase(bootstrapSession.rejected, (state) => {
-        state.status = 'idle';
-        state.error = null;
+      // Wave 3.1 — distinguish abort vs network error vs 401.
+      .addCase(bootstrapSession.rejected, (state, action) => {
+        if (action.payload === 'ABORTED') {
+          // F5 mid-flight — keep bootstrapping so App re-fires the thunk.
+          state.status = 'bootstrapping';
+        } else if (action.payload === 'NETWORK_ERROR') {
+          // Server unreachable — do NOT log out; let BootstrapLoader show retry.
+          state.status = 'error';
+          state.error = 'errors:network.loadFailed';
+        } else {
+          state.status = 'idle';
+          state.error = null;
+        }
       });
   },
 });
 
-export const { setTokens, clearSession, clearError } = sessionSlice.actions;
+export const { setTokens, clearSession, clearError, setPrefilledInviteCode } = sessionSlice.actions;
 export default sessionSlice.reducer;
+
+// ---------------------------------------------------------------------------
+// Selectors
+// ---------------------------------------------------------------------------
+
+/** True when the authenticated user is an anonymous Observer (account-tier). */
+export const selectIsObserver = (state: { session: SessionState }): boolean =>
+  state.session.currentUser?.role === 'observer';
+
+/** Returns the boundRoomId from the Observer's UserPublic, or undefined. */
+export const selectObserverBoundRoomId = (state: { session: SessionState }): string | undefined =>
+  state.session.currentUser?.boundRoomId;

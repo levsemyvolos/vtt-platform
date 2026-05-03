@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { observerJoin, clearError } from '../../store/session';
+import { observerJoin, clearError, setPrefilledInviteCode } from '../../store/session';
 import { fetchRoom } from '../../store/room';
 import { Button, Input } from '../../components/ui';
 import { AuthLayout } from '../../components/Auth';
@@ -14,11 +14,20 @@ type Props = {
 export default function ObserverEntry({ onSwitchToLogin }: Props) {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['auth', 'errors']);
-  const { status, error } = useAppSelector((s) => s.session);
+  const { status, error, prefilledInviteCode } = useAppSelector((s) => s.session);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCode, setInviteCode] = useState(prefilledInviteCode ?? '');
   const [name, setName] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Wave 2.2 — when the invite code comes pre-filled from URL, focus on name field.
+  useEffect(() => {
+    if (prefilledInviteCode) {
+      setInviteCode(prefilledInviteCode);
+      nameInputRef.current?.focus();
+    }
+  }, [prefilledInviteCode]);
 
   const validate = (): string | null => {
     if (!inviteCode.trim()) return t('errors:validation.inviteCodeRequired');
@@ -36,15 +45,25 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
       observerJoin({ inviteCode: inviteCode.trim(), name: name.trim() }),
     );
     if (observerJoin.fulfilled.match(result)) {
+      // Clear the prefilled code now that it has been consumed.
+      dispatch(setPrefilledInviteCode(null));
       void dispatch(fetchRoom(result.payload.roomId));
     }
   };
 
-  const displayError = localError ?? error;
+  // Translate i18n keys that may arrive from Redux (e.g. 'errors:server.generic').
+  const rawError = localError ?? error;
+  const displayError = rawError
+    ? /^[\w]+:[\w.]+$/.test(rawError) ? t(rawError as never, rawError) : rawError
+    : null;
+  const isPrefilled = Boolean(prefilledInviteCode);
 
   return (
     <AuthLayout>
       <h1 className={styles.heading}>{t('auth:observer.heading')}</h1>
+      {isPrefilled && (
+        <p className={styles.subtitle}>{t('auth:observer.invitePrefilled')}</p>
+      )}
       <form
         onSubmit={(e) => void handleSubmit(e)}
         aria-label={t('auth:observer.formLabel')}
@@ -55,10 +74,11 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
           id="obs-code"
           type="text"
           value={inviteCode}
-          onChange={(e) => setInviteCode(e.target.value)}
+          onChange={(e) => { if (!isPrefilled) setInviteCode(e.target.value); }}
           autoComplete="off"
           required
           fullWidth
+          disabled={isPrefilled}
         />
         <Input
           label={t('auth:observer.yourNameLabel')}
@@ -69,6 +89,7 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
           autoComplete="name"
           required
           fullWidth
+          ref={nameInputRef}
         />
         {displayError && (
           <p role="alert" className={styles.error}>{displayError}</p>

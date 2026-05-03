@@ -93,12 +93,28 @@ function buildHeaders(body: BodyInit | null | undefined, extra?: HeadersInit): R
   return headers;
 }
 
+const FETCH_TIMEOUT_MS = 60_000;
+
 export async function apiFetch<TRes = unknown>(
   url: string,
   options: RequestInit = {},
 ): Promise<TRes> {
   const headers = buildHeaders(options.body, options.headers);
-  const res = await fetch(url, { ...options, headers });
+
+  // Wave 3.2 — 60-second timeout so cold-start hangs surface as a typed error.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers, signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiError(0, 'errors:network.timeout');
+    }
+    throw err;
+  }
+  clearTimeout(timer);
 
   if (res.status === 401) {
     const newToken = await refreshOnce();

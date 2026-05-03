@@ -102,6 +102,7 @@ export default function NotesPanel({ roomId, myRole }: NotesPanelProps): JSX.Ele
               onChange={(e) => setDraftTitle(e.target.value)}
               aria-label={t('campaign:notes.titleLabel')}
               className={styles.titleInput}
+              maxLength={100}
             />
             <div className={styles.split}>
               <textarea

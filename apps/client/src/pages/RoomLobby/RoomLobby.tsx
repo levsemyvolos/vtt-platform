@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearRoom, startSession } from '../../store/room';
+import { logout, selectIsObserver } from '../../store/session';
 import SceneManager from '../../components/SceneManager/SceneManager';
 import InviteLink from '../../components/InviteLink/InviteLink';
 import { ConnectionStepper } from '../../components/Lobby';
@@ -12,6 +13,7 @@ export default function RoomLobby(): JSX.Element | null {
   const { t } = useTranslation('room');
   const { currentRoom, members } = useAppSelector((s) => s.room);
   const { currentUser } = useAppSelector((s) => s.session);
+  const isObserver = useAppSelector(selectIsObserver);
 
   if (!currentRoom) return null;
 
@@ -20,7 +22,12 @@ export default function RoomLobby(): JSX.Element | null {
   const myRole: Role = myMember?.role ?? 'Observer';
 
   const handleLeave = (): void => {
-    dispatch(clearRoom());
+    // Observers have no Dashboard to return to — logout instead of clearRoom.
+    if (isObserver) {
+      void dispatch(logout());
+    } else {
+      dispatch(clearRoom());
+    }
   };
 
   const handleEnterSession = (): void => {

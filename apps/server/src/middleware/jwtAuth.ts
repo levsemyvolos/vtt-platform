@@ -9,7 +9,13 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      user?: { id: string; role: Role; sessionId: string };
+      user?: {
+        id: string;
+        role: Role;
+        sessionId: string;
+        /** Present only when role === 'Observer' — the room UUID the observer is bound to. */
+        boundRoomId?: string;
+      };
     }
   }
 }
@@ -18,6 +24,8 @@ interface AccessPayload {
   sub: string;
   role: Role;
   sid: string;
+  /** Observer only — room UUID scope-binding. */
+  boundRoomId?: string;
 }
 
 const JWT_SECRET = process.env['JWT_SECRET'] ?? '';
@@ -37,7 +45,12 @@ export const jwtAuth: RequestHandler = (req, res, next) => {
   const token = header.slice(7);
   try {
     const payload = jwt.verify(token, JWT_SECRET) as AccessPayload;
-    req.user = { id: payload.sub, role: payload.role, sessionId: payload.sid };
+    req.user = {
+      id: payload.sub,
+      role: payload.role,
+      sessionId: payload.sid,
+      ...(payload.boundRoomId !== undefined ? { boundRoomId: payload.boundRoomId } : {}),
+    };
     next();
   } catch {
     res
