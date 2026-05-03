@@ -205,6 +205,7 @@ if (fileStorage) {
 const sceneActivationListener = audioService;
 if (sceneActivationListener) {
   sceneService.onSceneActivated = (roomId, sceneId) => {
+    io.to(roomId).emit('scene:activated', { roomId, sceneId });
     void sceneActivationListener.handleSceneSwitch(roomId, sceneId);
   };
 }

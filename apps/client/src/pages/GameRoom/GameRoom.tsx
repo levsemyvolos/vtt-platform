@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { hydrateScene } from '../../store/scene';
+import { hydrateScene, clearScene } from '../../store/scene';
 import { hydrateChat } from '../../store/chat';
 import { hydrateInitiative } from '../../store/initiative';
-import { connectSocket, emitRoomJoin, emitSessionResync } from '../../api/socket';
+import { connectSocket, emitRoomJoin, emitSessionResync, getSocket } from '../../api/socket';
 import { addToast } from '../../store/toast';
 import GameCanvas from '../../components/GameCanvas/GameCanvas';
 import Sidebar from '../../components/Sidebar/Sidebar';
@@ -53,26 +53,53 @@ export default function GameRoom(): JSX.Element | null {
     setHydrating(true);
     setHydrateError(null);
     connectSocket();
-    (async () => {
+
+    const doResync = async () => {
       try {
-        await emitRoomJoin(roomId);
         const payload = await emitSessionResync(roomId);
         if (!cancelled) {
           dispatch(hydrateScene(payload.scene));
           dispatch(hydrateChat(payload.messages));
           dispatch(hydrateInitiative(payload.initiatives));
+          setHydrateError(null);
         }
       } catch (err) {
         if (!cancelled) {
+          dispatch(clearScene());
           const key = resolveHydrateError(err);
           setHydrateError(key ? t(key as never) : null);
         }
       } finally {
         if (!cancelled) setHydrating(false);
       }
+    };
+
+    (async () => {
+      try {
+        await emitRoomJoin(roomId);
+        await doResync();
+      } catch (err) {
+        if (!cancelled) {
+          dispatch(clearScene());
+          const key = resolveHydrateError(err);
+          setHydrateError(key ? t(key as never) : null);
+          setHydrating(false);
+        }
+      }
     })();
+
+    const s = getSocket();
+    const handleSceneActivated = () => {
+      if (!cancelled) {
+        setHydrating(true);
+        void doResync();
+      }
+    };
+    s.on('scene:activated', handleSceneActivated);
+
     return () => {
       cancelled = true;
+      s.off('scene:activated', handleSceneActivated);
     };
   }, [roomId, t, dispatch]);
 

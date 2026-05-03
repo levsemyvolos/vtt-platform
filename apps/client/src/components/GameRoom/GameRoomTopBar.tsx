@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Film } from 'lucide-react';
 import type { Role } from '@vtt/shared';
@@ -7,6 +7,8 @@ import { clearRoom } from '../../store/room';
 import { activateScene, loadScenes } from '../../store/scenes';
 import { logout, selectIsObserver } from '../../store/session';
 import { Logo, Badge, Avatar } from '../ui';
+import ThemeToggle from '../Header/ThemeToggle';
+import LanguageSwitcher from '../Header/LanguageSwitcher';
 import { getSocket } from '../../api/socket';
 import styles from './GameRoomTopBar.module.css';
 
@@ -49,6 +51,26 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
   const isObserver = useAppSelector(selectIsObserver);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close avatar dropdown on click-outside or Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onMouseDown = (e: MouseEvent): void => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     if (currentRoom?.id) {
@@ -129,7 +151,7 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
           {tRoom(`roles.${myRole}`)}
         </Badge>
 
-        <div className={styles.avatarWrap}>
+        <div className={styles.avatarWrap} ref={menuRef}>
           <button
             type="button"
             className={styles.avatarBtn}
@@ -144,14 +166,12 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
           </button>
           {menuOpen && (
             <div className={styles.dropdown} role="menu">
-              <button
-                type="button"
-                className={`${styles.menuItem} ${styles.menuItemDisabled}`}
-                disabled
-                role="menuitem"
-              >
-                {t('topBar.settingsDisabled')}
-              </button>
+              <div className={styles.menuSection}>
+                <ThemeToggle />
+              </div>
+              <div className={styles.menuSection}>
+                <LanguageSwitcher />
+              </div>
               <button
                 type="button"
                 className={styles.menuItem}
