@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { removeToast, type ToastVariant } from '../../store/toast';
+import { removeToast, type ToastItem, type ToastVariant } from '../../store/toast';
 import styles from './Toast.module.css';
 
 const ICONS: Record<ToastVariant, string> = {
@@ -11,49 +11,67 @@ const ICONS: Record<ToastVariant, string> = {
   info: 'ℹ',
 };
 
-const AUTO_DISMISS_MS = 4000;
+// B5-MIN-002: variant-based durations (success 4.5 s, error 6.5 s, rest 5 s)
+const DISMISS_MS: Record<ToastVariant, number> = {
+  success: 4500,
+  error: 6500,
+  warning: 5000,
+  info: 5000,
+};
 
-/** Global toast container — mount once in App root. */
-export default function ToastContainer(): JSX.Element {
+/** Single toast item that auto-dismisses after its variant-specific delay. */
+function ToastItemView({ item }: { item: ToastItem }): JSX.Element {
   const dispatch = useAppDispatch();
-  const queue = useAppSelector((s) => s.toast.queue);
-  const { t: translate } = useTranslation(['errors', 'common']);
+  const { t: translate } = useTranslation(['errors', 'common', 'room']);
 
   const renderMessage = (raw: string): string => {
-    // Messages that come as i18n keys (`errors:foo.bar`) are translated here so
-    // producers (apiFetch, thunks) don't need React context. Plain strings pass through.
-    if (raw.startsWith('errors:') || raw.startsWith('common:')) return translate(raw as never);
+    if (
+      raw.startsWith('errors:') ||
+      raw.startsWith('common:') ||
+      raw.startsWith('room:')
+    ) return translate(raw as never);
     return raw;
   };
 
+  // Each toast manages its own timer so they dismiss independently.
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const first = queue[0];
-    if (!first) return;
-    const timer = setTimeout(() => {
-      dispatch(removeToast(first.id));
-    }, AUTO_DISMISS_MS);
-    return () => clearTimeout(timer);
-  }, [queue, dispatch]);
+    timerRef.current = setTimeout(() => {
+      dispatch(removeToast(item.id));
+    }, DISMISS_MS[item.variant]);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [item.id, item.variant, dispatch]);
+
+  return (
+    <div
+      role="status"
+      className={`${styles.toast} ${styles[`toast--${item.variant}`]}`}
+    >
+      <span className={styles.icon} aria-hidden="true">{ICONS[item.variant]}</span>
+      <span className={styles.message}>{renderMessage(item.message)}</span>
+      <button
+        type="button"
+        className={styles.close}
+        onClick={() => dispatch(removeToast(item.id))}
+        aria-label="Закрити сповіщення"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+/** Global toast container — mount once in App root. */
+export default function ToastContainer(): JSX.Element {
+  const queue = useAppSelector((s) => s.toast.queue);
 
   return (
     <div className={styles.container} aria-live="polite" aria-atomic="false">
       {queue.map((t) => (
-        <div
-          key={t.id}
-          role="status"
-          className={`${styles.toast} ${styles[`toast--${t.variant}`]}`}
-        >
-          <span className={styles.icon} aria-hidden="true">{ICONS[t.variant]}</span>
-          <span className={styles.message}>{renderMessage(t.message)}</span>
-          <button
-            type="button"
-            className={styles.close}
-            onClick={() => dispatch(removeToast(t.id))}
-            aria-label="Закрити сповіщення"
-          >
-            ×
-          </button>
-        </div>
+        <ToastItemView key={t.id} item={t} />
       ))}
     </div>
   );

@@ -1,5 +1,6 @@
 {
   "validation": {
+    "generic": "Invalid input. Please check the fields.",
     "emailInvalid": "Enter a valid email",
     "passwordTooShort": "Password must be at least 8 characters",
     "nameTooShort": "Name must be at least 2 characters",
@@ -31,7 +32,8 @@
     "generateFailed": "Generation error",
     "applyFailed": "Failed to apply background",
     "characterCreateFailed": "Character creation error",
-    "timeout": "Request timed out. Please try again."
+    "timeout": "Request timed out. Please try again.",
+    "failed": "Network error. Check your connection."
   },
   "api": {
     "rateLimitExceeded": "AI request limit reached. Try again in a minute.",
