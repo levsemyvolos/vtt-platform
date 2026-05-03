@@ -6,7 +6,6 @@ import { AuthService } from '../services/AuthService.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { SessionRepository } from '../repositories/SessionRepository.js';
 import { prisma } from '../lib/prisma.js';
-import { jwtAuth } from '../middleware/jwtAuth.js';
 import { validate } from '../middleware/validate.js';
 import { registerSchema, loginSchema } from '../schemas/auth.schema.js';
 import { HttpError } from '../lib/errors.js';
