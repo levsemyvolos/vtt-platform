@@ -129,6 +129,17 @@ export class RoomRepository {
   }
 
   /**
+   * Returns true if userId has a RoomMember record for roomId (or is the owner).
+   */
+  async isMember(roomId: string, userId: string): Promise<boolean> {
+    const member = await this.db.roomMember.findFirst({
+      where: { roomId, userId },
+      select: { id: true },
+    });
+    return member !== null;
+  }
+
+  /**
    * Resolves the effective role of `userId` inside `roomId`.
    *
    * MVP rules (no dedicated RoomMember table yet):

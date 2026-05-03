@@ -42,6 +42,7 @@ model User {
   receivedMessages  ChatMessage[]      @relation("ChatMessageRecipient")
   assets            Asset[]            @relation("AssetOwner")
   roomMemberships   RoomMember[]
+  assistantMessages AssistantMessage[]
 }
 
 model Room {
@@ -55,15 +56,16 @@ model Room {
   createdAt           DateTime @default(now()) @db.Timestamptz(6)
   lastActiveAt        DateTime @default(now()) @db.Timestamptz(6)
 
-  owner       User          @relation(fields: [ownerId], references: [id])
-  scenes      Scene[]
-  messages    ChatMessage[]
-  handouts    Handout[]
-  notes       Note[]
-  audioTracks AudioTrack[]
-  characters  Character[]
-  assets      Asset[]       @relation("AssetRoom")
-  members     RoomMember[]
+  owner             User               @relation(fields: [ownerId], references: [id])
+  scenes            Scene[]
+  messages          ChatMessage[]
+  handouts          Handout[]
+  notes             Note[]
+  audioTracks       AudioTrack[]
+  characters        Character[]
+  assets            Asset[]            @relation("AssetRoom")
+  members           RoomMember[]
+  assistantMessages AssistantMessage[]
 }
 
 /// Persistent player membership — written on invite-join, used for lobby roster
@@ -263,4 +265,21 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+/// Persistent AI assistant chat messages per room (§2.15, Ф8.1).
+/// F5-safe: history is loaded from DB on mount, not from Redux only.
+model AssistantMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  roomId    String   @db.Uuid
+  userId    String?  @db.Uuid
+  /// 'user' | 'assistant' | 'system'
+  role      String   @db.VarChar(16)
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  room Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, createdAt])
 }
