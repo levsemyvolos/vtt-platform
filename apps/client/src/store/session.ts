@@ -94,7 +94,24 @@ export const observerJoin = createAsyncThunk<
  *     return a special sentinel so the reducer retries instead of going idle.
  *   - HTTP 401 → token is invalid/expired → clear and go idle (real logout).
  *   - Network / 5xx → server unreachable → keep token, set 'error' status.
+ *
+ * Wave 6.5 (BUG-007) — F5 race hardening:
+ *   - Real browser F5 navigation does NOT trigger AbortController in React code.
+ *     The browser cancels the in-flight fetch, producing TypeError: Failed to fetch
+ *     (not a DOMException / AbortError). This was already handled as NETWORK_ERROR,
+ *     which keeps the token and shows BootstrapLoader (correct behavior).
+ *   - However, on first NETWORK_ERROR we now schedule a silent retry after a short
+ *     delay so a transient cold-start 5xx on dev server does NOT require manual
+ *     "Try again" click. Only after MAX_BOOTSTRAP_RETRIES failures do we surface the
+ *     BootstrapLoader error UI.
+ *   - ApiError(0) from apiFetch timeout is treated the same as a network error.
  */
+
+/** Number of automatic retries before surfacing the BootstrapLoader error UI. */
+const MAX_BOOTSTRAP_RETRIES = 3;
+/** Delay between automatic retries (ms). */
+const BOOTSTRAP_RETRY_DELAY_MS = 1500;
+
 export const bootstrapSession = createAsyncThunk<
   AuthTokenPair | null | 'ABORTED' | 'NETWORK_ERROR',
   void,
@@ -104,41 +121,62 @@ export const bootstrapSession = createAsyncThunk<
   async (_, { rejectWithValue, dispatch }) => {
     const refreshToken = tokenStore.getRefresh();
     if (!refreshToken) return null;
-    try {
-      const pair = await apiFetch<AuthTokenPair>('/api/auth/refresh', {
-        method: 'POST',
-        body: JSON.stringify({ refreshToken }),
-      });
-      // BUG-001-F5: if user was in a room before F5, restore it so App.tsx shows Lobby.
-      const persistedRoomId = getPersistedRoomId();
-      if (persistedRoomId && pair) {
-        // fetchRoom.rejected clears localStorage via room.ts reducer (404/403).
-        void (dispatch as (a: unknown) => unknown)(fetchRoom(persistedRoomId));
+
+    // BUG-007: retry loop — absorb transient network errors (e.g. dev server cold start,
+    // browser cancelling in-flight fetch during F5) before surfacing an error to the UI.
+    for (let attempt = 0; attempt < MAX_BOOTSTRAP_RETRIES; attempt++) {
+      try {
+        const pair = await apiFetch<AuthTokenPair>('/api/auth/refresh', {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken }),
+        });
+        // BUG-001-F5: if user was in a room before F5, restore it so App.tsx shows Lobby.
+        const persistedRoomId = getPersistedRoomId();
+        if (persistedRoomId && pair) {
+          // fetchRoom.rejected clears localStorage via room.ts reducer (404/403).
+          void (dispatch as (a: unknown) => unknown)(fetchRoom(persistedRoomId));
+        }
+        return pair;
+      } catch (err) {
+        // AbortError: the fetch was cancelled mid-flight (e.g. rapid F5 with AbortController).
+        // Do NOT clear the token — retry will succeed.
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return rejectWithValue('ABORTED');
+        }
+        // ApiError with 401 — token rejected by server. Clear and go idle.
+        if (err instanceof Error && 'status' in err && (err as { status: number }).status === 401) {
+          tokenStore.clear();
+          return null;
+        }
+        // Network failure (TypeError: Failed to fetch) or 5xx (ApiError) or timeout (ApiError(0)).
+        // On the last attempt → signal NETWORK_ERROR for BootstrapLoader retry UI.
+        if (attempt < MAX_BOOTSTRAP_RETRIES - 1) {
+          // Brief delay before retry — absorbs dev server cold start or F5 connection drop.
+          await new Promise<void>((resolve) => setTimeout(resolve, BOOTSTRAP_RETRY_DELAY_MS));
+          continue;
+        }
+        return rejectWithValue('NETWORK_ERROR');
       }
-      return pair;
-    } catch (err) {
-      // AbortError: the fetch was cancelled mid-flight (e.g. rapid F5).
-      // Do NOT clear the token — retry will succeed.
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        return rejectWithValue('ABORTED');
-      }
-      // ApiError with 401 — token rejected by server. Clear and go idle.
-      if (err instanceof Error && 'status' in err && (err as { status: number }).status === 401) {
-        tokenStore.clear();
-        return null;
-      }
-      // Network failure or 5xx — keep token, signal error state for retry UX.
-      return rejectWithValue('NETWORK_ERROR');
     }
+    // Unreachable — TypeScript requires exhaustive return.
+    return rejectWithValue('NETWORK_ERROR');
   },
 );
 
 export const logout = createAsyncThunk('session/logout', async () => {
   try {
     await apiFetch('/api/auth/logout', { method: 'POST' });
+  } catch (e) {
+    // R2-BUG-006: even if server returns 503 or network fails, swallow the error
+    // so the thunk always resolves as fulfilled. The reducer then clears the state.
+    // Server-side lenient logout (Wave 6.5.3) should prevent 503, but this is a safety net.
+    // eslint-disable-next-line no-console
+    console.warn('[logout] server-side logout failed, clearing local session anyway', e);
   } finally {
     tokenStore.clear();
   }
+  // Always return void — thunk always resolves fulfilled, never rejects.
+  // logout.fulfilled reducer handles state cleanup.
 });
 
 function applyTokenPair(state: SessionState, payload: AuthTokenPair): void {
