@@ -14,6 +14,8 @@ interface ToastState {
 
 const initialState: ToastState = { queue: [] };
 
+const TOAST_MAX = 5;
+
 let nextId = 1;
 
 const toastSlice = createSlice({
@@ -22,6 +24,10 @@ const toastSlice = createSlice({
   reducers: {
     addToast: {
       reducer(state, action: PayloadAction<ToastItem>) {
+        // B5-MIN-002: limit simultaneous toasts to TOAST_MAX
+        if (state.queue.length >= TOAST_MAX) {
+          state.queue.shift();
+        }
         state.queue.push(action.payload);
       },
       prepare(variant: ToastVariant, message: string) {
