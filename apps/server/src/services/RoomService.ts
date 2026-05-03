@@ -88,6 +88,33 @@ export class RoomService {
   }
 
   /**
+   * Starts a session: sets Room.status = 'active', bumps lastActiveAt,
+   * and emits `room:started` to all subscribers in the room channel.
+   * Only the room owner (GM) can start a session.
+   * @param roomId Room UUID
+   * @param requesterId requester UUID (must be owner)
+   * @param io optional socket.io server for broadcasting
+   * @throws HttpError 404 if not found, 403 if not owner
+   */
+  async startSession(
+    roomId: string,
+    requesterId: string,
+    io?: TypedServer | null,
+  ): Promise<Room> {
+    const room = await this.rooms.findById(roomId);
+    if (!room) throw new HttpError(404, 'Room not found');
+    if (room.ownerId !== requesterId) throw new HttpError(403, 'Only room owner can start a session');
+    const updated = await this.rooms.updateById(roomId, {
+      status: 'active',
+      lastActiveAt: new Date(),
+    } as Prisma.RoomUpdateInput);
+    if (io) {
+      io.to(roomId).emit('room:started', { roomId });
+    }
+    return updated;
+  }
+
+  /**
    * @param ownerId GM user UUID
    * @returns all rooms owned by that user
    */

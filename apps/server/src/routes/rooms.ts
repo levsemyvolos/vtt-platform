@@ -225,6 +225,34 @@ roomsRouter.patch(
       const room = await roomService.update(req.params.id, req.user!.id, req.body);
       const members = await roomService.getMembersProjection(room.id);
       res.json(toRoomDTO(room, members));
+      // Broadcast room metadata changes to all subscribers in real-time.
+      if (_io) {
+        _io.to(room.id).emit('room:updated', {
+          roomId: room.id,
+          name: room.name,
+          gameSystem: room.gameSystem,
+        });
+      }
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+);
+
+/**
+ * POST /rooms/:id/start — GM starts a session.
+ * Sets Room.status = 'active', bumps lastActiveAt, broadcasts `room:started`
+ * to all lobby subscribers so they auto-transition to GameRoom.
+ */
+roomsRouter.post(
+  '/:id/start',
+  jwtAuth,
+  requireRole('GM', 'Player'),
+  async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      const room = await roomService.startSession(req.params.id, req.user!.id, _io);
+      const members = await roomService.getMembersProjection(room.id);
+      res.json(toRoomDTO(room, members));
     } catch (err) {
       handleError(err, res);
     }

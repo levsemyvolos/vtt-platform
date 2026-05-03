@@ -22,7 +22,7 @@ import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
 import { addPing, removePing, upsertMeasure, removeMeasure } from '../store/annotations';
 import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
-import { upsertRoomMember, removeRoom } from '../store/room';
+import { upsertRoomMember, removeRoom, applyRoomUpdate, startSession } from '../store/room';
 
 export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -100,6 +100,16 @@ export function getSocket(): TypedClientSocket {
   // Wave 4.1 — room deleted by GM: remove from store; UI components react via selector.
   socket.on('room:deleted', (payload) => {
     store.dispatch(removeRoom(payload.roomId));
+  });
+
+  // GM starts session — all lobby subscribers transition to GameRoom.
+  socket.on('room:started', () => {
+    store.dispatch(startSession());
+  });
+
+  // GM renamed room or changed game system — sync to all clients without F5.
+  socket.on('room:updated', (payload) => {
+    store.dispatch(applyRoomUpdate(payload));
   });
 
   // Ф3.4.3 — ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.

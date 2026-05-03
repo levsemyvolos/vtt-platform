@@ -242,9 +242,21 @@ export interface RoomDeletedPayload {
   reason?: string;
 }
 
+export interface RoomStartedPayload {
+  roomId: string;
+}
+
+export interface RoomUpdatedPayload {
+  roomId: string;
+  name: string;
+  gameSystem: string;
+}
+
 export interface ServerToClientEvents {
   'room:member-joined': (payload: MemberJoinedPayload) => void;
   'room:deleted': (payload: RoomDeletedPayload) => void;
+  'room:started': (payload: RoomStartedPayload) => void;
+  'room:updated': (payload: RoomUpdatedPayload) => void;
   'scene:updated': (payload: SceneUpdatedPayload) => void;
   'token:rollback': (payload: TokenRollbackPayload) => void;
   'chat:dice': (payload: ChatDicePayload) => void;

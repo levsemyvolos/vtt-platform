@@ -175,6 +175,18 @@ const roomSlice = createSlice({
         state.members.push(action.payload);
       }
     },
+    /** WS room:updated — sync room name/gameSystem changes from GM to all clients. */
+    applyRoomUpdate: (state, action: PayloadAction<{ roomId: string; name: string; gameSystem: string }>) => {
+      if (state.currentRoom?.id === action.payload.roomId) {
+        state.currentRoom.name = action.payload.name;
+        state.currentRoom.gameSystem = action.payload.gameSystem;
+      }
+      const idx = state.ownRooms.findIndex((r) => r.id === action.payload.roomId);
+      if (idx >= 0) {
+        state.ownRooms[idx]!.name = action.payload.name;
+        state.ownRooms[idx]!.gameSystem = action.payload.gameSystem;
+      }
+    },
     startSession: (state) => {
       state.sessionActive = true;
     },
@@ -257,5 +269,5 @@ const roomSlice = createSlice({
   },
 });
 
-export const { setCurrentRoom, clearRoom, updateMembers, upsertRoomMember, startSession, startEditing, stopEditing, removeRoom } = roomSlice.actions;
+export const { setCurrentRoom, clearRoom, updateMembers, upsertRoomMember, applyRoomUpdate, startSession, startEditing, stopEditing, removeRoom } = roomSlice.actions;
 export default roomSlice.reducer;
