@@ -2,7 +2,7 @@
   "dashboard": {
     "heading": "Мої кімнати",
     "subheading": "{{active}} активних · {{total}} всього",
-    "createBtn": "+ Створити кімнату",
+    "createBtn": "Створити кімнату",
     "noRooms": "Кімнат ще немає. Створіть першу!",
     "membersCount": "{{count}} учасників",
     "membersCount_one": "{{count}} учасник",
