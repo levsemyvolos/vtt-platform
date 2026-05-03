@@ -147,6 +147,8 @@ export interface UpdateTokenRequest {
   statusMarkers?: string[];
   assignedUserId?: string | null;
   isHidden?: boolean;
+  /** UUID of an uploaded Asset to use as token image. */
+  imageAssetId?: string | null;
 }
 
 // ---------- Чат 7.2 — музичний супровід (Ф6) ----------

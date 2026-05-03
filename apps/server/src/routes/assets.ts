@@ -3,7 +3,9 @@ import type { Request, Response } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import type { AssetService } from '../services/AssetService.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
+import { validate } from '../middleware/validate.js';
 import { HttpError } from '../lib/errors.js';
+import { initUploadSchema, finalizeUploadSchema } from '../schemas/asset.schema.js';
 
 function handleError(err: unknown, res: Response): void {
   if (err instanceof HttpError) {
@@ -57,6 +59,46 @@ export function buildAssetsRouter(assetService: AssetService, db: PrismaClient):
       handleError(err, res);
     }
   });
+
+  /**
+   * POST /assets/uploads
+   * Initiates a presigned upload: returns a GCS signed PUT URL + storageKey.
+   * RBAC: user must be room owner or RoomMember.
+   * Ф6.1, НФВ 6.2 — Додаток Г Г.1.
+   */
+  router.post(
+    '/uploads',
+    jwtAuth,
+    validate(initUploadSchema),
+    async (req: Request, res: Response) => {
+      try {
+        const result = await assetService.initUpload(req.body, req.user!.id);
+        res.status(200).json(result);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  /**
+   * POST /assets
+   * Finalizes an upload: verifies the file in storage and creates Asset record.
+   * RBAC: user must be room owner or RoomMember; storageKey must match roomId.
+   * Ф6.1, Ф7.2.
+   */
+  router.post(
+    '/',
+    jwtAuth,
+    validate(finalizeUploadSchema),
+    async (req: Request, res: Response) => {
+      try {
+        const dto = await assetService.finalizeUpload(req.body, req.user!.id);
+        res.status(201).json(dto);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
 
   return router;
 }
