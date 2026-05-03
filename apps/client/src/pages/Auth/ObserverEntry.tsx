@@ -9,9 +9,10 @@ import styles from './Auth.module.css';
 
 type Props = {
   onSwitchToLogin: () => void;
+  onSwitchToLanding?: () => void;
 };
 
-export default function ObserverEntry({ onSwitchToLogin }: Props) {
+export default function ObserverEntry({ onSwitchToLogin, onSwitchToLanding }: Props) {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['auth', 'errors']);
   const { status, error, prefilledInviteCode } = useAppSelector((s) => s.session);
@@ -60,6 +61,11 @@ export default function ObserverEntry({ onSwitchToLogin }: Props) {
 
   return (
     <AuthLayout>
+      {onSwitchToLanding && (
+        <button type="button" className={styles.backLink} onClick={onSwitchToLanding}>
+          {t('auth:links.backToLanding')}
+        </button>
+      )}
       <h1 className={styles.heading}>{t('auth:observer.heading')}</h1>
       {isPrefilled && (
         <p className={styles.subtitle}>{t('auth:observer.invitePrefilled')}</p>

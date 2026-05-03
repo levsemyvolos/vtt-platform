@@ -12,9 +12,10 @@ type TabId = 'login' | 'register';
 type Props = {
   onSwitchToRegister: () => void;
   onSwitchToObserver: () => void;
+  onSwitchToLanding?: () => void;
 };
 
-export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props) {
+export default function Login({ onSwitchToRegister, onSwitchToObserver, onSwitchToLanding }: Props) {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['auth', 'common', 'errors']);
   const { status, error, prefilledInviteCode } = useAppSelector((s) => s.session);
@@ -51,6 +52,11 @@ export default function Login({ onSwitchToRegister, onSwitchToObserver }: Props)
 
   return (
     <AuthLayout>
+      {onSwitchToLanding && (
+        <button type="button" className={styles.backLink} onClick={onSwitchToLanding}>
+          {t('auth:links.backToLanding')}
+        </button>
+      )}
       <h1 className={styles.heading}>{t('auth:headline.login')}</h1>
       {prefilledInviteCode ? (
         <p className={styles.subtitle}>

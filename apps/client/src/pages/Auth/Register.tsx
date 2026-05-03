@@ -10,9 +10,10 @@ type TabId = 'login' | 'register';
 
 type Props = {
   onSwitchToLogin: () => void;
+  onSwitchToLanding?: () => void;
 };
 
-export default function Register({ onSwitchToLogin }: Props) {
+export default function Register({ onSwitchToLogin, onSwitchToLanding }: Props) {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['auth', 'common', 'errors']);
   const { status, error } = useAppSelector((s) => s.session);
@@ -51,6 +52,11 @@ export default function Register({ onSwitchToLogin }: Props) {
 
   return (
     <AuthLayout>
+      {onSwitchToLanding && (
+        <button type="button" className={styles.backLink} onClick={onSwitchToLanding}>
+          {t('auth:links.backToLanding')}
+        </button>
+      )}
       <h1 className={styles.heading}>{t('auth:headline.register')}</h1>
       <p className={styles.subtitle}>{t('auth:subtitle')}</p>
       <div className={styles.tabsRow}>
