@@ -1,12 +1,25 @@
-import { useEffect, useState } from 'react';
-import { Layer, Circle, Line, Text } from 'react-konva';
-import type { AnnotationPingPayload, MeasurePayload, DrawStroke, TextAnnotation } from '@vtt/shared';
-import { useAppSelector } from '../../../store';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Layer, Circle, Group, Image as KonvaImage, Line, Rect, Text } from 'react-konva';
+import type Konva from 'konva';
+import type {
+  AnnotationPingPayload,
+  DrawStroke,
+  ImageAnnotation,
+  MeasurePayload,
+  Role,
+  SceneObject,
+  TextAnnotation,
+} from '@vtt/shared';
+import { useAppDispatch, useAppSelector } from '../../../store';
+import { moveSceneObjectOptimistic } from '../../../store/scene';
+import { emitObjectDelete, emitObjectMove } from '../../../api/socket';
+import { apiMoveAnnotation } from '../../../api/scenes';
+import { useImage } from '../useImage';
 
 const PING_DURATION_MS = 3000;
 const PING_FADE_START_MS = 2000;
+const OBJECT_MOVE_THROTTLE_MS = 50;
 
-/** Per-user deterministic color derived from userId hash (зашитий palette). */
 const PING_PALETTE = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
 
 export function getUserPingColor(userId: string): string {
@@ -14,11 +27,6 @@ export function getUserPingColor(userId: string): string {
   return PING_PALETTE[hash % PING_PALETTE.length]!;
 }
 
-/**
- * Single ping marker. Manages its own opacity animation: visible for 2 s,
- * then linearly fades to 0 over 1 s. Store cleanup is handled by socket.ts
- * setTimeout — this component does not dispatch.
- */
 function PingCircle({ ping }: { ping: AnnotationPingPayload }): JSX.Element {
   const [opacity, setOpacity] = useState(1);
 
@@ -36,7 +44,7 @@ function PingCircle({ ping }: { ping: AnnotationPingPayload }): JSX.Element {
       }
     }, 50);
     return () => clearInterval(id);
-  }, []); // ping is stable for its lifetime
+  }, []);
 
   const color = ping.color || getUserPingColor(ping.userId);
 
@@ -55,7 +63,6 @@ function PingCircle({ ping }: { ping: AnnotationPingPayload }): JSX.Element {
   );
 }
 
-/** Ruler line with distance label (Ф3.4.3). gridSize converts pixels → grid units. */
 function RulerLine({ measure, gridSize }: { measure: MeasurePayload; gridSize: number }): JSX.Element {
   const color = getUserPingColor(measure.userId);
   const dx = measure.to.x - measure.from.x;
@@ -87,58 +94,172 @@ function RulerLine({ measure, gridSize }: { measure: MeasurePayload; gridSize: n
   );
 }
 
-/** Pinned text label (Ф3.4.4). */
-function TextLabel({ ann }: { ann: TextAnnotation }): JSX.Element {
+function toObjects(
+  strokes: DrawStroke[],
+  texts: TextAnnotation[],
+  images: ImageAnnotation[],
+  objects: SceneObject[] | undefined,
+): SceneObject[] {
+  if (objects?.length) return objects;
+  return [
+    ...strokes.map((stroke, index): SceneObject => ({
+      id: stroke.strokeId,
+      type: 'stroke',
+      userId: stroke.userId,
+      x: stroke.x ?? 0,
+      y: stroke.y ?? 0,
+      zIndex: index,
+      points: stroke.points,
+      color: stroke.color,
+      strokeWidth: stroke.width,
+    })),
+    ...texts.map((ann, index): SceneObject => ({
+      id: ann.id,
+      type: 'text',
+      userId: ann.userId,
+      x: ann.x,
+      y: ann.y,
+      zIndex: strokes.length + index,
+      text: ann.text,
+      fontSize: ann.fontSize,
+      color: ann.color,
+    })),
+    ...images.map((ann, index): SceneObject => ({
+      id: ann.id,
+      type: 'image',
+      userId: ann.userId,
+      x: ann.x,
+      y: ann.y,
+      zIndex: strokes.length + texts.length + index,
+      assetId: ann.assetId,
+      width: ann.width,
+      height: ann.height,
+    })),
+  ];
+}
+
+interface ObjectNodeProps {
+  object: SceneObject;
+  draggable: boolean;
+  roomId: string;
+  sceneId: string;
+}
+
+function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JSX.Element {
+  const dispatch = useAppDispatch();
+  const lastMoveAt = useRef(0);
+  const image = useImage(object.type === 'image' ? `/api/assets/${object.assetId}/file` : undefined);
+
+  function broadcastMove(x: number, y: number, force = false): void {
+    const now = Date.now();
+    if (!force && now - lastMoveAt.current < OBJECT_MOVE_THROTTLE_MS) return;
+    lastMoveAt.current = now;
+    dispatch(moveSceneObjectOptimistic({ objectId: object.id, x, y }));
+    emitObjectMove({ roomId, sceneId, objectId: object.id, x, y });
+  }
+
+  function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
+    if (!draggable) return;
+    const node = e.target;
+    broadcastMove(Math.max(0, node.x()), Math.max(0, node.y()));
+  }
+
+  function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
+    if (!draggable) return;
+    const node = e.target;
+    const x = Math.max(0, node.x());
+    const y = Math.max(0, node.y());
+    node.position({ x, y });
+    broadcastMove(x, y, true);
+    void apiMoveAnnotation(sceneId, object.id, { x, y });
+  }
+
+  function handleDelete(): void {
+    if (!draggable) return;
+    emitObjectDelete({ roomId, sceneId, objectId: object.id });
+  }
+
   return (
-    <Text
-      x={ann.x}
-      y={ann.y}
-      text={ann.text}
-      fontSize={ann.fontSize}
-      fill={ann.color}
-      fontStyle="bold"
-      shadowColor="rgba(0,0,0,0.6)"
-      shadowBlur={4}
-      shadowOffsetX={1}
-      shadowOffsetY={1}
-      listening={false}
-    />
+    <Group
+      x={object.x}
+      y={object.y}
+      draggable={draggable}
+      listening={draggable}
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+      onDblClick={handleDelete}
+      onDblTap={handleDelete}
+    >
+      {object.type === 'stroke' && (
+        <Line
+          points={object.points}
+          stroke={object.color}
+          strokeWidth={object.strokeWidth}
+          lineCap="round"
+          lineJoin="round"
+          tension={0.3}
+        />
+      )}
+      {object.type === 'text' && (
+        <Text
+          text={object.text}
+          fontSize={object.fontSize}
+          fill={object.color}
+          fontStyle="bold"
+          shadowColor="rgba(0,0,0,0.6)"
+          shadowBlur={4}
+          shadowOffsetX={1}
+          shadowOffsetY={1}
+        />
+      )}
+      {object.type === 'image' && (
+        image ? (
+          <KonvaImage image={image} width={object.width} height={object.height} />
+        ) : (
+          <Rect width={object.width} height={object.height} fill="#334155" stroke="#94a3b8" strokeWidth={1} />
+        )
+      )}
+    </Group>
   );
 }
 
-/** Persistent free-draw stroke (Ф3.4.2). */
-function DrawLine({ stroke }: { stroke: DrawStroke }): JSX.Element {
-  return (
-    <Line
-      points={stroke.points}
-      stroke={stroke.color}
-      strokeWidth={stroke.width}
-      lineCap="round"
-      lineJoin="round"
-      tension={0.3}
-      listening={false}
-    />
-  );
+interface AnnotationLayerProps {
+  gridSize?: number;
+  roomId: string;
+  sceneId: string;
+  myRole: Role;
 }
 
-/**
- * Annotation layer — renders ephemeral ping markers (Ф3.4.1), ruler lines (Ф3.4.3)
- * and persistent free-draw strokes (Ф3.4.2).
- * Layer order: Background → Tokens → Annotations → FoW (§2.13 table 2.9).
- */
-export default function AnnotationLayer({ gridSize = 64 }: { gridSize?: number }): JSX.Element {
+export default function AnnotationLayer({
+  gridSize = 64,
+  roomId,
+  sceneId,
+  myRole,
+}: AnnotationLayerProps): JSX.Element {
   const pings = useAppSelector((s) => s.annotations.activePings);
   const measures = useAppSelector((s) => s.annotations.activeMeasures);
-  const strokes = useAppSelector((s) => s.scene.current?.annotations.strokes ?? []);
-  const texts = useAppSelector((s) => s.scene.current?.annotations.texts ?? []);
+  const annotations = useAppSelector((s) => s.scene.current?.annotations);
+  const sceneObjects = useMemo(
+    () => toObjects(
+      annotations?.strokes ?? [],
+      annotations?.texts ?? [],
+      annotations?.images ?? [],
+      annotations?.objects,
+    ),
+    [annotations],
+  );
+  const canEditObjects = myRole === 'GM';
 
   return (
-    <Layer listening={false}>
-      {strokes.map((s) => (
-        <DrawLine key={s.strokeId} stroke={s} />
-      ))}
-      {texts.map((ann) => (
-        <TextLabel key={ann.id} ann={ann} />
+    <Layer listening={true}>
+      {sceneObjects.map((object) => (
+        <ObjectNode
+          key={object.id}
+          object={object}
+          draggable={canEditObjects}
+          roomId={roomId}
+          sceneId={sceneId}
+        />
       ))}
       {pings.map((ping) => (
         <PingCircle key={ping.timestamp} ping={ping} />

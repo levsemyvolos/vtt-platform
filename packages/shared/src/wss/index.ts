@@ -4,6 +4,7 @@ import type {
   InitiativeEntryDTO,
   SceneDTO,
   SceneAnnotations,
+  SceneObject,
   ChatMode,
   DiceMode,
 } from '../shared/index';
@@ -163,6 +164,26 @@ export interface DrawStrokePayload {
   strokeId: string;
 }
 
+export interface SceneObjectMovePayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  x: number;
+  y: number;
+}
+
+export interface SceneObjectDeletePayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+}
+
+export interface SceneObjectUpsertPayload {
+  roomId: string;
+  sceneId: string;
+  object: SceneObject;
+}
+
 /**
  * Ephemeral ruler broadcast (Ф3.4.3, table 2.14).
  * Never persisted — server forwards to room; client auto-fades 5 s after last update.
@@ -236,6 +257,8 @@ export interface ClientToServerEvents {
   'draw:clear': (payload: { roomId: string; sceneId: string }) => void;
   'fog:mask-diff': (payload: FogMaskUpdatePayload) => void;
   'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
+  'object:move': (payload: SceneObjectMovePayload) => void;
+  'object:delete': (payload: SceneObjectDeletePayload) => void;
 }
 
 export interface MemberJoinedPayload {

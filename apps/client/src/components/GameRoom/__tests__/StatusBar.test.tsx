@@ -28,10 +28,11 @@ function makeScene(overrides?: Partial<SceneDTO>): SceneDTO {
     gridSize: 5,
     gridWidth: 20,
     gridHeight: 20,
+    gridVisible: true,
     isActive: true,
     isHidden: false,
     fogMaskBase64: null,
-    annotations: { strokes: [], texts: [], images: [] },
+    annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
     tokens: [],
     ...overrides,
   };

@@ -50,10 +50,11 @@ const MOCK_SCENE: SceneDTO = {
   gridSize: 50,
   gridWidth: 10,
   gridHeight: 10,
+  gridVisible: true,
   isActive: true,
   isHidden: false,
   fogMaskBase64: null,
-  annotations: { strokes: [], texts: [], images: [] },
+  annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   tokens: [],
 };
 

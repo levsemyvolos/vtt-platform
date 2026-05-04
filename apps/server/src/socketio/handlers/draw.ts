@@ -1,6 +1,7 @@
 import type { DrawStrokePayload, FogMaskDiffPayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
+import type { SceneAnnotationService } from '../../services/SceneAnnotationService.js';
 
 /** Builds broadcaster sinks for draw events (Ф3.4.2). */
 export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
@@ -29,6 +30,7 @@ export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
 export function registerDrawHandlers(
   socket: TypedSocket,
   drawService: import('../../services/DrawService.js').DrawService,
+  sceneAnnotationService?: SceneAnnotationService,
 ): void {
   socket.on('draw:stroke', (payload: DrawStrokePayload) => {
     if (socket.data.role !== 'GM') return;
@@ -52,5 +54,28 @@ export function registerDrawHandlers(
     if (socket.data.role !== 'GM') return;
     if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
     void drawService.clearFog(payload.roomId, payload.sceneId);
+  });
+
+  socket.on('object:move', (payload) => {
+    if (!sceneAnnotationService) return;
+    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+    void sceneAnnotationService.moveAnnotation(
+      payload.sceneId,
+      payload.objectId,
+      socket.data.userId,
+      socket.data.role,
+      { x: payload.x, y: payload.y },
+    );
+  });
+
+  socket.on('object:delete', (payload) => {
+    if (!sceneAnnotationService) return;
+    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+    void sceneAnnotationService.removeAnnotation(
+      payload.sceneId,
+      payload.objectId,
+      socket.data.userId,
+      socket.data.role,
+    );
   });
 }

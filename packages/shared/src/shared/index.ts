@@ -88,6 +88,8 @@ export interface DrawStroke {
   points: number[];
   color: string;
   width: number;
+  x?: number;
+  y?: number;
 }
 
 /** Pinned text label on the scene canvas (Ф3.4.4). GM-only. */
@@ -112,14 +114,62 @@ export interface ImageAnnotation {
   height: number;
 }
 
+export type SceneObjectType = 'text' | 'image' | 'stroke';
+
+export interface SceneObjectBase {
+  id: string;
+  type: SceneObjectType;
+  userId: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+  zIndex: number;
+  locked?: boolean;
+}
+
+export interface TextSceneObject extends SceneObjectBase {
+  type: 'text';
+  text: string;
+  fontSize: number;
+  color: string;
+}
+
+export interface ImageSceneObject extends SceneObjectBase {
+  type: 'image';
+  assetId: string;
+  width: number;
+  height: number;
+}
+
+export interface StrokeSceneObject extends SceneObjectBase {
+  type: 'stroke';
+  points: number[];
+  color: string;
+  strokeWidth: number;
+}
+
+export type SceneObject = TextSceneObject | ImageSceneObject | StrokeSceneObject;
+
 /** Structured container stored in Scene.annotations JSONB. */
 export interface SceneAnnotations {
+  schemaVersion?: number;
   strokes: DrawStroke[];
   texts: TextAnnotation[];
   images: ImageAnnotation[];
+  objects?: SceneObject[];
 }
 
-const EMPTY_SCENE_ANNOTATIONS: SceneAnnotations = { strokes: [], texts: [], images: [] };
+const EMPTY_SCENE_ANNOTATIONS: SceneAnnotations = {
+  schemaVersion: 2,
+  strokes: [],
+  texts: [],
+  images: [],
+  objects: [],
+};
 export { EMPTY_SCENE_ANNOTATIONS };
 
 /**
@@ -133,6 +183,7 @@ export interface SceneDTO {
   gridSize: number;
   gridWidth: number;
   gridHeight: number;
+  gridVisible: boolean;
   isActive: boolean;
   isHidden: boolean;
   fogMaskBase64: string | null;

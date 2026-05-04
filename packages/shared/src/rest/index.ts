@@ -80,6 +80,7 @@ export interface UpdateSceneRequest {
   gridSize?: number;
   gridWidth?: number;
   gridHeight?: number;
+  gridVisible?: boolean;
   backgroundAssetId?: string | null;
   isHidden?: boolean;
 }

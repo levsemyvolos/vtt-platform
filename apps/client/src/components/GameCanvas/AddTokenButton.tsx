@@ -32,8 +32,8 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
     try {
       const body: CreateTokenRequest = {
         name: name.trim(),
-        x: Math.floor(scene.gridWidth / 2),
-        y: Math.floor(scene.gridHeight / 2),
+        x: Math.floor((scene.gridWidth * scene.gridSize) / 2),
+        y: Math.floor((scene.gridHeight * scene.gridSize) / 2),
         ...(asset ? { imageAssetId: asset.id } : {}),
       };
       const token = await apiFetch<TokenPublicDTO>(`/api/scenes/${sceneId}/tokens`, {
@@ -97,8 +97,8 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
 
               <p className={styles.note}>
                 {t('room:token.tokenPlacedNote', {
-                  x: Math.floor(scene.gridWidth / 2),
-                  y: Math.floor(scene.gridHeight / 2),
+                  x: Math.floor((scene.gridWidth * scene.gridSize) / 2),
+                  y: Math.floor((scene.gridHeight * scene.gridSize) / 2),
                 })}
               </p>
               {error && <p role="alert" className={styles.error}>{error}</p>}

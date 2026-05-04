@@ -105,6 +105,7 @@ function makeSceneRepo(roomId = ROOM_ID): { repo: SceneRepository; mocks: SceneR
     gridSize: 50,
     gridWidth: 40,
     gridHeight: 40,
+    gridVisible: true,
     fogMaskBase64: null,
     isHidden: false,
     isActive: true,

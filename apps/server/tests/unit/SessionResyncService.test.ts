@@ -12,9 +12,11 @@ const sceneSnapshot = {
   gridSize: 50,
   gridWidth: 40,
   gridHeight: 40,
+  gridVisible: true,
   isActive: true,
   isHidden: false,
   fogMaskBase64: null,
+  annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   tokens: [],
 };
 

@@ -1,5 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
-import type { DrawStrokePayload, DrawStroke, SceneAnnotations, FogMaskDiffPayload } from '@vtt/shared';
+import type {
+  DrawStrokePayload,
+  DrawStroke,
+  SceneAnnotations,
+  FogMaskDiffPayload,
+  SceneObject,
+} from '@vtt/shared';
 
 export interface DrawBroadcast {
   stroke: (roomId: string, payload: DrawStrokePayload) => void;
@@ -10,16 +16,111 @@ export interface DrawBroadcast {
 
 /** Parses raw JSONB value from Prisma into SceneAnnotations (handles both structured and legacy flat-array formats). */
 export function parseAnnotations(raw: unknown): SceneAnnotations {
-  if (!raw) return { strokes: [], texts: [], images: [] };
+  if (!raw) return { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] };
   if (Array.isArray(raw)) {
-    // Legacy format from Б4 — flat DrawStroke[] array; migrate on read.
-    return { strokes: raw as DrawStroke[], texts: [], images: [] };
+    const strokes = raw as DrawStroke[];
+    return {
+      schemaVersion: 2,
+      strokes,
+      texts: [],
+      images: [],
+      objects: strokes.map(strokeToObject),
+    };
   }
   const obj = raw as Partial<SceneAnnotations>;
+  const strokes = Array.isArray(obj.strokes) ? (obj.strokes as DrawStroke[]) : [];
+  const texts = Array.isArray(obj.texts) ? obj.texts : [];
+  const images = Array.isArray(obj.images) ? obj.images : [];
+  const objects = Array.isArray(obj.objects)
+    ? obj.objects
+    : [...strokes.map(strokeToObject), ...texts.map(textToObject), ...images.map(imageToObject)];
   return {
-    strokes: Array.isArray(obj.strokes) ? (obj.strokes as DrawStroke[]) : [],
-    texts: Array.isArray(obj.texts) ? obj.texts : [],
-    images: Array.isArray(obj.images) ? obj.images : [],
+    schemaVersion: 2,
+    strokes,
+    texts,
+    images,
+    objects,
+  };
+}
+
+export function normalizeAnnotations(annotations: SceneAnnotations): SceneAnnotations {
+  const objectsById = new Map((annotations.objects ?? []).map((object) => [object.id, object]));
+  indexStrokes(annotations, objectsById);
+  indexTexts(annotations, objectsById);
+  indexImages(annotations, objectsById);
+  return {
+    schemaVersion: 2,
+    strokes: annotations.strokes,
+    texts: annotations.texts,
+    images: annotations.images,
+    objects: [...objectsById.values()].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0)),
+  };
+}
+
+function indexStrokes(annotations: SceneAnnotations, objectsById: Map<string, SceneObject>): void {
+  for (const [index, stroke] of annotations.strokes.entries()) {
+    const current = objectsById.get(stroke.strokeId);
+    objectsById.set(stroke.strokeId, {
+      ...strokeToObject(stroke, index),
+      x: current?.x ?? stroke.x ?? 0,
+      y: current?.y ?? stroke.y ?? 0,
+    });
+  }
+}
+
+function indexTexts(annotations: SceneAnnotations, objectsById: Map<string, SceneObject>): void {
+  for (const [index, text] of annotations.texts.entries()) {
+    const current = objectsById.get(text.id);
+    objectsById.set(text.id, { ...textToObject(text, index), zIndex: current?.zIndex ?? index });
+  }
+}
+
+function indexImages(annotations: SceneAnnotations, objectsById: Map<string, SceneObject>): void {
+  for (const [index, image] of annotations.images.entries()) {
+    const current = objectsById.get(image.id);
+    objectsById.set(image.id, { ...imageToObject(image, index), zIndex: current?.zIndex ?? index });
+  }
+}
+
+function strokeToObject(stroke: DrawStroke, index = 0): SceneObject {
+  return {
+    id: stroke.strokeId,
+    type: 'stroke',
+    userId: stroke.userId,
+    x: stroke.x ?? 0,
+    y: stroke.y ?? 0,
+    zIndex: index,
+    points: stroke.points,
+    color: stroke.color,
+    strokeWidth: stroke.width,
+  };
+}
+
+function textToObject(text: NonNullable<SceneAnnotations['texts']>[number], index = 0): SceneObject {
+  return {
+    id: text.id,
+    type: 'text',
+    userId: text.userId,
+    x: text.x,
+    y: text.y,
+    zIndex: index,
+    text: text.text,
+    fontSize: text.fontSize,
+    color: text.color,
+  };
+}
+
+function imageToObject(image: NonNullable<SceneAnnotations['images']>[number], index = 0): SceneObject {
+  return {
+    id: image.id,
+    type: 'image',
+    userId: image.userId,
+    x: image.x,
+    y: image.y,
+    width: image.width,
+    height: image.height,
+    zIndex: index,
+    assetId: image.assetId,
   };
 }
 
@@ -54,14 +155,15 @@ export class DrawService {
     } else {
       annotations.strokes.push(stroke);
     }
-    await this.persist(payload.sceneId, annotations);
+    await this.persist(payload.sceneId, normalizeAnnotations(annotations));
     this.broadcast.stroke(payload.roomId, payload);
   }
 
   async clearStrokes(roomId: string, sceneId: string): Promise<void> {
     const annotations = await this.getAnnotations(sceneId);
     annotations.strokes = [];
-    await this.persist(sceneId, annotations);
+    annotations.objects = (annotations.objects ?? []).filter((object) => object.type !== 'stroke');
+    await this.persist(sceneId, normalizeAnnotations(annotations));
     this.broadcast.clear(roomId, sceneId);
   }
 
@@ -95,17 +197,18 @@ export class DrawService {
       where: { id: sceneId },
       select: { annotations: true },
     });
-    const parsed = parseAnnotations(scene?.annotations);
+    const parsed = normalizeAnnotations(parseAnnotations(scene?.annotations));
     this.cache.set(sceneId, parsed);
     return parsed;
   }
 
   async persist(sceneId: string, annotations: SceneAnnotations): Promise<void> {
-    this.cache.set(sceneId, annotations);
+    const normalized = normalizeAnnotations(annotations);
+    this.cache.set(sceneId, normalized);
     await this.prisma.scene.update({
       where: { id: sceneId },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json accepts any
-      data: { annotations: annotations as any },
+      data: { annotations: normalized as any },
     });
   }
 }

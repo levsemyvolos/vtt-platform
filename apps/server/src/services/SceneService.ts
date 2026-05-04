@@ -259,6 +259,7 @@ export class SceneService {
     if (dto.gridSize !== undefined) data.gridSize = dto.gridSize;
     if (dto.gridWidth !== undefined) data.gridWidth = dto.gridWidth;
     if (dto.gridHeight !== undefined) data.gridHeight = dto.gridHeight;
+    if (dto.gridVisible !== undefined) data.gridVisible = dto.gridVisible;
     if (dto.isHidden !== undefined) data.isHidden = dto.isHidden;
     if (dto.backgroundAssetId !== undefined) {
       data.backgroundAsset = dto.backgroundAssetId

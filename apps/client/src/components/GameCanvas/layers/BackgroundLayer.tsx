@@ -6,6 +6,7 @@ interface BackgroundLayerProps {
   gridSize: number;
   gridWidth: number;
   gridHeight: number;
+  gridVisible: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ export default function BackgroundLayer({
   gridSize,
   gridWidth,
   gridHeight,
+  gridVisible,
 }: BackgroundLayerProps): JSX.Element {
   const bgImage = useImage(backgroundUrl);
   const totalW = gridWidth * gridSize;
@@ -34,7 +36,7 @@ export default function BackgroundLayer({
       {bgImage && (
         <KonvaImage image={bgImage} x={0} y={0} width={totalW} height={totalH} />
       )}
-      {verticals.map((x) => (
+      {gridVisible && verticals.map((x) => (
         <Line
           key={`v-${x}`}
           points={[x, 0, x, totalH]}
@@ -42,7 +44,7 @@ export default function BackgroundLayer({
           strokeWidth={1}
         />
       ))}
-      {horizontals.map((y) => (
+      {gridVisible && horizontals.map((y) => (
         <Line
           key={`h-${y}`}
           points={[0, y, totalW, y]}

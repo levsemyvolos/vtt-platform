@@ -69,3 +69,14 @@ export function apiAddImageAnnotation(
 export function apiDeleteAnnotation(sceneId: string, annId: string): Promise<void> {
   return apiFetch<void>(`/api/scenes/${sceneId}/annotations/${annId}`, { method: 'DELETE' });
 }
+
+export function apiMoveAnnotation(
+  sceneId: string,
+  annId: string,
+  payload: { x: number; y: number },
+): Promise<SceneAnnotations> {
+  return apiFetch<SceneAnnotations>(`/api/scenes/${sceneId}/annotations/${annId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}

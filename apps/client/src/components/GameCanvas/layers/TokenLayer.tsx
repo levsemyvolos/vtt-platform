@@ -111,34 +111,30 @@ function TokenNode({
   const image = useImage(token.imageUrl);
   const tokenColor = token.color ?? '#7c5cff';
 
-  const px = token.x * gridSize;
-  const py = token.y * gridSize;
-
-  function snap(value: number): number {
-    return Math.max(0, Math.round(value / gridSize));
-  }
+  const px = token.x;
+  const py = token.y;
 
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
     const node = e.target;
-    onGhostMove({ x: snap(node.x()) * gridSize, y: snap(node.y()) * gridSize });
+    onGhostMove({ x: node.x(), y: node.y() });
   }
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
     onGhostEnd();
     const node = e.target;
-    const targetCellX = snap(node.x());
-    const targetCellY = snap(node.y());
-    node.position({ x: targetCellX * gridSize, y: targetCellY * gridSize });
+    const targetX = Math.max(0, node.x());
+    const targetY = Math.max(0, node.y());
+    node.position({ x: targetX, y: targetY });
 
     const previousX = token.x;
     const previousY = token.y;
-    dispatch(moveTokenOptimistic({ tokenId: token.id, x: targetCellX, y: targetCellY }));
+    dispatch(moveTokenOptimistic({ tokenId: token.id, x: targetX, y: targetY }));
 
     void emitTokenMove({
       tokenId: token.id,
       sceneId,
-      x: targetCellX,
-      y: targetCellY,
+      x: targetX,
+      y: targetY,
       clientSeq: sceneVersion,
     }).catch(() => {
       dispatch(applyTokenRollback({

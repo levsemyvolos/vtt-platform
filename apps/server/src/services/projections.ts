@@ -72,6 +72,7 @@ export function projectScene(
     gridSize: scene.gridSize,
     gridWidth: scene.gridWidth,
     gridHeight: scene.gridHeight,
+    gridVisible: scene.gridVisible,
     isActive: scene.isActive,
     isHidden: scene.isHidden,
     fogMaskBase64: scene.fogMaskBase64,

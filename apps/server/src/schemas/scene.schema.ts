@@ -14,6 +14,7 @@ export const sceneCreateSchema = z.object({
     .max(200, 'gridSize must be 200 or fewer'),
   gridWidth: z.number().int().min(1).max(200).optional(),
   gridHeight: z.number().int().min(1).max(200).optional(),
+  gridVisible: z.boolean().optional(),
   backgroundAssetId: z.string().uuid().optional(),
 });
 
@@ -27,6 +28,7 @@ export const sceneUpdateSchema = z.object({
   gridSize: z.number().int().min(20).max(200).optional(),
   gridWidth: z.number().int().min(1).max(200).optional(),
   gridHeight: z.number().int().min(1).max(200).optional(),
+  gridVisible: z.boolean().optional(),
   backgroundAssetId: z.string().uuid().nullable().optional(),
   isHidden: z.boolean().optional(),
 });

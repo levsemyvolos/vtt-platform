@@ -17,10 +17,11 @@ const MOCK_SCENE: SceneDTO = {
   gridSize: 50,
   gridWidth: 20,
   gridHeight: 15,
+  gridVisible: true,
   isActive: true,
   isHidden: false,
   fogMaskBase64: null,
-  annotations: { strokes: [], texts: [], images: [] },
+  annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   tokens: [
     {
       id: 'tk1',

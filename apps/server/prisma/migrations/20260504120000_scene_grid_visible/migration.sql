@@ -1,0 +1,1 @@
+ALTER TABLE "Scene" ADD COLUMN "gridVisible" BOOLEAN NOT NULL DEFAULT true;

@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { clearFogMask } from '../../store/scene';
-import { apiPatchScene } from '../../api/scenes';
+import { clearFogMask, hydrateScene } from '../../store/scene';
+import { apiAddImageAnnotation, apiPatchScene } from '../../api/scenes';
 import { emitFogClear } from '../../api/socket';
 import ImageUpload from '../AssetUpload/ImageUpload';
 import AssetPicker from '../AssetPicker/AssetPicker';
@@ -26,19 +26,30 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
   const [gridSize, setGridSize] = useState(String(scene?.gridSize ?? 50));
   const [gridWidth, setGridWidth] = useState(String(scene?.gridWidth ?? 20));
   const [gridHeight, setGridHeight] = useState(String(scene?.gridHeight ?? 15));
+  const [gridVisible, setGridVisible] = useState(scene?.gridVisible ?? true);
   const [gridSaving, setGridSaving] = useState(false);
   const [gridError, setGridError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!scene) return;
+    setGridSize(String(scene.gridSize));
+    setGridWidth(String(scene.gridWidth));
+    setGridHeight(String(scene.gridHeight));
+    setGridVisible(scene.gridVisible);
+  }, [scene]);
 
   async function handleGridSave(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     setGridSaving(true);
     setGridError(null);
     try {
-      await apiPatchScene(sceneId, {
+      const updated = await apiPatchScene(sceneId, {
         gridSize: Number(gridSize),
         gridWidth: Number(gridWidth),
         gridHeight: Number(gridHeight),
+        gridVisible,
       });
+      if (scene) dispatch(hydrateScene({ ...scene, ...updated, tokens: scene.tokens, annotations: scene.annotations }));
     } catch (err) {
       setGridError(err instanceof Error ? err.message : t('errors:network.saveFailed' as never));
     } finally {
@@ -52,6 +63,16 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
 
   async function handleUploaded(asset: AssetDTO): Promise<void> {
     await apiPatchScene(sceneId, { backgroundAssetId: asset.id });
+  }
+
+  async function handleAddOverlay(assetId: string): Promise<void> {
+    await apiAddImageAnnotation(sceneId, {
+      x: 64,
+      y: 64,
+      assetId,
+      width: 256,
+      height: 256,
+    });
   }
 
   return (
@@ -71,8 +92,23 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
       </section>
 
       <section className={styles.section}>
+        <p className={styles.heading}>{t('sceneEditor.leftToolbar.layers' as never)}</p>
+        <ImageUpload roomId={roomId} onUploaded={(asset) => void handleAddOverlay(asset.id)} />
+        <AssetPicker roomId={roomId} onPick={(id) => void handleAddOverlay(id)} />
+      </section>
+
+      <section className={styles.section}>
         <p className={styles.heading}>{t('sceneEditor.leftToolbar.grid')}</p>
         <form onSubmit={(e) => void handleGridSave(e)} className={styles.gridForm}>
+          <label className={styles.fieldRow}>
+            <span className={styles.fieldLabel}>{t('sceneEditor.grid.visibleLabel' as never)}</span>
+            <input
+              type="checkbox"
+              checked={gridVisible}
+              onChange={(e) => setGridVisible(e.target.checked)}
+              aria-label={t('sceneEditor.grid.visibleLabel' as never)}
+            />
+          </label>
           <label className={styles.fieldRow}>
             <span className={styles.fieldLabel}>{t('sceneEditor.grid.sizeLabel')}</span>
             <input

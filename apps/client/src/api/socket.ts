@@ -14,6 +14,8 @@ import type {
   MeasurePayload,
   DrawStrokePayload,
   FogMaskUpdatePayload,
+  SceneObjectMovePayload,
+  SceneObjectDeletePayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
@@ -269,4 +271,12 @@ export function emitFogDiff(payload: FogMaskUpdatePayload): void {
 
 export function emitFogClear(roomId: string, sceneId: string): void {
   getSocket().emit('fog:clear', { roomId, sceneId });
+}
+
+export function emitObjectMove(payload: SceneObjectMovePayload): void {
+  getSocket().emit('object:move', payload);
+}
+
+export function emitObjectDelete(payload: SceneObjectDeletePayload): void {
+  getSocket().emit('object:delete', payload);
 }

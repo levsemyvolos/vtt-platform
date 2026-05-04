@@ -11,6 +11,7 @@ import type { SessionResyncService } from '../services/SessionResyncService.js';
 import type { InitiativeService } from '../services/InitiativeService.js';
 import type { AnnotationService } from '../services/AnnotationService.js';
 import type { DrawService } from '../services/DrawService.js';
+import type { SceneAnnotationService } from '../services/SceneAnnotationService.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
 import { RoomAccessService } from '../services/RoomAccessService.js';
 import { makeTokenMoveHandler } from './handlers/token.js';
@@ -42,6 +43,7 @@ export interface SocketDeps {
   initiativeService: InitiativeService;
   annotationService: AnnotationService;
   drawService: DrawService;
+  sceneAnnotationService?: SceneAnnotationService;
   rooms: RoomRepository;
   jwtSecret: string;
   corsOrigin: string;
@@ -137,7 +139,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
     socket.on('session:resync', makeSessionResyncHandler(socket, deps.resyncService));
     registerSignalingHandlers(io, socket);
     registerAnnotationHandlers(socket, deps.annotationService);
-    registerDrawHandlers(socket, deps.drawService);
+    registerDrawHandlers(socket, deps.drawService, deps.sceneAnnotationService);
   });
 
   return io;

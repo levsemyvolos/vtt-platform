@@ -5,11 +5,13 @@ export type CanvasTool = 'select' | 'ping' | 'ruler' | 'draw' | 'fog' | 'text' |
 interface CanvasViewportState {
   zoom: number;
   activeTool: CanvasTool;
+  pendingImageAssetId: string | null;
 }
 
 const initialState: CanvasViewportState = {
   zoom: 1,
   activeTool: 'select',
+  pendingImageAssetId: null,
 };
 
 const ZOOM_MIN = 0.25;
@@ -42,12 +44,15 @@ const canvasViewportSlice = createSlice({
     setActiveTool(state, action: PayloadAction<CanvasTool>) {
       state.activeTool = action.payload;
     },
+    setPendingImageAssetId(state, action: PayloadAction<string | null>) {
+      state.pendingImageAssetId = action.payload;
+    },
     resetTool(state) {
       state.activeTool = 'select';
     },
   },
 });
 
-export const { setZoom, zoomIn, zoomOut, center, fit, setActiveTool, resetTool } =
+export const { setZoom, zoomIn, zoomOut, center, fit, setActiveTool, setPendingImageAssetId, resetTool } =
   canvasViewportSlice.actions;
 export default canvasViewportSlice.reducer;

@@ -136,6 +136,7 @@ export default function GameCanvas({
           gridSize={scene.gridSize}
           gridWidth={scene.gridWidth}
           gridHeight={scene.gridHeight}
+          gridVisible={scene.gridVisible}
         />
         <TokenLayer
           sceneId={scene.id}
@@ -147,7 +148,12 @@ export default function GameCanvas({
             onTokenSelect: (id: string) => { dispatch(selectToken(id)); },
           })}
         />
-        <AnnotationLayer gridSize={scene.gridSize} />
+        <AnnotationLayer
+          gridSize={scene.gridSize}
+          roomId={roomId}
+          sceneId={scene.id}
+          myRole={myRole}
+        />
         <FogOfWarLayer
           fogMaskBase64={scene.fogMaskBase64}
           gridSize={scene.gridSize}

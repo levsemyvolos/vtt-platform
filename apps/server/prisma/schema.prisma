@@ -111,6 +111,7 @@ model Scene {
   // Scene grid dimensions in cells — used by FoW algorithm A4 (visibility[W][H]).
   gridWidth         Int      @default(40)
   gridHeight        Int      @default(40)
+  gridVisible       Boolean  @default(true)
   // FoW persistent mask: base64-packed bitmap of size gridWidth*gridHeight bits.
   // null = no fog (unexplored = fully visible). Updated via SceneService.applyMaskDiff.
   fogMaskBase64     String?  @db.Text

@@ -89,3 +89,21 @@ describe('SceneAnnotationService.removeAnnotation', () => {
     await expect(svc.removeAnnotation(SCENE_ID, 'nonexistent', USER_ID, 'GM')).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe('SceneAnnotationService.moveAnnotation', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('moves an image annotation in legacy arrays and scene objects', async () => {
+    const image = { id: 'img-1', userId: USER_ID, x: 10, y: 20, assetId: 'asset-1', width: 128, height: 128 };
+    const drawSvc = makeDrawService({ strokes: [], texts: [], images: [image] });
+    const broadcast = vi.fn();
+    const svc = new SceneAnnotationService(makePrisma() as never, drawSvc as never, broadcast);
+
+    const result = await svc.moveAnnotation(SCENE_ID, 'img-1', USER_ID, 'Player', { x: 42, y: 84 });
+
+    expect(drawSvc.persist).toHaveBeenCalledOnce();
+    expect(result.images[0]).toMatchObject({ x: 42, y: 84 });
+    expect(result.objects?.[0]).toMatchObject({ id: 'img-1', type: 'image', x: 42, y: 84 });
+    expect(broadcast).toHaveBeenCalledWith(ROOM_ID, expect.objectContaining({ annotations: result }));
+  });
+});

@@ -168,6 +168,13 @@ const drawService = new DrawService(prisma, {
   fogDiff: (roomId, payload) => _drawBroadcast.fogDiff(roomId, payload),
   fogClear: (roomId, sceneId) => _drawBroadcast.fogClear(roomId, sceneId),
 });
+let _sceneAnnotationBroadcast: (
+  roomId: string,
+  payload: import('@vtt/shared').SceneUpdatedPayload,
+) => void = () => {};
+const sceneAnnotationService = new SceneAnnotationService(prisma, drawService, (roomId, payload) => {
+  _sceneAnnotationBroadcast(roomId, payload);
+});
 
 const io = buildSocketIo(httpServer, {
   sceneService,
@@ -177,19 +184,19 @@ const io = buildSocketIo(httpServer, {
   initiativeService,
   annotationService,
   drawService,
+  sceneAnnotationService,
   rooms: roomRepo,
   jwtSecret,
   corsOrigin: process.env['CLIENT_URL'] ?? 'http://localhost:5173',
 });
 _annotationBroadcast = buildAnnotationBroadcaster(io);
 _drawBroadcast = buildDrawBroadcaster(io);
+_sceneAnnotationBroadcast = (roomId, payload) => {
+  io.to(roomId).emit('scene:updated', payload);
+};
 // Inject io into roomsRouter so POST /rooms/join can emit room:member-joined.
 buildRoomsRouter(io);
 
-// SceneAnnotationService — wired after io is built so it can broadcast scene:updated.
-const sceneAnnotationService = new SceneAnnotationService(prisma, drawService, (roomId, payload) => {
-  io.to(roomId).emit('scene:updated', payload);
-});
 app.use(buildAnnotationsRouter(sceneAnnotationService));
 
 // ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------

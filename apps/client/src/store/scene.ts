@@ -65,6 +65,9 @@ const sceneSlice = createSlice({
     applySceneUpdate: (state, action: PayloadAction<SceneUpdatedPayload>) => {
       if (!state.current) return;
       state.current.tokens = action.payload.tokens;
+      if (action.payload.annotations) {
+        state.current.annotations = action.payload.annotations;
+      }
       state.version = action.payload.version;
       // any token included in the update no longer has a pending optimistic move
       for (const t of action.payload.tokens) {
@@ -115,6 +118,27 @@ const sceneSlice = createSlice({
     clearFogMask: (state) => {
       if (state.current) state.current.fogMaskBase64 = null;
     },
+    moveSceneObjectOptimistic: (
+      state,
+      action: PayloadAction<{ objectId: string; x: number; y: number }>,
+    ) => {
+      if (!state.current) return;
+      const annotations = state.current.annotations;
+      annotations.objects = (annotations.objects ?? []).map((object) => (
+        object.id === action.payload.objectId
+          ? { ...object, x: action.payload.x, y: action.payload.y }
+          : object
+      ));
+      annotations.texts = annotations.texts.map((text) => (
+        text.id === action.payload.objectId ? { ...text, x: action.payload.x, y: action.payload.y } : text
+      ));
+      annotations.images = annotations.images.map((image) => (
+        image.id === action.payload.objectId ? { ...image, x: action.payload.x, y: action.payload.y } : image
+      ));
+      annotations.strokes = annotations.strokes.map((stroke) => (
+        stroke.strokeId === action.payload.objectId ? { ...stroke, x: action.payload.x, y: action.payload.y } : stroke
+      ));
+    },
     /** Adds or updates a draw stroke in the local scene state (Ф3.4.2). */
     applyDrawStroke: (state, action: PayloadAction<DrawStrokePayload>) => {
       if (!state.current) return;
@@ -124,10 +148,29 @@ const sceneSlice = createSlice({
       const stroke = { strokeId, userId, points, color, width };
       if (idx >= 0) strokes[idx] = stroke;
       else strokes.push(stroke);
+      const objects = state.current.annotations.objects ?? [];
+      const objectIdx = objects.findIndex((object) => object.id === strokeId);
+      const existing = objectIdx >= 0 ? objects[objectIdx] : undefined;
+      const object = {
+        id: strokeId,
+        type: 'stroke' as const,
+        userId,
+        x: existing?.x ?? 0,
+        y: existing?.y ?? 0,
+        zIndex: existing?.zIndex ?? objects.length,
+        points,
+        color,
+        strokeWidth: width,
+      };
+      if (objectIdx >= 0) objects[objectIdx] = object;
+      else objects.push(object);
+      state.current.annotations.objects = objects;
     },
     /** Clears all draw strokes from the local scene state (GM draw:clear). */
     clearDrawStrokes: (state) => {
-      if (state.current) state.current.annotations.strokes = [];
+      if (!state.current) return;
+      state.current.annotations.strokes = [];
+      state.current.annotations.objects = (state.current.annotations.objects ?? []).filter((object) => object.type !== 'stroke');
     },
   },
 });
@@ -144,6 +187,7 @@ export const {
   selectToken,
   deselectToken,
   clearFogMask,
+  moveSceneObjectOptimistic,
   applyDrawStroke,
   clearDrawStrokes,
 } = sceneSlice.actions;
