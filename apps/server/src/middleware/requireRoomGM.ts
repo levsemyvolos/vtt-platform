@@ -15,7 +15,12 @@ export function requireRoomGM(roomRepo: RoomRepository) {
       res.status(401).json({ error: { code: 401, message: 'Auth required' } });
       return;
     }
-    const role = await roomRepo.getRoleInRoom(roomId, req.user.id, req.user.role);
+    const role = await roomRepo.getRoleInRoom(
+      roomId,
+      req.user.id,
+      req.user.role,
+      req.user.boundRoomId,
+    );
     if (role !== 'GM') {
       res.status(403).json({ error: { code: 403, message: 'Only GM can use AI generation in this room' } });
       return;

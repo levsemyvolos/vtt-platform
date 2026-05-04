@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Role } from '@vtt/shared';
-import { useAppSelector } from '../../store';
-import { apiFetch, ApiError } from '../../api/apiFetch';
+import type { AssetDTO, CreateTokenRequest, Role, TokenPublicDTO } from '@vtt/shared';
+import { useAppDispatch, useAppSelector } from '../../store';
+import { apiFetch } from '../../api/apiFetch';
+import { upsertToken } from '../../store/scene';
+import ImageUpload from '../AssetUpload/ImageUpload';
 import styles from './AddTokenButton.module.css';
 
 interface AddTokenButtonProps {
@@ -10,20 +12,13 @@ interface AddTokenButtonProps {
   sceneId: string;
 }
 
-interface TokenCreateRequest {
-  name: string;
-  imageUrl: string;
-  x: number;
-  y: number;
-  clientSeq: number;
-}
-
 export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps): JSX.Element | null {
   const { t } = useTranslation(['room', 'common', 'errors']);
-  const { current: scene, version } = useAppSelector((s) => s.scene);
+  const dispatch = useAppDispatch();
+  const { current: scene } = useAppSelector((s) => s.scene);
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [asset, setAsset] = useState<AssetDTO | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,23 +30,22 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
     setBusy(true);
     setError(null);
     try {
-      const clientSeq = version;
-      const x = Math.floor(scene.gridWidth / 2);
-      const y = Math.floor(scene.gridHeight / 2);
-      const body: TokenCreateRequest = { name: name.trim(), imageUrl: imageUrl.trim(), x, y, clientSeq };
-      await apiFetch(`/api/scenes/${sceneId}/tokens`, {
+      const body: CreateTokenRequest = {
+        name: name.trim(),
+        x: Math.floor(scene.gridWidth / 2),
+        y: Math.floor(scene.gridHeight / 2),
+        ...(asset ? { imageAssetId: asset.id } : {}),
+      };
+      const token = await apiFetch<TokenPublicDTO>(`/api/scenes/${sceneId}/tokens`, {
         method: 'POST',
         body: JSON.stringify(body),
       });
+      dispatch(upsertToken(token));
       setName('');
-      setImageUrl('');
+      setAsset(null);
       setShowModal(false);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        setError('Endpoint /scenes/:id/tokens ще не реалізовано — буде додано у Чаті 7.4.');
-      } else {
-        setError(err instanceof Error ? err.message : t('errors:network.tokenAddFailed'));
-      }
+      setError(err instanceof Error ? err.message : t('errors:network.tokenAddFailed'));
     } finally {
       setBusy(false);
     }
@@ -69,11 +63,13 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
         {t('room:token.addBtn')}
       </button>
 
-      {showModal && (
+      {showModal && scene && (
         <div
           className={styles.backdrop}
           role="presentation"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
         >
           <div
             role="dialog"
@@ -95,21 +91,14 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
                   autoFocus
                 />
               </div>
-              <div className={styles.field}>
-                <label htmlFor="token-image">{t('room:token.imageUrlLabel')}</label>
-                <input
-                  id="token-image"
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  required
-                  placeholder="https://..."
-                />
-              </div>
+
+              <ImageUpload roomId={scene.roomId} onUploaded={setAsset} />
+              {asset && <p className={styles.note}>{asset.name}</p>}
+
               <p className={styles.note}>
                 {t('room:token.tokenPlacedNote', {
-                  x: scene ? Math.floor(scene.gridWidth / 2) : '—',
-                  y: scene ? Math.floor(scene.gridHeight / 2) : '—',
+                  x: Math.floor(scene.gridWidth / 2),
+                  y: Math.floor(scene.gridHeight / 2),
                 })}
               </p>
               {error && <p role="alert" className={styles.error}>{error}</p>}
@@ -117,7 +106,7 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
                 <button type="button" className={styles.btnCancel} onClick={() => setShowModal(false)} disabled={busy}>
                   {t('common:btn.cancel')}
                 </button>
-                <button type="submit" className={styles.btnSubmit} disabled={busy}>
+                <button type="submit" className={styles.btnSubmit} disabled={busy || !name.trim()}>
                   {busy ? t('room:token.adding') : t('room:token.addSubmitBtn')}
                 </button>
               </div>

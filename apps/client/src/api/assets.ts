@@ -25,7 +25,7 @@ export interface ImageFinalizeRequest {
 }
 
 export function listRoomAssets(roomId: string): Promise<AssetDTO[]> {
-  return apiFetch<AssetDTO[]>(`/api/rooms/${roomId}/assets`);
+  return apiFetch<AssetDTO[]>(`/api/assets?roomId=${encodeURIComponent(roomId)}&type=all`);
 }
 
 export function initImageUpload(req: ImageUploadInitRequest): Promise<ImageUploadInitResponse> {
@@ -48,5 +48,5 @@ export async function uploadBytesToGcs(uploadUrl: string, file: File): Promise<v
     headers: { 'Content-Type': file.type },
     body: file,
   });
-  if (!res.ok) throw new Error(`GCS upload failed: ${res.status} ${res.statusText}`);
+  if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
 }

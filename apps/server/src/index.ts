@@ -1,5 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
+import path from 'path';
 import { authRouter } from './routes/auth.js';
 import { roomsRouter, buildRoomsRouter } from './routes/rooms.js';
 import { scenesRouter, roomScenesSubRouter, tokensRouter } from './routes/scenes.js';
@@ -45,7 +46,9 @@ import { NoteRepository } from './repositories/NoteRepository.js';
 import { CharacterRepository } from './repositories/CharacterRepository.js';
 import { AssistantMessageRepository } from './repositories/AssistantMessageRepository.js';
 import { GeminiProvider } from './infrastructure/ai/GeminiProvider.js';
+import { DisabledAIProvider } from './infrastructure/ai/DisabledAIProvider.js';
 import { GcsFileStorageAdapter } from './infrastructure/storage/GcsFileStorageAdapter.js';
+import { LocalFileStorageAdapter } from './infrastructure/storage/LocalFileStorageAdapter.js';
 import type { FileStorageAdapter } from './infrastructure/storage/FileStorageAdapter.js';
 
 const app = express();
@@ -103,6 +106,17 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
   app.use('/ai', buildAiRouter(aiService, assistantService, roomRepo));
   app.use('/assets', buildAssetsRouter(assetService, prisma));
 } else {
+  const aiProvider = new DisabledAIProvider();
+  const localStorage = new LocalFileStorageAdapter(
+    path.resolve(process.env['LOCAL_STORAGE_DIR'] ?? '.local-storage'),
+  );
+  fileStorage = localStorage;
+  assetService = new AssetService(aiProvider, fileStorage, assetRepo, prisma);
+  const aiService = new AIService(aiProvider, assetService);
+  const assistantService = new AssistantService(aiProvider, assistantMsgRepo);
+  app.use('/storage/local', localStorage.buildRouter());
+  app.use('/ai', buildAiRouter(aiService, assistantService, roomRepo));
+  app.use('/assets', buildAssetsRouter(assetService, prisma));
   // eslint-disable-next-line no-console
   console.warn(
     '[server] AI/Storage wiring skipped — GCP_PROJECT_ID / GCP_SERVICE_ACCOUNT_KEY / GCS_BUCKET not set; ' +
@@ -145,10 +159,14 @@ const annotationService = new AnnotationService({
 let _drawBroadcast: ReturnType<typeof buildDrawBroadcaster> = {
   stroke: () => {},
   clear: () => {},
+  fogDiff: () => {},
+  fogClear: () => {},
 };
 const drawService = new DrawService(prisma, {
   stroke: (roomId, payload) => _drawBroadcast.stroke(roomId, payload),
   clear: (roomId, sceneId) => _drawBroadcast.clear(roomId, sceneId),
+  fogDiff: (roomId, payload) => _drawBroadcast.fogDiff(roomId, payload),
+  fogClear: (roomId, sceneId) => _drawBroadcast.fogClear(roomId, sceneId),
 });
 
 const io = buildSocketIo(httpServer, {
@@ -202,13 +220,12 @@ if (fileStorage) {
 
 // Wire scene-activation hook so Ф6.4 (autoplay-on-scene-switch) fires from
 // the existing REST endpoint without coupling SceneService to AudioService.
-const sceneActivationListener = audioService;
-if (sceneActivationListener) {
-  sceneService.onSceneActivated = (roomId, sceneId) => {
-    io.to(roomId).emit('scene:activated', { roomId, sceneId });
-    void sceneActivationListener.handleSceneSwitch(roomId, sceneId);
-  };
-}
+sceneService.onSceneActivated = (roomId, sceneId) => {
+  io.to(roomId).emit('scene:activated', { roomId, sceneId });
+  if (audioService) {
+    void audioService.handleSceneSwitch(roomId, sceneId);
+  }
+};
 
 const PORT = Number(process.env['PORT'] ?? 4000);
 httpServer.listen(PORT, () => {

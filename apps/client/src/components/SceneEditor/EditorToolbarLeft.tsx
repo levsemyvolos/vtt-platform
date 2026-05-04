@@ -4,6 +4,7 @@ import type { AssetDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearFogMask } from '../../store/scene';
 import { apiPatchScene } from '../../api/scenes';
+import { emitFogClear } from '../../api/socket';
 import ImageUpload from '../AssetUpload/ImageUpload';
 import AssetPicker from '../AssetPicker/AssetPicker';
 import GenerateBackgroundModal from '../AIGenerate/GenerateBackgroundModal';
@@ -130,7 +131,10 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
         <button
           type="button"
           className={styles.fogBtn}
-          onClick={() => dispatch(clearFogMask())}
+          onClick={() => {
+            dispatch(clearFogMask());
+            emitFogClear(roomId, sceneId);
+          }}
         >
           {t('sceneEditor.fog.clearBtn')}
         </button>

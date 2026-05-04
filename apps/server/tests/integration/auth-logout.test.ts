@@ -19,19 +19,19 @@ const JWT_SECRET = process.env['JWT_SECRET'] as string;
 // Mock prisma used by SessionRepository inside auth.ts
 // vi.hoisted() so the variables are available inside the vi.mock factory.
 // ---------------------------------------------------------------------------
-const { mockDelete, mockFindFirst } = vi.hoisted(() => ({
-  mockDelete: vi.fn(),
+const { mockDeleteMany, mockFindFirst } = vi.hoisted(() => ({
+  mockDeleteMany: vi.fn(),
   mockFindFirst: vi.fn(),
 }));
 
 vi.mock('../../src/lib/prisma.js', () => ({
   prisma: {
     session: {
-      delete: mockDelete,
+      delete: vi.fn(),
       findFirst: mockFindFirst,
       findUnique: vi.fn(),
       create: vi.fn(),
-      deleteMany: vi.fn(),
+      deleteMany: mockDeleteMany,
     },
     user: {
       findUnique: vi.fn(),
@@ -71,12 +71,12 @@ function makeExpiredToken(sessionId: string): string {
 
 describe('POST /auth/logout — R2-BUG-006 lenient & idempotent', () => {
   beforeEach(() => {
-    mockDelete.mockReset();
+    mockDeleteMany.mockReset();
     mockFindFirst.mockReset();
   });
 
   it('valid Bearer token → 204 and session deleted', async () => {
-    mockDelete.mockResolvedValue({ id: 'sess-abc' });
+    mockDeleteMany.mockResolvedValue({ count: 1 });
     const token = makeValidToken('sess-abc');
     const app = makeApp();
 
@@ -85,12 +85,12 @@ describe('POST /auth/logout — R2-BUG-006 lenient & idempotent', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(204);
-    expect(mockDelete).toHaveBeenCalled();
+    expect(mockDeleteMany).toHaveBeenCalledWith({ where: { id: 'sess-abc' } });
   });
 
   it('idempotent — session already deleted (Prisma "not found") → still 204', async () => {
     // Simulate Prisma throwing "Record not found" (P2025)
-    mockDelete.mockRejectedValue(Object.assign(new Error('Record not found'), { code: 'P2025' }));
+    mockDeleteMany.mockResolvedValue({ count: 0 });
     const token = makeValidToken('sess-already-gone');
     const app = makeApp();
 
@@ -102,7 +102,7 @@ describe('POST /auth/logout — R2-BUG-006 lenient & idempotent', () => {
   });
 
   it('expired token → 204 (lenient, no 401/503)', async () => {
-    mockDelete.mockResolvedValue({ id: 'sess-expired' });
+    mockDeleteMany.mockResolvedValue({ count: 1 });
     const token = makeExpiredToken('sess-expired');
     const app = makeApp();
 
@@ -133,7 +133,7 @@ describe('POST /auth/logout — R2-BUG-006 lenient & idempotent', () => {
   });
 
   it('body.sessionId fallback → 204 + session deleted', async () => {
-    mockDelete.mockResolvedValue({ id: 'sess-from-body' });
+    mockDeleteMany.mockResolvedValue({ count: 1 });
     const app = makeApp();
 
     const res = await request(app)
@@ -141,6 +141,6 @@ describe('POST /auth/logout — R2-BUG-006 lenient & idempotent', () => {
       .send({ sessionId: 'sess-from-body' });
 
     expect(res.status).toBe(204);
-    expect(mockDelete).toHaveBeenCalled();
+    expect(mockDeleteMany).toHaveBeenCalledWith({ where: { id: 'sess-from-body' } });
   });
 });

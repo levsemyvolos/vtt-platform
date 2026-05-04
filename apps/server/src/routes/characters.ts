@@ -47,6 +47,7 @@ export function buildCharactersRouter(
           req.params.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const list = await characterService.listForViewer(
@@ -74,6 +75,7 @@ export function buildCharactersRouter(
           req.params.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         if (role === 'Observer') {
@@ -102,6 +104,7 @@ export function buildCharactersRouter(
           existing.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const dto = await characterService.getForViewer(
@@ -128,6 +131,7 @@ export function buildCharactersRouter(
           existing.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const dto = await characterService.update(
@@ -154,6 +158,7 @@ export function buildCharactersRouter(
           existing.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         await characterService.delete(req.params.id, req.user!.id, role);
@@ -176,6 +181,7 @@ export function buildCharactersRouter(
           existing.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const body = req.body;

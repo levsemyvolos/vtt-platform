@@ -151,6 +151,7 @@ const roomSlice = createSlice({
       state.currentRoom = action.payload;
       state.members = action.payload.members;
       state.status = 'loaded';
+      state.sessionActive = action.payload.status === 'active';
       // BUG-001-F5: persist room ID so F5 can restore lobby navigation.
       saveRoomId(action.payload.id);
     },
@@ -235,6 +236,7 @@ const roomSlice = createSlice({
         state.status = 'loaded';
         state.currentRoom = action.payload;
         state.members = action.payload.members;
+        state.sessionActive = action.payload.status === 'active';
         // BUG-001-F5: keep localStorage in sync when fetchRoom restores the room.
         saveRoomId(action.payload.id);
       })

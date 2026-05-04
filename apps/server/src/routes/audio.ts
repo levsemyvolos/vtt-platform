@@ -69,6 +69,12 @@ export function buildAudioRouter(audioService: AudioService): IRouter {
     jwtAuth,
     async (req: Request<{ id: string }>, res: Response) => {
       try {
+        await audioService.assertRoomAccess(
+          req.params.id,
+          req.user!.id,
+          req.user!.role,
+          req.user!.boundRoomId,
+        );
         const tracks = await audioService.listByRoom(req.params.id);
         const dtos = await Promise.all(tracks.map((t) => audioService.toDTO(t)));
         const body: AudioListResponse = { tracks: dtos };
@@ -124,6 +130,12 @@ export function buildAudioRouter(audioService: AudioService): IRouter {
     async (req: Request<{ id: string }>, res: Response) => {
       try {
         const track = await audioService.getById(req.params.id);
+        await audioService.assertRoomAccess(
+          track.roomId,
+          req.user!.id,
+          req.user!.role,
+          req.user!.boundRoomId,
+        );
         const dto = await audioService.toDTO(track);
         const body: AudioPlaybackUrlResponse = { url: dto.url };
         res.json(body);

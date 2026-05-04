@@ -17,6 +17,29 @@ function handleError(err: unknown, res: Response): void {
 
 const VALID_TYPES = new Set(['image', 'audio', 'pdf', 'all']);
 
+async function assertAssetListAccess(
+  db: PrismaClient,
+  roomId: string,
+  user: NonNullable<Request['user']>,
+): Promise<void> {
+  const room = await db.room.findUnique({ where: { id: roomId }, select: { ownerId: true } });
+  if (!room) throw new HttpError(404, 'Room not found');
+  if (room.ownerId === user.id) return;
+
+  const [member, char] = await Promise.all([
+    db.roomMember.findFirst({
+      where: { roomId, userId: user.id },
+      select: { id: true },
+    }),
+    db.character.findFirst({
+      where: { roomId, ownerId: user.id },
+      select: { id: true },
+    }),
+  ]);
+  const boundObserver = user.role === 'Observer' && user.boundRoomId === roomId;
+  if (!member && !char && !boundObserver) throw new HttpError(403, 'Not a room member');
+}
+
 export function buildAssetsRouter(assetService: AssetService, db: PrismaClient): IRouter {
   const router = Router();
 
@@ -33,16 +56,7 @@ export function buildAssetsRouter(assetService: AssetService, db: PrismaClient):
       const type = (req.query['type'] as string | undefined) ?? 'all';
       if (!VALID_TYPES.has(type)) throw new HttpError(400, 'type must be image|audio|pdf|all');
 
-      // RBAC: room owner or player (has character in room)
-      const room = await db.room.findUnique({ where: { id: roomId }, select: { ownerId: true } });
-      if (!room) throw new HttpError(404, 'Room not found');
-      if (room.ownerId !== req.user!.id) {
-        const char = await db.character.findFirst({
-          where: { roomId, ownerId: req.user!.id },
-          select: { id: true },
-        });
-        if (!char) throw new HttpError(403, 'Not a room member');
-      }
+      await assertAssetListAccess(db, roomId, req.user!);
 
       const dtos = await assetService.listByRoomAndType(roomId, type);
       res.json(dtos);
@@ -55,6 +69,15 @@ export function buildAssetsRouter(assetService: AssetService, db: PrismaClient):
     try {
       const dto = await assetService.getAssetDTO(req.params.id);
       res.json(dto);
+    } catch (err) {
+      handleError(err, res);
+    }
+  });
+
+  router.get('/:id/file', async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      const dto = await assetService.getAssetDTO(req.params.id);
+      res.redirect(dto.url);
     } catch (err) {
       handleError(err, res);
     }

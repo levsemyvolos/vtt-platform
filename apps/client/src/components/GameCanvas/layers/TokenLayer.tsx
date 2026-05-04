@@ -51,6 +51,7 @@ export default function TokenLayer({
       <Layer>
         {ghost && (
           <Rect
+            key="drag-ghost"
             x={ghost.x} y={ghost.y}
             width={gridSize} height={gridSize}
             fill="#ffffff" opacity={0.25} cornerRadius={4} listening={false}

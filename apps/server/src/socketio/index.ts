@@ -12,6 +12,7 @@ import type { InitiativeService } from '../services/InitiativeService.js';
 import type { AnnotationService } from '../services/AnnotationService.js';
 import type { DrawService } from '../services/DrawService.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
+import { RoomAccessService } from '../services/RoomAccessService.js';
 import { makeTokenMoveHandler } from './handlers/token.js';
 import { makeDiceRollHandler } from './handlers/dice.js';
 import { makeChatMessageHandler } from './handlers/chat.js';
@@ -24,6 +25,7 @@ interface AccessPayload {
   sub: string;
   role: Role;
   sid: string;
+  boundRoomId?: string;
 }
 
 export interface SocketDeps {
@@ -62,6 +64,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
   const io: TypedServer = new Server(httpServer, {
     cors: { origin: deps.corsOrigin },
   });
+  const roomAccess = new RoomAccessService(deps.rooms);
 
   io.use((socket: TypedSocket, next) => {
     const rawToken =
@@ -77,6 +80,9 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
       socket.data.userId = payload.sub;
       socket.data.role = payload.role;
       socket.data.sessionId = payload.sid;
+      if (payload.boundRoomId !== undefined) {
+        socket.data.boundRoomId = payload.boundRoomId;
+      }
       next();
     } catch {
       next(new Error('Invalid or expired access token'));
@@ -93,9 +99,15 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
         ack: (response: Ack<{ joined: true }>) => void,
       ) => {
         try {
-          const room = await deps.rooms.findById(payload.roomId);
-          if (!room) {
-            ack({ ok: false, error: { code: 404, message: 'Room not found' } });
+          const accessInput = {
+            roomId: payload.roomId,
+            userId: socket.data.userId,
+            jwtRole: socket.data.role,
+            ...(socket.data.boundRoomId ? { boundRoomId: socket.data.boundRoomId } : {}),
+          };
+          const access = await roomAccess.resolve(accessInput);
+          if (!access) {
+            ack({ ok: false, error: { code: 403, message: 'Not a room member' } });
             return;
           }
           // GM is the owner; Players/Observers gain access via invite tokens
@@ -107,6 +119,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
           }
           await socket.join(payload.roomId);
           socket.data.roomId = payload.roomId;
+          socket.data.role = access.role;
           ack({ ok: true, data: { joined: true } });
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Unknown error';

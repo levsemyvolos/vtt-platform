@@ -1,9 +1,11 @@
 import type { PrismaClient } from '@prisma/client';
-import type { DrawStrokePayload, DrawStroke, SceneAnnotations } from '@vtt/shared';
+import type { DrawStrokePayload, DrawStroke, SceneAnnotations, FogMaskDiffPayload } from '@vtt/shared';
 
 export interface DrawBroadcast {
   stroke: (roomId: string, payload: DrawStrokePayload) => void;
   clear: (roomId: string, sceneId: string) => void;
+  fogDiff: (roomId: string, payload: FogMaskDiffPayload) => void;
+  fogClear: (roomId: string, sceneId: string) => void;
 }
 
 /** Parses raw JSONB value from Prisma into SceneAnnotations (handles both structured and legacy flat-array formats). */
@@ -63,6 +65,30 @@ export class DrawService {
     this.broadcast.clear(roomId, sceneId);
   }
 
+  async applyFogDiff(
+    roomId: string,
+    payload: FogMaskDiffPayload,
+  ): Promise<void> {
+    const scene = await this.prisma.scene.findUnique({
+      where: { id: payload.sceneId },
+      select: { fogMaskBase64: true },
+    });
+    const next = xorPackedMasks(scene?.fogMaskBase64 ?? null, payload.diffBase64);
+    await this.prisma.scene.update({
+      where: { id: payload.sceneId },
+      data: { fogMaskBase64: next },
+    });
+    this.broadcast.fogDiff(roomId, payload);
+  }
+
+  async clearFog(roomId: string, sceneId: string): Promise<void> {
+    await this.prisma.scene.update({
+      where: { id: sceneId },
+      data: { fogMaskBase64: null },
+    });
+    this.broadcast.fogClear(roomId, sceneId);
+  }
+
   async getAnnotations(sceneId: string): Promise<SceneAnnotations> {
     if (this.cache.has(sceneId)) return this.cache.get(sceneId)!;
     const scene = await this.prisma.scene.findUnique({
@@ -82,4 +108,15 @@ export class DrawService {
       data: { annotations: annotations as any },
     });
   }
+}
+
+function xorPackedMasks(baseBase64: string | null, diffBase64: string): string {
+  const base = baseBase64 ? Buffer.from(baseBase64, 'base64') : Buffer.alloc(0);
+  const diff = Buffer.from(diffBase64, 'base64');
+  const len = Math.max(base.length, diff.length);
+  const out = Buffer.alloc(len);
+  for (let i = 0; i < len; i++) {
+    out[i] = (base[i] ?? 0) ^ (diff[i] ?? 0);
+  }
+  return out.toString('base64');
 }

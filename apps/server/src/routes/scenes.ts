@@ -84,6 +84,13 @@ roomScenesSubRouter.get(
     try {
       const room = await prisma.room.findUnique({ where: { id: req.params.id } });
       if (!room) throw new HttpError(404, 'Room not found');
+      const role = await roomRepo.getRoleInRoom(
+        req.params.id,
+        req.user!.id,
+        req.user!.role,
+        req.user!.boundRoomId,
+      );
+      if (!role) throw new HttpError(403, 'Not a room member');
       const scenes = await prisma.scene.findMany({
         where: { roomId: req.params.id },
         orderBy: { createdAt: 'asc' },
@@ -160,9 +167,18 @@ scenesRouter.get(
   jwtAuth,
   async (req: Request<{ sceneId: string }>, res: Response) => {
     try {
+      const scene = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
+      if (!scene) throw new HttpError(404, 'Scene not found');
+      const role = await roomRepo.getRoleInRoom(
+        scene.roomId,
+        req.user!.id,
+        req.user!.role,
+        req.user!.boundRoomId,
+      );
+      if (!role) throw new HttpError(403, 'Not a room member');
       const dto = await sceneService.getSnapshot(
         req.params.sceneId,
-        req.user!.role,
+        role,
         req.user!.id,
       );
       res.json(dto);
@@ -206,7 +222,7 @@ tokensRouter.patch(
       if (!token) throw new HttpError(404, 'Token not found');
       const scene = await prisma.scene.findUnique({ where: { id: token.sceneId } });
       if (!scene) throw new HttpError(404, 'Scene not found');
-      const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role);
+      const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
       if (role !== 'GM') throw new HttpError(403, 'Only GM can edit tokens');
       const updated = await sceneService.updateToken(req.params.id, req.body, role);
       res.json(projectToken(updated, 'GM', req.user!.id));
@@ -226,7 +242,7 @@ tokensRouter.delete(
       if (!token) throw new HttpError(404, 'Token not found');
       const scene = await prisma.scene.findUnique({ where: { id: token.sceneId } });
       if (!scene) throw new HttpError(404, 'Scene not found');
-      const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role);
+      const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
       if (role !== 'GM') throw new HttpError(403, 'Only GM can delete tokens');
       await sceneService.deleteToken(req.params.id, role);
       res.status(204).send();
@@ -249,7 +265,7 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
       try {
         const scene = await prisma.scene.findUnique({ where: { id: req.params.id } });
         if (!scene) throw new HttpError(404, 'Scene not found');
-        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role);
+        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
         if (role !== 'GM') throw new HttpError(403, 'GM-only');
         const { x, y, text, fontSize, color } = req.body as { x: number; y: number; text: string; fontSize?: number; color?: string };
         if (!text) throw new HttpError(400, 'text is required');
@@ -270,7 +286,7 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
       try {
         const scene = await prisma.scene.findUnique({ where: { id: req.params.id } });
         if (!scene) throw new HttpError(404, 'Scene not found');
-        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role);
+        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
         if (role !== 'GM') throw new HttpError(403, 'GM-only');
         const { x, y, assetId, width, height } = req.body as { x: number; y: number; assetId: string; width?: number; height?: number };
         if (!assetId) throw new HttpError(400, 'assetId is required');
@@ -291,7 +307,7 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
       try {
         const scene = await prisma.scene.findUnique({ where: { id: req.params.id } });
         if (!scene) throw new HttpError(404, 'Scene not found');
-        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role);
+        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
         await annotationService.removeAnnotation(req.params.id, req.params.annId, req.user!.id, role ?? 'Player');
         res.status(204).send();
       } catch (err) { handleError(err, res); }

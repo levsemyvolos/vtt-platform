@@ -132,6 +132,12 @@ export class RoomRepository {
    * Returns true if userId has a RoomMember record for roomId (or is the owner).
    */
   async isMember(roomId: string, userId: string): Promise<boolean> {
+    const room = await this.db.room.findUnique({
+      where: { id: roomId },
+      select: { ownerId: true },
+    });
+    if (!room) return false;
+    if (room.ownerId === userId) return true;
     const member = await this.db.roomMember.findFirst({
       where: { roomId, userId },
       select: { id: true },
@@ -160,6 +166,7 @@ export class RoomRepository {
     roomId: string,
     userId: string,
     fallbackJwtRole: Role,
+    boundRoomId?: string,
   ): Promise<Role | null> {
     const room = await this.db.room.findUnique({
       where: { id: roomId },
@@ -167,6 +174,16 @@ export class RoomRepository {
     });
     if (!room) return null;
     if (room.ownerId === userId) return 'GM';
-    return fallbackJwtRole;
+    const member = await this.db.roomMember.findFirst({
+      where: { roomId, userId },
+      select: { role: true },
+    });
+    if (member) {
+      return member.role === 'Observer' ? 'Observer' : 'Player';
+    }
+    if (fallbackJwtRole === 'Observer' && boundRoomId === roomId) {
+      return 'Observer';
+    }
+    return null;
   }
 }

@@ -54,6 +54,11 @@ async function refreshOnce(): Promise<string | null> {
     const token = await doRefresh();
     refreshQueue.forEach((cb) => cb(token));
     return token;
+  } catch (err) {
+    tokenStore.clear();
+    refreshQueue.forEach((cb) => cb(null));
+    store.dispatch({ type: 'session/clearSession' });
+    throw err;
   } finally {
     refreshQueue.length = 0;
     isRefreshing = false;
@@ -135,8 +140,12 @@ export async function apiFetch<TRes = unknown>(
   clearTimeout(timer);
 
   if (res.status === 401) {
-    const newToken = await refreshOnce();
-    if (!newToken) throw new ApiError(401, 'Unauthorized');
+    const newToken = await refreshOnce().catch(() => null);
+    if (!newToken) {
+      tokenStore.clear();
+      store.dispatch({ type: 'session/clearSession' });
+      throw new ApiError(401, 'Unauthorized');
+    }
 
     headers['Authorization'] = `Bearer ${newToken}`;
     const retry = await fetch(url, { ...options, headers });

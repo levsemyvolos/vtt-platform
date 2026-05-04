@@ -10,6 +10,7 @@ import type {
   UpdateSceneRequest,
   CreateTokenRequest,
   UpdateTokenRequest,
+  SceneUpdatedPayload,
 } from '@vtt/shared';
 import { SceneRepository, type SceneWithTokens } from '../repositories/SceneRepository.js';
 import { TokenRepository } from '../repositories/TokenRepository.js';
@@ -91,6 +92,9 @@ export class SceneService {
     if (!token) throw new HttpError(404, 'Token not found');
     if (token.sceneId !== payload.sceneId) {
       throw new HttpError(400, 'Scene mismatch');
+    }
+    if (viewerRole !== 'GM' && token.assignedUserId !== viewerId) {
+      throw new HttpError(403, 'Only the GM or assigned player can move this token');
     }
 
     if (payload.clientSeq > token.version) {
@@ -302,6 +306,19 @@ export class SceneService {
   async getTokenSceneId(tokenId: string): Promise<string | null> {
     const token: Token | null = await this.tokens.findById(tokenId);
     return token?.sceneId ?? null;
+  }
+
+  async buildSceneUpdateForViewer(
+    sceneId: string,
+    version: number,
+    viewerRole: Role,
+    viewerId: string,
+  ): Promise<SceneUpdatedPayload> {
+    const sceneTokens = await this.tokens.listBySceneId(sceneId);
+    const tokens = sceneTokens
+      .map((t) => projectToken(t, viewerRole, viewerId))
+      .filter((t): t is NonNullable<typeof t> => t !== null);
+    return { sceneId, version, tokens };
   }
 
   async createToken(sceneId: string, dto: CreateTokenRequest): Promise<Token> {

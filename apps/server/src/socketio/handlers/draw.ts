@@ -1,4 +1,4 @@
-import type { DrawStrokePayload } from '@vtt/shared';
+import type { DrawStrokePayload, FogMaskDiffPayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
 
@@ -10,6 +10,12 @@ export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
     },
     clear: (roomId: string, sceneId: string) => {
       io.to(roomId).emit('draw:clear', { roomId, sceneId });
+    },
+    fogDiff: (roomId: string, payload: FogMaskDiffPayload) => {
+      io.to(roomId).emit('fog:mask-diff', payload);
+    },
+    fogClear: (roomId: string, sceneId: string) => {
+      io.to(roomId).emit('fog:clear', { roomId, sceneId });
     },
   };
 }
@@ -34,5 +40,17 @@ export function registerDrawHandlers(
     if (socket.data.role !== 'GM') return;
     if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
     void drawService.clearStrokes(payload.roomId, payload.sceneId);
+  });
+
+  socket.on('fog:mask-diff', (payload) => {
+    if (socket.data.role !== 'GM') return;
+    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+    void drawService.applyFogDiff(payload.roomId, payload);
+  });
+
+  socket.on('fog:clear', (payload: { roomId: string; sceneId: string }) => {
+    if (socket.data.role !== 'GM') return;
+    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+    void drawService.clearFog(payload.roomId, payload.sceneId);
   });
 }

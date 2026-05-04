@@ -3,9 +3,10 @@ import type Konva from 'konva';
 import type { Role, SceneDTO } from '@vtt/shared';
 import type { CanvasTool } from '../store/canvasViewport';
 import { useAppDispatch } from '../store';
-import { applyDrawStroke } from '../store/scene';
-import { emitAnnotationPing, emitMeasure, emitDrawStroke } from '../api/socket';
+import { applyDrawStroke, applyFogDiff } from '../store/scene';
+import { emitAnnotationPing, emitMeasure, emitDrawStroke, emitFogDiff } from '../api/socket';
 import { getUserPingColor } from '../components/GameCanvas/layers/AnnotationLayer';
+import { buildSingleCellFogDiff } from '../components/GameCanvas/fogMask';
 import { randomUUID } from '../utils/uuid';
 
 const RULER_THROTTLE_MS = 67;
@@ -34,6 +35,7 @@ export function useToolHandlers(
   const drawStrokeIdRef = useRef<string | null>(null);
   const drawPointsRef = useRef<number[]>([]);
   const lastDrawPtRef = useRef<{ x: number; y: number } | null>(null);
+  const lastFogCellRef = useRef<string | null>(null);
 
   function handleRulerMove(stage: Konva.Stage): void {
     if (!rulerStartRef.current || !roomId) return;
@@ -65,6 +67,27 @@ export function useToolHandlers(
     }));
   }
 
+  function applyFogAt(stage: Konva.Stage): void {
+    if (myRole !== 'GM' || !roomId) return;
+    const coords = sceneCoords(stage);
+    if (!coords) return;
+    const cellX = Math.floor(coords.x / scene.gridSize);
+    const cellY = Math.floor(coords.y / scene.gridSize);
+    const key = `${cellX}:${cellY}`;
+    if (lastFogCellRef.current === key) return;
+    lastFogCellRef.current = key;
+    const diffBase64 = buildSingleCellFogDiff(scene.gridWidth, scene.gridHeight, cellX, cellY);
+    const payload = {
+      roomId,
+      sceneId: scene.id,
+      diffBase64,
+      width: scene.gridWidth,
+      height: scene.gridHeight,
+    };
+    dispatch(applyFogDiff(payload));
+    emitFogDiff(payload);
+  }
+
   function onStageMouseDown(e: Konva.KonvaEventObject<MouseEvent>): void {
     const stage = e.target.getStage();
     if (!stage) return;
@@ -76,6 +99,8 @@ export function useToolHandlers(
       drawStrokeIdRef.current = randomUUID();
       drawPointsRef.current = [coords.x, coords.y];
       lastDrawPtRef.current = coords;
+    } else if (activeTool === 'fog') {
+      applyFogAt(stage);
     }
   }
 
@@ -84,6 +109,7 @@ export function useToolHandlers(
     if (!stage) return;
     if (activeTool === 'ruler') handleRulerMove(stage);
     else if (activeTool === 'draw') handleDrawMove(stage);
+    else if (activeTool === 'fog') applyFogAt(stage);
   }
 
   function onStageMouseUp(): void {
@@ -101,6 +127,8 @@ export function useToolHandlers(
       drawStrokeIdRef.current = null;
       drawPointsRef.current = [];
       lastDrawPtRef.current = null;
+    } else if (activeTool === 'fog') {
+      lastFogCellRef.current = null;
     }
   }
 

@@ -41,7 +41,7 @@ export function projectToken(
     x: token.x,
     y: token.y,
     sceneId: token.sceneId,
-    imageUrl: token.imageAssetId ? `/assets/${token.imageAssetId}` : '',
+    imageUrl: token.imageAssetId ? `/api/assets/${token.imageAssetId}/file` : '',
     version: token.version,
     color: token.color ?? '#7c5cff',
     assignedUserId: token.assignedUserId,

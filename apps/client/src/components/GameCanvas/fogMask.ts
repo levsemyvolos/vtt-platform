@@ -60,3 +60,21 @@ export function xorPackedMasks(
   }
   return bytesToBase64(out);
 }
+
+export function buildSingleCellFogDiff(
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+): string {
+  const cellX = Math.floor(x);
+  const cellY = Math.floor(y);
+  const totalBits = Math.max(0, width * height);
+  const bytes = new Uint8Array(Math.ceil(totalBits / 8));
+  if (cellX < 0 || cellY < 0 || cellX >= width || cellY >= height) {
+    return bytesToBase64(bytes);
+  }
+  const idx = cellX * height + cellY;
+  bytes[idx >> 3] = (bytes[idx >> 3] ?? 0) | (1 << (7 - (idx & 7)));
+  return bytesToBase64(bytes);
+}

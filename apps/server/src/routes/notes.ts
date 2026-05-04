@@ -38,6 +38,7 @@ export function buildNotesRouter(
           req.params.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const notes = await noteService.listForAuthor(req.params.roomId, req.user!.id);
@@ -61,6 +62,7 @@ export function buildNotesRouter(
           req.params.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const dto = await noteService.create(

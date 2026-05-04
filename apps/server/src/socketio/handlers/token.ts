@@ -1,6 +1,7 @@
 import type { TokenMovePayload, Ack } from '@vtt/shared';
 import type { TypedSocket, TypedServer } from '../types.js';
 import type { SceneService } from '../../services/SceneService.js';
+import { HttpError } from '../../lib/errors.js';
 
 /**
  * Handler for `token:move` — applies OCC algorithm A2 and broadcasts the result.
@@ -33,7 +34,18 @@ export function makeTokenMoveHandler(
         socket.data.userId,
       );
       if (result.kind === 'accepted') {
-        io.to(socket.data.roomId).emit('scene:updated', result.sceneUpdate);
+        const roomSockets = await io.in(socket.data.roomId).fetchSockets();
+        await Promise.all(
+          roomSockets.map(async (recipient) => {
+            const update = await sceneService.buildSceneUpdateForViewer(
+              result.sceneUpdate.sceneId,
+              result.sceneUpdate.version,
+              recipient.data.role,
+              recipient.data.userId,
+            );
+            recipient.emit('scene:updated', update);
+          }),
+        );
         ack({
           ok: true,
           data: { accepted: true, version: result.sceneUpdate.version },
@@ -49,7 +61,8 @@ export function makeTokenMoveHandler(
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      ack({ ok: false, error: { code: 500, message } });
+      const code = err instanceof HttpError ? err.status : 500;
+      ack({ ok: false, error: { code, message } });
     }
   };
 }

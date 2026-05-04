@@ -41,6 +41,7 @@ export function buildHandoutsRouter(
           req.params.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const list = await handoutService.listForViewer(
@@ -68,6 +69,7 @@ export function buildHandoutsRouter(
           req.params.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const dto = await handoutService.createHandout(req.params.roomId, role, req.body);
@@ -92,6 +94,7 @@ export function buildHandoutsRouter(
           handout.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const { userIds } = req.body;
@@ -117,6 +120,7 @@ export function buildHandoutsRouter(
           handout.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         const dto = await handoutService.revokeFromPlayer(
@@ -142,6 +146,7 @@ export function buildHandoutsRouter(
           handout.roomId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
         await handoutService.deleteHandout(req.params.id, role);

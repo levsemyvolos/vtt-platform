@@ -13,10 +13,11 @@ import type {
   AnnotationPingPayload,
   MeasurePayload,
   DrawStrokePayload,
+  FogMaskUpdatePayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, applyFogDiff } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, applyFogDiff, clearFogMask } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -65,6 +66,9 @@ export function getSocket(): TypedClientSocket {
   // Algorithm A4 trigger A — XOR fog-mask diff broadcast (§2.17.5).
   socket.on('fog:mask-diff', (payload) => {
     store.dispatch(applyFogDiff(payload));
+  });
+  socket.on('fog:clear', () => {
+    store.dispatch(clearFogMask());
   });
   // Note: server responds to `session:resync` only via the ack callback (see
   // `emitSessionResync` below — its caller in RoomLobby dispatches the hydrate
@@ -257,4 +261,12 @@ export function emitDrawStroke(payload: DrawStrokePayload): void {
 /** Clears all strokes in the scene. GM-only. */
 export function emitDrawClear(roomId: string, sceneId: string): void {
   getSocket().emit('draw:clear', { roomId, sceneId });
+}
+
+export function emitFogDiff(payload: FogMaskUpdatePayload): void {
+  getSocket().emit('fog:mask-diff', payload);
+}
+
+export function emitFogClear(roomId: string, sceneId: string): void {
+  getSocket().emit('fog:clear', { roomId, sceneId });
 }

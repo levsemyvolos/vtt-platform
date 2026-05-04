@@ -39,9 +39,10 @@ export function buildInitiativeRouter(
     sceneId: string,
     userId: string,
     jwtRole: 'GM' | 'Player' | 'Observer',
+    boundRoomId?: string,
   ): Promise<{ roomId: string }> {
     const roomId = await initService.getRoomIdForScene(sceneId);
-    const role = await roomRepo.getRoleInRoom(roomId, userId, jwtRole);
+    const role = await roomRepo.getRoleInRoom(roomId, userId, jwtRole, boundRoomId);
     if (role !== 'GM') {
       throw new HttpError(403, 'Only GM can mutate initiative');
     }
@@ -52,9 +53,10 @@ export function buildInitiativeRouter(
     sceneId: string,
     userId: string,
     jwtRole: 'GM' | 'Player' | 'Observer',
+    boundRoomId?: string,
   ): Promise<{ roomId: string }> {
     const roomId = await initService.getRoomIdForScene(sceneId);
-    const role = await roomRepo.getRoleInRoom(roomId, userId, jwtRole);
+    const role = await roomRepo.getRoleInRoom(roomId, userId, jwtRole, boundRoomId);
     if (!role) throw new HttpError(404, 'Room not found');
     return { roomId };
   }
@@ -64,7 +66,12 @@ export function buildInitiativeRouter(
     jwtAuth,
     async (req: Request<{ sceneId: string }>, res: Response) => {
       try {
-        await requireMemberForScene(req.params.sceneId, req.user!.id, req.user!.role);
+        await requireMemberForScene(
+          req.params.sceneId,
+          req.user!.id,
+          req.user!.role,
+          req.user!.boundRoomId,
+        );
         const snapshot = await initService.getSnapshot(req.params.sceneId);
         res.json(snapshot);
       } catch (err) {
@@ -85,6 +92,7 @@ export function buildInitiativeRouter(
           req.params.sceneId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         const { name, initiative } = req.body;
         if (typeof name !== 'string' || typeof initiative !== 'number') {
@@ -112,6 +120,7 @@ export function buildInitiativeRouter(
           req.params.sceneId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         const snapshot = await initService.removeEntry(
           req.params.sceneId,
@@ -141,6 +150,7 @@ export function buildInitiativeRouter(
           req.params.sceneId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         const { orderedIds } = req.body;
         if (!Array.isArray(orderedIds) || orderedIds.some((x) => typeof x !== 'string')) {
@@ -168,6 +178,7 @@ export function buildInitiativeRouter(
           req.params.sceneId,
           req.user!.id,
           req.user!.role,
+          req.user!.boundRoomId,
         );
         const snapshot = await initService.advanceTurn(req.params.sceneId);
         io.to(roomId).emit('initiative:updated', {

@@ -69,14 +69,14 @@ export const sendAssistantMessage = createAsyncThunk<
       const assistantMsg: ConversationMessage = { role: 'assistant', content: response.content };
 
       // Persist both messages to DB (fire-and-forget — don't block UI)
-      void apiFetch('/api/ai/messages', {
+      await apiFetch('/api/ai/messages', {
         method: 'POST',
         body: JSON.stringify({ roomId, role: 'user', content: prompt }),
-      }).catch(() => {/* non-critical */});
-      void apiFetch('/api/ai/messages', {
+      });
+      await apiFetch('/api/ai/messages', {
         method: 'POST',
         body: JSON.stringify({ roomId, role: 'assistant', content: response.content }),
-      }).catch(() => {/* non-critical */});
+      });
 
       return { conversationId, userMsg, assistantMsg };
     } catch (err) {

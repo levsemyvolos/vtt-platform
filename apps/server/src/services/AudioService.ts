@@ -3,6 +3,7 @@ import type { AudioTrack } from '@prisma/client';
 import {
   AUDIO_ALLOWED_MIME,
   AUDIO_MAX_BYTES,
+  type Role,
   type AudioFinalizeRequest,
   type AudioMime,
   type AudioPatchRequest,
@@ -76,6 +77,17 @@ export class AudioService {
     if (room.ownerId !== userId) {
       throw new HttpError(403, 'Only the GM (room owner) can manage audio tracks');
     }
+  }
+
+  async assertRoomAccess(
+    roomId: string,
+    userId: string,
+    jwtRole: Role,
+    boundRoomId?: string,
+  ): Promise<Role> {
+    const role = await this.rooms.getRoleInRoom(roomId, userId, jwtRole, boundRoomId);
+    if (!role) throw new HttpError(403, 'Not a room member');
+    return role;
   }
 
   /**

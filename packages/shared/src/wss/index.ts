@@ -100,6 +100,10 @@ export interface FogMaskDiffPayload {
   height: number;
 }
 
+export interface FogMaskUpdatePayload extends FogMaskDiffPayload {
+  roomId: string;
+}
+
 /**
  * Initiative-tracker snapshot broadcast after every write op (add / remove /
  * reorder / advance). Ф7.3.
@@ -230,6 +234,8 @@ export interface ClientToServerEvents {
   'measure:start': (payload: MeasurePayload) => void;
   'draw:stroke': (payload: DrawStrokePayload) => void;
   'draw:clear': (payload: { roomId: string; sceneId: string }) => void;
+  'fog:mask-diff': (payload: FogMaskUpdatePayload) => void;
+  'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
 }
 
 export interface MemberJoinedPayload {
@@ -264,6 +270,7 @@ export interface ServerToClientEvents {
   'initiative:updated': (payload: InitiativeUpdatedPayload) => void;
   'session:resync': (payload: SessionResyncPayload) => void;
   'fog:mask-diff': (payload: FogMaskDiffPayload) => void;
+  'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
   'audio:play': (payload: AudioPlayPayload) => void;
   'signal:offer': (payload: SignalingPayload) => void;
   'signal:answer': (payload: SignalingPayload) => void;
@@ -283,5 +290,6 @@ export interface SocketData {
   userId: string;
   role: import('../shared/index').Role;
   roomId?: string;
+  boundRoomId?: string;
   sessionId: string;
 }
