@@ -73,12 +73,11 @@ function toSceneDTOFromEntity(scene: {
   };
 }
 
-// POST /rooms/:id/scenes  +  GET /rooms/:id/scenes
+// ---------- Room sub-router for scenes ----------
+
 export const roomScenesSubRouter: IRouter = Router({ mergeParams: true });
 
-// GET /rooms/:id/scenes — list scenes for a room (visible to GM/Player/Observer).
-// Tokens are intentionally not eagerly populated here; the GameCanvas hydrates
-// them via session:resync on the active scene only.
+// GET /rooms/:id/scenes — list scenes for a room
 roomScenesSubRouter.get(
   '/',
   jwtAuth,
@@ -123,6 +122,8 @@ roomScenesSubRouter.post(
   },
 );
 
+// ---------- Scenes router ----------
+
 // PATCH /scenes/:sceneId
 scenesRouter.patch(
   '/:sceneId',
@@ -163,7 +164,7 @@ scenesRouter.post(
   },
 );
 
-// GET /scenes/:sceneId — snapshot for the requesting viewer (RBAC-projected via A6)
+// GET /scenes/:sceneId
 scenesRouter.get(
   '/:sceneId',
   jwtAuth,
@@ -190,7 +191,7 @@ scenesRouter.get(
   },
 );
 
-// POST /scenes/:sceneId/tokens — GM creates a token on a scene (Ф2.5)
+// POST /scenes/:sceneId/tokens — GM creates a token on a scene
 scenesRouter.post(
   '/:sceneId/tokens',
   jwtAuth,
@@ -210,6 +211,8 @@ scenesRouter.post(
     }
   },
 );
+
+// ---------- Tokens router ----------
 
 export const tokensRouter: IRouter = Router({ mergeParams: true });
 
@@ -254,7 +257,7 @@ tokensRouter.delete(
   },
 );
 
-// ---------- Annotation endpoints (Ф3.4.4–5) ----------
+// ---------- Annotation endpoints ----------
 
 export function buildAnnotationsRouter(annotationService: SceneAnnotationService): IRouter {
   const router = Router({ mergeParams: true });
@@ -301,7 +304,7 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
     },
   );
 
-  // PATCH /scenes/:id/annotations/:annId — move a canvas annotation/object
+  // PATCH /scenes/:id/annotations/:annId — move an annotation
   router.patch(
     '/scenes/:id/annotations/:annId',
     jwtAuth,
@@ -321,7 +324,7 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
     },
   );
 
-  // DELETE /scenes/:id/annotations/:annId — GM or author removes annotation
+  // DELETE /scenes/:id/annotations/:annId — remove annotation
   router.delete(
     '/scenes/:id/annotations/:annId',
     jwtAuth,

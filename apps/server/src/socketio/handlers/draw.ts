@@ -28,54 +28,83 @@ export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
  * Guard: socket must be in the claimed roomId.
  */
 export function registerDrawHandlers(
+  io: TypedServer,
   socket: TypedSocket,
   drawService: import('../../services/DrawService.js').DrawService,
   sceneAnnotationService?: SceneAnnotationService,
 ): void {
-  socket.on('draw:stroke', (payload: DrawStrokePayload) => {
-    if (socket.data.role !== 'GM') return;
-    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-    void drawService.addStroke(payload);
+  socket.on('draw:stroke', async (payload: DrawStrokePayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      await drawService.addStroke(payload);
+    } catch (err) {
+      console.error('[Socket] draw:stroke error:', err);
+    }
   });
 
-  socket.on('draw:clear', (payload: { roomId: string; sceneId: string }) => {
-    if (socket.data.role !== 'GM') return;
-    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-    void drawService.clearStrokes(payload.roomId, payload.sceneId);
+  socket.on('draw:clear', async (payload: { roomId: string; sceneId: string }) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      await drawService.clearStrokes(payload.roomId, payload.sceneId);
+    } catch (err) {
+      console.error('[Socket] draw:clear error:', err);
+    }
   });
 
-  socket.on('fog:mask-diff', (payload) => {
-    if (socket.data.role !== 'GM') return;
-    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-    void drawService.applyFogDiff(payload.roomId, payload);
+  socket.on('fog:mask-diff', async (payload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      await drawService.applyFogDiff(payload.roomId, payload);
+    } catch (err) {
+      console.error('[Socket] fog:mask-diff error:', err);
+    }
   });
 
-  socket.on('fog:clear', (payload: { roomId: string; sceneId: string }) => {
-    if (socket.data.role !== 'GM') return;
-    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-    void drawService.clearFog(payload.roomId, payload.sceneId);
+  socket.on('fog:clear', async (payload: { roomId: string; sceneId: string }) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      await drawService.clearFog(payload.roomId, payload.sceneId);
+    } catch (err) {
+      console.error('[Socket] fog:clear error:', err);
+    }
   });
 
-  socket.on('object:move', (payload) => {
-    if (!sceneAnnotationService) return;
-    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-    void sceneAnnotationService.moveAnnotation(
-      payload.sceneId,
-      payload.objectId,
-      socket.data.userId,
-      socket.data.role,
-      { x: payload.x, y: payload.y },
-    );
+  socket.on('object:move', async (payload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      await sceneAnnotationService.moveAnnotation(
+        payload.sceneId,
+        payload.objectId,
+        socket.data.userId,
+        socket.data.role,
+        { x: payload.x, y: payload.y },
+      );
+      io.to(payload.roomId).emit('object:move', payload);
+    } catch (err) {
+      console.error('[Socket] object:move error:', err);
+    }
   });
 
-  socket.on('object:delete', (payload) => {
-    if (!sceneAnnotationService) return;
-    if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-    void sceneAnnotationService.removeAnnotation(
-      payload.sceneId,
-      payload.objectId,
-      socket.data.userId,
-      socket.data.role,
-    );
+  socket.on('object:delete', async (payload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      await sceneAnnotationService.removeAnnotation(
+        payload.sceneId,
+        payload.objectId,
+        socket.data.userId,
+        socket.data.role,
+      );
+      io.to(payload.roomId).emit('object:delete', payload);
+    } catch (err) {
+      console.error('[Socket] object:delete error:', err);
+    }
   });
 }

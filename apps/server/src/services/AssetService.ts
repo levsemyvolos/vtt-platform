@@ -113,10 +113,9 @@ export class AssetService {
       storageKey: req.storageKey,
     });
 
-    const url = await this.storage.getPresignedUrl(asset.storageKey);
     return {
       id: asset.id,
-      url,
+      url: AssetService.getProxyUrl(asset.id),
       type: asset.mimeType,
       name: asset.storageKey.split('/').pop() ?? asset.id,
       roomId: asset.roomId,
@@ -159,17 +158,24 @@ export class AssetService {
   }
 
   /**
+   * Returns a proxy URL for an asset ID.
+   * Path matches the mount point in apps/server/src/index.ts and vite proxy.
+   */
+  static getProxyUrl(assetId: string): string {
+    return `/api/assets/${assetId}/file`;
+  }
+
+  /**
+   * Materializes an AssetDTO with a proxy URL.
    * @param assetId Asset UUID
-   * @returns AssetDTO with `url` materialized as presigned GCS URL (TTL 15 min)
    * @throws HttpError 404 if asset is missing
    */
   async getAssetDTO(assetId: string): Promise<AssetDTO> {
     const asset = await this.repo.findById(assetId);
     if (!asset) throw new HttpError(404, 'Asset not found');
-    const url = await this.storage.getPresignedUrl(asset.storageKey);
     return {
       id: asset.id,
-      url,
+      url: AssetService.getProxyUrl(asset.id),
       type: asset.mimeType,
       name: asset.storageKey.split('/').pop() ?? asset.id,
       roomId: asset.roomId,
@@ -177,18 +183,32 @@ export class AssetService {
   }
 
   /**
-   * @param storageKey persistence key
-   * @returns presigned URL (TTL 15 min)
+   * Retrieves a readable stream for the asset's content.
+   * RBAC check is performed by the caller (AssetRouter).
    */
-  presignedUrlFor(storageKey: string): Promise<string> {
-    return this.storage.getPresignedUrl(storageKey);
+  async getAssetStream(assetId: string): Promise<{
+    stream: NodeJS.ReadableStream;
+    mimeType: string;
+    size: number;
+  }> {
+    const asset = await this.repo.findById(assetId);
+    if (!asset) throw new HttpError(404, 'Asset not found');
+
+    const meta = await this.storage.statObject(asset.storageKey);
+    if (!meta) throw new HttpError(404, 'File missing in storage');
+
+    return {
+      stream: this.storage.createReadStream(asset.storageKey),
+      mimeType: asset.mimeType,
+      size: Number(asset.size),
+    };
   }
 
   /**
    * Lists assets for a room, optionally filtered by type category.
    * @param roomId Room UUID
    * @param type 'image' | 'audio' | 'pdf' | 'all'
-   * @returns AssetDTO[] with presigned URLs
+   * @returns AssetDTO[] with proxy URLs
    */
   async listByRoomAndType(roomId: string, type: string): Promise<AssetDTO[]> {
     const mimePrefix =
@@ -196,15 +216,13 @@ export class AssetService {
       type === 'audio' ? 'audio/' :
       type === 'pdf'   ? 'application/pdf' : '';
     const assets = await this.repo.findByRoomAndType(roomId, mimePrefix);
-    return Promise.all(
-      assets.map(async (a) => ({
-        id: a.id,
-        url: await this.storage.getPresignedUrl(a.storageKey),
-        type: a.mimeType,
-        name: a.storageKey.split('/').pop() ?? a.id,
-        roomId: a.roomId,
-      })),
-    );
+    return assets.map((a) => ({
+      id: a.id,
+      url: AssetService.getProxyUrl(a.id),
+      type: a.mimeType,
+      name: a.storageKey.split('/').pop() ?? a.id,
+      roomId: a.roomId,
+    }));
   }
 
   /**

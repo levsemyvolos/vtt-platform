@@ -9,6 +9,7 @@ import type {
   DiceMode,
   StatusMarker,
 } from '@vtt/shared';
+import { AssetService } from './AssetService.js';
 import { parseAnnotations } from './DrawService.js';
 
 /**
@@ -76,6 +77,7 @@ export function projectScene(
     isActive: scene.isActive,
     isHidden: scene.isHidden,
     fogMaskBase64: scene.fogMaskBase64,
+    backgroundUrl: scene.backgroundAssetId ? AssetService.getProxyUrl(scene.backgroundAssetId) : null,
     tokens,
     annotations,
   };

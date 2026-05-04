@@ -188,6 +188,8 @@ export interface SceneDTO {
   isHidden: boolean;
   fogMaskBase64: string | null;
   tokens: TokenPublicDTO[];
+  /** Optional URL for the scene background bitmap (Ф2.2.5). */
+  backgroundUrl?: string | null;
   /** Structured canvas annotations — strokes + text labels + image overlays (Ф3.4.2–5). */
   annotations: SceneAnnotations;
 }

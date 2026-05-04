@@ -84,4 +84,8 @@ export class GcsFileStorageAdapter implements FileStorageAdapter {
   async delete(storageKey: string): Promise<void> {
     await this.bucket.file(storageKey).delete({ ignoreNotFound: true });
   }
+
+  createReadStream(storageKey: string): NodeJS.ReadableStream {
+    return this.bucket.file(storageKey).createReadStream();
+  }
 }

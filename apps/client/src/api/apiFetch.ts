@@ -42,7 +42,7 @@ async function doRefresh(): Promise<string | null> {
 }
 
 // Serialises concurrent 401s into one refresh call; others wait in queue.
-async function refreshOnce(): Promise<string | null> {
+export async function refreshOnce(): Promise<string | null> {
   if (isRefreshing) {
     return new Promise<string | null>((resolve) => {
       refreshQueue.push(resolve);

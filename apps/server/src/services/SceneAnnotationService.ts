@@ -4,29 +4,22 @@ import type {
   ImageAnnotation,
   SceneAnnotations,
   SceneObject,
-  SceneUpdatedPayload,
-  TokenPublicDTO,
 } from '@vtt/shared';
 import { normalizeAnnotations, type DrawService } from './DrawService.js';
 import { HttpError } from '../lib/errors.js';
-import { projectToken } from './projections.js';
 import type { PrismaClient } from '@prisma/client';
-
-/** Broadcasts scene:updated to the room after annotation mutation. */
-export type AnnotationSceneBroadcaster = (roomId: string, payload: SceneUpdatedPayload) => void;
 
 /**
  * Manages pinned text (Ф3.4.4) and image (Ф3.4.5) canvas annotations.
  *
  * Both are GM-only. Stored alongside draw strokes in Scene.annotations JSONB
- * via DrawService (shared cache). After each mutation the service broadcasts
- * `scene:updated` with annotations payload so all clients update.
+ * via DrawService (shared cache). After each mutation the service returns
+ * the updated annotations; broadcasting is handled by the caller (handler).
  */
 export class SceneAnnotationService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly drawService: DrawService,
-    private readonly broadcast: AnnotationSceneBroadcaster,
   ) {}
 
   async addText(
@@ -60,7 +53,6 @@ export class SceneAnnotationService {
       },
     ];
     await this.drawService.persist(sceneId, annotations);
-    await this.broadcastSceneUpdated(sceneId, annotations);
     return annotations;
   }
 
@@ -95,7 +87,6 @@ export class SceneAnnotationService {
       },
     ];
     await this.drawService.persist(sceneId, annotations);
-    await this.broadcastSceneUpdated(sceneId, annotations);
     return annotations;
   }
 
@@ -128,11 +119,15 @@ export class SceneAnnotationService {
 
     const normalized = normalizeAnnotations(annotations);
     await this.drawService.persist(sceneId, normalized);
-    await this.broadcastSceneUpdated(sceneId, normalized);
     return normalized;
   }
 
-  async removeAnnotation(sceneId: string, annotationId: string, userId: string, role: string): Promise<void> {
+  async removeAnnotation(
+    sceneId: string,
+    annotationId: string,
+    userId: string,
+    role: string,
+  ): Promise<SceneAnnotations> {
     const annotations = await this.drawService.getAnnotations(sceneId);
     const removal = findAnnotationRemoval(annotations, annotationId);
     assertCanMutateAnnotation(removal.owner, userId, role, 'delete');
@@ -142,20 +137,7 @@ export class SceneAnnotationService {
     annotations.objects = (annotations.objects ?? []).filter((candidate) => candidate.id !== annotationId);
     const normalized = normalizeAnnotations(annotations);
     await this.drawService.persist(sceneId, normalized);
-    await this.broadcastSceneUpdated(sceneId, normalized);
-  }
-
-  private async broadcastSceneUpdated(sceneId: string, annotations: SceneAnnotations): Promise<void> {
-    const scene = await this.prisma.scene.findUnique({
-      where: { id: sceneId },
-      include: { tokens: true },
-    });
-    if (!scene) return;
-    const tokens: TokenPublicDTO[] = scene.tokens
-      .map((t) => projectToken(t, 'GM', ''))
-      .filter((t): t is TokenPublicDTO => t !== null);
-    const payload: SceneUpdatedPayload = { sceneId, version: 0, tokens, annotations };
-    this.broadcast(scene.roomId, payload);
+    return normalized;
   }
 }
 

@@ -223,7 +223,7 @@ export type Ack<T> =
 // ---------- OCC discriminated union (algorithm A2) ----------
 
 export type OccResult =
-  | { kind: 'accepted'; sceneUpdate: SceneUpdatedPayload }
+  | { kind: 'accepted'; sceneUpdate: SceneUpdatedPayload; rawTokens?: any[] }
   | { kind: 'rollback'; rollback: TokenRollbackPayload }
   | { kind: 'discarded'; reason: string };
 
@@ -303,6 +303,8 @@ export interface ServerToClientEvents {
   'draw:stroke': (payload: DrawStrokePayload) => void;
   'draw:clear': (payload: { roomId: string; sceneId: string }) => void;
   'scene:activated': (payload: { sceneId: string; roomId: string }) => void;
+  'object:move': (payload: SceneObjectMovePayload) => void;
+  'object:delete': (payload: SceneObjectDeletePayload) => void;
 }
 
 export interface InterServerEvents {

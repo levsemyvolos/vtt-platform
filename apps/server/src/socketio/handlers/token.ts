@@ -35,15 +35,20 @@ export function makeTokenMoveHandler(
       );
       if (result.kind === 'accepted') {
         const roomSockets = await io.in(socket.data.roomId).fetchSockets();
+        const rawTokens = result.rawTokens ?? [];
+        
         await Promise.all(
           roomSockets.map(async (recipient) => {
-            const update = await sceneService.buildSceneUpdateForViewer(
-              result.sceneUpdate.sceneId,
-              result.sceneUpdate.version,
+            const tokens = sceneService.projectTokens(
+              rawTokens,
               recipient.data.role,
               recipient.data.userId,
             );
-            recipient.emit('scene:updated', update);
+            recipient.emit('scene:updated', {
+              sceneId: result.sceneUpdate.sceneId,
+              version: result.sceneUpdate.version,
+              tokens,
+            });
           }),
         );
         ack({

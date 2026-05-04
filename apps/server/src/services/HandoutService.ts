@@ -9,6 +9,7 @@ import type {
   HandoutWithRecipientsAndAsset,
 } from '../repositories/HandoutRepository.js';
 import type { FileStorageAdapter } from '../infrastructure/storage/FileStorageAdapter.js';
+import { AssetService } from './AssetService.js';
 import { HttpError } from '../lib/errors.js';
 
 /**
@@ -109,8 +110,8 @@ export class HandoutService {
       recipientIds: row.recipients.map((r) => r.userId),
       createdAt: row.createdAt.toISOString(),
     };
-    if (row.asset && this.fileStorage) {
-      dto.assetUrl = await this.fileStorage.getPresignedUrl(row.asset.storageKey);
+    if (row.asset) {
+      dto.assetUrl = AssetService.getProxyUrl(row.asset.id);
     }
     return dto;
   }

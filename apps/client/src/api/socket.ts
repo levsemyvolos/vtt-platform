@@ -19,7 +19,7 @@ import type {
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, applyFogDiff, clearFogMask } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, applyFogDiff, clearFogMask, moveSceneObjectOptimistic, removeSceneObject } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -45,13 +45,36 @@ export function getSocket(): TypedClientSocket {
   socket = io(SERVER_URL, {
     autoConnect: false,
     transports: ['websocket'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     auth: (cb: (data: { token: string }) => void) => {
       cb({ token: tokenStore.getAccess() ?? '' });
     },
   });
 
+  socket.on('connect_error', async (err) => {
+    if (err.message === 'Invalid or expired access token' || err.message === 'Missing auth token') {
+      try {
+        const { refreshOnce } = await import('./apiFetch');
+        const newToken = await refreshOnce();
+        if (newToken && socket) socket.connect();
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[Socket] Reconnect auth failure:', e);
+      }
+    }
+  });
+
   socket.on('scene:updated', (payload) => {
     store.dispatch(applySceneUpdate(payload));
+  });
+  socket.on('object:move', (payload) => {
+    store.dispatch(moveSceneObjectOptimistic({ objectId: payload.objectId, x: payload.x, y: payload.y }));
+  });
+  socket.on('object:delete', (payload) => {
+    store.dispatch(removeSceneObject(payload.objectId));
   });
   socket.on('token:rollback', (payload) => {
     store.dispatch(applyTokenRollback(payload));
@@ -65,7 +88,7 @@ export function getSocket(): TypedClientSocket {
   socket.on('initiative:updated', (payload) => {
     store.dispatch(hydrateInitiative(payload));
   });
-  // Algorithm A4 trigger A — XOR fog-mask diff broadcast (§2.17.5).
+  // Algorithm A4 trigger A вЂ” XOR fog-mask diff broadcast (В§2.17.5).
   socket.on('fog:mask-diff', (payload) => {
     store.dispatch(applyFogDiff(payload));
   });
@@ -73,16 +96,16 @@ export function getSocket(): TypedClientSocket {
     store.dispatch(clearFogMask());
   });
   // Note: server responds to `session:resync` only via the ack callback (see
-  // `emitSessionResync` below — its caller in RoomLobby dispatches the hydrate
+  // `emitSessionResync` below вЂ” its caller in RoomLobby dispatches the hydrate
   // actions on the resolved payload). No server-pushed `session:resync` event
   // exists, so we deliberately do NOT register a listener here.
-  // Ф6 — universal `audio:play` event (broadcast from REST handlers and from
+  // Р¤6 вЂ” universal `audio:play` event (broadcast from REST handlers and from
   // SceneService.onSceneActivated hook). Discriminated union by `action`.
   socket.on('audio:play', (payload) => {
     store.dispatch(applyAudioPlay(payload));
   });
 
-  // Ф3.4.1 — ephemeral ping marker; auto-removed after 3 s (§2.16, table 2.14).
+  // Р¤3.4.1 вЂ” ephemeral ping marker; auto-removed after 3 s (В§2.16, table 2.14).
   socket.on('cursor:ping', (payload) => {
     store.dispatch(addPing(payload));
     setTimeout(() => {
@@ -90,7 +113,7 @@ export function getSocket(): TypedClientSocket {
     }, 3000);
   });
 
-  // Ф3.4.2 — persistent free-draw stroke broadcast from server after GM persistence.
+  // Р¤3.4.2 вЂ” persistent free-draw stroke broadcast from server after GM persistence.
   socket.on('draw:stroke', (payload) => {
     store.dispatch(applyDrawStroke(payload));
   });
@@ -98,27 +121,27 @@ export function getSocket(): TypedClientSocket {
     store.dispatch(clearDrawStrokes());
   });
 
-  // Wave 2.1 — real-time member roster update when a player joins via invite link.
+  // Wave 2.1 вЂ” real-time member roster update when a player joins via invite link.
   socket.on('room:member-joined', (payload) => {
     store.dispatch(upsertRoomMember(payload.member));
   });
 
-  // Wave 4.1 — room deleted by GM: remove from store; UI components react via selector.
+  // Wave 4.1 вЂ” room deleted by GM: remove from store; UI components react via selector.
   socket.on('room:deleted', (payload) => {
     store.dispatch(removeRoom(payload.roomId));
   });
 
-  // GM starts session — all lobby subscribers transition to GameRoom.
+  // GM starts session вЂ” all lobby subscribers transition to GameRoom.
   socket.on('room:started', () => {
     store.dispatch(startSession());
   });
 
-  // GM renamed room or changed game system — sync to all clients without F5.
+  // GM renamed room or changed game system вЂ” sync to all clients without F5.
   socket.on('room:updated', (payload) => {
     store.dispatch(applyRoomUpdate(payload));
   });
 
-  // Ф3.4.3 — ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.
+  // Р¤3.4.3 вЂ” ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.
   const measureTimers = new Map<string, ReturnType<typeof setTimeout>>();
   socket.on('measure:start', (payload) => {
     store.dispatch(upsertMeasure(payload));
@@ -210,7 +233,7 @@ export function emitSignal(
   event: 'signal:offer' | 'signal:answer' | 'signal:ice',
   payload: SignalingPayload,
 ): void {
-  // Fire-and-forget: server proxies as-is, no ack envelope (§2.16.3).
+  // Fire-and-forget: server proxies as-is, no ack envelope (В§2.16.3).
   getSocket().emit(event, payload);
 }
 
@@ -245,17 +268,17 @@ export function emitSessionResync(roomId: string): Promise<SessionResyncPayload>
   );
 }
 
-/** Fire-and-forget ping marker (Ф3.4.1). No ack — server broadcasts and forgets. */
+/** Fire-and-forget ping marker (Р¤3.4.1). No ack вЂ” server broadcasts and forgets. */
 export function emitAnnotationPing(payload: AnnotationPingPayload): void {
   getSocket().emit('cursor:ping', payload);
 }
 
-/** Fire-and-forget ruler update (Ф3.4.3). No ack — server broadcasts and forgets. */
+/** Fire-and-forget ruler update (Р¤3.4.3). No ack вЂ” server broadcasts and forgets. */
 export function emitMeasure(payload: MeasurePayload): void {
   getSocket().emit('measure:start', payload);
 }
 
-/** Fire-and-forget draw stroke (Ф3.4.2). GM-only — server enforces RBAC. */
+/** Fire-and-forget draw stroke (Р¤3.4.2). GM-only вЂ” server enforces RBAC. */
 export function emitDrawStroke(payload: DrawStrokePayload): void {
   getSocket().emit('draw:stroke', payload);
 }

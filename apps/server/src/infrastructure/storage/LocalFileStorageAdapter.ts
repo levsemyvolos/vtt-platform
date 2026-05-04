@@ -96,6 +96,10 @@ export class LocalFileStorageAdapter implements FileStorageAdapter {
     ]);
   }
 
+  createReadStream(storageKey: string): NodeJS.ReadableStream {
+    return createReadStream(this.pathFor(storageKey));
+  }
+
   private pathFor(storageKey: string): string {
     const normalized = path.normalize(storageKey).replace(/^(\.\.(\/|\\|$))+/, '').replace(/^[/\\]+/, '');
     return path.join(this.rootDir, normalized);

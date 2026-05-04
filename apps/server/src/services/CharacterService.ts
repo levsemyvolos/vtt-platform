@@ -10,7 +10,7 @@ import type {
   CharacterWithPdf,
 } from '../repositories/CharacterRepository.js';
 import type { FileStorageAdapter } from '../infrastructure/storage/FileStorageAdapter.js';
-import type { AssetService } from './AssetService.js';
+import { AssetService } from './AssetService.js';
 import { HttpError } from '../lib/errors.js';
 
 /**
@@ -128,10 +128,8 @@ export class CharacterService {
         sheetData: character.sheetData,
         updatedAt: character.updatedAt.toISOString(),
       };
-      if (character.pdfAsset && this.fileStorage) {
-        full.pdfUrl = await this.fileStorage.getPresignedUrl(
-          character.pdfAsset.storageKey,
-        );
+      if (character.pdfAsset) {
+        full.pdfUrl = AssetService.getProxyUrl(character.pdfAsset.id);
       }
       return full;
     }

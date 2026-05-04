@@ -172,6 +172,14 @@ const sceneSlice = createSlice({
       state.current.annotations.strokes = [];
       state.current.annotations.objects = (state.current.annotations.objects ?? []).filter((object) => object.type !== 'stroke');
     },
+    removeSceneObject: (state, action: PayloadAction<string>) => {
+      if (!state.current) return;
+      const id = action.payload;
+      state.current.annotations.texts = state.current.annotations.texts.filter((t) => t.id !== id);
+      state.current.annotations.images = state.current.annotations.images.filter((i) => i.id !== id);
+      state.current.annotations.strokes = state.current.annotations.strokes.filter((s) => s.strokeId !== id);
+      state.current.annotations.objects = (state.current.annotations.objects ?? []).filter((o) => o.id !== id);
+    },
   },
 });
 
@@ -190,5 +198,6 @@ export const {
   moveSceneObjectOptimistic,
   applyDrawStroke,
   clearDrawStrokes,
+  removeSceneObject,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;

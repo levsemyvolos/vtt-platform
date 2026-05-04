@@ -55,6 +55,12 @@ export interface FileStorageAdapter {
 
   /** Deletes the object; idempotent (no error if already absent). */
   delete(storageKey: string): Promise<void>;
+
+  /**
+   * Returns a readable stream for the object (§2.13.3).
+   * Used for asset proxying to bypass CORS/403.
+   */
+  createReadStream(storageKey: string): NodeJS.ReadableStream;
 }
 
 export const PRESIGNED_URL_TTL_MS = 15 * 60 * 1000;

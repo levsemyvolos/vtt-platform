@@ -20,6 +20,7 @@ import type { AssetRepository } from '../repositories/AssetRepository.js';
 import type { AudioTrackRepository } from '../repositories/AudioTrackRepository.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
 import type { SceneRepository } from '../repositories/SceneRepository.js';
+import { AssetService } from './AssetService.js';
 import { HttpError } from '../lib/errors.js';
 
 const MIME_EXTENSION: Record<AudioMime, string> = {
@@ -234,13 +235,12 @@ export class AudioService {
   async toDTO(track: AudioTrack): Promise<AudioTrackDTO> {
     const asset = await this.assets.findById(track.assetId);
     if (!asset) throw new HttpError(500, 'AudioTrack references a missing Asset');
-    const url = await this.storage.getPresignedUrl(asset.storageKey);
     return {
       id: track.id,
       roomId: track.roomId,
       sceneId: track.sceneId,
       title: track.title,
-      url,
+      url: AssetService.getProxyUrl(track.assetId),
       mimeType: asset.mimeType,
       loop: track.loop,
       fadeMs: track.fadeMs,

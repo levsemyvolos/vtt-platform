@@ -13,7 +13,6 @@ import type {
 import { useAppDispatch, useAppSelector } from '../../../store';
 import { moveSceneObjectOptimistic } from '../../../store/scene';
 import { emitObjectDelete, emitObjectMove } from '../../../api/socket';
-import { apiMoveAnnotation } from '../../../api/scenes';
 import { useImage } from '../useImage';
 
 const PING_DURATION_MS = 3000;
@@ -171,7 +170,6 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
     const y = Math.max(0, node.y());
     node.position({ x, y });
     broadcastMove(x, y, true);
-    void apiMoveAnnotation(sceneId, object.id, { x, y });
   }
 
   function handleDelete(): void {

@@ -11,6 +11,7 @@ import type {
   CreateTokenRequest,
   UpdateTokenRequest,
   SceneUpdatedPayload,
+  TokenPublicDTO,
 } from '@vtt/shared';
 import { SceneRepository, type SceneWithTokens } from '../repositories/SceneRepository.js';
 import { TokenRepository } from '../repositories/TokenRepository.js';
@@ -142,12 +143,27 @@ export class SceneService {
 
     return {
       kind: 'accepted',
+      rawTokens: sceneTokens,
       sceneUpdate: {
         sceneId: token.sceneId,
         version: updated.version,
         tokens: projected,
       },
     };
+  }
+
+  /**
+   * Projects a list of raw tokens for a specific viewer (GM/Player/Observer).
+   * Used for efficient broadcasting without re-querying the DB.
+   */
+  projectTokens(
+    tokens: Token[],
+    viewerRole: Role,
+    viewerId: string,
+  ): TokenPublicDTO[] {
+    return tokens
+      .map((t) => projectToken(t, viewerRole, viewerId))
+      .filter((t): t is TokenPublicDTO => t !== null);
   }
 
   // -------- A4: Fog-of-War visibility --------
