@@ -112,6 +112,10 @@ model Scene {
   roomId            String   @db.Uuid
   name              String   @db.VarChar(128)
   backgroundAssetId String?  @db.Uuid
+  backgroundFit     String   @default("cover")
+  backgroundOffsetX Float    @default(0)
+  backgroundOffsetY Float    @default(0)
+  backgroundScale   Float    @default(1.0)
   gridSize          Int
   // Scene grid dimensions in cells — used by FoW algorithm A4 (visibility[W][H]).
   gridWidth         Int      @default(40)

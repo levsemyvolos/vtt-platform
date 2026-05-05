@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AssetDTO, ImageSceneObject } from '@vtt/shared';
+import type { AssetDTO, ImageSceneObject, BackgroundFit } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { applyDraftSceneUpdate, clearFogMask, appendSceneObject } from '../../store/scene';
 import { emitFogClear } from '../../api/socket';
@@ -35,6 +35,8 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
   const [gridWidth, setGridWidth] = useState(String(scene?.gridWidth ?? 20));
   const [gridHeight, setGridHeight] = useState(String(scene?.gridHeight ?? 15));
   const [gridVisible, setGridVisible] = useState(scene?.gridVisible ?? true);
+  const [lockAspect, setLockAspect] = useState(false);
+  const [imageAspect, setImageAspect] = useState<number | null>(null);
   useEffect(() => {
     if (!scene) return;
     setGridSize(String(scene.gridSize));
@@ -53,6 +55,63 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
         gridVisible,
       },
     }));
+  }
+
+  function handleGridWidthChange(value: string): void {
+    setGridWidth(value);
+    if (lockAspect && imageAspect !== null && Number(value) > 0) {
+      const newH = Math.max(1, Math.round(Number(value) / imageAspect));
+      setGridHeight(String(newH));
+    }
+  }
+
+  function handleGridHeightChange(value: string): void {
+    setGridHeight(value);
+    if (lockAspect && imageAspect !== null && Number(value) > 0) {
+      const newW = Math.max(1, Math.round(Number(value) * imageAspect));
+      setGridWidth(String(newW));
+    }
+  }
+
+  async function loadImageNaturalSize(url: string): Promise<{ w: number; h: number } | null> {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    const loaded = await new Promise<boolean>((resolve) => {
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = url;
+    });
+    if (!loaded || img.naturalWidth === 0) return null;
+    return { w: img.naturalWidth, h: img.naturalHeight };
+  }
+
+  async function handleFitToImage(): Promise<void> {
+    if (!scene?.backgroundUrl) return;
+    const size = await loadImageNaturalSize(scene.backgroundUrl);
+    if (!size) return;
+    const aspect = size.w / size.h;
+    const currentGridSize = scene.gridSize;
+    const newGridWidth = Math.max(1, Math.round(size.w / currentGridSize));
+    const newGridHeight = Math.max(1, Math.round(newGridWidth / aspect));
+    setGridWidth(String(newGridWidth));
+    setGridHeight(String(newGridHeight));
+    dispatch(applyDraftSceneUpdate({
+      patch: { gridWidth: newGridWidth, gridHeight: newGridHeight },
+    }));
+  }
+
+  async function handleToggleLockAspect(checked: boolean): Promise<void> {
+    setLockAspect(checked);
+    if (checked && scene?.backgroundUrl) {
+      const size = await loadImageNaturalSize(scene.backgroundUrl);
+      if (size) {
+        setImageAspect(size.w / size.h);
+      } else {
+        setImageAspect(null);
+      }
+    } else {
+      setImageAspect(null);
+    }
   }
 
   // Set the asset as the scene background.
@@ -116,6 +175,74 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
       </section>
 
       <section className={styles.section}>
+        <p className={styles.heading}>{t('sceneEditor.leftToolbar.background')}</p>
+        <label className={styles.fieldRow}>
+          <span className={styles.fieldLabel}>{t('sceneEditor.bg.fitLabel')}</span>
+          <select
+            className={styles.numInput}
+            value={scene?.backgroundFit ?? 'cover'}
+            onChange={(e) => dispatch(applyDraftSceneUpdate({
+              patch: { backgroundFit: e.target.value as BackgroundFit },
+            }))}
+            aria-label={t('sceneEditor.bg.fitLabel')}
+          >
+            <option value="cover">{t('sceneEditor.bg.fit.cover')}</option>
+            <option value="contain">{t('sceneEditor.bg.fit.contain')}</option>
+            <option value="stretch">{t('sceneEditor.bg.fit.stretch')}</option>
+          </select>
+        </label>
+        <label className={styles.fieldRow}>
+          <span className={styles.fieldLabel}>{t('sceneEditor.bg.offsetXLabel')}</span>
+          <input
+            type="number"
+            className={styles.numInput}
+            value={scene?.backgroundOffsetX ?? 0}
+            step={10}
+            onChange={(e) => dispatch(applyDraftSceneUpdate({
+              patch: { backgroundOffsetX: Number(e.target.value) },
+            }))}
+            aria-label={t('sceneEditor.bg.offsetXLabel')}
+          />
+        </label>
+        <label className={styles.fieldRow}>
+          <span className={styles.fieldLabel}>{t('sceneEditor.bg.offsetYLabel')}</span>
+          <input
+            type="number"
+            className={styles.numInput}
+            value={scene?.backgroundOffsetY ?? 0}
+            step={10}
+            onChange={(e) => dispatch(applyDraftSceneUpdate({
+              patch: { backgroundOffsetY: Number(e.target.value) },
+            }))}
+            aria-label={t('sceneEditor.bg.offsetYLabel')}
+          />
+        </label>
+        <label className={styles.fieldRow}>
+          <span className={styles.fieldLabel}>{t('sceneEditor.bg.scaleLabel')}</span>
+          <input
+            type="number"
+            className={styles.numInput}
+            value={scene?.backgroundScale ?? 1}
+            step={0.1}
+            min={0.05}
+            max={20}
+            onChange={(e) => dispatch(applyDraftSceneUpdate({
+              patch: { backgroundScale: Number(e.target.value) },
+            }))}
+            aria-label={t('sceneEditor.bg.scaleLabel')}
+          />
+        </label>
+        <button
+          type="button"
+          className={styles.saveBtn}
+          onClick={() => { void handleFitToImage(); }}
+          disabled={!scene?.backgroundUrl}
+        >
+          {t('sceneEditor.bg.fitToImageBtn')}
+        </button>
+      </section>
+
+      <section className={styles.section}>
         <p className={styles.heading}>{t('sceneEditor.leftToolbar.grid')}</p>
         <form onSubmit={(e) => handleGridSave(e)} className={styles.gridForm}>
           <label className={styles.fieldRow}>
@@ -125,6 +252,15 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
               checked={gridVisible}
               onChange={(e) => setGridVisible(e.target.checked)}
               aria-label={t('sceneEditor.grid.visibleLabel')}
+            />
+          </label>
+          <label className={styles.fieldRow}>
+            <span className={styles.fieldLabel}>{t('sceneEditor.grid.lockAspectLabel')}</span>
+            <input
+              type="checkbox"
+              checked={lockAspect}
+              onChange={(e) => { void handleToggleLockAspect(e.target.checked); }}
+              aria-label={t('sceneEditor.grid.lockAspectLabel')}
             />
           </label>
           <label className={styles.fieldRow}>
@@ -147,7 +283,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
               value={gridWidth}
               min={1}
               max={100}
-              onChange={(e) => setGridWidth(e.target.value)}
+              onChange={(e) => handleGridWidthChange(e.target.value)}
               aria-label={t('sceneEditor.grid.widthLabel')}
             />
           </label>
@@ -159,7 +295,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
               value={gridHeight}
               min={1}
               max={100}
-              onChange={(e) => setGridHeight(e.target.value)}
+              onChange={(e) => handleGridHeightChange(e.target.value)}
               aria-label={t('sceneEditor.grid.heightLabel')}
             />
           </label>

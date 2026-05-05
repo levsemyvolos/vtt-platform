@@ -8,6 +8,7 @@ import type {
   ChatMode,
   DiceMode,
   StatusMarker,
+  BackgroundFit,
 } from '@vtt/shared';
 import { AssetService } from './AssetService.js';
 import { parseAnnotations, parseFogShapes } from './DrawService.js';
@@ -78,6 +79,10 @@ export function projectScene(
     isHidden: scene.isHidden,
     fogShapes: parseFogShapes(scene.fogShapes),
     backgroundUrl: scene.backgroundAssetId ? AssetService.getProxyUrl(scene.backgroundAssetId) : null,
+    backgroundFit: (scene.backgroundFit as BackgroundFit) ?? 'cover',
+    backgroundOffsetX: scene.backgroundOffsetX,
+    backgroundOffsetY: scene.backgroundOffsetY,
+    backgroundScale: scene.backgroundScale,
     tokens,
     annotations,
   };

@@ -56,6 +56,10 @@ const MOCK_SCENE: SceneDTO = {
   fogShapes: [],
   annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   tokens: [],
+  backgroundFit: 'cover' as const,
+  backgroundOffsetX: 0,
+  backgroundOffsetY: 0,
+  backgroundScale: 1.0,
 };
 
 function makeStore() {

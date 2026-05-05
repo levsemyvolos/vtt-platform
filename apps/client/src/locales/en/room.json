@@ -196,13 +196,24 @@
     },
     "placeholder": "Select an element to edit",
     "bg": {
-      "aiBtn": "Generate AI"
+      "aiBtn": "Generate AI",
+      "fitLabel": "Fit",
+      "fit": {
+        "cover": "Cover",
+        "contain": "Contain",
+        "stretch": "Stretch"
+      },
+      "offsetXLabel": "Offset X",
+      "offsetYLabel": "Offset Y",
+      "scaleLabel": "Scale",
+      "fitToImageBtn": "Fit to image"
     },
     "grid": {
       "sizeLabel": "Cell size (px)",
       "widthLabel": "Width (cells)",
       "heightLabel": "Height (cells)",
       "visibleLabel": "Show grid",
+      "lockAspectLabel": "Lock aspect",
       "saveBtn": "Save"
     },
     "fog": {

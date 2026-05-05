@@ -282,6 +282,10 @@ export class SceneService {
         ? { connect: { id: dto.backgroundAssetId } }
         : { disconnect: true };
     }
+    if (dto.backgroundFit !== undefined) data.backgroundFit = dto.backgroundFit;
+    if (dto.backgroundOffsetX !== undefined) data.backgroundOffsetX = dto.backgroundOffsetX;
+    if (dto.backgroundOffsetY !== undefined) data.backgroundOffsetY = dto.backgroundOffsetY;
+    if (dto.backgroundScale !== undefined) data.backgroundScale = dto.backgroundScale;
     return this.scenes.update(sceneId, data);
   }
 

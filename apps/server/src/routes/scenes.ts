@@ -8,6 +8,7 @@ import type {
   UpdateTokenRequest,
   ServerToClientEvents,
   ClientToServerEvents,
+  BackgroundFit,
 } from '@vtt/shared';
 import type { Server } from 'socket.io';
 import { projectToken } from '../services/projections.js';
@@ -59,6 +60,10 @@ function toSceneDTOFromEntity(scene: {
   isActive: boolean;
   isHidden: boolean;
   fogShapes?: unknown;
+  backgroundFit?: string | null;
+  backgroundOffsetX?: number | null;
+  backgroundOffsetY?: number | null;
+  backgroundScale?: number | null;
 }): SceneDTO {
   return {
     id: scene.id,
@@ -71,6 +76,10 @@ function toSceneDTOFromEntity(scene: {
     isActive: scene.isActive,
     isHidden: scene.isHidden,
     fogShapes: parseFogShapes(scene.fogShapes),
+    backgroundFit: (scene.backgroundFit as BackgroundFit) ?? 'cover',
+    backgroundOffsetX: scene.backgroundOffsetX ?? 0,
+    backgroundOffsetY: scene.backgroundOffsetY ?? 0,
+    backgroundScale: scene.backgroundScale ?? 1.0,
     tokens: [],
     annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   };

@@ -38,6 +38,10 @@ const MOCK_SCENE: SceneDTO = {
       version: 1,
     },
   ],
+  backgroundFit: 'cover' as const,
+  backgroundOffsetX: 0,
+  backgroundOffsetY: 0,
+  backgroundScale: 1.0,
 };
 
 function makeStore() {

@@ -19,6 +19,10 @@ interface SceneDraftPatch {
   gridHeight?: number;
   gridVisible?: boolean;
   backgroundAssetId?: string;
+  backgroundFit?: 'cover' | 'contain' | 'stretch';
+  backgroundOffsetX?: number;
+  backgroundOffsetY?: number;
+  backgroundScale?: number;
 }
 
 interface SceneState {
@@ -37,7 +41,8 @@ interface SceneState {
   selectedTokenId: string | null;
   /** Selected scene object ids (multi-select, Sess 3 Mini-C). */
   selectedSceneObjectIds: string[];
-  /** Buffered scene-level edits (gridSize/gridWidth/gridHeight/gridVisible/backgroundAssetId)
+  /** Buffered scene-level edits (gridSize/gridWidth/gridHeight/gridVisible/backgroundAssetId/
+   * backgroundFit/backgroundOffsetX/backgroundOffsetY/backgroundScale)
    * accumulated during Edit Scene. Flushed by EditorTopBar.handleDone via a single
    * PATCH /scenes/:id call. Reset to null on hydrate/clear/handleDone success. */
   draftPatch: SceneDraftPatch | null;
@@ -436,6 +441,10 @@ const sceneSlice = createSlice({
       if (patch.gridWidth !== undefined) state.current.gridWidth = patch.gridWidth;
       if (patch.gridHeight !== undefined) state.current.gridHeight = patch.gridHeight;
       if (patch.gridVisible !== undefined) state.current.gridVisible = patch.gridVisible;
+      if (patch.backgroundFit !== undefined) state.current.backgroundFit = patch.backgroundFit;
+      if (patch.backgroundOffsetX !== undefined) state.current.backgroundOffsetX = patch.backgroundOffsetX;
+      if (patch.backgroundOffsetY !== undefined) state.current.backgroundOffsetY = patch.backgroundOffsetY;
+      if (patch.backgroundScale !== undefined) state.current.backgroundScale = patch.backgroundScale;
       if (action.payload.backgroundUrl !== undefined) {
         state.current.backgroundUrl = action.payload.backgroundUrl;
       }

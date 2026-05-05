@@ -13,7 +13,7 @@ export interface AuthTokenPair {
   user: UserPublic;
 }
 
-import type { Role } from '../shared/index';
+import type { Role, BackgroundFit } from '../shared/index';
 
 export interface RoomMemberDTO {
   userId: string;
@@ -83,6 +83,10 @@ export interface UpdateSceneRequest {
   gridVisible?: boolean;
   backgroundAssetId?: string | null;
   isHidden?: boolean;
+  backgroundFit?: BackgroundFit;
+  backgroundOffsetX?: number;
+  backgroundOffsetY?: number;
+  backgroundScale?: number;
 }
 
 export interface AIImageRequest {

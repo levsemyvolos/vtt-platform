@@ -1,5 +1,7 @@
 export type Role = 'GM' | 'Player' | 'Observer';
 
+export type BackgroundFit = 'cover' | 'contain' | 'stretch';
+
 export type ChatMode = 'normal' | 'ic' | 'ooc' | 'whisper' | 'secret_roll';
 
 export type DiceMode = 'normal' | 'advantage' | 'disadvantage' | 'secret';
@@ -208,6 +210,14 @@ export interface SceneDTO {
   tokens: TokenPublicDTO[];
   /** Optional URL for the scene background bitmap (Ф2.2.5). */
   backgroundUrl?: string | null;
+  /** Background image fit mode (Mini-A). */
+  backgroundFit: BackgroundFit;
+  /** Horizontal offset of the background image in pixels (Mini-A). */
+  backgroundOffsetX: number;
+  /** Vertical offset of the background image in pixels (Mini-A). */
+  backgroundOffsetY: number;
+  /** Scale multiplier applied to the background image natural size (Mini-A). */
+  backgroundScale: number;
   /** Structured canvas annotations — strokes + text labels + image overlays (Ф3.4.2–5). */
   annotations: SceneAnnotations;
 }

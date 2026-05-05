@@ -197,13 +197,24 @@
     },
     "placeholder": "Оберіть елемент для редагування",
     "bg": {
-      "aiBtn": "Згенерувати AI"
+      "aiBtn": "Згенерувати AI",
+      "fitLabel": "Підгін",
+      "fit": {
+        "cover": "Cover",
+        "contain": "Contain",
+        "stretch": "Stretch"
+      },
+      "offsetXLabel": "Зсув X",
+      "offsetYLabel": "Зсув Y",
+      "scaleLabel": "Масштаб",
+      "fitToImageBtn": "Підігнати під зображення"
     },
     "grid": {
       "sizeLabel": "Розмір клітинки (px)",
       "widthLabel": "Ширина (кліток)",
       "heightLabel": "Висота (кліток)",
       "visibleLabel": "Показувати сітку",
+      "lockAspectLabel": "Зафіксувати співвідношення",
       "saveBtn": "Зберегти"
     },
     "fog": {

@@ -19,6 +19,7 @@ const mockScene: SceneDTO = {
   id: 'scene-1', roomId: 'room-1', name: 'Scene', gridSize: 50,
   gridWidth: 20, gridHeight: 20, gridVisible: true, isActive: true, isHidden: false,
   fogShapes: [], annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] }, tokens: [mockToken],
+  backgroundFit: 'cover', backgroundOffsetX: 0, backgroundOffsetY: 0, backgroundScale: 1.0,
 };
 
 function makeStore() {

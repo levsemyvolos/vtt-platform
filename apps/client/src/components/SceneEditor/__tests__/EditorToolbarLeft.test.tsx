@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import sceneReducer, { hydrateScene, appendSceneObject } from '../../../store/scene';
@@ -52,6 +52,10 @@ function makeScene(overrides: Partial<SceneDTO> = {}): SceneDTO {
     tokens: [],
     fogMask: null,
     backgroundUrl: null,
+    backgroundFit: 'cover',
+    backgroundOffsetX: 0,
+    backgroundOffsetY: 0,
+    backgroundScale: 1,
     annotations: { strokes: [], images: [], texts: [], objects: [] },
     ...overrides,
   } as unknown as SceneDTO;
@@ -147,5 +151,22 @@ describe('EditorToolbarLeft', () => {
 
     uuidSpy.mockRestore();
     dispatchSpy.mockRestore();
+  });
+
+  it('selecting "contain" in the fit dropdown dispatches applyDraftSceneUpdate with backgroundFit:contain', () => {
+    const store = makeStore();
+    store.dispatch(hydrateScene(makeScene()));
+
+    render(
+      <Provider store={store}>
+        <EditorToolbarLeft roomId="r1" sceneId="s1" />
+      </Provider>,
+    );
+
+    const fitSelect = screen.getByRole('combobox', { name: /fit|підгін/i });
+    fireEvent.change(fitSelect, { target: { value: 'contain' } });
+
+    expect(store.getState().scene.draftPatch).toEqual({ backgroundFit: 'contain' });
+    expect(store.getState().scene.current?.backgroundFit).toBe('contain');
   });
 });

@@ -21,6 +21,10 @@ function makeScene(): SceneDTO {
     fogShapes: [],
     annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
     tokens: [],
+    backgroundFit: 'cover',
+    backgroundOffsetX: 0,
+    backgroundOffsetY: 0,
+    backgroundScale: 1.0,
   };
 }
 
@@ -108,5 +112,40 @@ describe('scene slice — draftPatch reducers (Mini-A)', () => {
     expect(state.draftPatch).not.toBeNull();
     state = sceneReducer(state, clearScene());
     expect(state.draftPatch).toBeNull();
+  });
+
+  it('applyDraftSceneUpdate mirrors backgroundFit into current', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeScene()));
+    state = sceneReducer(state, applyDraftSceneUpdate({ patch: { backgroundFit: 'contain' } }));
+    expect(state.current?.backgroundFit).toBe('contain');
+    expect(state.draftPatch).toEqual({ backgroundFit: 'contain' });
+  });
+
+  it('applyDraftSceneUpdate mirrors backgroundOffsetX and backgroundOffsetY into current', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeScene()));
+    state = sceneReducer(
+      state,
+      applyDraftSceneUpdate({ patch: { backgroundOffsetX: 100, backgroundOffsetY: -50 } }),
+    );
+    expect(state.current?.backgroundOffsetX).toBe(100);
+    expect(state.current?.backgroundOffsetY).toBe(-50);
+    expect(state.draftPatch).toEqual({ backgroundOffsetX: 100, backgroundOffsetY: -50 });
+  });
+
+  it('applyDraftSceneUpdate mirrors backgroundScale into current', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeScene()));
+    state = sceneReducer(state, applyDraftSceneUpdate({ patch: { backgroundScale: 1.5 } }));
+    expect(state.current?.backgroundScale).toBe(1.5);
+    expect(state.draftPatch).toEqual({ backgroundScale: 1.5 });
+  });
+
+  it('background fields merge cumulatively into draftPatch with grid fields', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeScene()));
+    state = sceneReducer(state, applyDraftSceneUpdate({ patch: { gridSize: 60 } }));
+    state = sceneReducer(state, applyDraftSceneUpdate({ patch: { backgroundFit: 'stretch', backgroundScale: 2 } }));
+    expect(state.draftPatch).toEqual({ gridSize: 60, backgroundFit: 'stretch', backgroundScale: 2 });
+    expect(state.current?.gridSize).toBe(60);
+    expect(state.current?.backgroundFit).toBe('stretch');
+    expect(state.current?.backgroundScale).toBe(2);
   });
 });

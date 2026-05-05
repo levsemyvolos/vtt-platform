@@ -212,6 +212,10 @@ export default function GameCanvas({
           gridWidth={scene.gridWidth}
           gridHeight={scene.gridHeight}
           gridVisible={scene.gridVisible}
+          fit={scene.backgroundFit}
+          offsetX={scene.backgroundOffsetX}
+          offsetY={scene.backgroundOffsetY}
+          scale={scene.backgroundScale}
         />
         <TokenLayer
           sceneId={scene.id}
