@@ -5,6 +5,10 @@
     "wssHealthOffline": "WSS відключено",
     "noScene": "Оберіть сцену",
     "settingsDisabled": "Налаштування (незабаром)",
+    "hideSidebar": "Сховати панель",
+    "showSidebar": "Показати панель",
+    "reconnect": "Перепідключити peers",
+    "reconnectToast": "Перепідключаємо peer-з'єднання…",
     "logout": "Вийти",
     "editScene": "Редагувати сцену"
   },
@@ -25,7 +29,50 @@
     "unboundToast": "Інструмент у розробці; буде увімкнено в наступному релізі"
   },
   "party": {
-    "eyebrow": "УЧАСНИКИ"
+    "eyebrow": "УЧАСНИКИ",
+    "participantsCount": "Учасники · {{count}}",
+    "participantsHide": "СХОВАТИ",
+    "participantsShow": "ПОКАЗАТИ"
+  },
+  "videoCall": {
+    "aria": "Відео-чат сесії",
+    "joinPrompt": "Підключіться до голосу та відео, щоб бачити інших учасників",
+    "joinBtn": "Підключитися",
+    "selfLabel": "Я",
+    "muteMic": "Вимкнути мікрофон",
+    "unmuteMic": "Увімкнути мікрофон",
+    "camOn": "Камера",
+    "camOff": "Камера вимкн.",
+    "micOn": "Мікрофон",
+    "micOff": "Без звуку",
+    "meshCeiling": "Відео вимкнено — досягнуто межі mesh",
+    "negotiationError": "З'єднання з {{peer}} не вдалося — оновіть сторінку"
+  },
+  "gmMutedYou": "ГМ вимкнув ваш мікрофон",
+  "gmCamOff": "ГМ вимкнув вашу камеру",
+  "kickedFromRoom": "Вас було видалено з сесії гейм-майстром",
+  "mediaControls": {
+    "aria": "Керування мікрофоном і камерою"
+  },
+  "participantMenu": {
+    "openMenu": "Більше дій",
+    "youPrefix": "Ви ·",
+    "muteSelf": "Вимкнути свій мікрофон",
+    "unmuteSelf": "Увімкнути свій мікрофон",
+    "cameraOff": "Вимкнути свою камеру",
+    "cameraOn": "Увімкнути свою камеру",
+    "pinForMe": "Закріпити (тільки для мене)",
+    "unpinForMe": "Відкріпити",
+    "muteLocally": "Вимкнути локально",
+    "serverMute": "Серверний mute",
+    "forceCamOff": "Примусово вимкнути камеру",
+    "demote": "Понизити до Observer",
+    "kick": "Виключити з сесії",
+    "comingNextEpoch": "доступно в наступній епосі",
+    "notJoined": "Спершу натисніть «Підключитися»"
+  },
+  "turnRibbon": {
+    "format": "{{name}} · ХІД · РАУНД {{round}}"
   },
   "statusBar": {
     "scene": "Сцена",

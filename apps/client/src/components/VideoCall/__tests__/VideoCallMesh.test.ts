@@ -11,9 +11,12 @@ class FakePC {
   remoteDescriptionSet = false;
   connectionState: RTCPeerConnectionState = 'connecting';
 
+  signalingState: RTCSignalingState = 'stable';
+
   onicecandidate: ((e: { candidate: RTCIceCandidate | null }) => void) | null = null;
   ontrack: ((e: { streams: MediaStream[] }) => void) | null = null;
   onconnectionstatechange: (() => void) | null = null;
+  onnegotiationneeded: (() => void | Promise<void>) | null = null;
 
   createOffer = vi.fn(
     async (): Promise<RTCSessionDescriptionInit> => ({ type: 'offer', sdp: 'mock-offer' }),
@@ -21,8 +24,9 @@ class FakePC {
   createAnswer = vi.fn(
     async (): Promise<RTCSessionDescriptionInit> => ({ type: 'answer', sdp: 'mock-answer' }),
   );
-  setLocalDescription = vi.fn(async (desc: RTCSessionDescriptionInit): Promise<void> => {
-    this.localDescription = desc;
+  setLocalDescription = vi.fn(async (desc?: RTCSessionDescriptionInit): Promise<void> => {
+    // Implicit createOffer/createAnswer when no arg (Perfect Negotiation pattern).
+    this.localDescription = desc ?? { type: 'offer', sdp: 'mock-offer' };
   });
   setRemoteDescription = vi.fn(async (): Promise<void> => {
     this.remoteDescriptionSet = true;
@@ -113,8 +117,12 @@ describe('PeerManager — 2-peer mesh handshake', () => {
     await peerA.startLocalMedia();
     await peerB.startLocalMedia();
 
-    // Step 1: A initiates offer to B.
-    await peerA.call('bob');
+    // Step 1: A initiates offer to B (Perfect Negotiation: ensurePeer → onnegotiationneeded → offer).
+    peerA.call('bob');
+    const pcAEarly = FakePC.instances[0]!;
+    // Real RTCPeerConnection would auto-fire negotiationneeded after addTrack;
+    // simulate it manually since FakePC doesn't.
+    await pcAEarly.onnegotiationneeded?.();
 
     const offerSig = collectedSignals.find(
       (s) => s.event === 'signal:offer' && s.from === 'alice',
@@ -164,13 +172,14 @@ describe('PeerManager — 2-peer mesh handshake', () => {
     expect(onStreamB).toHaveBeenCalledWith('alice', streamFromA);
   });
 
-  it('buffers ICE candidates received before remote description is set, then flushes', async () => {
+  it('forwards ICE candidates to addIceCandidate immediately (Perfect Negotiation)', async () => {
     const a = makeManager('alice');
     await a.startLocalMedia();
 
     const iceCandidate = { candidate: 'mock-ice', sdpMid: '0', sdpMLineIndex: 0 };
 
-    // ICE arrives before offer — must be buffered, NOT passed to addIceCandidate yet.
+    // ICE arrives — Perfect Negotiation passes it through immediately;
+    // tolerated errors fall through addIceCandidate's catch.
     await a.handleSignal('signal:ice', {
       roomId: 'room-1',
       toUserId: 'alice',
@@ -180,16 +189,6 @@ describe('PeerManager — 2-peer mesh handshake', () => {
 
     const pc = FakePC.instances[0]!;
     expect(pc).toBeDefined();
-    expect(pc.addIceCandidate).not.toHaveBeenCalled();
-
-    // Offer arrives → sets remote description → pending candidates flushed.
-    await a.handleSignal('signal:offer', {
-      roomId: 'room-1',
-      toUserId: 'alice',
-      fromUserId: 'bob',
-      data: { type: 'offer', sdp: 'sdp-payload' },
-    });
-
     expect(pc.addIceCandidate).toHaveBeenCalledOnce();
     expect(pc.addIceCandidate).toHaveBeenCalledWith(iceCandidate);
   });

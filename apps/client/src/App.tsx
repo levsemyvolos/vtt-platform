@@ -21,7 +21,6 @@ import RoomLobby from './pages/RoomLobby/RoomLobby';
 import GameRoom from './pages/GameRoom/GameRoom';
 import SceneEditor from './pages/SceneEditor/SceneEditor';
 import { AppShell } from './components/layout/AppShell';
-import DesktopOnlyGuard from './components/common/DesktopOnlyGuard';
 import Toast from './components/common/Toast';
 import BootstrapLoader from './components/common/BootstrapLoader';
 
@@ -206,7 +205,7 @@ export default function App() {
     status === 'authenticated' && isObserver && !currentRoom && Boolean(observerBoundRoomId);
 
   return (
-    <DesktopOnlyGuard>
+    <>
       <Toast />
       {/* Wave 6.2: BootstrapLoader only for bootstrap-level errors (network/5xx), NOT for
            authForm rejections (login 401, register 409, observer invalid invite). */}
@@ -225,6 +224,6 @@ export default function App() {
           <Dashboard />
         </AppShell>
       )}
-    </DesktopOnlyGuard>
+    </>
   );
 }

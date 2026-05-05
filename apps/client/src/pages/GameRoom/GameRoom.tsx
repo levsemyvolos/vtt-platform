@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -11,9 +11,23 @@ import GameCanvas from '../../components/GameCanvas/GameCanvas';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import AssistantPanel from '../../components/AssistantPanel/AssistantPanel';
 import { GameRoomTopBar, CanvasToolbar, PartyColumn, StatusBar } from '../../components/GameRoom';
+import TurnRibbon from '../../components/GameRoom/TurnRibbon';
 import FogControlsPopover from '../../components/GameRoom/FogControlsPopover';
 import type { SidebarTab } from '../../components/GameRoom';
 import styles from './GameRoom.module.css';
+
+const TAB_KEY = 'vtt.sidebarActiveTab';
+const COLLAPSED_KEY = 'vtt.sidebarCollapsed';
+const WIDTH_KEY = 'vtt.sidebarWidth';
+const SIDEBAR_DEFAULT_WIDTH = 380;
+const SIDEBAR_COLLAPSED_WIDTH = 44;
+
+function readSavedTab(): SidebarTab {
+  const saved = localStorage.getItem(TAB_KEY);
+  const valid: SidebarTab[] = ['chat', 'dice', 'initiative', 'character', 'handouts', 'notes', 'audio'];
+  if (saved && (valid as string[]).includes(saved)) return saved as SidebarTab;
+  return 'chat';
+}
 
 function resolveCanvasMsg(
   hydrating: boolean,
@@ -45,8 +59,11 @@ export default function GameRoom(): JSX.Element | null {
   const scene = useAppSelector((s) => s.scene.current);
   const [hydrating, setHydrating] = useState(false);
   const [hydrateError, setHydrateError] = useState<string | null>(null);
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('initiative');
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>(readSavedTab);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const gameRoomRef = useRef<HTMLDivElement>(null);
 
   const roomId = currentRoom?.id;
   const myUserId = currentUser?.id ?? '';
@@ -118,6 +135,25 @@ export default function GameRoom(): JSX.Element | null {
     }
   }, [dispatch, t]);
 
+  // Restore sidebar width and collapsed state from localStorage on mount
+  useEffect(() => {
+    const savedW = Number(localStorage.getItem(WIDTH_KEY)) || SIDEBAR_DEFAULT_WIDTH;
+    const savedC = localStorage.getItem(COLLAPSED_KEY) === '1';
+    setSidebarWidth(savedW);
+    setSidebarCollapsed(savedC);
+  }, []);
+
+  // Sync sidebar CSS var: 44px when collapsed (mini-strip), full width otherwise.
+  useEffect(() => {
+    const w = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth;
+    gameRoomRef.current?.style.setProperty('--sidebar-w', `${w}px`);
+  }, [sidebarWidth, sidebarCollapsed]);
+
+  // Persist active tab.
+  useEffect(() => {
+    localStorage.setItem(TAB_KEY, sidebarTab);
+  }, [sidebarTab]);
+
   if (!currentRoom) return null;
 
   const canvasMsg = resolveCanvasMsg(
@@ -130,22 +166,53 @@ export default function GameRoom(): JSX.Element | null {
 
   function handleOpenTab(tab: SidebarTab): void {
     setSidebarTab(tab);
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+      localStorage.setItem(COLLAPSED_KEY, '0');
+    }
   }
 
   function handleOpenAssistant(): void {
     setAssistantOpen(true);
   }
 
+  function handleToggleSidebar(): void {
+    setSidebarCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
+      return next;
+    });
+  }
+
+  function handleSidebarTabChange(tab: SidebarTab): void {
+    setSidebarTab(tab);
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+      localStorage.setItem(COLLAPSED_KEY, '0');
+    }
+  }
+
+  function handleSidebarResizeEnd(width: number): void {
+    setSidebarWidth(width);
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+      localStorage.setItem(COLLAPSED_KEY, '0');
+    }
+  }
+
   return (
-    <div className={styles.gameRoom}>
-      <GameRoomTopBar myRole={myRole} />
-      <CanvasToolbar
+    <div className={styles.gameRoom} ref={gameRoomRef}>
+      <GameRoomTopBar
         myRole={myRole}
-        onOpenTab={handleOpenTab}
-        onOpenAssistant={handleOpenAssistant}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={handleToggleSidebar}
       />
 
-      <PartyColumn roomId={currentRoom.id} myUserId={myUserId} />
+      <PartyColumn
+        roomId={currentRoom.id}
+        myUserId={myUserId}
+        myRole={myRole}
+      />
 
       <main className={styles.canvas}>
         {scene ? (
@@ -157,6 +224,13 @@ export default function GameRoom(): JSX.Element | null {
         ) : (
           <div className={styles.canvasPlaceholder}>{canvasMsg}</div>
         )}
+        <TurnRibbon />
+        <CanvasToolbar
+          myRole={myRole}
+          onOpenTab={handleOpenTab}
+          onOpenAssistant={handleOpenAssistant}
+        />
+        <StatusBar />
         {canShowFogControls(scene, myRole, activeTool) && (
           <FogControlsPopover roomId={currentRoom.id} />
         )}
@@ -169,10 +243,11 @@ export default function GameRoom(): JSX.Element | null {
         myCharacterId={myMember?.characterId ?? null}
         myUserId={myUserId}
         activeTab={sidebarTab}
-        onTabChange={setSidebarTab}
+        onTabChange={handleSidebarTabChange}
+        containerRef={gameRoomRef}
+        onResizeEnd={handleSidebarResizeEnd}
+        collapsed={sidebarCollapsed}
       />
-
-      <StatusBar />
 
       {assistantOpen && (
         <AssistantPanel

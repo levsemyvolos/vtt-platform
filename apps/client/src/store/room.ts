@@ -176,6 +176,10 @@ const roomSlice = createSlice({
         state.members.push(action.payload);
       }
     },
+    /** Moderation — remove a kicked member from local roster. */
+    removeRoomMember: (state, action: PayloadAction<string>) => {
+      state.members = state.members.filter((m) => m.userId !== action.payload);
+    },
     /** WS room:updated — sync room name/gameSystem changes from GM to all clients. */
     applyRoomUpdate: (state, action: PayloadAction<{ roomId: string; name: string; gameSystem: string }>) => {
       if (state.currentRoom?.id === action.payload.roomId) {
@@ -271,5 +275,5 @@ const roomSlice = createSlice({
   },
 });
 
-export const { setCurrentRoom, clearRoom, updateMembers, upsertRoomMember, applyRoomUpdate, startSession, startEditing, stopEditing, removeRoom } = roomSlice.actions;
+export const { setCurrentRoom, clearRoom, updateMembers, upsertRoomMember, removeRoomMember, applyRoomUpdate, startSession, startEditing, stopEditing, removeRoom } = roomSlice.actions;
 export default roomSlice.reducer;
