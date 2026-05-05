@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search } from 'lucide-react';
+import { LogIn, Plus, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { RoomDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { fetchRooms, fetchRoom } from '../../store/room';
+import { fetchRooms } from '../../store/room';
 import type { FetchRoomsOpts } from '../../store/room';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Tabs, { type TabItem } from '../../components/ui/Tabs';
-import { RoomCard, CreateRoomCard, CreateRoomModal, SortDropdown } from '../../components/Dashboard';
+import { RoomCard, CreateRoomCard, CreateRoomModal, JoinByCodeModal, SortDropdown } from '../../components/Dashboard';
 import type { SortField, SortOrder } from '../../components/Dashboard';
 import styles from './Dashboard.module.css';
 
@@ -38,6 +39,7 @@ function roleOf(room: RoomDTO, currentUserId: string | null): 'GM' | 'Player' | 
 // eslint-disable-next-line complexity
 export default function Dashboard() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { t } = useTranslation(['room', 'common', 'errors']);
   const { currentUser } = useAppSelector((s) => s.session);
   const { ownRooms, status, error } = useAppSelector((s) => s.room);
@@ -45,12 +47,14 @@ export default function Dashboard() {
   const [tab, setTab] = useState<DashboardTab>('my');
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
   const [sort, setSort] = useState<SortField>('lastActive');
   const [order, setOrder] = useState<SortOrder>('desc');
 
-  // B6-BUG-002: pass sort/order/filter on mount so server-side sort is applied from the start.
+  // Single fetch with filter='all' — partitionRooms() splits client-side, so both
+  // tab counts are accurate immediately and tab switching needs no refetch.
   useEffect(() => {
-    const opts: FetchRoomsOpts = { sort, order, filter: tab === 'my' ? 'owned' : 'invited' };
+    const opts: FetchRoomsOpts = { sort, order, filter: 'all' };
     void dispatch(fetchRooms(opts));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
@@ -75,17 +79,16 @@ export default function Dashboard() {
     : visible;
 
   const handleOpen = (room: RoomDTO) => {
-    void dispatch(fetchRoom(room.id));
+    navigate(`/rooms/${room.id}`);
   };
 
   const handleSortChange = (newSort: SortField, newOrder: SortOrder) => {
     setSort(newSort);
     setOrder(newOrder);
-    // B6-BUG-002: pass updated sort/order to fetchRooms so server re-sorts.
     const opts: FetchRoomsOpts = {
       sort: newSort,
       order: newOrder,
-      filter: tab === 'my' ? 'owned' : 'invited',
+      filter: 'all',
     };
     void dispatch(fetchRooms(opts));
   };
@@ -104,15 +107,24 @@ export default function Dashboard() {
             </p>
           )}
         </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus size={16} />}
-          onClick={() => setCreateOpen(true)}
-          disabled={limitReached}
-          title={limitReached ? t('errors:rooms.limitReached', { limit: ROOM_LIMIT }) : undefined}
-        >
-          {t('room:dashboard.createBtn')}
-        </Button>
+        <div className={styles.headerActions}>
+          <Button
+            variant="secondary"
+            leftIcon={<LogIn size={16} />}
+            onClick={() => setJoinOpen(true)}
+          >
+            {t('room:dashboard.joinBtn')}
+          </Button>
+          <Button
+            variant="primary"
+            leftIcon={<Plus size={16} />}
+            onClick={() => setCreateOpen(true)}
+            disabled={limitReached}
+            title={limitReached ? t('errors:rooms.limitReached', { limit: ROOM_LIMIT }) : undefined}
+          >
+            {t('room:dashboard.createBtn')}
+          </Button>
+        </div>
       </header>
 
       <div className={styles.toolbar}>
@@ -182,6 +194,7 @@ export default function Dashboard() {
       )}
 
       {createOpen && <CreateRoomModal onClose={() => setCreateOpen(false)} />}
+      {joinOpen && <JoinByCodeModal onClose={() => setJoinOpen(false)} />}
     </div>
   );
 }

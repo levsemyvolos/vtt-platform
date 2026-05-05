@@ -1,16 +1,7 @@
 /**
- * Wave 6.3.3 — Regression tests for currentRoomId localStorage persistence (BUG-001-F5).
  * Wave 6.5.1 — Regression tests for fetchRooms URL formation with sort/order/filter (B6-BUG-002).
- *
- * Verifies that:
- *  - setCurrentRoom writes the room ID to localStorage
- *  - clearRoom removes the room ID from localStorage
- *  - fetchRoom.fulfilled writes the room ID to localStorage
- *  - fetchRoom.rejected removes the stale room ID from localStorage
- *  - removeRoom clears localStorage when the removed room was the currentRoom
- *  - deleteRoom.fulfilled clears localStorage when the deleted room was the currentRoom
- *  - fetchRooms without opts → /api/rooms (no query string)
- *  - fetchRooms with sort/order/filter → correct query string forwarded to apiFetch
+ * URL-based navigation replaced the localStorage F5-persistence pattern (BUG-001-F5);
+ * those tests have been removed as the mechanism no longer exists.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import roomReducer, {
@@ -20,11 +11,8 @@ import roomReducer, {
   fetchRoom,
   fetchRooms,
   deleteRoom,
-  getPersistedRoomId,
 } from '../room';
 import type { RoomDTO } from '@vtt/shared';
-
-const PERSISTED_KEY = 'vtt_current_room_id';
 
 function makeRoom(overrides: Partial<RoomDTO> = {}): RoomDTO {
   return {
@@ -58,18 +46,6 @@ describe('setCurrentRoom', () => {
     expect(s.currentRoom?.id).toBe('room-1');
     expect(s.status).toBe('loaded');
   });
-
-  it('BUG-001-F5: persists room ID to localStorage', () => {
-    const room = makeRoom({ id: 'room-abc' });
-    roomReducer(init(), setCurrentRoom(room));
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-abc');
-  });
-
-  it('BUG-001-F5: getPersistedRoomId returns the persisted ID', () => {
-    const room = makeRoom({ id: 'room-xyz' });
-    roomReducer(init(), setCurrentRoom(room));
-    expect(getPersistedRoomId()).toBe('room-xyz');
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -82,41 +58,23 @@ describe('clearRoom', () => {
     expect(cleared.currentRoom).toBeNull();
     expect(cleared.status).toBe('idle');
   });
-
-  it('BUG-001-F5: removes room ID from localStorage', () => {
-    roomReducer(init(), setCurrentRoom(makeRoom({ id: 'room-to-clear' })));
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-to-clear');
-
-    const withRoom = roomReducer(init(), setCurrentRoom(makeRoom({ id: 'room-to-clear' })));
-    roomReducer(withRoom, clearRoom());
-    expect(localStorage.getItem(PERSISTED_KEY)).toBeNull();
-  });
 });
 
 // ---------------------------------------------------------------------------
 // fetchRoom thunk
 // ---------------------------------------------------------------------------
 describe('fetchRoom thunk', () => {
-  it('BUG-001-F5: fulfilled persists room ID to localStorage', () => {
-    const room = makeRoom({ id: 'restored-room' });
-    const action = fetchRoom.fulfilled(room, '', 'restored-room');
-    roomReducer(init(), action);
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('restored-room');
-  });
-
-  it('BUG-001-F5: fulfilled sets currentRoom in state', () => {
+  it('fulfilled sets currentRoom in state', () => {
     const room = makeRoom({ id: 'restored-room' });
     const action = fetchRoom.fulfilled(room, '', 'restored-room');
     const s = roomReducer(init(), action);
     expect(s.currentRoom?.id).toBe('restored-room');
   });
 
-  it('BUG-001-F5: rejected clears stale room ID from localStorage', () => {
-    // Pre-seed localStorage to simulate stale persisted ID
-    localStorage.setItem(PERSISTED_KEY, 'deleted-room');
+  it('rejected sets error status', () => {
     const action = fetchRoom.rejected(null, '', 'deleted-room', 'Не вдалося завантажити кімнату');
-    roomReducer(init(), action);
-    expect(localStorage.getItem(PERSISTED_KEY)).toBeNull();
+    const s = roomReducer(init(), action);
+    expect(s.status).toBe('error');
   });
 });
 
@@ -124,23 +82,18 @@ describe('fetchRoom thunk', () => {
 // removeRoom
 // ---------------------------------------------------------------------------
 describe('removeRoom', () => {
-  it('BUG-001-F5: clears localStorage when removed room was currentRoom', () => {
+  it('clears currentRoom when removed room was currentRoom', () => {
     const room = makeRoom({ id: 'room-gone' });
     const withRoom = roomReducer(init(), setCurrentRoom(room));
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-gone');
-
-    roomReducer(withRoom, removeRoom('room-gone'));
-    expect(localStorage.getItem(PERSISTED_KEY)).toBeNull();
+    const s = roomReducer(withRoom, removeRoom('room-gone'));
+    expect(s.currentRoom).toBeNull();
   });
 
-  it('does NOT clear localStorage when a different room is removed', () => {
+  it('does NOT clear currentRoom when a different room is removed', () => {
     const room = makeRoom({ id: 'room-active' });
     const withRoom = roomReducer(init(), setCurrentRoom(room));
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-active');
-
-    roomReducer(withRoom, removeRoom('room-other'));
-    // localStorage should still have the active room
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-active');
+    const s = roomReducer(withRoom, removeRoom('room-other'));
+    expect(s.currentRoom?.id).toBe('room-active');
   });
 });
 
@@ -148,24 +101,20 @@ describe('removeRoom', () => {
 // deleteRoom thunk
 // ---------------------------------------------------------------------------
 describe('deleteRoom thunk', () => {
-  it('BUG-001-F5: fulfilled clears localStorage when deleted room was currentRoom', () => {
+  it('fulfilled clears currentRoom when deleted room was currentRoom', () => {
     const room = makeRoom({ id: 'room-deleted' });
     const withRoom = roomReducer(init(), setCurrentRoom(room));
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-deleted');
-
     const action = deleteRoom.fulfilled('room-deleted', '', 'room-deleted');
-    roomReducer(withRoom, action);
-    expect(localStorage.getItem(PERSISTED_KEY)).toBeNull();
+    const s = roomReducer(withRoom, action);
+    expect(s.currentRoom).toBeNull();
   });
 
-  it('does NOT clear localStorage when a different room is deleted', () => {
+  it('does NOT clear currentRoom when a different room is deleted', () => {
     const room = makeRoom({ id: 'room-active' });
     const withRoom = roomReducer(init(), setCurrentRoom(room));
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-active');
-
     const action = deleteRoom.fulfilled('room-other', '', 'room-other');
-    roomReducer(withRoom, action);
-    expect(localStorage.getItem(PERSISTED_KEY)).toBe('room-active');
+    const s = roomReducer(withRoom, action);
+    expect(s.currentRoom?.id).toBe('room-active');
   });
 });
 
@@ -173,7 +122,6 @@ describe('deleteRoom thunk', () => {
 // B6-BUG-002 — fetchRooms URL formation with sort/order/filter
 // ---------------------------------------------------------------------------
 
-// We mock apiFetch at the module level so we can inspect the URL it was called with.
 vi.mock('../../api/apiFetch', () => ({
   apiFetch: vi.fn().mockResolvedValue([]),
 }));

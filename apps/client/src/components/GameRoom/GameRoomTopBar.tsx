@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Film, PanelRightClose, PanelRightOpen, RotateCw } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { clearRoom } from '../../store/room';
 import { activateScene, loadScenes } from '../../store/scenes';
+import { endSession } from '../../store/room';
 import { logout, selectIsObserver } from '../../store/session';
 import { addToast } from '../../store/toast';
 import { peerManagerRef } from '../../infrastructure/webrtc/peerManagerRef';
@@ -45,6 +46,7 @@ function useWssConnected(): boolean {
 // eslint-disable-next-line complexity
 export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSidebar }: GameRoomTopBarProps): JSX.Element {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { t } = useTranslation('gameroom');
   const { t: tRoom } = useTranslation('room');
 
@@ -86,11 +88,12 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
   }, [currentRoom?.id, dispatch]);
 
   function handleBack(): void {
-    // Observers have no Dashboard to return to — dispatch logout instead.
     if (isObserver) {
       void dispatch(logout());
     } else {
-      dispatch(clearRoom());
+      // Clear sessionActive so RoomLobbyRoute doesn't bounce back to /session
+      dispatch(endSession());
+      navigate(`/rooms/${currentRoom?.id ?? ''}`);
     }
   }
 

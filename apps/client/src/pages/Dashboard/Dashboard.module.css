@@ -15,6 +15,12 @@
   flex-wrap: wrap;
 }
 
+.headerActions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
 .titleBlock {
   display: flex;
   flex-direction: column;
