@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronUp, LogOut } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../../store';
@@ -8,20 +9,34 @@ import ThemeToggle from '../../Header/ThemeToggle';
 import LanguageSwitcher from '../../Header/LanguageSwitcher';
 import styles from './UserChip.module.css';
 
+interface MenuPos {
+  left: number;
+  bottom: number;
+  width: number;
+}
+
 export default function UserChip() {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['nav', 'common']);
   const { currentUser } = useAppSelector((s) => s.session);
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<MenuPos | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const chipRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     function handle(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
+      const target = e.target as Node;
+      if (
+        wrapRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
       }
+      setOpen(false);
     }
     window.addEventListener('mousedown', handle);
     return () => window.removeEventListener('mousedown', handle);
@@ -37,6 +52,26 @@ export default function UserChip() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [open]);
 
+  // Compute fixed-position coordinates (avoids overflow:hidden parents).
+  useLayoutEffect(() => {
+    if (!open || !chipRef.current) return;
+    function updatePos(): void {
+      const rect = chipRef.current!.getBoundingClientRect();
+      setMenuPos({
+        left: rect.left,
+        bottom: window.innerHeight - rect.top + 8,
+        width: Math.max(rect.width, 220),
+      });
+    }
+    updatePos();
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+    };
+  }, [open]);
+
   if (!currentUser) return null;
 
   const handleLogout = () => {
@@ -47,6 +82,7 @@ export default function UserChip() {
   return (
     <div className={styles.wrap} ref={wrapRef}>
       <button
+        ref={chipRef}
         type="button"
         className={styles.chip}
         onClick={() => setOpen((v) => !v)}
@@ -61,8 +97,18 @@ export default function UserChip() {
         <ChevronUp size={16} className={open ? styles.chevronOpen : styles.chevron} aria-hidden="true" />
       </button>
 
-      {open && (
-        <div className={styles.menu} role="menu">
+      {open && menuPos && createPortal(
+        <div
+          ref={menuRef}
+          className={styles.menu}
+          role="menu"
+          style={{
+            position: 'fixed',
+            left: menuPos.left,
+            bottom: menuPos.bottom,
+            minWidth: menuPos.width,
+          }}
+        >
           <div className={styles.menuRow}>
             <span className={styles.menuLabel}>{t('nav.menu.theme')}</span>
             <ThemeToggle />
@@ -80,7 +126,8 @@ export default function UserChip() {
             <LogOut size={16} aria-hidden="true" />
             <span>{t('common:btn.logout')}</span>
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

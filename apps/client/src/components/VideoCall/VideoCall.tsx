@@ -1,24 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Phone } from 'lucide-react';
 import type { RoomMemberDTO, TurnConfigResponse } from '@vtt/shared';
 import styles from './VideoCall.module.css';
 import { store, useAppDispatch, useAppSelector } from '../../store';
 import {
   resetMedia,
+  setCallJoined,
   setLocalStreamReady,
   setMeshCeiling,
-  toggleCamera as toggleCameraAction,
-  toggleMic as toggleMicAction,
   upsertPeer,
   removePeer,
 } from '../../store/media';
+import { addToast } from '../../store/toast';
 import VideoTile from '../VideoTile/VideoTile';
-import VideoGrid from './VideoGrid';
 import MeshCeilingBanner from './MeshCeilingBanner';
 import { PeerManager } from '../../infrastructure/webrtc/PeerManager';
+import { peerManagerRef } from '../../infrastructure/webrtc/peerManagerRef';
 import { apiFetch } from '../../api/apiFetch';
 import { connectSocket, emitRoomJoin, emitSignal, onSignal } from '../../api/socket';
 
-/** Peer-connections ≥ this value → ceiling reached, video disabled for all. */
 const MESH_CEILING = 6;
 
 interface VideoCallProps {
@@ -29,17 +30,21 @@ interface VideoCallProps {
 
 export default function VideoCall({ roomId, myUserId, members }: VideoCallProps): JSX.Element {
   const dispatch = useAppDispatch();
-  const { micEnabled, cameraEnabled, localStreamReady, peers, meshCeilingReached } =
-    useAppSelector((s) => s.media);
+  const { t } = useTranslation('gameroom');
+  const { localStreamReady, callJoined, peers } = useAppSelector((s) => s.media);
 
   const managerRef = useRef<PeerManager | null>(null);
   const remoteStreamsRef = useRef<Record<string, MediaStream>>({});
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const knownMembersRef = useRef<RoomMemberDTO[]>(members);
+
+  useEffect(() => {
+    knownMembersRef.current = members;
+  }, [members]);
 
   const peerCount = Object.keys(peers).length;
 
-  // Ceiling check — runs after each render where peerCount changed.
   useEffect(() => {
     const ceiling = peerCount >= MESH_CEILING;
     dispatch(setMeshCeiling(ceiling));
@@ -48,8 +53,9 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
     }
   }, [peerCount, dispatch]);
 
-  // Main WebRTC bootstrap — runs once per roomId / myUserId.
+  // Main WebRTC bootstrap — runs only after explicit Connect click (callJoined).
   useEffect(() => {
+    if (!callJoined) return;
     let cancelled = false;
     let unsubscribe: (() => void) | null = null;
 
@@ -58,10 +64,8 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
     }
 
     async function autoCallPeers(manager: PeerManager): Promise<void> {
-      // members prop is populated by session:resync in GameRoom (parent effect).
-      // Use lexicographic order so only the lower-ID peer sends the offer,
-      // preventing double-offers between each pair.
-      for (const member of members) {
+      const list = knownMembersRef.current;
+      for (const member of list) {
         if (!cancelled && member.userId !== myUserId && myUserId < member.userId) {
           await manager.call(member.userId);
         }
@@ -70,16 +74,13 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
 
     async function bootstrap(): Promise<void> {
       try {
-        // ── 1. TURN credentials ──────────────────────────────────────────
         const cfg = await fetchTurnConfig();
         if (cancelled) return;
 
-        // ── 2. Socket + room join ────────────────────────────────────────
         connectSocket();
         await emitRoomJoin(roomId);
         if (cancelled) return;
 
-        // ── 3. PeerManager ───────────────────────────────────────────────
         const manager = new PeerManager({
           selfUserId: myUserId,
           roomId,
@@ -102,7 +103,6 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
                   connectionState: state,
                 }),
               );
-              // TURN refresh + retry on failure (credentials TTL 1 h per RFC 7635).
               if (state === 'failed' && !cancelled) {
                 void (async () => {
                   try {
@@ -112,7 +112,7 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
                       if (!cancelled) void manager.call(peerId);
                     }, 2000);
                   } catch {
-                    // ignore — next manual reconnect will retry
+                    // ignore — manual reconnect will retry
                   }
                 })();
               }
@@ -122,11 +122,17 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
               delete remoteStreamsRef.current[peerId];
               dispatch(removePeer(peerId));
             },
+
+            onNegotiationError: (peerId) => {
+              // Common after Reconnect — RTP extension IDs mismatch on stale PC.
+              // Peer already closed by PeerManager; surface to user, suggest reload.
+              dispatch(addToast('error', t('videoCall.negotiationError', { peer: peerId.slice(0, 8) })));
+            },
           },
         });
         managerRef.current = manager;
+        peerManagerRef.current = manager;
 
-        // ── 4. Local media (video disabled when already at ceiling) ──────
         const alreadyAtCeiling =
           Object.keys(store.getState().media.peers).length >= MESH_CEILING;
         const stream = await manager.startLocalMedia({
@@ -137,21 +143,22 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
           manager.closeAll();
           return;
         }
+        // Mute mic and camera by default — user opts in via Mic/Cam buttons in MediaControls.
+        manager.setMicEnabled(false);
+        manager.setCameraEnabled(false);
         setLocalStream(stream);
         dispatch(setLocalStreamReady(true));
 
-        // ── 5. Signal listeners ──────────────────────────────────────────
         unsubscribe = onSignal(async (event, payload) => {
           if (payload.toUserId !== myUserId) return;
           await manager.handleSignal(event, payload);
         });
 
-        // ── 6. Auto-call known members (alphabetical initiator convention)
-        //       Prevents double-offers: only lower-ID peer sends the offer.
         await autoCallPeers(manager);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Не вдалося ввімкнути медіа');
+          dispatch(setCallJoined(false));
         }
       }
     }
@@ -163,17 +170,20 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
       unsubscribe?.();
       managerRef.current?.closeAll();
       managerRef.current = null;
+      peerManagerRef.current = null;
       dispatch(resetMedia());
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- members intentionally excluded: handled by reactive effect below
-  }, [roomId, myUserId, dispatch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, myUserId, dispatch, callJoined]);
 
 
-  // Reactive peer calling: fires when members arrive from session:resync.
-  // The main bootstrap effect runs before GameRoom's emitSessionResync completes,
-  // so members is empty at that point. This effect retries once members are known.
+  // Reactive peer calling: fires when members arrive from session:resync after bootstrap.
   const calledRef = useRef(false);
   useEffect(() => {
+    if (!callJoined) {
+      calledRef.current = false;
+      return;
+    }
     if (calledRef.current) return;
     if (!managerRef.current) return;
     if (members.length === 0) return;
@@ -186,29 +196,36 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
         }
       }
     })();
-  }, [members, myUserId]);
+  }, [members, myUserId, callJoined]);
 
-  function onToggleMic(): void {
-    const next = !micEnabled;
-    managerRef.current?.setMicEnabled(next);
-    dispatch(toggleMicAction());
+  function onJoinCall(): void {
+    setError(null);
+    dispatch(setCallJoined(true));
   }
 
-  function onToggleCamera(): void {
-    if (meshCeilingReached) return;
-    const next = !cameraEnabled;
-    managerRef.current?.setCameraEnabled(next);
-    dispatch(toggleCameraAction());
+  // Pre-join: only show Connect placeholder.
+  if (!callJoined) {
+    return (
+      <section className={styles.videoCall} aria-label={t('videoCall.aria')}>
+        <div className={styles.joinPlaceholder}>
+          <Phone size={28} aria-hidden />
+          <p className={styles.joinPrompt}>{t('videoCall.joinPrompt')}</p>
+          <button type="button" className={styles.joinBtn} onClick={onJoinCall}>
+            {t('videoCall.joinBtn')}
+          </button>
+          {error && <p className={styles.error}>{error}</p>}
+        </div>
+      </section>
+    );
   }
 
   const remoteList = Object.values(peers);
-  const totalCount = 1 + remoteList.length;
 
   return (
-    <section className={styles.videoCall} aria-label="Відео-чат сесії">
-      {meshCeilingReached && <MeshCeilingBanner />}
-      <VideoGrid count={totalCount}>
-        <VideoTile label="Я" stream={localStream} muted />
+    <section className={styles.videoCall} aria-label={t('videoCall.aria')}>
+      {/* Banner is non-blocking; keep above the cam list */}
+      <div className={styles.cams}>
+        <VideoTile label={t('videoCall.selfLabel')} stream={localStream} muted />
         {remoteList.map((peer) => (
           <VideoTile
             key={peer.userId}
@@ -217,29 +234,15 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
             connectionState={peer.connectionState}
           />
         ))}
-      </VideoGrid>
-      <div className={styles.controls}>
-        <button
-          type="button"
-          className={styles.btn}
-          onClick={onToggleMic}
-          disabled={!localStreamReady}
-          aria-pressed={!micEnabled}
-        >
-          {micEnabled ? '🎙 Mute' : '🔇 Unmute'}
-        </button>
-        <button
-          type="button"
-          className={styles.btn}
-          onClick={onToggleCamera}
-          disabled={!localStreamReady || meshCeilingReached}
-          aria-pressed={!cameraEnabled}
-          title={meshCeilingReached ? 'Video disabled — mesh ceiling reached' : undefined}
-        >
-          {cameraEnabled && !meshCeilingReached ? '📷 Off' : '📸 On'}
-        </button>
       </div>
-      {error && <p className={styles.error}>{error}</p>}
+      {!localStreamReady && error && <p className={styles.error}>{error}</p>}
+      <MeshCeilingBannerWrapper />
     </section>
   );
+}
+
+function MeshCeilingBannerWrapper(): JSX.Element | null {
+  const meshCeilingReached = useAppSelector((s) => s.media.meshCeilingReached);
+  if (!meshCeilingReached) return null;
+  return <MeshCeilingBanner />;
 }

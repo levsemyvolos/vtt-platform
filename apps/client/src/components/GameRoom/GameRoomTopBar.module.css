@@ -171,3 +171,26 @@
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
+
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 4px 6px;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.iconBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-elevated);
+}
+
+.iconBtn[aria-pressed="true"] {
+  color: var(--color-primary);
+  background: var(--color-primary-muted);
+}

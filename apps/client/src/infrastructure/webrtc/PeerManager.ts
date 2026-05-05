@@ -11,6 +11,8 @@ export interface PeerManagerCallbacks {
   onRemoteStream: (peerId: string, stream: MediaStream) => void;
   onConnectionStateChange?: (peerId: string, state: RTCPeerConnectionState) => void;
   onPeerClosed?: (peerId: string) => void;
+  /** Fired when an SDP/ICE operation fails irrecoverably (e.g. RTP extension reassignment). */
+  onNegotiationError?: (peerId: string, err: Error) => void;
 }
 
 export interface PeerManagerOptions {
@@ -116,6 +118,23 @@ export class PeerManager {
     this.localStream = null;
   }
 
+  /**
+   * Hard reconnect: close every peer connection and re-initiate calls to peers
+   * for which this client should be the offer-side (lower selfUserId per
+   * lexicographic convention). Cheaper alternative to ICE-restart; works when
+   * SDP renegotiation gets stuck. Local media stream is preserved.
+   */
+  restartAll(knownPeerIds: string[]): void {
+    for (const peerId of [...this.peers.keys()]) this.closePeer(peerId);
+    setTimeout(() => {
+      for (const peerId of knownPeerIds) {
+        if (peerId !== this.opts.selfUserId && this.opts.selfUserId < peerId) {
+          void this.call(peerId);
+        }
+      }
+    }, 200);
+  }
+
   // --------------- Internals ---------------
 
   private ensurePeer(peerId: string): PeerEntry {
@@ -168,7 +187,16 @@ export class PeerManager {
 
   private async handleOffer(peerId: string, sdp: RTCSessionDescriptionInit): Promise<void> {
     const entry = this.ensurePeer(peerId);
-    await entry.pc.setRemoteDescription(sdp);
+    try {
+      await entry.pc.setRemoteDescription(sdp);
+    } catch (err) {
+      // Renegotiation race after restartAll: SDP m-line / RTP extension IDs
+      // can mismatch the stale RTCPeerConnection. Drop this peer; caller can
+      // re-call() with a fresh PC.
+      this.closePeer(peerId);
+      this.opts.callbacks.onNegotiationError?.(peerId, err as Error);
+      return;
+    }
     entry.remoteDescriptionSet = true;
     await this.flushPendingCandidates(entry);
     const answer = await entry.pc.createAnswer();
@@ -183,7 +211,13 @@ export class PeerManager {
   private async handleAnswer(peerId: string, sdp: RTCSessionDescriptionInit): Promise<void> {
     const entry = this.peers.get(peerId);
     if (!entry) return;
-    await entry.pc.setRemoteDescription(sdp);
+    try {
+      await entry.pc.setRemoteDescription(sdp);
+    } catch (err) {
+      this.closePeer(peerId);
+      this.opts.callbacks.onNegotiationError?.(peerId, err as Error);
+      return;
+    }
     entry.remoteDescriptionSet = true;
     await this.flushPendingCandidates(entry);
   }

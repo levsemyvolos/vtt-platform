@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type CSSProperties, type RefObject, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   MessageSquare,
@@ -19,6 +19,7 @@ import AudioPanel from '../AudioPanel/AudioPanel';
 import AudioPlayer from '../AudioPanel/AudioPlayer';
 import ChatPanel from '../ChatPanel/ChatPanel';
 import DiceRoller from '../DiceRoller/DiceRoller';
+import SidebarResizer from '../GameRoom/SidebarResizer';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -29,6 +30,10 @@ interface SidebarProps {
   myUserId: string;
   activeTab?: SidebarTab;
   onTabChange?: (tab: SidebarTab) => void;
+  containerRef: RefObject<HTMLDivElement>;
+  onResizeEnd: (width: number) => void;
+  collapsed?: boolean;
+  style?: CSSProperties;
 }
 
 interface TabSpec {
@@ -112,18 +117,23 @@ function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps
 
 export default function Sidebar(props: SidebarProps): JSX.Element {
   const { t } = useTranslation('campaign');
-  const [internalTab, setInternalTab] = useState<SidebarTab>('initiative');
+  const [internalTab, setInternalTab] = useState<SidebarTab>('chat');
   const tab = props.activeTab ?? internalTab;
   const setTab = props.onTabChange ?? setInternalTab;
+  const collapsed = props.collapsed ?? false;
 
   const tabs = buildTabs(props.myRole, t as (key: string) => string);
 
   return (
     <aside
-      className={styles.sidebar}
+      className={`${styles.sidebar}${collapsed ? ` ${styles.sidebarCollapsed}` : ''}`}
       aria-label={t('sidebar.ariaLabel')}
-      style={{ gridArea: 'sidebar' }}
+      style={{ gridArea: 'sidebar', ...props.style }}
+      data-collapsed={collapsed ? 'true' : undefined}
     >
+      {!collapsed && (
+        <SidebarResizer containerRef={props.containerRef} onResizeEnd={props.onResizeEnd} />
+      )}
       <nav className={styles.tabs} role="tablist">
         {tabs.map((tabSpec) => (
           <button
@@ -141,16 +151,20 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
           </button>
         ))}
       </nav>
-      <div className={styles.panel} role="tabpanel">
-        <ActivePanel
-          tab={tab}
-          roomId={props.roomId}
-          sceneId={props.sceneId}
-          myRole={props.myRole}
-          myCharacterId={props.myCharacterId}
-        />
-      </div>
-      <AudioPlayer />
+      {!collapsed && (
+        <>
+          <div className={styles.panel} role="tabpanel">
+            <ActivePanel
+              tab={tab}
+              roomId={props.roomId}
+              sceneId={props.sceneId}
+              myRole={props.myRole}
+              myCharacterId={props.myCharacterId}
+            />
+          </div>
+          <AudioPlayer />
+        </>
+      )}
     </aside>
   );
 }

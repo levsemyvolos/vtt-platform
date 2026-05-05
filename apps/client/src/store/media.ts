@@ -14,6 +14,8 @@ interface MediaState {
   cameraEnabled: boolean;
   /** True after getUserMedia has succeeded at least once. */
   localStreamReady: boolean;
+  /** True after the user explicitly clicked "Connect to call". */
+  callJoined: boolean;
   /** Keyed by remote userId. */
   peers: Record<string, RemotePeerState>;
   /** True when active peer count ≥ 6 (mesh O(N²) ceiling per §2.13.4). */
@@ -21,9 +23,10 @@ interface MediaState {
 }
 
 const initialState: MediaState = {
-  micEnabled: true,
-  cameraEnabled: true,
+  micEnabled: false,
+  cameraEnabled: false,
   localStreamReady: false,
+  callJoined: false,
   peers: {},
   meshCeilingReached: false,
 };
@@ -50,6 +53,9 @@ const mediaSlice = createSlice({
     setMeshCeiling: (state, action: PayloadAction<boolean>) => {
       state.meshCeilingReached = action.payload;
     },
+    setCallJoined: (state, action: PayloadAction<boolean>) => {
+      state.callJoined = action.payload;
+    },
     resetMedia: () => initialState,
   },
 });
@@ -61,6 +67,7 @@ export const {
   upsertPeer,
   removePeer,
   setMeshCeiling,
+  setCallJoined,
   resetMedia,
 } = mediaSlice.actions;
 export default mediaSlice.reducer;

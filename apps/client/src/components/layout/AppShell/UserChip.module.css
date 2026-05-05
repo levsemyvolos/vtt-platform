@@ -56,12 +56,8 @@
 .chevron { transform: rotate(180deg); }
 .chevronOpen { transform: rotate(0deg); }
 
-/* Menu popover */
+/* Menu popover (positioned via TS as fixed to viewport — escapes overflow:hidden parents) */
 .menu {
-  position: absolute;
-  bottom: calc(100% + var(--space-xs));
-  left: 0;
-  right: 0;
   background: var(--color-surface-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

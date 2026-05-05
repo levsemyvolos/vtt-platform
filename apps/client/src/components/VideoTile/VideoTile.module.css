@@ -1,10 +1,12 @@
 .tile {
   position: relative;
+  width: 100%;
   background: var(--color-surface-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  aspect-ratio: 16/9;
+  aspect-ratio: 16/10;
+  flex-shrink: 0;
   transition: border-color 0.15s;
 }
 
