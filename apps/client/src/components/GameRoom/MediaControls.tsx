@@ -5,6 +5,58 @@ import { toggleCamera as toggleCameraAction, toggleMic as toggleMicAction } from
 import { peerManagerRef } from '../../infrastructure/webrtc/peerManagerRef';
 import styles from './MediaControls.module.css';
 
+function MicButton({ enabled }: { enabled: boolean }): JSX.Element {
+  const { t } = useTranslation('gameroom');
+  const dispatch = useAppDispatch();
+  const label = enabled ? t('videoCall.muteMic') : t('videoCall.unmuteMic');
+  const text = enabled ? t('videoCall.micOn') : t('videoCall.micOff');
+  function onClick(): void {
+    peerManagerRef.current?.setMicEnabled(!enabled);
+    dispatch(toggleMicAction());
+  }
+  return (
+    <button
+      type="button"
+      className={styles.btn}
+      onClick={onClick}
+      aria-pressed={enabled}
+      aria-label={label}
+      title={label}
+    >
+      {enabled ? <Mic size={14} /> : <MicOff size={14} />}
+      <span>{text}</span>
+    </button>
+  );
+}
+
+function CamButton({ enabled, ceiling }: { enabled: boolean; ceiling: boolean }): JSX.Element {
+  const { t } = useTranslation('gameroom');
+  const dispatch = useAppDispatch();
+  const on = enabled && !ceiling;
+  const label = enabled ? t('videoCall.camOff') : t('videoCall.camOn');
+  const text = on ? t('videoCall.camOn') : t('videoCall.camOff');
+  const title = ceiling ? t('videoCall.meshCeiling') : undefined;
+  function onClick(): void {
+    if (ceiling) return;
+    peerManagerRef.current?.setCameraEnabled(!enabled);
+    dispatch(toggleCameraAction());
+  }
+  return (
+    <button
+      type="button"
+      className={styles.btn}
+      onClick={onClick}
+      disabled={ceiling}
+      aria-pressed={enabled}
+      aria-label={label}
+      title={title}
+    >
+      {on ? <Video size={14} /> : <VideoOff size={14} />}
+      <span>{text}</span>
+    </button>
+  );
+}
+
 /**
  * Mic / Camera toggle bar. Renders below the camera grid in PartyColumn,
  * before the participants split. Visible only when the user has joined
@@ -12,50 +64,15 @@ import styles from './MediaControls.module.css';
  */
 export default function MediaControls(): JSX.Element | null {
   const { t } = useTranslation('gameroom');
-  const dispatch = useAppDispatch();
   const { micEnabled, cameraEnabled, localStreamReady, callJoined, meshCeilingReached } =
     useAppSelector((s) => s.media);
 
   if (!callJoined || !localStreamReady) return null;
 
-  function onToggleMic(): void {
-    const next = !micEnabled;
-    peerManagerRef.current?.setMicEnabled(next);
-    dispatch(toggleMicAction());
-  }
-
-  function onToggleCamera(): void {
-    if (meshCeilingReached) return;
-    const next = !cameraEnabled;
-    peerManagerRef.current?.setCameraEnabled(next);
-    dispatch(toggleCameraAction());
-  }
-
   return (
     <div className={styles.controls} role="group" aria-label={t('mediaControls.aria')}>
-      <button
-        type="button"
-        className={styles.btn}
-        onClick={onToggleMic}
-        aria-pressed={micEnabled}
-        aria-label={micEnabled ? t('videoCall.muteMic') : t('videoCall.unmuteMic')}
-        title={micEnabled ? t('videoCall.muteMic') : t('videoCall.unmuteMic')}
-      >
-        {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
-        <span>{micEnabled ? t('videoCall.micOn') : t('videoCall.micOff')}</span>
-      </button>
-      <button
-        type="button"
-        className={styles.btn}
-        onClick={onToggleCamera}
-        disabled={meshCeilingReached}
-        aria-pressed={cameraEnabled}
-        aria-label={cameraEnabled ? t('videoCall.camOff') : t('videoCall.camOn')}
-        title={meshCeilingReached ? t('videoCall.meshCeiling') : undefined}
-      >
-        {cameraEnabled && !meshCeilingReached ? <Video size={14} /> : <VideoOff size={14} />}
-        <span>{cameraEnabled && !meshCeilingReached ? t('videoCall.camOn') : t('videoCall.camOff')}</span>
-      </button>
+      <MicButton enabled={micEnabled} />
+      <CamButton enabled={cameraEnabled} ceiling={meshCeilingReached} />
     </div>
   );
 }
