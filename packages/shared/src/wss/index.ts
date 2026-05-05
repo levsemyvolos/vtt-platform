@@ -184,6 +184,20 @@ export interface SceneObjectDeletePayload {
   objectId: string;
 }
 
+/**
+ * Discrete transform event — fired once on transformEnd (Sess 2).
+ * Not throttled (unlike object:move) because transforms are rare user gestures.
+ */
+export interface SceneObjectTransformPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  width: number;
+  height: number;
+  /** Normalized rotation in degrees [0, 360). */
+  rotation: number;
+}
+
 export interface SceneObjectUpsertPayload {
   roomId: string;
   sceneId: string;
@@ -277,6 +291,7 @@ export interface ClientToServerEvents {
   'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
+  'object:transform': (payload: SceneObjectTransformPayload) => void;
   'scene:flush': (payload: SceneFlushPayload) => void;
 }
 
@@ -331,6 +346,7 @@ export interface ServerToClientEvents {
   'scene:activated': (payload: { sceneId: string; roomId: string }) => void;
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
+  'object:transform': (payload: SceneObjectTransformPayload) => void;
 }
 
 export interface InterServerEvents {

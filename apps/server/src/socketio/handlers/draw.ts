@@ -1,4 +1,4 @@
-import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload } from '@vtt/shared';
+import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload, SceneObjectTransformPayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
 import { parseFogShapes } from '../../services/DrawService.js';
@@ -169,6 +169,28 @@ export function registerDrawHandlers(
       io.to(payload.roomId).emit('object:delete', payload);
     } catch (err) {
       console.error('[Socket] object:delete error:', err);
+    }
+  });
+
+  socket.on('object:transform', async (payload: SceneObjectTransformPayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      if (
+        typeof payload.width !== 'number' || !Number.isFinite(payload.width) ||
+        typeof payload.height !== 'number' || !Number.isFinite(payload.height) ||
+        typeof payload.rotation !== 'number' || !Number.isFinite(payload.rotation)
+      ) return;
+      await sceneAnnotationService.transformObject(
+        payload.sceneId,
+        payload.objectId,
+        socket.data.role,
+        { width: payload.width, height: payload.height, rotation: payload.rotation },
+      );
+      io.to(payload.roomId).emit('object:transform', payload);
+    } catch (err) {
+      console.error('[Socket] object:transform error:', err);
     }
   });
 }

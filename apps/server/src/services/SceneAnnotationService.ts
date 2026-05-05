@@ -9,6 +9,12 @@ import { normalizeAnnotations, type DrawService } from './DrawService.js';
 import { HttpError } from '../lib/errors.js';
 import type { PrismaClient } from '@prisma/client';
 
+export interface TransformPayload {
+  width: number;
+  height: number;
+  rotation: number;
+}
+
 /**
  * Manages pinned text (Ф3.4.4) and image (Ф3.4.5) canvas annotations.
  *
@@ -135,6 +141,63 @@ export class SceneAnnotationService {
     if (removal.imageIdx >= 0) annotations.images.splice(removal.imageIdx, 1);
     if (removal.strokeIdx >= 0) annotations.strokes.splice(removal.strokeIdx, 1);
     annotations.objects = (annotations.objects ?? []).filter((candidate) => candidate.id !== annotationId);
+    const normalized = normalizeAnnotations(annotations);
+    await this.drawService.persist(sceneId, normalized);
+    return normalized;
+  }
+
+  /**
+   * Resize and/or rotate an image-overlay (Sess 2, Fix B).
+   *
+   * RBAC: GM-only.
+   * Validation: width/height clamped to [gridSize, gridWidth*gridSize].
+   * Rotation: normalized to [0, 360) — handles negatives from Konva.
+   * Mirrors mutation to both objects[] and images[] so subsequent mutations
+   * don't drop the transform (RED 1 fix).
+   */
+  async transformObject(
+    sceneId: string,
+    objectId: string,
+    role: string,
+    payload: TransformPayload,
+  ): Promise<SceneAnnotations> {
+    if (role !== 'GM') throw new HttpError(403, 'Only GM can transform annotations');
+
+    const scene = await this.prisma.scene.findUnique({
+      where: { id: sceneId },
+      select: { gridSize: true, gridWidth: true, gridHeight: true },
+    });
+    if (!scene) throw new HttpError(404, 'Scene not found');
+
+    const { gridSize, gridWidth, gridHeight } = scene;
+    const minSize = gridSize;
+    const maxWidth = gridWidth * gridSize;
+    const maxHeight = gridHeight * gridSize;
+
+    const newWidth = Math.max(minSize, Math.min(maxWidth, Math.round(payload.width)));
+    const newHeight = Math.max(minSize, Math.min(maxHeight, Math.round(payload.height)));
+    const newRotation = ((payload.rotation % 360) + 360) % 360;
+
+    const annotations = await this.drawService.getAnnotations(sceneId);
+
+    const objectExists = (annotations.objects ?? []).some((o) => o.id === objectId) ||
+      annotations.images.some((img) => img.id === objectId);
+    if (!objectExists) throw new HttpError(404, 'Annotation not found');
+
+    // Update objects[] entry
+    annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
+      candidate.id === objectId
+        ? { ...candidate, width: newWidth, height: newHeight, rotation: newRotation }
+        : candidate
+    ));
+
+    // Update images[] mirror entry (RED 1: prevents rotation drop on next mutation)
+    annotations.images = annotations.images.map((image) => (
+      image.id === objectId
+        ? { ...image, width: newWidth, height: newHeight, rotation: newRotation }
+        : image
+    ));
+
     const normalized = normalizeAnnotations(annotations);
     await this.drawService.persist(sceneId, normalized);
     return normalized;

@@ -112,6 +112,8 @@ export interface ImageAnnotation {
   assetId: string;
   width: number;
   height: number;
+  /** Rotation in degrees [0, 360). Added in Sess 2 for Transformer support. */
+  rotation?: number;
 }
 
 export type SceneObjectType = 'text' | 'image' | 'stroke';

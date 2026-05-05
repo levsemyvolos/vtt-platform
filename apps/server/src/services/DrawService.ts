@@ -149,6 +149,8 @@ function imageToObject(image: NonNullable<SceneAnnotations['images']>[number], i
     y: image.y,
     width: image.width,
     height: image.height,
+    // Sess 2: preserve rotation so subsequent mutations don't drop it (RED 1 fix).
+    rotation: image.rotation ?? 0,
     zIndex: index,
     assetId: image.assetId,
   };

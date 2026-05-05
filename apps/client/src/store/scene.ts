@@ -211,6 +211,29 @@ const sceneSlice = createSlice({
     deselectSceneObject: (state) => {
       state.selectedSceneObjectId = null;
     },
+    /**
+     * Optimistic transform (resize + rotate) applied before server confirms (Sess 2).
+     * Mutates BOTH objects[] AND images[] mirror so subsequent moves don't drop rotation (RED 1).
+     * Idempotent: re-dispatching same values is a no-op.
+     */
+    transformSceneObjectOptimistic: (
+      state,
+      action: PayloadAction<{ objectId: string; width: number; height: number; rotation: number }>,
+    ) => {
+      if (!state.current) return;
+      const { objectId, width, height, rotation } = action.payload;
+      const annotations = state.current.annotations;
+      annotations.objects = (annotations.objects ?? []).map((object) => (
+        object.id === objectId
+          ? { ...object, width, height, rotation }
+          : object
+      ));
+      annotations.images = annotations.images.map((image) => (
+        image.id === objectId
+          ? { ...image, width, height, rotation }
+          : image
+      ));
+    },
   },
 });
 
@@ -235,5 +258,6 @@ export const {
   applyAnnotationsUpdate,
   selectSceneObject,
   deselectSceneObject,
+  transformSceneObjectOptimistic,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;

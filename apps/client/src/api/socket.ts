@@ -17,10 +17,11 @@ import type {
   FogShapeRemovePayload,
   SceneObjectMovePayload,
   SceneObjectDeletePayload,
+  SceneObjectTransformPayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -76,6 +77,14 @@ export function getSocket(): TypedClientSocket {
   });
   socket.on('object:delete', (payload) => {
     store.dispatch(removeSceneObject(payload.objectId));
+  });
+  socket.on('object:transform', (payload) => {
+    store.dispatch(transformSceneObjectOptimistic({
+      objectId: payload.objectId,
+      width: payload.width,
+      height: payload.height,
+      rotation: payload.rotation,
+    }));
   });
   socket.on('token:rollback', (payload) => {
     store.dispatch(applyTokenRollback(payload));
@@ -331,6 +340,15 @@ export function emitObjectMove(payload: SceneObjectMovePayload): void {
 export function emitObjectDelete(payload: SceneObjectDeletePayload): void {
   if (isEditingScene()) return;
   getSocket().emit('object:delete', payload);
+}
+
+/**
+ * Discrete transform broadcast — no throttle, fired once on transformEnd (Sess 2).
+ * Server persists and re-broadcasts to room (including sender for idempotency).
+ */
+export function emitObjectTransform(payload: SceneObjectTransformPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:transform', payload);
 }
 
 /**

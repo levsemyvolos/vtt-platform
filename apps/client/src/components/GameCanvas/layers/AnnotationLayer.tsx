@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Layer, Circle, Group, Image as KonvaImage, Line, Rect, Text } from 'react-konva';
+import { Layer, Circle, Group, Image as KonvaImage, Line, Rect, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import type {
   AnnotationPingPayload,
@@ -11,9 +11,9 @@ import type {
   TextAnnotation,
 } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../../store';
-import { moveSceneObjectOptimistic, selectSceneObject } from '../../../store/scene';
+import { moveSceneObjectOptimistic, selectSceneObject, transformSceneObjectOptimistic } from '../../../store/scene';
 import { fetchAsset } from '../../../store/assets';
-import { emitObjectMove } from '../../../api/socket';
+import { emitObjectMove, emitObjectTransform } from '../../../api/socket';
 import { useImage } from '../useImage';
 
 const PING_DURATION_MS = 3000;
@@ -143,10 +143,9 @@ interface ObjectNodeProps {
   draggable: boolean;
   roomId: string;
   sceneId: string;
-  myRole: Role;
 }
 
-function ObjectNode({ object, draggable, roomId, sceneId, myRole }: ObjectNodeProps): JSX.Element {
+function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
   const lastMoveAt = useRef(0);
   // Read the signed URL from the assets cache. If the asset isn't there yet
@@ -156,7 +155,6 @@ function ObjectNode({ object, draggable, roomId, sceneId, myRole }: ObjectNodePr
   const assetId = object.type === 'image' ? object.assetId : undefined;
   const cachedAsset = useAppSelector((s) => (assetId ? s.assets.byId[assetId] : undefined));
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
-  const selectedId = useAppSelector((s) => s.scene.selectedSceneObjectId);
   useEffect(() => {
     if (assetId && !cachedAsset) {
       void dispatch(fetchAsset(assetId));
@@ -205,12 +203,16 @@ function ObjectNode({ object, draggable, roomId, sceneId, myRole }: ObjectNodePr
     if (stage) stage.container().style.cursor = 'default';
   }
 
-  const isSelected = object.type === 'image' && selectedId === object.id && myRole === 'GM';
+  const objectRotation = object.type === 'image' ? (object.rotation ?? 0) : 0;
+
+  const groupId = object.type === 'image' ? object.id : undefined;
 
   return (
     <Group
+      {...(groupId !== undefined ? { id: groupId } : {})}
       x={object.x}
       y={object.y}
+      rotation={objectRotation}
       draggable={draggable}
       listening={draggable}
       onDragMove={handleDragMove}
@@ -248,18 +250,7 @@ function ObjectNode({ object, draggable, roomId, sceneId, myRole }: ObjectNodePr
           <Rect width={object.width} height={object.height} fill="#334155" stroke="#94a3b8" strokeWidth={1} />
         )
       )}
-      {isSelected && object.type === 'image' && (
-        <Rect
-          x={-2}
-          y={-2}
-          width={object.width + 4}
-          height={object.height + 4}
-          stroke="#7c5cff"
-          strokeWidth={2}
-          dash={[6, 4]}
-          listening={false}
-        />
-      )}
+      {/* Visual selection is handled by the Konva Transformer in AnnotationLayer for GMs */}
     </Group>
   );
 }
@@ -277,9 +268,11 @@ export default function AnnotationLayer({
   sceneId,
   myRole,
 }: AnnotationLayerProps): JSX.Element {
+  const dispatch = useAppDispatch();
   const pings = useAppSelector((s) => s.annotations.activePings);
   const measures = useAppSelector((s) => s.annotations.activeMeasures);
   const annotations = useAppSelector((s) => s.scene.current?.annotations);
+  const selectedId = useAppSelector((s) => s.scene.selectedSceneObjectId);
   const sceneObjects = useMemo(
     () => toObjects(
       annotations?.strokes ?? [],
@@ -291,6 +284,121 @@ export default function AnnotationLayer({
   );
   const canEditObjects = myRole === 'GM';
 
+  // Konva Transformer ref — wired via stage.findOne(`#${selectedId}`) (Fix D)
+  const trRef = useRef<Konva.Transformer | null>(null);
+  // Ctrl-snap ref — read by boundBoxFunc via closure (Fix D keyboard modifiers)
+  const ctrlSnapRef = useRef(false);
+
+  // Determine if the selected object is an image (Transformer only shows for images)
+  const selectedObject = useMemo(
+    () => sceneObjects.find((o) => o.id === selectedId && o.type === 'image'),
+    [sceneObjects, selectedId],
+  );
+  const showTransformer = myRole === 'GM' && !!selectedObject;
+
+  // Wire Transformer to Konva node by ID (Fix D — stage.findOne lookup)
+  useEffect(() => {
+    const tr = trRef.current;
+    if (!tr) return;
+    if (!selectedId || !showTransformer) {
+      tr.nodes([]);
+      return;
+    }
+    const stage = tr.getStage();
+    const node = stage?.findOne(`#${selectedId}`);
+    if (node) {
+      tr.nodes([node]);
+      tr.getLayer()?.batchDraw();
+    } else {
+      tr.nodes([]);
+    }
+  }, [selectedId, showTransformer]);
+
+  // Keyboard modifiers: Shift = keepRatio + rotation snaps; Ctrl = grid-snap (Fix D)
+  useEffect(() => {
+    if (myRole !== 'GM') return;
+
+    const ROTATION_SNAPS = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165,
+      180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345];
+
+    function handleKeyDown(e: KeyboardEvent): void {
+      const tr = trRef.current;
+      if (!tr) return;
+      if (e.key === 'Shift') {
+        tr.keepRatio(true);
+        tr.rotationSnaps(ROTATION_SNAPS);
+        tr.getLayer()?.batchDraw();
+      }
+      if (e.key === 'Control') {
+        ctrlSnapRef.current = true;
+      }
+    }
+
+    function handleKeyUp(e: KeyboardEvent): void {
+      const tr = trRef.current;
+      if (!tr) return;
+      if (e.key === 'Shift') {
+        tr.keepRatio(false);
+        tr.rotationSnaps([]);
+        tr.getLayer()?.batchDraw();
+      }
+      if (e.key === 'Control') {
+        ctrlSnapRef.current = false;
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [myRole]);
+
+  // onTransformEnd handler — CRITICAL order: dispatch → scale reset → emit (Fix D RED 3)
+  function handleTransformEnd(e: Konva.KonvaEventObject<Event>): void {
+    if (!selectedObject || selectedObject.type !== 'image') return;
+    const node = e.target as Konva.Group;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    const rawRot = node.rotation();
+
+    const baseWidth = selectedObject.width ?? gridSize;
+    const baseHeight = selectedObject.height ?? gridSize;
+
+    let newWidth = Math.max(gridSize, Math.round(baseWidth * scaleX));
+    let newHeight = Math.max(gridSize, Math.round(baseHeight * scaleY));
+
+    // Ctrl-snap: round to gridSize multiples
+    if (ctrlSnapRef.current) {
+      newWidth = Math.max(gridSize, Math.round(newWidth / gridSize) * gridSize);
+      newHeight = Math.max(gridSize, Math.round(newHeight / gridSize) * gridSize);
+    }
+
+    const newRotation = ((rawRot % 360) + 360) % 360;
+
+    // Order CRITICAL (Fix D RED 3): dispatch first, then reset scale, then emit
+    dispatch(transformSceneObjectOptimistic({
+      objectId: selectedObject.id,
+      width: newWidth,
+      height: newHeight,
+      rotation: newRotation,
+    }));
+
+    // Reset Konva scale to identity AFTER dispatch so React re-render uses new width/height
+    node.scaleX(1);
+    node.scaleY(1);
+
+    emitObjectTransform({
+      roomId,
+      sceneId,
+      objectId: selectedObject.id,
+      width: newWidth,
+      height: newHeight,
+      rotation: newRotation,
+    });
+  }
+
   return (
     <Layer listening={true}>
       {sceneObjects.map((object) => (
@@ -300,9 +408,28 @@ export default function AnnotationLayer({
           draggable={canEditObjects}
           roomId={roomId}
           sceneId={sceneId}
-          myRole={myRole}
         />
       ))}
+      {showTransformer && (
+        <Transformer
+          ref={trRef}
+          rotateEnabled={true}
+          boundBoxFunc={(oldBox, newBox) => {
+            // Clamp to minimum 1 grid cell; apply Ctrl-snap via ref closure
+            let { width, height } = newBox;
+            const minSize = gridSize;
+            if (ctrlSnapRef.current) {
+              width = Math.max(minSize, Math.round(Math.abs(width) / minSize) * minSize);
+              height = Math.max(minSize, Math.round(Math.abs(height) / minSize) * minSize);
+            } else {
+              width = Math.max(minSize, Math.abs(width));
+              height = Math.max(minSize, Math.abs(height));
+            }
+            return { ...newBox, width, height };
+          }}
+          onTransformEnd={handleTransformEnd}
+        />
+      )}
       {pings.map((ping) => (
         <PingCircle key={ping.timestamp} ping={ping} />
       ))}
