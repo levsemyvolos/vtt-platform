@@ -1,4 +1,4 @@
-import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload, SceneObjectTransformPayload } from '@vtt/shared';
+import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload, SceneObjectTransformPayload, SceneObjectLockPayload, SceneObjectZOrderPayload, SceneObjectDuplicatePayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
 import { parseFogShapes } from '../../services/DrawService.js';
@@ -215,6 +215,53 @@ export function registerDrawHandlers(
       io.to(payload.roomId).emit('object:transform', payload);
     } catch (err) {
       console.error('[Socket] object:transform error:', err);
+    }
+  });
+
+  socket.on('object:lock', async (payload: SceneObjectLockPayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      if (typeof payload.locked !== 'boolean') return;
+      await sceneAnnotationService.lockObject(payload.sceneId, payload.objectId, socket.data.role, payload.locked);
+      io.to(payload.roomId).emit('object:lock', payload);
+    } catch (err) {
+      console.error('[Socket] object:lock error:', err);
+    }
+  });
+
+  socket.on('object:zorder', async (payload: SceneObjectZOrderPayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      if (payload.direction !== 'front' && payload.direction !== 'back') return;
+      await sceneAnnotationService.setZIndex(payload.sceneId, payload.objectId, socket.data.role, payload.direction);
+      io.to(payload.roomId).emit('object:zorder', payload);
+    } catch (err) {
+      console.error('[Socket] object:zorder error:', err);
+    }
+  });
+
+  socket.on('object:duplicate', async (payload: SceneObjectDuplicatePayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      const { newObject } = await sceneAnnotationService.duplicateObject(
+        payload.sceneId,
+        payload.objectId,
+        socket.data.role,
+        socket.data.userId,
+      );
+      io.to(payload.roomId).emit('object:duplicated', {
+        roomId: payload.roomId,
+        sceneId: payload.sceneId,
+        object: newObject,
+      });
+    } catch (err) {
+      console.error('[Socket] object:duplicate error:', err);
     }
   });
 }

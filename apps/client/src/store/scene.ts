@@ -9,6 +9,7 @@ import type {
   FogShapeRemovePayload,
   DrawStrokePayload,
   SceneAnnotations,
+  SceneObject,
 } from '@vtt/shared';
 
 /** Keys that can be buffered locally during Edit Scene mode. */
@@ -34,8 +35,8 @@ interface SceneState {
   pendingMoves: Record<string, { x: number; y: number }>;
   /** Selected token id for the SceneEditor properties panel. */
   selectedTokenId: string | null;
-  /** Selected scene object id (image-overlay selection, Sess 1). */
-  selectedSceneObjectId: string | null;
+  /** Selected scene object ids (multi-select, Sess 3 Mini-C). */
+  selectedSceneObjectIds: string[];
   /** Buffered scene-level edits (gridSize/gridWidth/gridHeight/gridVisible/backgroundAssetId)
    * accumulated during Edit Scene. Flushed by EditorTopBar.handleDone via a single
    * PATCH /scenes/:id call. Reset to null on hydrate/clear/handleDone success. */
@@ -47,7 +48,7 @@ const initialState: SceneState = {
   version: 0,
   pendingMoves: {},
   selectedTokenId: null,
-  selectedSceneObjectId: null,
+  selectedSceneObjectIds: [],
   draftPatch: null,
 };
 
@@ -63,14 +64,14 @@ const sceneSlice = createSlice({
         0,
       );
       state.pendingMoves = {};
-      state.selectedSceneObjectId = null;
+      state.selectedSceneObjectIds = [];
       state.draftPatch = null;
     },
     clearScene: (state) => {
       state.current = null;
       state.version = 0;
       state.pendingMoves = {};
-      state.selectedSceneObjectId = null;
+      state.selectedSceneObjectIds = [];
       state.draftPatch = null;
     },
     /** Optimistic move issued from the UI before the server replies. */
@@ -215,17 +216,38 @@ const sceneSlice = createSlice({
       state.current.annotations.images = state.current.annotations.images.filter((i) => i.id !== id);
       state.current.annotations.strokes = state.current.annotations.strokes.filter((s) => s.strokeId !== id);
       state.current.annotations.objects = (state.current.annotations.objects ?? []).filter((o) => o.id !== id);
-      if (state.selectedSceneObjectId === id) {
-        state.selectedSceneObjectId = null;
+      if (state.selectedSceneObjectIds.includes(id)) {
+        state.selectedSceneObjectIds = state.selectedSceneObjectIds.filter((s) => s !== id);
       }
     },
-    /** Select an image-overlay scene object (Sess 1). */
-    selectSceneObject: (state, action: PayloadAction<string>) => {
-      state.selectedSceneObjectId = action.payload;
+    /**
+     * Select a scene object (Sess 3 Mini-C).
+     * Payload: string id (legacy) or { id, additive? }.
+     * additive=true → toggle membership in selectedSceneObjectIds.
+     * additive=false/absent → replace selection with single id.
+     */
+    selectSceneObject: (
+      state,
+      action: PayloadAction<string | { id: string; additive?: boolean }>,
+    ) => {
+      const normalized =
+        typeof action.payload === 'string'
+          ? { id: action.payload, additive: false }
+          : action.payload;
+      const { id, additive } = normalized;
+      if (additive) {
+        if (state.selectedSceneObjectIds.includes(id)) {
+          state.selectedSceneObjectIds = state.selectedSceneObjectIds.filter((s) => s !== id);
+        } else {
+          state.selectedSceneObjectIds = [...state.selectedSceneObjectIds, id];
+        }
+      } else {
+        state.selectedSceneObjectIds = [id];
+      }
     },
-    /** Clear the image-overlay selection (Sess 1). */
+    /** Clear all selected scene objects (Sess 3 Mini-C). */
     deselectSceneObject: (state) => {
-      state.selectedSceneObjectId = null;
+      state.selectedSceneObjectIds = [];
     },
     /**
      * Optimistic transform (reposition + resize + rotate) applied before server confirms (Sess 2).
@@ -251,6 +273,145 @@ const sceneSlice = createSlice({
           ? { ...image, x, y, width, height, rotation }
           : image
       ));
+    },
+    /**
+     * Toggles the locked flag on a scene object (Sess 3 Mini-B).
+     * Mirrors to images[] when the object is of image type.
+     * Idempotent — re-dispatching the same value is a no-op.
+     */
+    lockSceneObject: (
+      state,
+      action: PayloadAction<{ objectId: string; locked: boolean }>,
+    ) => {
+      if (!state.current) return;
+      const { objectId, locked } = action.payload;
+      const annotations = state.current.annotations;
+      annotations.objects = (annotations.objects ?? []).map((object) => (
+        object.id === objectId ? { ...object, locked } : object
+      ));
+      annotations.images = annotations.images.map((image) => (
+        image.id === objectId ? { ...image, locked } : image
+      ));
+    },
+    /**
+     * Changes the zIndex of a scene object relative to peers (Sess 3 Mini-B).
+     * Mirrors the server SceneAnnotationService.setZIndex algorithm exactly
+     * so optimistic + broadcast paths yield identical state.
+     *
+     * direction='front' → target.zIndex = max(peerZIndices) + 1.
+     * direction='back'  → target.zIndex = min(peerZIndices) - 1.
+     * Edge case: no peers (single object) → zIndex unchanged.
+     * Negative zIndex is allowed — it is a sort key only; no normalization.
+     */
+    setSceneObjectZIndex: (
+      state,
+      action: PayloadAction<{ objectId: string; direction: 'front' | 'back' }>,
+    ) => {
+      if (!state.current) return;
+      const { objectId, direction } = action.payload;
+      const objects = state.current.annotations.objects ?? [];
+      const obj = objects.find((o) => o.id === objectId);
+      if (!obj) return;
+
+      const peerZIndices = objects.filter((o) => o.id !== objectId).map((o) => o.zIndex);
+
+      let newZIndex = obj.zIndex;
+      if (peerZIndices.length > 0) {
+        if (direction === 'front') {
+          newZIndex = Math.max(...peerZIndices) + 1;
+        } else {
+          newZIndex = Math.min(...peerZIndices) - 1;
+        }
+      }
+
+      state.current.annotations.objects = objects.map((candidate) => (
+        candidate.id === objectId ? { ...candidate, zIndex: newZIndex } : candidate
+      ));
+    },
+    /**
+     * Appends a new SceneObject to the scene (Sess 3 Mini-B).
+     * Used for `object:duplicated` broadcasts.
+     *
+     * Idempotency: if an object with the same id already exists it is replaced,
+     * so both optimistic and broadcast paths hitting the same client are safe.
+     *
+     * Mirrors to the appropriate legacy array (images[], texts[], strokes[])
+     * per the server duplicateObject mirror logic.
+     */
+    appendSceneObject: (
+      state,
+      action: PayloadAction<SceneObject>,
+    ) => {
+      if (!state.current) return;
+      const object = action.payload;
+      const annotations = state.current.annotations;
+      const objects = annotations.objects ?? [];
+
+      const existingIdx = objects.findIndex((o) => o.id === object.id);
+      if (existingIdx >= 0) {
+        objects[existingIdx] = object;
+      } else {
+        objects.push(object);
+      }
+      state.current.annotations.objects = objects;
+
+      if (object.type === 'image') {
+        const imgIdx = annotations.images.findIndex((i) => i.id === object.id);
+        const imageBase = {
+          id: object.id,
+          userId: object.userId,
+          x: object.x,
+          y: object.y,
+          assetId: object.assetId,
+          width: object.width,
+          height: object.height,
+        };
+        // exactOptionalPropertyTypes: only include optional fields when defined
+        const imageEntry = object.rotation !== undefined
+          ? object.locked !== undefined
+            ? { ...imageBase, rotation: object.rotation, locked: object.locked }
+            : { ...imageBase, rotation: object.rotation }
+          : object.locked !== undefined
+            ? { ...imageBase, locked: object.locked }
+            : imageBase;
+        if (imgIdx >= 0) {
+          annotations.images[imgIdx] = imageEntry;
+        } else {
+          annotations.images.push(imageEntry);
+        }
+      } else if (object.type === 'text') {
+        const textIdx = annotations.texts.findIndex((t) => t.id === object.id);
+        const textEntry = {
+          id: object.id,
+          userId: object.userId,
+          x: object.x,
+          y: object.y,
+          text: object.text,
+          fontSize: object.fontSize,
+          color: object.color,
+        };
+        if (textIdx >= 0) {
+          annotations.texts[textIdx] = textEntry;
+        } else {
+          annotations.texts.push(textEntry);
+        }
+      } else if (object.type === 'stroke') {
+        const strokeIdx = annotations.strokes.findIndex((s) => s.strokeId === object.id);
+        const strokeEntry = {
+          strokeId: object.id,
+          userId: object.userId,
+          x: object.x,
+          y: object.y,
+          points: object.points,
+          color: object.color,
+          width: object.strokeWidth,
+        };
+        if (strokeIdx >= 0) {
+          annotations.strokes[strokeIdx] = strokeEntry;
+        } else {
+          annotations.strokes.push(strokeEntry);
+        }
+      }
     },
     /**
      * Buffer a scene-level patch locally during Edit Scene mode (Mini-A).
@@ -308,6 +469,9 @@ export const {
   selectSceneObject,
   deselectSceneObject,
   transformSceneObjectOptimistic,
+  lockSceneObject,
+  setSceneObjectZIndex,
+  appendSceneObject,
   applyDraftSceneUpdate,
   clearDraftSceneUpdate,
 } = sceneSlice.actions;

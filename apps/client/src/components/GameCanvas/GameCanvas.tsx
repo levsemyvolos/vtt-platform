@@ -4,8 +4,9 @@ import type Konva from 'konva';
 import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { store } from '../../store';
-import { selectToken, deselectSceneObject } from '../../store/scene';
-import { emitObjectDelete } from '../../api/socket';
+import { selectToken, deselectSceneObject, appendSceneObject } from '../../store/scene';
+import { emitObjectDelete, emitObjectDuplicate } from '../../api/socket';
+import { buildClonedObject } from '../../store/sceneObjectClone';
 import type { CanvasTool } from '../../store/canvasViewport';
 import { useTheme } from '../../hooks/useTheme';
 import { useToolHandlers } from '../../hooks/useToolHandlers';
@@ -18,6 +19,7 @@ import AddTokenButton from './AddTokenButton';
 import TextAnnotationModal from './TextAnnotationModal';
 import TokenEditModal from '../Token/TokenEditModal';
 import TokenContextMenu from '../Token/TokenContextMenu';
+import SceneObjectContextMenu from './SceneObjectContextMenu';
 import styles from './GameCanvas.module.css';
 
 export interface GameCanvasProps {
@@ -68,6 +70,7 @@ export default function GameCanvas({
   const [textAnnCoords, setTextAnnCoords] = useState<{ x: number; y: number } | null>(null);
   const [editTokenId, setEditTokenId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ tokenId: string; x: number; y: number } | null>(null);
+  const [objCtxMenu, setObjCtxMenu] = useState<{ objectId: string; x: number; y: number } | null>(null);
   const [fogMarquee, setFogMarquee] = useState<FogMarquee | null>(null);
 
   const theme = useTheme();
@@ -110,18 +113,48 @@ export default function GameCanvas({
   useEffect(() => {
     if (myRole !== 'GM') return;
     function handleKeyDown(e: KeyboardEvent): void {
-      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const target = e.target as HTMLElement;
       if (
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.isContentEditable
       ) return;
-      const id = store.getState().scene.selectedSceneObjectId;
-      if (!id) return;
-      e.preventDefault();
-      emitObjectDelete({ roomId, sceneId: scene.id, objectId: id });
-      dispatch(deselectSceneObject());
+      const ids = store.getState().scene.selectedSceneObjectIds;
+      if (ids.length === 0) return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        for (const id of ids) {
+          emitObjectDelete({ roomId, sceneId: scene.id, objectId: id });
+        }
+        dispatch(deselectSceneObject());
+        return;
+      }
+
+      if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const state = store.getState();
+        const inEditScene = state.room.editingSceneId !== null;
+        const objects = state.scene.current?.annotations.objects ?? [];
+        for (const id of ids) {
+          if (inEditScene) {
+            // Edit Scene: optimistic local clone only — flushed to server on Done.
+            // No emit, so players don't see it until the scene is saved.
+            const source = objects.find((o) => o.id === id);
+            if (source) {
+              const userId = state.session.currentUser?.id ?? '';
+              const clone = buildClonedObject(source, objects, userId);
+              dispatch(appendSceneObject(clone));
+            }
+          } else {
+            // Play mode: emit to server. Server creates the canonical copy and
+            // broadcasts object:duplicated → appendSceneObject on all clients.
+            // No local optimistic here to avoid double-creation.
+            emitObjectDuplicate({ roomId, sceneId: scene.id, objectId: id });
+          }
+        }
+        // Selection intentionally not changed (future: select new ids).
+      }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -204,6 +237,7 @@ export default function GameCanvas({
           roomId={roomId}
           sceneId={scene.id}
           myRole={myRole}
+          onObjectContextMenu={(id, x, y) => { setObjCtxMenu({ objectId: id, x, y }); }}
         />
         <FogOfWarLayer
           fogShapes={scene.fogShapes ?? []}
@@ -239,6 +273,14 @@ export default function GameCanvas({
           y={ctxMenu.y}
           onEdit={() => { setEditTokenId(ctxMenu.tokenId); setCtxMenu(null); }}
           onClose={() => setCtxMenu(null)}
+        />
+      )}
+      {objCtxMenu && (
+        <SceneObjectContextMenu
+          objectId={objCtxMenu.objectId}
+          x={objCtxMenu.x}
+          y={objCtxMenu.y}
+          onClose={() => setObjCtxMenu(null)}
         />
       )}
     </div>

@@ -240,6 +240,15 @@
     "orderDesc": "За спаданням"
   },
   "limitCounter": "{{used}}/{{limit}} кімнат",
+  "sceneObjectMenu": {
+    "label": "Дії об'єкта сцени",
+    "front": "На передній план",
+    "back": "На задній план",
+    "lock": "Замкнути",
+    "unlock": "Розблокувати",
+    "duplicate": "Дублювати",
+    "delete": "Видалити"
+  },
   "aiGenerate": {
     "dialogLabel": "Генерація фону",
     "heading": "Згенерувати фон сцени (AI)",

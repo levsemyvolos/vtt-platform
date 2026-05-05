@@ -39,42 +39,101 @@ function makeSceneWithImage(): SceneDTO {
   };
 }
 
-describe('scene slice — scene object selection reducers', () => {
-  it('selectSceneObject sets selectedSceneObjectId', () => {
+describe('scene slice — scene object selection reducers (multi-select, Sess 3 Mini-C)', () => {
+  it('selectSceneObject(string) selects a single id', () => {
     const state = sceneReducer(undefined, selectSceneObject('id-1'));
-    expect(state.selectedSceneObjectId).toBe('id-1');
+    expect(state.selectedSceneObjectIds).toEqual(['id-1']);
   });
 
-  it('deselectSceneObject resets selectedSceneObjectId to null', () => {
+  it('selectSceneObject({ id }) selects a single id (object form)', () => {
+    const state = sceneReducer(undefined, selectSceneObject({ id: 'id-1' }));
+    expect(state.selectedSceneObjectIds).toEqual(['id-1']);
+  });
+
+  it('selectSceneObject plain replaces selection (no additive)', () => {
     let state = sceneReducer(undefined, selectSceneObject('id-1'));
-    state = sceneReducer(state, deselectSceneObject());
-    expect(state.selectedSceneObjectId).toBeNull();
+    state = sceneReducer(state, selectSceneObject('id-2'));
+    expect(state.selectedSceneObjectIds).toEqual(['id-2']);
   });
 
-  it('removeSceneObject clears selectedSceneObjectId when the removed object was selected', () => {
+  it('selectSceneObject with additive=true adds a new id to selection', () => {
+    let state = sceneReducer(undefined, selectSceneObject('id-1'));
+    state = sceneReducer(state, selectSceneObject({ id: 'id-2', additive: true }));
+    expect(state.selectedSceneObjectIds).toEqual(['id-1', 'id-2']);
+  });
+
+  it('selectSceneObject with additive=true toggles out an already-selected id', () => {
+    let state = sceneReducer(undefined, selectSceneObject('id-1'));
+    state = sceneReducer(state, selectSceneObject({ id: 'id-2', additive: true }));
+    state = sceneReducer(state, selectSceneObject({ id: 'id-1', additive: true }));
+    expect(state.selectedSceneObjectIds).toEqual(['id-2']);
+  });
+
+  it('deselectSceneObject clears all selected ids', () => {
+    let state = sceneReducer(undefined, selectSceneObject('id-1'));
+    state = sceneReducer(state, selectSceneObject({ id: 'id-2', additive: true }));
+    state = sceneReducer(state, deselectSceneObject());
+    expect(state.selectedSceneObjectIds).toEqual([]);
+  });
+
+  it('removeSceneObject removes id from selectedSceneObjectIds when selected', () => {
     let state = sceneReducer(undefined, hydrateScene(makeScene()));
     state = sceneReducer(state, selectSceneObject('id-1'));
+    state = sceneReducer(state, selectSceneObject({ id: 'id-2', additive: true }));
     state = sceneReducer(state, removeSceneObject('id-1'));
-    expect(state.selectedSceneObjectId).toBeNull();
+    expect(state.selectedSceneObjectIds).toEqual(['id-2']);
   });
 
-  it('removeSceneObject keeps selectedSceneObjectId when a different object is removed', () => {
+  it('removeSceneObject keeps selection when a different object is removed', () => {
     let state = sceneReducer(undefined, hydrateScene(makeScene()));
     state = sceneReducer(state, selectSceneObject('id-1'));
     state = sceneReducer(state, removeSceneObject('other'));
-    expect(state.selectedSceneObjectId).toBe('id-1');
+    expect(state.selectedSceneObjectIds).toEqual(['id-1']);
   });
 
-  it('hydrateScene resets selectedSceneObjectId to null', () => {
+  it('hydrateScene resets selectedSceneObjectIds to []', () => {
     let state = sceneReducer(undefined, selectSceneObject('id-1'));
     state = sceneReducer(state, hydrateScene(makeScene()));
-    expect(state.selectedSceneObjectId).toBeNull();
+    expect(state.selectedSceneObjectIds).toEqual([]);
   });
 
-  it('clearScene resets selectedSceneObjectId to null', () => {
+  it('clearScene resets selectedSceneObjectIds to []', () => {
     let state = sceneReducer(undefined, selectSceneObject('id-1'));
     state = sceneReducer(state, clearScene());
-    expect(state.selectedSceneObjectId).toBeNull();
+    expect(state.selectedSceneObjectIds).toEqual([]);
+  });
+});
+
+describe('scene slice — selection for text and stroke objects (Mini-E)', () => {
+  it('selectSceneObject works for a text object id', () => {
+    const state = sceneReducer(undefined, selectSceneObject('text-1'));
+    expect(state.selectedSceneObjectIds).toEqual(['text-1']);
+  });
+
+  it('selectSceneObject works for a stroke object id', () => {
+    const state = sceneReducer(undefined, selectSceneObject('stroke-1'));
+    expect(state.selectedSceneObjectIds).toEqual(['stroke-1']);
+  });
+
+  it('additive shift-click supports mixed image + text + stroke selection', () => {
+    let state = sceneReducer(undefined, selectSceneObject('img-1'));
+    state = sceneReducer(state, selectSceneObject({ id: 'text-1', additive: true }));
+    state = sceneReducer(state, selectSceneObject({ id: 'stroke-1', additive: true }));
+    expect(state.selectedSceneObjectIds).toEqual(['img-1', 'text-1', 'stroke-1']);
+  });
+
+  it('replacing selection from text to stroke clears the previous selection', () => {
+    let state = sceneReducer(undefined, selectSceneObject('text-1'));
+    state = sceneReducer(state, selectSceneObject('stroke-1'));
+    expect(state.selectedSceneObjectIds).toEqual(['stroke-1']);
+  });
+
+  it('additive deselect toggles a text id out of a mixed selection', () => {
+    let state = sceneReducer(undefined, selectSceneObject('img-1'));
+    state = sceneReducer(state, selectSceneObject({ id: 'text-1', additive: true }));
+    state = sceneReducer(state, selectSceneObject({ id: 'stroke-1', additive: true }));
+    state = sceneReducer(state, selectSceneObject({ id: 'text-1', additive: true }));
+    expect(state.selectedSceneObjectIds).toEqual(['img-1', 'stroke-1']);
   });
 });
 

@@ -151,6 +151,8 @@ function imageToObject(image: NonNullable<SceneAnnotations['images']>[number], i
     height: image.height,
     // Sess 2: preserve rotation so subsequent mutations don't drop it (RED 1 fix).
     rotation: image.rotation ?? 0,
+    // Sess 3: preserve locked flag so lock state survives normalization round-trips.
+    ...(image.locked !== undefined ? { locked: image.locked } : {}),
     zIndex: index,
     assetId: image.assetId,
   };

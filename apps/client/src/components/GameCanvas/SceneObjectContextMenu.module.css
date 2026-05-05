@@ -1,0 +1,35 @@
+.menu {
+  position: fixed;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) 0;
+  z-index: var(--z-modal);
+  min-width: 200px;
+  box-shadow: var(--shadow-md);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.item:hover {
+  background: var(--color-surface-hover);
+}
+
+.item--danger {
+  color: var(--color-danger);
+}
+
+.item--danger:hover {
+  background: var(--color-danger-bg);
+}

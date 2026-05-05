@@ -18,11 +18,14 @@ import type {
   SceneObjectMovePayload,
   SceneObjectDeletePayload,
   SceneObjectTransformPayload,
+  SceneObjectLockPayload,
+  SceneObjectZOrderPayload,
+  SceneObjectDuplicatePayload,
   ModerationPayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -92,6 +95,21 @@ export function getSocket(): TypedClientSocket {
       height: payload.height,
       rotation: payload.rotation,
     }));
+  });
+  socket.on('object:lock', (payload) => {
+    store.dispatch(lockSceneObject({
+      objectId: payload.objectId,
+      locked: payload.locked,
+    }));
+  });
+  socket.on('object:zorder', (payload) => {
+    store.dispatch(setSceneObjectZIndex({
+      objectId: payload.objectId,
+      direction: payload.direction,
+    }));
+  });
+  socket.on('object:duplicated', (payload) => {
+    store.dispatch(appendSceneObject(payload.object));
   });
   socket.on('token:rollback', (payload) => {
     store.dispatch(applyTokenRollback(payload));
@@ -396,6 +414,24 @@ export function emitObjectDelete(payload: SceneObjectDeletePayload): void {
 export function emitObjectTransform(payload: SceneObjectTransformPayload): void {
   if (isEditingScene()) return;
   getSocket().emit('object:transform', payload);
+}
+
+/** Toggles the locked flag on a scene object (Sess 3 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectLock(payload: SceneObjectLockPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:lock', payload);
+}
+
+/** Changes the zIndex of a scene object (Sess 3 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectZOrder(payload: SceneObjectZOrderPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:zorder', payload);
+}
+
+/** Creates a deep copy of a scene object offset by (+20, +20) (Sess 3 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectDuplicate(payload: SceneObjectDuplicatePayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:duplicate', payload);
 }
 
 /**

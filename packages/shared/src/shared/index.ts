@@ -114,6 +114,8 @@ export interface ImageAnnotation {
   height: number;
   /** Rotation in degrees [0, 360). Added in Sess 2 for Transformer support. */
   rotation?: number;
+  /** When true, the overlay is rendered but ignores drag/transform until unlocked (Sess 3). */
+  locked?: boolean;
 }
 
 export type SceneObjectType = 'text' | 'image' | 'stroke';

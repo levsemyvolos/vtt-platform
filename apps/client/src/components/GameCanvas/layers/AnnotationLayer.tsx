@@ -15,6 +15,7 @@ import { moveSceneObjectOptimistic, selectSceneObject, transformSceneObjectOptim
 import { fetchAsset } from '../../../store/assets';
 import { emitObjectMove, emitObjectTransform } from '../../../api/socket';
 import { useImage } from '../useImage';
+import { computeSelectionBox } from '../selectionBox';
 
 const PING_DURATION_MS = 3000;
 const PING_FADE_START_MS = 2000;
@@ -140,12 +141,15 @@ function toObjects(
 
 interface ObjectNodeProps {
   object: SceneObject;
-  draggable: boolean;
+  canEdit: boolean;
+  isSelected: boolean;
+  myRole: Role;
   roomId: string;
   sceneId: string;
+  onContextMenu?: (objectId: string, x: number, y: number) => void;
 }
 
-function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JSX.Element {
+function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onContextMenu }: ObjectNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
   const lastMoveAt = useRef(0);
   // Read the signed URL from the assets cache. If the asset isn't there yet
@@ -162,6 +166,11 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
   }, [assetId, cachedAsset, dispatch]);
   const image = useImage(cachedAsset?.url);
 
+  // Locked objects are selectable (GM can right-click → unlock) but NOT draggable.
+  // Applies to all types — text/stroke respect locked flag too.
+  const isLocked = object.locked === true;
+  const isDraggable = canEdit && !isLocked;
+
   function broadcastMove(x: number, y: number, force = false): void {
     const now = Date.now();
     if (!force && now - lastMoveAt.current < OBJECT_MOVE_THROTTLE_MS) return;
@@ -171,13 +180,13 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
   }
 
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
-    if (!draggable) return;
+    if (!isDraggable) return;
     const node = e.target;
     broadcastMove(Math.max(0, node.x()), Math.max(0, node.y()));
   }
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
-    if (!draggable) return;
+    if (!isDraggable) return;
     const node = e.target;
     const x = Math.max(0, node.x());
     const y = Math.max(0, node.y());
@@ -185,27 +194,42 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
     broadcastMove(x, y, true);
   }
 
-  function handleMouseDown(): void {
-    if (object.type !== 'image') return;
+  function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent>): void {
     if (activeTool === 'fog' || activeTool === 'draw') return;
-    dispatch(selectSceneObject(object.id));
+    const additive = e.evt.shiftKey;
+    dispatch(selectSceneObject({ id: object.id, additive }));
   }
 
   function handleMouseEnter(e: Konva.KonvaEventObject<MouseEvent>): void {
-    if (object.type !== 'image' || !draggable) return;
+    if (myRole !== 'GM' || !isDraggable) return;
     const stage = e.target.getStage();
     if (stage) stage.container().style.cursor = 'pointer';
   }
 
   function handleMouseLeave(e: Konva.KonvaEventObject<MouseEvent>): void {
-    if (object.type !== 'image' || !draggable) return;
+    if (myRole !== 'GM' || !isDraggable) return;
     const stage = e.target.getStage();
     if (stage) stage.container().style.cursor = 'default';
   }
 
+  function handleContextMenu(e: Konva.KonvaEventObject<PointerEvent>): void {
+    if (myRole !== 'GM') return;
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (!pos || !onContextMenu) return;
+    // Single-select the object on right-click for visual feedback
+    dispatch(selectSceneObject({ id: object.id }));
+    onContextMenu(object.id, pos.x, pos.y);
+  }
+
   const objectRotation = object.type === 'image' ? (object.rotation ?? 0) : 0;
 
+  // id attr needed only for image — Transformer uses stage.findOne('#id') lookup.
   const groupId = object.type === 'image' ? object.id : undefined;
+
+  // Selection rect shown for GM when this object is selected (all types — Mini-E).
+  const showSelectionRect = myRole === 'GM' && isSelected;
 
   return (
     <Group
@@ -213,13 +237,14 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
       x={object.x}
       y={object.y}
       rotation={objectRotation}
-      draggable={draggable}
-      listening={draggable}
+      draggable={isDraggable}
+      listening={canEdit}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onMouseDown={handleMouseDown}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onContextMenu={handleContextMenu}
     >
       {object.type === 'stroke' && (
         <Line
@@ -250,7 +275,21 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
           <Rect width={object.width} height={object.height} fill="#334155" stroke="#94a3b8" strokeWidth={1} />
         )
       )}
-      {/* Visual selection is handled by the Konva Transformer in AnnotationLayer for GMs */}
+      {/* Selection highlight rect for GM multi-select — all object types (Mini-E) */}
+      {showSelectionRect && (() => {
+        const box = computeSelectionBox(object);
+        return (
+          <Rect
+            x={box.x}
+            y={box.y}
+            width={box.w}
+            height={box.h}
+            stroke="#3b82f6"
+            strokeWidth={2}
+            listening={false}
+          />
+        );
+      })()}
     </Group>
   );
 }
@@ -260,6 +299,7 @@ interface AnnotationLayerProps {
   roomId: string;
   sceneId: string;
   myRole: Role;
+  onObjectContextMenu?: (objectId: string, x: number, y: number) => void;
 }
 
 export default function AnnotationLayer({
@@ -267,13 +307,14 @@ export default function AnnotationLayer({
   roomId,
   sceneId,
   myRole,
+  onObjectContextMenu,
 }: AnnotationLayerProps): JSX.Element {
   const dispatch = useAppDispatch();
   const pings = useAppSelector((s) => s.annotations.activePings);
   const measures = useAppSelector((s) => s.annotations.activeMeasures);
   const annotations = useAppSelector((s) => s.scene.current?.annotations);
-  const selectedId = useAppSelector((s) => s.scene.selectedSceneObjectId);
-  const sceneObjects = useMemo(
+  const selectedIds = useAppSelector((s) => s.scene.selectedSceneObjectIds);
+  const rawObjects = useMemo(
     () => toObjects(
       annotations?.strokes ?? [],
       annotations?.texts ?? [],
@@ -282,6 +323,11 @@ export default function AnnotationLayer({
     ),
     [annotations],
   );
+  // Render order: sort by zIndex ascending (stable — same-zIndex objects keep insertion order).
+  const sceneObjects = useMemo(
+    () => [...rawObjects].sort((a, b) => a.zIndex - b.zIndex),
+    [rawObjects],
+  );
   const canEditObjects = myRole === 'GM';
 
   // Konva Transformer ref — wired via stage.findOne(`#${selectedId}`) (Fix D)
@@ -289,18 +335,23 @@ export default function AnnotationLayer({
   // Ctrl-snap ref — read by boundBoxFunc via closure (Fix D keyboard modifiers)
   const ctrlSnapRef = useRef(false);
 
-  // Determine if the selected object is an image (Transformer only shows for images)
+  // Transformer shown only when EXACTLY ONE image is selected and it is not locked (Sess 3 Mini-C).
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : undefined;
   const selectedObject = useMemo(
-    () => sceneObjects.find((o) => o.id === selectedId && o.type === 'image'),
+    () => (selectedId !== undefined
+      ? sceneObjects.find((o) => o.id === selectedId && o.type === 'image')
+      : undefined),
     [sceneObjects, selectedId],
   );
-  const showTransformer = myRole === 'GM' && !!selectedObject;
+  // Do not show Transformer for locked objects — GM still sees selection rect.
+  const isSelectedLocked = selectedObject?.locked === true;
+  const showTransformer = myRole === 'GM' && !!selectedObject && !isSelectedLocked;
 
   // Wire Transformer to Konva node by ID (Fix D — stage.findOne lookup)
   useEffect(() => {
     const tr = trRef.current;
     if (!tr) return;
-    if (!selectedId || !showTransformer) {
+    if (selectedId === undefined || !showTransformer) {
       tr.nodes([]);
       return;
     }
@@ -413,9 +464,12 @@ export default function AnnotationLayer({
         <ObjectNode
           key={object.id}
           object={object}
-          draggable={canEditObjects}
+          canEdit={canEditObjects}
+          isSelected={selectedIds.includes(object.id)}
+          myRole={myRole}
           roomId={roomId}
           sceneId={sceneId}
+          {...(onObjectContextMenu !== undefined ? { onContextMenu: onObjectContextMenu } : {})}
         />
       ))}
       {showTransformer && (

@@ -239,6 +239,15 @@
     "orderDesc": "Descending"
   },
   "limitCounter": "{{used}}/{{limit}} rooms",
+  "sceneObjectMenu": {
+    "label": "Scene object actions",
+    "front": "Bring to front",
+    "back": "Send to back",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "duplicate": "Duplicate",
+    "delete": "Delete"
+  },
   "aiGenerate": {
     "dialogLabel": "Generate Background",
     "heading": "Generate Scene Background (AI)",

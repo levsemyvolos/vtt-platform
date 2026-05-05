@@ -1,9 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AssetDTO } from '@vtt/shared';
+import type { AssetDTO, ImageSceneObject } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { applyDraftSceneUpdate, clearFogMask } from '../../store/scene';
-import { apiAddImageAnnotation } from '../../api/scenes';
+import { applyDraftSceneUpdate, clearFogMask, appendSceneObject } from '../../store/scene';
 import { emitFogClear } from '../../api/socket';
 import ImageUpload from '../AssetUpload/ImageUpload';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
@@ -20,6 +19,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['room', 'errors']);
   const scene = useAppSelector((s) => s.scene.current);
+  const currentUserId = useAppSelector((s) => s.session.currentUser?.id ?? '');
   const tokens = scene?.tokens ?? [];
   // SceneDTO carries backgroundUrl (signed), not the assetId. Extract the id
   // from the path so AssetLibrary can highlight the active card.
@@ -65,18 +65,33 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
 
   // Place the asset as an overlay near the scene center so the user sees it
   // immediately, instead of a hardcoded (64, 64) corner.
-  async function handleAddToScene(asset: AssetDTO): Promise<void> {
-    const sceneW = (scene?.gridWidth ?? 20) * (scene?.gridSize ?? 50);
-    const sceneH = (scene?.gridHeight ?? 15) * (scene?.gridSize ?? 50);
+  // Edit-mode local buffer: added object goes to local objects[] only and is
+  // flushed to the server on Done via scene:flush (scene:flush handler calls
+  // drawService.persist). Cancel re-fetches from server, discarding this object.
+  function handleAddToScene(asset: AssetDTO): void {
+    if (!scene) return;
+    const sceneW = (scene.gridWidth ?? 20) * (scene.gridSize ?? 50);
+    const sceneH = (scene.gridHeight ?? 15) * (scene.gridSize ?? 50);
     const w = 256;
     const h = 256;
-    await apiAddImageAnnotation(sceneId, {
-      x: Math.round(sceneW / 2 - w / 2),
-      y: Math.round(sceneH / 2 - h / 2),
-      assetId: asset.id,
+    const x = Math.round(sceneW / 2 - w / 2);
+    const y = Math.round(sceneH / 2 - h / 2);
+    const peers = scene.annotations?.objects ?? [];
+    const zIndex = peers.length > 0
+      ? Math.max(...peers.map((o) => o.zIndex)) + 1
+      : 0;
+    const newObject: ImageSceneObject = {
+      id: crypto.randomUUID(),
+      type: 'image',
+      userId: currentUserId,
+      x,
+      y,
       width: w,
       height: h,
-    });
+      zIndex,
+      assetId: asset.id,
+    };
+    dispatch(appendSceneObject(newObject));
   }
 
   return (
@@ -96,7 +111,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           tabs={['images']}
           activeBackgroundAssetId={activeBackgroundAssetId}
           onSetBackground={(a) => handleSetBackground(a)}
-          onAddToScene={(a) => void handleAddToScene(a)}
+          onAddToScene={(a) => handleAddToScene(a)}
         />
       </section>
 

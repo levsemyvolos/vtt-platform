@@ -209,6 +209,50 @@ export interface SceneObjectUpsertPayload {
 }
 
 /**
+ * Toggles the locked flag on a SceneObject (Sess 3).
+ * Locked objects render but ignore drag/transform until unlocked.
+ */
+export interface SceneObjectLockPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  locked: boolean;
+}
+
+/**
+ * Changes the zIndex of a SceneObject (Sess 3).
+ * direction='front' sends to front (max+1), 'back' to back (min-1).
+ * Server normalizes the new value relative to peers.
+ */
+export interface SceneObjectZOrderPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  direction: 'front' | 'back';
+}
+
+/**
+ * Creates a deep copy of a SceneObject offset by (+20, +20) (Sess 3).
+ * Server returns the new object via room broadcast (`object:duplicated`).
+ */
+export interface SceneObjectDuplicatePayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+}
+
+/**
+ * Server response for object:duplicate — broadcasts the full new object
+ * so clients can append it to local state without a re-fetch.
+ */
+export interface SceneObjectDuplicatedPayload {
+  roomId: string;
+  sceneId: string;
+  /** Full new SceneObject with new id. */
+  object: SceneObject;
+}
+
+/**
  * Ephemeral ruler broadcast (Ф3.4.3, table 2.14).
  * Never persisted — server forwards to room; client auto-fades 5 s after last update.
  */
@@ -296,6 +340,9 @@ export interface ClientToServerEvents {
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
   'object:transform': (payload: SceneObjectTransformPayload) => void;
+  'object:lock': (payload: SceneObjectLockPayload) => void;
+  'object:zorder': (payload: SceneObjectZOrderPayload) => void;
+  'object:duplicate': (payload: SceneObjectDuplicatePayload) => void;
   'scene:flush': (payload: SceneFlushPayload) => void;
   'mod:kick': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
   'mod:demote': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
@@ -359,6 +406,9 @@ export interface ServerToClientEvents {
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
   'object:transform': (payload: SceneObjectTransformPayload) => void;
+  'object:lock': (payload: SceneObjectLockPayload) => void;
+  'object:zorder': (payload: SceneObjectZOrderPayload) => void;
+  'object:duplicated': (payload: SceneObjectDuplicatedPayload) => void;
   'peer:mute-request': (payload: { userId: string }) => void;
   'peer:cam-off-request': (payload: { userId: string }) => void;
   'room:member-removed': (payload: { roomId: string; userId: string }) => void;

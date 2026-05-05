@@ -207,6 +207,138 @@ export class SceneAnnotationService {
     await this.drawService.persist(sceneId, normalized);
     return normalized;
   }
+  /**
+   * Toggles the locked flag on a scene object (Sess 3).
+   *
+   * RBAC: GM-only (enforced by caller/handler).
+   * Mirrors mutation to images[] if the object is of image type so that
+   * subsequent normalizeAnnotations round-trips preserve the lock state.
+   */
+  async lockObject(
+    sceneId: string,
+    objectId: string,
+    role: string,
+    locked: boolean,
+  ): Promise<SceneAnnotations> {
+    if (role !== 'GM') throw new HttpError(403, 'Only GM can lock annotations');
+
+    const annotations = await this.drawService.getAnnotations(sceneId);
+    const obj = (annotations.objects ?? []).find((o) => o.id === objectId);
+    if (!obj) throw new HttpError(404, 'Object not found');
+
+    annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
+      candidate.id === objectId ? { ...candidate, locked } : candidate
+    ));
+
+    // Mirror to images[] so normalizeAnnotations preserves the flag
+    annotations.images = annotations.images.map((image) => (
+      image.id === objectId ? { ...image, locked } : image
+    ));
+
+    const normalized = normalizeAnnotations(annotations);
+    await this.drawService.persist(sceneId, normalized);
+    return normalized;
+  }
+
+  /**
+   * Changes the zIndex of a scene object relative to peers (Sess 3).
+   *
+   * direction='front' → target.zIndex = max(peer zIndices) + 1.
+   * direction='back'  → target.zIndex = min(peer zIndices) - 1.
+   * Negative zIndex is allowed — it is a sort key only; no normalization.
+   * Edge case: if there are no peers (single object), zIndex is unchanged.
+   *
+   * RBAC: GM-only (enforced by caller/handler).
+   */
+  async setZIndex(
+    sceneId: string,
+    objectId: string,
+    role: string,
+    direction: 'front' | 'back',
+  ): Promise<SceneAnnotations> {
+    if (role !== 'GM') throw new HttpError(403, 'Only GM can change z-order');
+
+    const annotations = await this.drawService.getAnnotations(sceneId);
+    const objects = annotations.objects ?? [];
+    const obj = objects.find((o) => o.id === objectId);
+    if (!obj) throw new HttpError(404, 'Object not found');
+
+    const peerZIndices = objects.filter((o) => o.id !== objectId).map((o) => o.zIndex);
+
+    let newZIndex = obj.zIndex;
+    if (peerZIndices.length > 0) {
+      if (direction === 'front') {
+        newZIndex = Math.max(...peerZIndices) + 1;
+      } else {
+        newZIndex = Math.min(...peerZIndices) - 1;
+      }
+    }
+    // If no peers: no-op — zIndex unchanged (single object has no relative order)
+
+    annotations.objects = objects.map((candidate): SceneObject => (
+      candidate.id === objectId ? { ...candidate, zIndex: newZIndex } : candidate
+    ));
+
+    const normalized = normalizeAnnotations(annotations);
+    await this.drawService.persist(sceneId, normalized);
+    return normalized;
+  }
+
+  /**
+   * Creates a deep copy of a scene object offset by (+20, +20) (Sess 3).
+   *
+   * The duplicate is assigned a new UUID and placed on top (zIndex = max+1).
+   * Mirror entries are created in the appropriate legacy array (images[], texts[], strokes[]).
+   * Returns both the updated annotations and the newly created SceneObject for broadcast.
+   *
+   * RBAC: GM-only (enforced by caller/handler).
+   */
+  async duplicateObject(
+    sceneId: string,
+    objectId: string,
+    role: string,
+    _userId: string,
+  ): Promise<{ annotations: SceneAnnotations; newObject: SceneObject }> {
+    if (role !== 'GM') throw new HttpError(403, 'Only GM can duplicate annotations');
+
+    const annotations = await this.drawService.getAnnotations(sceneId);
+    const objects = annotations.objects ?? [];
+    const src = objects.find((o) => o.id === objectId);
+    if (!src) throw new HttpError(404, 'Object not found');
+
+    const allZIndices = objects.map((o) => o.zIndex);
+    const topZIndex = allZIndices.length > 0 ? Math.max(...allZIndices) + 1 : 0;
+    const newId = randomUUID();
+
+    const newObject: SceneObject = { ...src, id: newId, x: src.x + 20, y: src.y + 20, zIndex: topZIndex };
+
+    annotations.objects = [...objects, newObject];
+
+    // Mirror to the appropriate legacy array
+    if (src.type === 'image') {
+      const imgSrc = annotations.images.find((img) => img.id === objectId);
+      if (imgSrc) {
+        annotations.images = [...annotations.images, { ...imgSrc, id: newId, x: imgSrc.x + 20, y: imgSrc.y + 20 }];
+      }
+    } else if (src.type === 'text') {
+      const textSrc = annotations.texts.find((t) => t.id === objectId);
+      if (textSrc) {
+        annotations.texts = [...annotations.texts, { ...textSrc, id: newId, x: textSrc.x + 20, y: textSrc.y + 20 }];
+      }
+    } else if (src.type === 'stroke') {
+      // For strokes: strokeId is used as the id in the legacy array
+      const strokeSrc = annotations.strokes.find((s) => s.strokeId === objectId);
+      if (strokeSrc) {
+        annotations.strokes = [...annotations.strokes, { ...strokeSrc, strokeId: newId, x: (strokeSrc.x ?? 0) + 20, y: (strokeSrc.y ?? 0) + 20 }];
+      }
+    }
+
+    const normalized = normalizeAnnotations(annotations);
+    await this.drawService.persist(sceneId, normalized);
+
+    // Return the exact newObject before normalization so the id matches
+    return { annotations: normalized, newObject };
+  }
 }
 
 function findLegacyOwner(annotations: SceneAnnotations, annotationId: string): string | null {
