@@ -33,6 +33,7 @@ function handleError(err: unknown, res: Response): void {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: { code: err.status, message: err.message } });
   } else {
+    console.error('[scenes] unhandled error:', err);
     res.status(500).json({ error: { code: 500, message: 'Internal server error' } });
   }
 }
@@ -138,8 +139,19 @@ scenesRouter.patch(
       const existing = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
       if (!existing) throw new HttpError(404, 'Scene not found');
       await assertOwner(existing.roomId, req.user!.id);
-      const scene = await sceneService.updateScene(req.params.sceneId, req.body);
-      res.json(toSceneDTOFromEntity(scene));
+      await sceneService.updateScene(req.params.sceneId, req.body);
+      // Return the full projected snapshot (incl. signed backgroundUrl + tokens
+      // + annotations) so clients can `dispatch(hydrateScene(updated))` without
+      // a fragile spread-merge that would drop fields not echoed by PATCH.
+      const role = await roomRepo.getRoleInRoom(
+        existing.roomId,
+        req.user!.id,
+        req.user!.role,
+        req.user!.boundRoomId,
+      );
+      if (!role) throw new HttpError(403, 'Not a room member');
+      const dto = await sceneService.getSnapshot(req.params.sceneId, role, req.user!.id);
+      res.json(dto);
     } catch (err) {
       handleError(err, res);
     }

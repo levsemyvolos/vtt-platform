@@ -170,9 +170,26 @@
     "leftToolbar": {
       "label": "Ліва панель редактора",
       "background": "Фон",
+      "assetLibrary": "Бібліотека ресурсів",
       "grid": "Сітка",
       "tokens": "Токени",
       "fog": "Туман"
+    },
+    "assetLibrary": {
+      "loading": "Завантаження ресурсів…",
+      "empty": "Ще немає ресурсів — перетягніть файл вище, щоб почати.",
+      "useAsBackground": "Зробити фоном",
+      "addToScene": "Додати у сцену",
+      "delete": "Видалити",
+      "deleteConfirm": "Видалити ресурс «{{name}}»? Цю дію неможливо скасувати.",
+      "rename": "Перейменувати",
+      "active": "Активний",
+      "filter": {
+        "all": "Усі",
+        "images": "Зображення",
+        "audio": "Аудіо",
+        "pdfs": "PDF"
+      }
     },
     "rightToolbar": {
       "heading": "Властивості"
@@ -185,6 +202,7 @@
       "sizeLabel": "Розмір клітинки (px)",
       "widthLabel": "Ширина (кліток)",
       "heightLabel": "Висота (кліток)",
+      "visibleLabel": "Показувати сітку",
       "saveBtn": "Зберегти"
     },
     "fog": {

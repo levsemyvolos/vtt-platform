@@ -31,7 +31,7 @@ export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvent
 
 let socket: TypedClientSocket | null = null;
 
-const SERVER_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+const SERVER_URL = import.meta.env.VITE_API_URL ?? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
 const ACK_TIMEOUT_MS = 5000;
 
 /**

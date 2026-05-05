@@ -1,0 +1,49 @@
+.library {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0;
+}
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.tab:hover { color: var(--color-text); }
+.tabActive {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 500;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--space-sm);
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--space-lg);
+}
+
+.status {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  padding: var(--space-sm);
+}
+.statusError {
+  color: var(--color-danger);
+}

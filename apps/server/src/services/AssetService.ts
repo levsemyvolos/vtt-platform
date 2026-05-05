@@ -5,24 +5,22 @@ import type { AIProvider, GeneratedBinary } from '../infrastructure/ai/AIProvide
 import type { FileStorageAdapter } from '../infrastructure/storage/FileStorageAdapter.js';
 import { AssetRepository } from '../repositories/AssetRepository.js';
 import { HttpError } from '../lib/errors.js';
-import type { InitUploadInput, FinalizeUploadInput } from '../schemas/asset.schema.js';
-
-export interface InitUploadResponse {
-  uploadUrl: string;
-  storageKey: string;
-  expiresAt: string;
-}
+import { signAssetUrl } from '../lib/assetUrlSigner.js';
 
 /**
  * Coordinator over `AIProvider`, `FileStorageAdapter` and `AssetRepository` (§2.13.4).
- * Sequence А.7 (Process_View_AIImage):
- *   AIProvider returns bytes ──┐
- *                              ├─► par-block: storage.put(bytes) ‖ repo.create(metadata)
- *                              └─► presigned URL is generated for response.
  *
- * Persistence rule (§2.16): only `storageKey` is stored; clients always receive
- * a short-lived presigned URL (TTL = 15 min) — `storageKey` never crosses the
- * server boundary.
+ * Asset access pattern (§2.16, revised):
+ *   Capability-based signed proxy URL. AssetDTO returns
+ *   `/api/assets/:id/file?exp&sig` where sig = HMAC-SHA256(HKDF(JWT_SECRET,
+ *   "asset-url-v1"), "v1.assetId.exp"), TTL 4h. The bucket is fully private;
+ *   `storageKey` never crosses the server boundary. The signed URL must NEVER
+ *   be persisted in scene snapshots, WebSocket payloads, or DB rows — assets
+ *   are referenced by `id` and the URL is re-materialized client-side via
+ *   GET /api/assets/:id whenever a fresh DTO is fetched.
+ *
+ * This pattern lets <img> and new Image() (which can't send Authorization
+ * headers) load asset bytes without exposing presigned GCS URLs to the client.
  */
 function extensionFor(mimeType: string): string {
   if (mimeType.startsWith('image/')) return mimeType.slice('image/'.length);
@@ -50,79 +48,6 @@ export class AssetService {
   ) {}
 
   /**
-   * Initiates a presigned upload: allocates a storageKey and returns
-   * a PUT URL for the client to upload bytes directly to GCS.
-   * RBAC: requester must be room owner or RoomMember.
-   */
-  async initUpload(req: InitUploadInput, userId: string): Promise<InitUploadResponse> {
-    // RBAC: room owner or member
-    if (this.db) {
-      const room = await this.db.room.findUnique({ where: { id: req.roomId }, select: { ownerId: true } });
-      if (!room) throw new HttpError(404, 'Room not found');
-      if (room.ownerId !== userId) {
-        const member = await this.db.roomMember.findFirst({
-          where: { roomId: req.roomId, userId },
-          select: { id: true },
-        });
-        if (!member) throw new HttpError(403, 'Not a room member');
-      }
-    }
-
-    const ext = req.mimeType.split('/')[1] ?? 'bin';
-    const storageKey = `rooms/${req.roomId}/image/${randomUUID()}.${ext}`;
-    const { uploadUrl, expiresAt } = await this.storage.getPresignedUploadUrl({ storageKey, mimeType: req.mimeType });
-    return { uploadUrl, storageKey, expiresAt: expiresAt.toISOString() };
-  }
-
-  /**
-   * Finalizes the upload: verifies the file exists in storage, then creates the Asset record.
-   * RBAC: roomId embedded in storageKey must match req.roomId; user must be room member.
-   */
-  async finalizeUpload(req: FinalizeUploadInput, userId: string): Promise<AssetDTO> {
-    // RBAC: room owner or member
-    if (this.db) {
-      const room = await this.db.room.findUnique({ where: { id: req.roomId }, select: { ownerId: true } });
-      if (!room) throw new HttpError(404, 'Room not found');
-      if (room.ownerId !== userId) {
-        const member = await this.db.roomMember.findFirst({
-          where: { roomId: req.roomId, userId },
-          select: { id: true },
-        });
-        if (!member) throw new HttpError(403, 'Not a room member');
-      }
-    }
-
-    // Verify the storageKey matches the declared roomId (prevent cross-room injection)
-    if (!req.storageKey.startsWith(`rooms/${req.roomId}/`)) {
-      throw new HttpError(400, 'storageKey does not match roomId');
-    }
-
-    // Verify that file was actually uploaded (HEAD request)
-    const meta = await this.storage.statObject(req.storageKey);
-    if (!meta) {
-      throw new HttpError(400, 'File not found in storage — upload may have failed');
-    }
-
-    // Create the asset record
-    const asset = await this.repo.create({
-      id: randomUUID(),
-      ownerId: userId,
-      roomId: req.roomId,
-      mimeType: req.mimeType,
-      size: BigInt(req.size),
-      storageKey: req.storageKey,
-    });
-
-    return {
-      id: asset.id,
-      url: AssetService.getProxyUrl(asset.id),
-      type: asset.mimeType,
-      name: asset.storageKey.split('/').pop() ?? asset.id,
-      roomId: asset.roomId,
-    };
-  }
-
-  /**
    * Persists an AI-generated binary: uploads bytes to GCS and records metadata.
    * Per sequence А.7 the upload and the DB insert are performed in parallel
    * (the `par` fragment is executed by `Promise.all`).
@@ -137,8 +62,14 @@ export class AssetService {
     roomId: string,
     payload: GeneratedBinary,
     kind: 'image' | 'audio',
+    promptHint?: string,
   ): Promise<Asset> {
     const storageKey = buildStorageKey(roomId, kind, payload.mimeType);
+    // AI uploads have no user-supplied filename — use the prompt prefix or a
+    // timestamp so the unified Asset Library shows a meaningful label.
+    const originalName = promptHint
+      ? `AI: ${promptHint.slice(0, 40)}`
+      : `AI ${new Date().toISOString().slice(0, 19)}`;
     const [, asset] = await Promise.all([
       this.storage.put({
         storageKey,
@@ -152,17 +83,19 @@ export class AssetService {
         mimeType: payload.mimeType,
         size: BigInt(payload.bytes.byteLength),
         storageKey,
+        originalName,
       }),
     ]);
     return asset;
   }
 
   /**
-   * Returns a proxy URL for an asset ID.
+   * Returns a capability-based signed proxy URL for an asset ID.
+   * Format: `/api/assets/${assetId}/file?exp=...&sig=...`. TTL 4h.
    * Path matches the mount point in apps/server/src/index.ts and vite proxy.
    */
   static getProxyUrl(assetId: string): string {
-    return `/api/assets/${assetId}/file`;
+    return signAssetUrl(assetId).url;
   }
 
   /**
@@ -177,9 +110,22 @@ export class AssetService {
       id: asset.id,
       url: AssetService.getProxyUrl(asset.id),
       type: asset.mimeType,
-      name: asset.storageKey.split('/').pop() ?? asset.id,
+      name: asset.originalName || (asset.storageKey.split('/').pop() ?? asset.id),
       roomId: asset.roomId,
     };
+  }
+
+  /** Pass-through to repo; used by the rename endpoint for ownership check. */
+  findById(assetId: string): Promise<Asset | null> {
+    return this.repo.findById(assetId);
+  }
+
+  /**
+   * Updates an asset's display name. Authorization is enforced by the caller.
+   * storageKey is intentionally NOT touched.
+   */
+  async rename(assetId: string, name: string): Promise<Asset> {
+    return this.repo.rename(assetId, name);
   }
 
   /**
@@ -220,7 +166,7 @@ export class AssetService {
       id: a.id,
       url: AssetService.getProxyUrl(a.id),
       type: a.mimeType,
-      name: a.storageKey.split('/').pop() ?? a.id,
+      name: a.originalName || (a.storageKey.split('/').pop() ?? a.id),
       roomId: a.roomId,
     }));
   }
@@ -244,6 +190,7 @@ export class AssetService {
     mimeType: string,
     ownerId: string,
     roomId: string,
+    originalName: string,
   ): Promise<Asset> {
     const storageKey = buildStorageKey(roomId, kindForMime(mimeType), mimeType);
     const [, asset] = await Promise.all([
@@ -255,6 +202,7 @@ export class AssetService {
         mimeType,
         size: BigInt(buffer.byteLength),
         storageKey,
+        originalName: originalName.slice(0, 128),
       }),
     ]);
     return asset;

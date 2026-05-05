@@ -42,7 +42,7 @@ export function projectToken(
     x: token.x,
     y: token.y,
     sceneId: token.sceneId,
-    imageUrl: token.imageAssetId ? `/api/assets/${token.imageAssetId}/file` : '',
+    imageUrl: token.imageAssetId ? AssetService.getProxyUrl(token.imageAssetId) : '',
     version: token.version,
     color: token.color ?? '#7c5cff',
     assignedUserId: token.assignedUserId,

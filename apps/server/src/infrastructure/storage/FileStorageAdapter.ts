@@ -2,8 +2,10 @@
  * Provider-neutral object-storage abstraction (§2.13.3, §2.16).
  * Concrete implementation: GcsFileStorageAdapter over @google-cloud/storage.
  *
- * Invariant (НФВ 4.5): no `storageKey` is ever transported to the client.
- * Clients always receive a short-lived presigned URL with TTL = 15 min.
+ * Asset access pattern (§2.16): server-side streaming proxy.
+ * No `storageKey` or signed URL is ever transported to the client.
+ * Bucket is fully private (Uniform Bucket-Level Access enforced).
+ * Streaming GET: createReadStream(storageKey) → pipe to HTTP response.
  */
 export interface PutObjectInput {
   storageKey: string;

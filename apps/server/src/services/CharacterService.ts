@@ -176,6 +176,7 @@ export class CharacterService {
       mimeType,
       viewerId,
       existing.roomId,
+      `character-${characterId.slice(0, 8)}.pdf`,
     );
     const updated = await this.characterRepo.setPdfAssetId(characterId, asset.id);
     return this.projectForViewer(updated, viewerRole, viewerId);

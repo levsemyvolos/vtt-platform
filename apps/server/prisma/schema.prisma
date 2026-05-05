@@ -85,13 +85,18 @@ model RoomMember {
 }
 
 model Asset {
-  id         String   @id @default(uuid()) @db.Uuid
-  ownerId    String   @db.Uuid
-  roomId     String   @db.Uuid
-  mimeType   String   @db.VarChar(128)
-  size       BigInt
-  storageKey String   @unique @db.VarChar(256)
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  id           String   @id @default(uuid()) @db.Uuid
+  ownerId      String   @db.Uuid
+  roomId       String   @db.Uuid
+  mimeType     String   @db.VarChar(128)
+  size         BigInt
+  // storageKey is the immutable GCS object path (rooms/<uuid>/<kind>/<uuid>.<ext>).
+  // It MUST stay UUID-based for storage stability — rename UI mutates `originalName` only.
+  storageKey   String   @unique @db.VarChar(256)
+  // Display name shown in the asset library. Backfilled from storageKey suffix
+  // for rows created before the rename feature; new uploads carry file.originalname.
+  originalName String   @default("") @db.VarChar(128)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
   owner            User        @relation("AssetOwner", fields: [ownerId], references: [id])
   room             Room        @relation("AssetRoom", fields: [roomId], references: [id], onDelete: Cascade)

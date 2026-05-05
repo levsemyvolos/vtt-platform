@@ -13,14 +13,14 @@ import AnnotationLayer from './layers/AnnotationLayer';
 import FogOfWarLayer from './layers/FogOfWarLayer';
 import AddTokenButton from './AddTokenButton';
 import TextAnnotationModal from './TextAnnotationModal';
+import TokenEditModal from '../Token/TokenEditModal';
+import TokenContextMenu from '../Token/TokenContextMenu';
 import styles from './GameCanvas.module.css';
 
 export interface GameCanvasProps {
   scene: SceneDTO;
   myRole: Role;
   myUserId: string;
-  /** Optional URL for the scene background bitmap (Ф2.2.5). */
-  backgroundUrl?: string;
   /** 'edit' enables fog-drag for GM and token-click-to-select. Default: 'play'. */
   mode?: 'edit' | 'play';
 }
@@ -50,14 +50,17 @@ export default function GameCanvas({
   scene,
   myRole,
   myUserId,
-  backgroundUrl,
   mode = 'play',
 }: GameCanvasProps): JSX.Element {
+  // The signed background URL lives on the DTO itself (projections.ts).
+  const backgroundUrl = scene.backgroundUrl ?? undefined;
   const dispatch = useAppDispatch();
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [textAnnCoords, setTextAnnCoords] = useState<{ x: number; y: number } | null>(null);
+  const [editTokenId, setEditTokenId] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ tokenId: string; x: number; y: number } | null>(null);
 
   const theme = useTheme();
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
@@ -144,9 +147,18 @@ export default function GameCanvas({
           gridSize={scene.gridSize}
           myRole={myRole}
           myUserId={myUserId}
-          {...(mode === 'edit' && {
-            onTokenSelect: (id: string) => { dispatch(selectToken(id)); },
-          })}
+          onTokenSelect={
+            mode === 'edit'
+              ? (id: string) => { dispatch(selectToken(id)); }
+              : myRole === 'GM'
+                ? (id: string) => setEditTokenId(id)
+                : undefined
+          }
+          onTokenContextMenu={
+            myRole === 'GM' && mode !== 'edit'
+              ? (id, x, y) => setCtxMenu({ tokenId: id, x, y })
+              : undefined
+          }
         />
         <AnnotationLayer
           gridSize={scene.gridSize}
@@ -174,6 +186,18 @@ export default function GameCanvas({
           x={textAnnCoords.x}
           y={textAnnCoords.y}
           onClose={() => setTextAnnCoords(null)}
+        />
+      )}
+      {editTokenId && (
+        <TokenEditModal tokenId={editTokenId} onClose={() => setEditTokenId(null)} />
+      )}
+      {ctxMenu && (
+        <TokenContextMenu
+          tokenId={ctxMenu.tokenId}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onEdit={() => { setEditTokenId(ctxMenu.tokenId); setCtxMenu(null); }}
+          onClose={() => setCtxMenu(null)}
         />
       )}
     </div>

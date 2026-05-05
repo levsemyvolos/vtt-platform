@@ -12,6 +12,7 @@ import type {
 } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import { moveSceneObjectOptimistic } from '../../../store/scene';
+import { fetchAsset } from '../../../store/assets';
 import { emitObjectDelete, emitObjectMove } from '../../../api/socket';
 import { useImage } from '../useImage';
 
@@ -147,7 +148,18 @@ interface ObjectNodeProps {
 function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
   const lastMoveAt = useRef(0);
-  const image = useImage(object.type === 'image' ? `/api/assets/${object.assetId}/file` : undefined);
+  // Read the signed URL from the assets cache. If the asset isn't there yet
+  // (e.g. mid-session arrival via scene snapshot), fetch a fresh DTO so the
+  // signature is valid. <img>/Konva.Image can't send Authorization headers,
+  // so a hard-coded `/api/assets/:id/file` would always 403.
+  const assetId = object.type === 'image' ? object.assetId : undefined;
+  const cachedAsset = useAppSelector((s) => (assetId ? s.assets.byId[assetId] : undefined));
+  useEffect(() => {
+    if (assetId && !cachedAsset) {
+      void dispatch(fetchAsset(assetId));
+    }
+  }, [assetId, cachedAsset, dispatch]);
+  const image = useImage(cachedAsset?.url);
 
   function broadcastMove(x: number, y: number, force = false): void {
     const now = Date.now();

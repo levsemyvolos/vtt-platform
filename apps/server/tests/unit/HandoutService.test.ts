@@ -119,12 +119,14 @@ describe('HandoutService (Ф7.2 — RBAC)', () => {
         mimeType: 'image/png',
         size: BigInt(100),
         storageKey: 'rooms/r/image/x.png',
+        originalName: 'x.png',
         createdAt: new Date(),
       },
     });
     (repo.listByRoom as ReturnType<typeof vi.fn>).mockResolvedValue([handoutWithAsset]);
     const svc = new HandoutService(repo, makeStorage());
     const list = await svc.listForViewer(ROOM_ID, 'GM', 'gm-1');
-    expect(list[0]?.assetUrl).toBe('https://signed.example/handout.png');
+    expect(list[0]?.assetUrl).toMatch(/^\/api\/assets\/asset-1\/file\?exp=\d+&sig=[A-Za-z0-9_-]+$/);
+    expect(list[0]?.assetUrl).not.toContain('storage.googleapis.com');
   });
 });

@@ -2,16 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "VTT Server",
+      "name": "VTT Server (recursing-wing)",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@vtt/server", "dev"],
-      "port": 4000
+      "env": { "PORT": "4002" },
+      "port": 4002
     },
     {
-      "name": "VTT Client",
+      "name": "VTT Client (recursing-wing)",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@vtt/client", "dev"],
-      "port": 5173
+      "env": { "VITE_PORT": "5175", "VITE_SERVER_PORT": "4002" },
+      "port": 5175
     }
   ]
 }

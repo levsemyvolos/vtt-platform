@@ -17,6 +17,7 @@ import annotationsReducer from './annotations';
 import preferencesReducer from './preferences';
 import toastReducer from './toast';
 import canvasViewportReducer from './canvasViewport';
+import assetsReducer from './assets';
 
 export const store = configureStore({
   reducer: {
@@ -37,6 +38,7 @@ export const store = configureStore({
     preferences: preferencesReducer,
     toast: toastReducer,
     canvasViewport: canvasViewportReducer,
+    assets: assetsReducer,
   },
 });
 

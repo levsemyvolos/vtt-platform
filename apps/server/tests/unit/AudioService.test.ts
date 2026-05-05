@@ -137,6 +137,7 @@ function fakeAsset(overrides: Partial<Asset> = {}): Asset {
     mimeType: 'audio/mpeg',
     size: BigInt(1024),
     storageKey: `rooms/${ROOM_ID}/audio/asset-1.mp3`,
+    originalName: 'asset-1.mp3',
     createdAt: new Date(),
     ...overrides,
   };

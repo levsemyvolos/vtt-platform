@@ -11,17 +11,15 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: Number(process.env['VITE_PORT'] ?? 5173),
     proxy: {
-      // Client calls /api/auth/* etc; server mounts routers under /auth /rooms /scenes
-      // (no /api prefix), so we strip the prefix at the proxy level.
       '/api': {
-        target: 'http://localhost:4000',
+        target: `http://localhost:${process.env['VITE_SERVER_PORT'] ?? 4000}`,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/socket.io': {
-        target: 'http://localhost:4000',
+        target: `http://localhost:${process.env['VITE_SERVER_PORT'] ?? 4000}`,
         ws: true,
       },
     },

@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '../../store';
 import { upsertToken } from '../../store/scene';
 import { apiUpdateToken } from '../../api/scenes';
 import ImageUpload from '../AssetUpload/ImageUpload';
+import AssetLibrary from '../AssetLibrary/AssetLibrary';
 import styles from './TokenEditModal.module.css';
 
 const COLOR_PRESETS = [
@@ -35,6 +36,7 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
   const [imageAssetId, setImageAssetId] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [showUploader, setShowUploader] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +52,7 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
     setImageAssetId(null);
     setImagePreviewUrl(token.imageUrl || null);
     setShowUploader(false);
+    setShowLibrary(false);
   }, [token]);
 
   useEffect(() => {
@@ -73,6 +76,7 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
     setImageAssetId(asset.id);
     setImagePreviewUrl(asset.url);
     setShowUploader(false);
+    setShowLibrary(false);
   }
 
   async function handleSave(): Promise<void> {
@@ -138,16 +142,36 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
           )}
           {showUploader && roomId ? (
             <ImageUpload roomId={roomId} onUploaded={handleImageUploaded} />
+          ) : showLibrary && roomId ? (
+            <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-xs)' }}>
+              <AssetLibrary
+                roomId={roomId}
+                tabs={['images']}
+                pickLabel={t('room:token.useForToken', 'Use for token')}
+                onPick={handleImageUploaded}
+              />
+            </div>
           ) : (
-            <button
-              type="button"
-              className={styles.btnCancel}
-              style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
-              onClick={() => setShowUploader(true)}
-              disabled={saving || !roomId}
-            >
-              {imagePreviewUrl ? t('room:token.changeImage', 'Change image') : t('room:token.uploadImage', 'Upload image')}
-            </button>
+            <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={styles.btnCancel}
+                style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
+                onClick={() => setShowUploader(true)}
+                disabled={saving || !roomId}
+              >
+                {imagePreviewUrl ? t('room:token.changeImage', 'Change image') : t('room:token.uploadImage', 'Upload image')}
+              </button>
+              <button
+                type="button"
+                className={styles.btnCancel}
+                style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
+                onClick={() => setShowLibrary(true)}
+                disabled={saving || !roomId}
+              >
+                {t('room:token.pickFromLibrary', 'Pick from library')}
+              </button>
+            </div>
           )}
         </div>
 

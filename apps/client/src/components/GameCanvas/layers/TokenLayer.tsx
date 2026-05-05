@@ -7,8 +7,6 @@ import { moveTokenOptimistic, applyTokenRollback } from '../../../store/scene';
 import { emitTokenMove } from '../../../api/socket';
 import { useImage } from '../useImage';
 import HpBar from '../HpBar';
-import TokenEditModal from '../../Token/TokenEditModal';
-import TokenContextMenu from '../../Token/TokenContextMenu';
 
 interface TokenLayerProps {
   sceneId: string;
@@ -16,8 +14,10 @@ interface TokenLayerProps {
   gridSize: number;
   myRole: Role;
   myUserId: string;
-  /** When provided, token left-click calls this instead of opening TokenEditModal. */
-  onTokenSelect?: (tokenId: string) => void;
+  /** Called on token left-click. Parent owns the modal/menu (must live outside <Stage>). */
+  onTokenSelect?: ((tokenId: string) => void) | undefined;
+  /** Called on token right-click with viewport coords. GM-only when set. */
+  onTokenContextMenu?: ((tokenId: string, x: number, y: number) => void) | undefined;
 }
 
 const STATUS_COLORS: Record<StatusMarker, string> = {
@@ -38,56 +38,34 @@ const STATUS_COLORS: Record<StatusMarker, string> = {
  * DOM-inside-Konva constraint).
  */
 export default function TokenLayer({
-  sceneId, tokens, gridSize, myRole, myUserId, onTokenSelect,
+  sceneId, tokens, gridSize, myRole, myUserId, onTokenSelect, onTokenContextMenu,
 }: TokenLayerProps): JSX.Element {
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
-  const [editTokenId, setEditTokenId] = useState<string | null>(null);
-  const [ctxMenu, setCtxMenu] = useState<{ tokenId: string; x: number; y: number } | null>(null);
-
-  const handleEditClick = onTokenSelect ?? (myRole === 'GM' ? setEditTokenId : undefined);
 
   return (
-    <>
-      <Layer>
-        {ghost && (
-          <Rect
-            key="drag-ghost"
-            x={ghost.x} y={ghost.y}
-            width={gridSize} height={gridSize}
-            fill="#ffffff" opacity={0.25} cornerRadius={4} listening={false}
-          />
-        )}
-        {tokens.map((token) => (
-          <TokenNode
-            key={token.id}
-            token={token}
-            sceneId={sceneId}
-            gridSize={gridSize}
-            draggable={myRole === 'GM' || token.assignedUserId === myUserId}
-            onGhostMove={setGhost}
-            onGhostEnd={() => setGhost(null)}
-            onEditClick={handleEditClick}
-            onContextMenu={
-              myRole === 'GM' && !onTokenSelect
-                ? (id, x, y) => setCtxMenu({ tokenId: id, x, y })
-                : undefined
-            }
-          />
-        ))}
-      </Layer>
-      {editTokenId && (
-        <TokenEditModal tokenId={editTokenId} onClose={() => setEditTokenId(null)} />
-      )}
-      {ctxMenu && (
-        <TokenContextMenu
-          tokenId={ctxMenu.tokenId}
-          x={ctxMenu.x}
-          y={ctxMenu.y}
-          onEdit={() => setEditTokenId(ctxMenu.tokenId)}
-          onClose={() => setCtxMenu(null)}
+    <Layer>
+      {ghost && (
+        <Rect
+          key="drag-ghost"
+          x={ghost.x} y={ghost.y}
+          width={gridSize} height={gridSize}
+          fill="#ffffff" opacity={0.25} cornerRadius={4} listening={false}
         />
       )}
-    </>
+      {tokens.map((token) => (
+        <TokenNode
+          key={token.id}
+          token={token}
+          sceneId={sceneId}
+          gridSize={gridSize}
+          draggable={myRole === 'GM' || token.assignedUserId === myUserId}
+          onGhostMove={setGhost}
+          onGhostEnd={() => setGhost(null)}
+          onEditClick={onTokenSelect}
+          onContextMenu={onTokenContextMenu}
+        />
+      ))}
+    </Layer>
   );
 }
 

@@ -6,7 +6,7 @@ import { clearFogMask, hydrateScene } from '../../store/scene';
 import { apiAddImageAnnotation, apiPatchScene } from '../../api/scenes';
 import { emitFogClear } from '../../api/socket';
 import ImageUpload from '../AssetUpload/ImageUpload';
-import AssetPicker from '../AssetPicker/AssetPicker';
+import AssetLibrary from '../AssetLibrary/AssetLibrary';
 import GenerateBackgroundModal from '../AIGenerate/GenerateBackgroundModal';
 import AddTokenButton from '../GameCanvas/AddTokenButton';
 import styles from './EditorToolbarLeft.module.css';
@@ -18,9 +18,17 @@ interface EditorToolbarLeftProps {
 
 export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeftProps): JSX.Element {
   const dispatch = useAppDispatch();
-  const { t } = useTranslation('room');
+  const { t } = useTranslation(['room', 'errors']);
   const scene = useAppSelector((s) => s.scene.current);
   const tokens = scene?.tokens ?? [];
+  // SceneDTO carries backgroundUrl (signed), not the assetId. Extract the id
+  // from the path so AssetLibrary can highlight the active card.
+  const activeBackgroundAssetId = (() => {
+    const url = scene?.backgroundUrl;
+    if (!url) return undefined;
+    const m = /\/api\/assets\/([^/]+)\/file/.exec(url);
+    return m ? m[1] : undefined;
+  })();
 
   const [aiOpen, setAiOpen] = useState(false);
   const [gridSize, setGridSize] = useState(String(scene?.gridSize ?? 50));
@@ -49,39 +57,43 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
         gridHeight: Number(gridHeight),
         gridVisible,
       });
-      if (scene) dispatch(hydrateScene({ ...scene, ...updated, tokens: scene.tokens, annotations: scene.annotations }));
+      // PATCH now returns the fully-projected SceneDTO (signed backgroundUrl,
+      // tokens, annotations) — drop the fragile spread-merge.
+      dispatch(hydrateScene(updated));
     } catch (err) {
-      setGridError(err instanceof Error ? err.message : t('errors:network.saveFailed' as never));
+      setGridError(err instanceof Error ? err.message : t('errors:network.saveFailed'));
     } finally {
       setGridSaving(false);
     }
   }
 
-  async function handlePickBackground(assetId: string): Promise<void> {
-    await apiPatchScene(sceneId, { backgroundAssetId: assetId });
+  // Set the asset as the scene background.
+  async function handleSetBackground(asset: AssetDTO): Promise<void> {
+    const updated = await apiPatchScene(sceneId, { backgroundAssetId: asset.id });
+    dispatch(hydrateScene(updated));
   }
 
-  async function handleUploaded(asset: AssetDTO): Promise<void> {
-    await apiPatchScene(sceneId, { backgroundAssetId: asset.id });
-  }
-
-  async function handleAddOverlay(assetId: string): Promise<void> {
+  // Place the asset as an overlay near the scene center so the user sees it
+  // immediately, instead of a hardcoded (64, 64) corner.
+  async function handleAddToScene(asset: AssetDTO): Promise<void> {
+    const sceneW = (scene?.gridWidth ?? 20) * (scene?.gridSize ?? 50);
+    const sceneH = (scene?.gridHeight ?? 15) * (scene?.gridSize ?? 50);
+    const w = 256;
+    const h = 256;
     await apiAddImageAnnotation(sceneId, {
-      x: 64,
-      y: 64,
-      assetId,
-      width: 256,
-      height: 256,
+      x: Math.round(sceneW / 2 - w / 2),
+      y: Math.round(sceneH / 2 - h / 2),
+      assetId: asset.id,
+      width: w,
+      height: h,
     });
   }
 
   return (
     <aside className={styles.toolbar} aria-label={t('sceneEditor.leftToolbar.label')}>
-
       <section className={styles.section}>
-        <p className={styles.heading}>{t('sceneEditor.leftToolbar.background')}</p>
-        <ImageUpload roomId={roomId} onUploaded={(a) => void handleUploaded(a)} />
-        <AssetPicker roomId={roomId} onPick={(id) => void handlePickBackground(id)} />
+        <p className={styles.heading}>{t('sceneEditor.leftToolbar.assetLibrary')}</p>
+        <ImageUpload roomId={roomId} />
         <button
           type="button"
           className={styles.aiBtn}
@@ -89,24 +101,25 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
         >
           {t('sceneEditor.bg.aiBtn')}
         </button>
-      </section>
-
-      <section className={styles.section}>
-        <p className={styles.heading}>{t('sceneEditor.leftToolbar.layers' as never)}</p>
-        <ImageUpload roomId={roomId} onUploaded={(asset) => void handleAddOverlay(asset.id)} />
-        <AssetPicker roomId={roomId} onPick={(id) => void handleAddOverlay(id)} />
+        <AssetLibrary
+          roomId={roomId}
+          tabs={['images']}
+          activeBackgroundAssetId={activeBackgroundAssetId}
+          onSetBackground={(a) => void handleSetBackground(a)}
+          onAddToScene={(a) => void handleAddToScene(a)}
+        />
       </section>
 
       <section className={styles.section}>
         <p className={styles.heading}>{t('sceneEditor.leftToolbar.grid')}</p>
         <form onSubmit={(e) => void handleGridSave(e)} className={styles.gridForm}>
           <label className={styles.fieldRow}>
-            <span className={styles.fieldLabel}>{t('sceneEditor.grid.visibleLabel' as never)}</span>
+            <span className={styles.fieldLabel}>{t('sceneEditor.grid.visibleLabel')}</span>
             <input
               type="checkbox"
               checked={gridVisible}
               onChange={(e) => setGridVisible(e.target.checked)}
-              aria-label={t('sceneEditor.grid.visibleLabel' as never)}
+              aria-label={t('sceneEditor.grid.visibleLabel')}
             />
           </label>
           <label className={styles.fieldRow}>
@@ -156,7 +169,17 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
         <p className={styles.heading}>{t('sceneEditor.leftToolbar.tokens')}</p>
         <ul className={styles.tokenList}>
           {tokens.map((tk) => (
-            <li key={tk.id} className={styles.tokenItem}>{tk.name}</li>
+            <li key={tk.id} className={styles.tokenItem}>
+              {tk.imageUrl ? (
+                <img src={tk.imageUrl} alt="" className={styles.tokenThumb} />
+              ) : (
+                <span
+                  className={styles.tokenThumbPlaceholder}
+                  style={{ background: tk.color ?? '#7c5cff' }}
+                />
+              )}
+              <span>{tk.name}</span>
+            </li>
           ))}
         </ul>
         <AddTokenButton myRole="GM" sceneId={sceneId} />

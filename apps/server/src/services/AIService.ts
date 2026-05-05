@@ -28,7 +28,7 @@ export class AIService {
    */
   async generateImage(userId: string, req: AIImageRequest): Promise<AIImageResponse> {
     const payload = await this.provider.generateImage(req);
-    const asset = await this.assets.storeAiAsset(userId, req.roomId, payload, 'image');
+    const asset = await this.assets.storeAiAsset(userId, req.roomId, payload, 'image', req.prompt);
     return { previewUrl: AssetService.getProxyUrl(asset.id), assetId: asset.id };
   }
 
@@ -37,7 +37,7 @@ export class AIService {
    */
   async generateMusic(userId: string, req: AIMusicRequest): Promise<AIMusicResponse> {
     const payload = await this.provider.generateMusic(req);
-    const asset = await this.assets.storeAiAsset(userId, req.roomId, payload, 'audio');
+    const asset = await this.assets.storeAiAsset(userId, req.roomId, payload, 'audio', req.prompt);
     return { previewUrl: AssetService.getProxyUrl(asset.id), assetId: asset.id };
   }
 
