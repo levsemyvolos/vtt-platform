@@ -15,59 +15,24 @@ interface InviteLinkProps {
   roomId: string;
 }
 
-export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element | null {
-  const { t } = useTranslation(['room', 'common', 'errors']);
-  const [tokens, setTokens] = useState<InviteTokens | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<CopiedKey>(null);
+interface InvitePanelProps {
+  tokens: InviteTokens;
+  copied: CopiedKey;
+  onCopy: (text: string, key: Exclude<CopiedKey, null>) => void;
+}
+
+function InvitePanel({ tokens, copied, onCopy }: InvitePanelProps): JSX.Element {
+  const { t } = useTranslation(['room']);
   const [activeTab, setActiveTab] = useState<'player' | 'observer'>('player');
-
-  useEffect(() => {
-    setLoading(true);
-    apiFetch<InviteTokens>(`/api/rooms/${roomId}/invites`, { method: 'POST' })
-      .then((result) => setTokens(result))
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : t('errors:network.inviteFailed')),
-      )
-      .finally(() => setLoading(false));
-  }, [roomId, t]);
-
-  async function copy(text: string, key: Exclude<CopiedKey, null>): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      setError(t('errors:network.copyFailed'));
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className={styles.inviteTabs}>
-        <span className={styles.status}>{t('common:status.loading')}</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={styles.inviteTabs}>
-        <p role="alert" className={styles.error}>{error}</p>
-      </div>
-    );
-  }
-
-  if (!tokens) return null;
-
   const isPlayer = activeTab === 'player';
-  const activeCode = isPlayer ? `p_${tokens.playerToken}` : `o_${tokens.observerToken}`;
-  const activeLink = isPlayer
-    ? `${window.location.origin}/join/p_${tokens.playerToken}`
-    : `${window.location.origin}/join/o_${tokens.observerToken}`;
+  const prefix = isPlayer ? 'p_' : 'o_';
+  const rawToken = isPlayer ? tokens.playerToken : tokens.observerToken;
+  const activeCode = `${prefix}${rawToken}`;
+  const activeLink = `${window.location.origin}/join/${activeCode}`;
   const codeCopyKey: Exclude<CopiedKey, null> = isPlayer ? 'player-code' : 'observer-code';
   const linkCopyKey: Exclude<CopiedKey, null> = isPlayer ? 'player-link' : 'observer-link';
+  const linkJustCopied = copied === linkCopyKey;
+  const codeJustCopied = copied === codeCopyKey;
 
   return (
     <div className={styles.inviteTabs}>
@@ -94,10 +59,8 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element | n
 
       <div className={styles.inviteRow}>
         <div className={styles.codePill}>
-          <span className={styles.codePrefix}>{isPlayer ? 'p_' : 'o_'}</span>
-          <span className={styles.codeVal}>
-            {isPlayer ? tokens.playerToken : tokens.observerToken}
-          </span>
+          <span className={styles.codePrefix}>{prefix}</span>
+          <span className={styles.codeVal}>{rawToken}</span>
         </div>
 
         <button
@@ -105,24 +68,68 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element | n
           className={styles.iconBtn}
           title={t('room:invite.copyLink')}
           aria-label={t('room:invite.copyLink')}
-          onClick={() => void copy(activeLink, linkCopyKey)}
+          onClick={() => onCopy(activeLink, linkCopyKey)}
         >
-          {copied === linkCopyKey ? (
-            <Copy size={14} />
-          ) : (
-            <Link size={14} />
-          )}
+          {linkJustCopied ? <Copy size={14} /> : <Link size={14} />}
         </button>
 
         <button
           type="button"
           className={styles.btnCopy}
-          onClick={() => void copy(activeCode, codeCopyKey)}
+          onClick={() => onCopy(activeCode, codeCopyKey)}
         >
           <Copy size={14} />
-          {copied === codeCopyKey ? t('room:invite.copied') : t('room:invite.copyCode')}
+          {codeJustCopied ? t('room:invite.copied') : t('room:invite.copyCode')}
         </button>
       </div>
     </div>
   );
+}
+
+export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element | null {
+  const { t } = useTranslation(['room', 'common', 'errors']);
+  const [tokens, setTokens] = useState<InviteTokens | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<CopiedKey>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    apiFetch<InviteTokens>(`/api/rooms/${roomId}/invites`, { method: 'POST' })
+      .then((result) => setTokens(result))
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : t('errors:network.inviteFailed')),
+      )
+      .finally(() => setLoading(false));
+  }, [roomId, t]);
+
+  const handleCopy = (text: string, key: Exclude<CopiedKey, null>): void => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopied(key);
+        setTimeout(() => setCopied(null), 2000);
+      })
+      .catch(() => setError(t('errors:network.copyFailed')));
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.inviteTabs}>
+        <span className={styles.status}>{t('common:status.loading')}</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.inviteTabs}>
+        <p role="alert" className={styles.error}>{error}</p>
+      </div>
+    );
+  }
+
+  if (!tokens) return null;
+
+  return <InvitePanel tokens={tokens} copied={copied} onCopy={handleCopy} />;
 }

@@ -17,6 +17,7 @@ export default function JoinResolverRoute(): JSX.Element {
   const isObserver = useAppSelector((s) => s.session.currentUser?.boundRoomId !== undefined);
   const handledRef = useRef(false);
 
+  // eslint-disable-next-line complexity
   useEffect(() => {
     if (!token || handledRef.current) return;
 

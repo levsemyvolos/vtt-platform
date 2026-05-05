@@ -118,7 +118,7 @@ export const bootstrapSession = createAsyncThunk<
 >(
   'session/bootstrap',
   // eslint-disable-next-line complexity
-  async (_, { rejectWithValue, dispatch }) => {
+  async (_, { rejectWithValue }) => {
     const refreshToken = tokenStore.getRefresh();
     if (!refreshToken) return null;
 
