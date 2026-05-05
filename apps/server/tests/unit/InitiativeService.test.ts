@@ -82,7 +82,7 @@ function makeSceneRepo(opts: { initialRound?: number } = {}): SceneRepository {
     gridWidth: 40,
     gridHeight: 40,
     gridVisible: true,
-    fogMaskBase64: null,
+    fogShapes: null,
     isHidden: false,
     isActive: true,
     currentRound,

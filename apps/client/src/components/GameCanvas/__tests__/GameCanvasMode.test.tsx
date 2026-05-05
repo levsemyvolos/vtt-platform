@@ -53,7 +53,7 @@ const MOCK_SCENE: SceneDTO = {
   gridVisible: true,
   isActive: true,
   isHidden: false,
-  fogMaskBase64: null,
+  fogShapes: [],
   annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   tokens: [],
 };

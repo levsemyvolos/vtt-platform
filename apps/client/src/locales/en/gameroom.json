@@ -39,5 +39,15 @@
   },
   "migration": {
     "aiMoved": "AI Assistant has moved to the main toolbar"
+  },
+  "fog": {
+    "title": "Fog of War",
+    "mode": "Mode",
+    "hide": "Hide",
+    "reveal": "Reveal",
+    "opacity": "GM opacity",
+    "hideAll": "Hide all",
+    "revealAll": "Reveal all",
+    "undo": "Undo last"
   }
 }

@@ -17,3 +17,18 @@
   position: relative;
   overflow: hidden;
 }
+
+.toolStrip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-surface, rgba(20, 20, 28, 0.92));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}

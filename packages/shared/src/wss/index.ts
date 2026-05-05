@@ -7,6 +7,7 @@ import type {
   SceneObject,
   ChatMode,
   DiceMode,
+  FogShape,
 } from '../shared/index';
 
 // ---------- C→S payloads ----------
@@ -93,16 +94,21 @@ export interface SessionResyncPayload {
   serverTime: number;
 }
 
-export interface FogMaskDiffPayload {
+/**
+ * Fog-of-war shape ops (Ф3.3, shape-list model).
+ * `add` appends, `remove` deletes by id, `clear` wipes the list.
+ * Server broadcasts the same payload back to the room after persisting.
+ */
+export interface FogShapeAddPayload {
+  roomId: string;
   sceneId: string;
-  /** Base64-packed XOR diff — applied bitwise to the previous mask on the client. */
-  diffBase64: string;
-  width: number;
-  height: number;
+  shape: FogShape;
 }
 
-export interface FogMaskUpdatePayload extends FogMaskDiffPayload {
+export interface FogShapeRemovePayload {
   roomId: string;
+  sceneId: string;
+  shapeId: string;
 }
 
 /**
@@ -233,6 +239,17 @@ export type VisibilityMatrix = boolean[][];
 
 // ---------- socket.io v4 typed event maps (§2.16.3, table 2.14) ----------
 
+/**
+ * Full scene flush payload — sent once by GM on Done (Edit Scene).
+ * Server saves fog+annotations and broadcasts to others only (sender keeps local state).
+ */
+export interface SceneFlushPayload {
+  roomId: string;
+  sceneId: string;
+  shapes: FogShape[];
+  annotations: SceneAnnotations;
+}
+
 export interface ClientToServerEvents {
   'room:join': (payload: RoomJoinPayload, ack: (response: Ack<{ joined: true }>) => void) => void;
   'token:move': (
@@ -255,10 +272,12 @@ export interface ClientToServerEvents {
   'measure:start': (payload: MeasurePayload) => void;
   'draw:stroke': (payload: DrawStrokePayload) => void;
   'draw:clear': (payload: { roomId: string; sceneId: string }) => void;
-  'fog:mask-diff': (payload: FogMaskUpdatePayload) => void;
+  'fog:shape-add': (payload: FogShapeAddPayload) => void;
+  'fog:shape-remove': (payload: FogShapeRemovePayload) => void;
   'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
+  'scene:flush': (payload: SceneFlushPayload) => void;
 }
 
 export interface MemberJoinedPayload {
@@ -281,18 +300,25 @@ export interface RoomUpdatedPayload {
   gameSystem: string;
 }
 
+export interface AnnotationsUpdatedPayload {
+  sceneId: string;
+  annotations: SceneAnnotations;
+}
+
 export interface ServerToClientEvents {
   'room:member-joined': (payload: MemberJoinedPayload) => void;
   'room:deleted': (payload: RoomDeletedPayload) => void;
   'room:started': (payload: RoomStartedPayload) => void;
   'room:updated': (payload: RoomUpdatedPayload) => void;
   'scene:updated': (payload: SceneUpdatedPayload) => void;
+  'annotations:updated': (payload: AnnotationsUpdatedPayload) => void;
   'token:rollback': (payload: TokenRollbackPayload) => void;
   'chat:dice': (payload: ChatDicePayload) => void;
   'chat:message': (payload: ChatMessageDTO) => void;
   'initiative:updated': (payload: InitiativeUpdatedPayload) => void;
   'session:resync': (payload: SessionResyncPayload) => void;
-  'fog:mask-diff': (payload: FogMaskDiffPayload) => void;
+  'fog:shape-add': (payload: FogShapeAddPayload) => void;
+  'fog:shape-remove': (payload: FogShapeRemovePayload) => void;
   'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
   'audio:play': (payload: AudioPlayPayload) => void;
   'signal:offer': (payload: SignalingPayload) => void;

@@ -11,6 +11,7 @@ import GameCanvas from '../../components/GameCanvas/GameCanvas';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import AssistantPanel from '../../components/AssistantPanel/AssistantPanel';
 import { GameRoomTopBar, CanvasToolbar, PartyColumn, StatusBar } from '../../components/GameRoom';
+import FogControlsPopover from '../../components/GameRoom/FogControlsPopover';
 import type { SidebarTab } from '../../components/GameRoom';
 import styles from './GameRoom.module.css';
 
@@ -46,6 +47,7 @@ export default function GameRoom(): JSX.Element | null {
   const roomId = currentRoom?.id;
   const myMember = members.find((m) => m.userId === currentUser?.id);
   const myRole: Role = myMember?.role ?? 'Observer';
+  const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
 
   useEffect(() => {
     if (!roomId) return;
@@ -149,6 +151,9 @@ export default function GameRoom(): JSX.Element | null {
           />
         ) : (
           <div className={styles.canvasPlaceholder}>{canvasMsg}</div>
+        )}
+        {scene && myRole === 'GM' && activeTool === 'fog' && (
+          <FogControlsPopover roomId={currentRoom.id} />
         )}
       </main>
 

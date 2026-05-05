@@ -3,9 +3,12 @@ import type { SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { stopEditing } from '../../store/room';
 import { hydrateScene } from '../../store/scene';
+import { setActiveTool } from '../../store/canvasViewport';
 import { apiFetch } from '../../api/apiFetch';
 import { EditorTopBar, EditorToolbarLeft, EditorToolbarRight } from '../../components/SceneEditor';
 import GameCanvas from '../../components/GameCanvas/GameCanvas';
+import ToolPicker from '../../components/GameCanvas/ToolPicker';
+import FogControlsPopover from '../../components/GameRoom/FogControlsPopover';
 import styles from './SceneEditor.module.css';
 
 export default function SceneEditor(): JSX.Element | null {
@@ -16,6 +19,7 @@ export default function SceneEditor(): JSX.Element | null {
 
   const myMember = members.find((m) => m.userId === currentUser?.id);
   const myRole = myMember?.role ?? 'Observer';
+  const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
 
   useEffect(() => {
     if (myRole !== 'GM') {
@@ -23,6 +27,8 @@ export default function SceneEditor(): JSX.Element | null {
       return;
     }
     if (editingSceneId) {
+      // Reset tool when entering Edit Scene so we always start neutral.
+      dispatch(setActiveTool('select'));
       apiFetch<SceneDTO>(`/api/scenes/${editingSceneId}`)
         .then((snapshot) => {
           dispatch(hydrateScene(snapshot));
@@ -41,6 +47,9 @@ export default function SceneEditor(): JSX.Element | null {
       <EditorTopBar />
       <EditorToolbarLeft roomId={roomId} sceneId={sceneId} />
       <div className={styles.canvasZone} data-testid="scene-editor-canvas" aria-label="Scene canvas">
+        <div className={styles.toolStrip} role="toolbar" aria-label="Edit scene tools">
+          <ToolPicker myRole={myRole} hideEphemeral />
+        </div>
         {scene && (
           <GameCanvas
             scene={scene}
@@ -48,6 +57,9 @@ export default function SceneEditor(): JSX.Element | null {
             myUserId={currentUser?.id ?? ''}
             mode="edit"
           />
+        )}
+        {scene && activeTool === 'fog' && (
+          <FogControlsPopover roomId={roomId} />
         )}
       </div>
       <EditorToolbarRight />

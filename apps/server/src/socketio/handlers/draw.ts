@@ -1,6 +1,7 @@
-import type { DrawStrokePayload, FogMaskDiffPayload } from '@vtt/shared';
+import type { DrawStrokePayload, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
+import { parseFogShapes } from '../../services/DrawService.js';
 import type { SceneAnnotationService } from '../../services/SceneAnnotationService.js';
 
 /** Builds broadcaster sinks for draw events (Ф3.4.2). */
@@ -12,8 +13,11 @@ export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
     clear: (roomId: string, sceneId: string) => {
       io.to(roomId).emit('draw:clear', { roomId, sceneId });
     },
-    fogDiff: (roomId: string, payload: FogMaskDiffPayload) => {
-      io.to(roomId).emit('fog:mask-diff', payload);
+    fogShapeAdd: (roomId: string, payload: FogShapeAddPayload) => {
+      io.to(roomId).emit('fog:shape-add', payload);
+    },
+    fogShapeRemove: (roomId: string, payload: FogShapeRemovePayload) => {
+      io.to(roomId).emit('fog:shape-remove', payload);
     },
     fogClear: (roomId: string, sceneId: string) => {
       io.to(roomId).emit('fog:clear', { roomId, sceneId });
@@ -53,13 +57,34 @@ export function registerDrawHandlers(
     }
   });
 
-  socket.on('fog:mask-diff', async (payload) => {
+  socket.on('fog:shape-add', async (payload: FogShapeAddPayload) => {
     try {
       if (socket.data.role !== 'GM') return;
       if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-      await drawService.applyFogDiff(payload.roomId, payload);
+      const s = payload.shape;
+      if (
+        !s ||
+        typeof s.id !== 'string' ||
+        !Number.isFinite(s.x) || !Number.isFinite(s.y) ||
+        !Number.isFinite(s.w) || !Number.isFinite(s.h) ||
+        s.w <= 0 || s.h <= 0 ||
+        (s.mode !== 'hide' && s.mode !== 'reveal') ||
+        !Number.isFinite(s.createdAt)
+      ) return;
+      await drawService.addFogShape(payload);
     } catch (err) {
-      console.error('[Socket] fog:mask-diff error:', err);
+      console.error('[Socket] fog:shape-add error:', err);
+    }
+  });
+
+  socket.on('fog:shape-remove', async (payload: FogShapeRemovePayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      if (typeof payload.shapeId !== 'string' || !payload.shapeId) return;
+      await drawService.removeFogShape(payload);
+    } catch (err) {
+      console.error('[Socket] fog:shape-remove error:', err);
     }
   });
 
@@ -88,6 +113,35 @@ export function registerDrawHandlers(
       io.to(payload.roomId).emit('object:move', payload);
     } catch (err) {
       console.error('[Socket] object:move error:', err);
+    }
+  });
+
+  socket.on('scene:flush', async (payload: SceneFlushPayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      const shapes = parseFogShapes(payload.shapes);
+      await drawService.setFogShapes(payload.sceneId, shapes);
+      if (payload.annotations) {
+        await drawService.persist(payload.sceneId, payload.annotations);
+      }
+      const { roomId, sceneId } = payload;
+      // Broadcast to ALL EXCEPT the sender — the sender (GM) already has correct local state.
+      socket.broadcast.to(roomId).emit('fog:clear', { roomId, sceneId });
+      for (const shape of shapes) {
+        socket.broadcast.to(roomId).emit('fog:shape-add', { roomId, sceneId, shape });
+      }
+      if (payload.annotations) {
+        socket.broadcast.to(roomId).emit('draw:clear', { roomId, sceneId });
+        for (const s of payload.annotations.strokes ?? []) {
+          socket.broadcast.to(roomId).emit('draw:stroke', {
+            roomId, sceneId, strokeId: s.strokeId, userId: s.userId,
+            points: s.points, color: s.color, width: s.width,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[Socket] scene:flush error:', err);
     }
   });
 
