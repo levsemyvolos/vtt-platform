@@ -83,9 +83,10 @@ export default function RoomLobby(): JSX.Element | null {
             >
               {t(`status.${currentRoom.status}`)}
             </span>
-            <InviteLink roomId={currentRoom.id} />
           </div>
         </header>
+
+        {isGM && <InviteLink roomId={currentRoom.id} />}
 
         <SceneManager roomId={currentRoom.id} myRole={myRole} />
 
