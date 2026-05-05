@@ -5,6 +5,7 @@ import { Film } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { activateScene, loadScenes } from '../../store/scenes';
+import { endSession } from '../../store/room';
 import { logout, selectIsObserver } from '../../store/session';
 import { Logo, Badge, Avatar } from '../ui';
 import ThemeToggle from '../Header/ThemeToggle';
@@ -84,7 +85,8 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
     if (isObserver) {
       void dispatch(logout());
     } else {
-      // Navigate back to lobby view; session stays active on server for other participants
+      // Clear sessionActive so RoomLobbyRoute doesn't bounce back to /session
+      dispatch(endSession());
       navigate(`/rooms/${currentRoom?.id ?? ''}`);
     }
   }

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { RoomDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { fetchRooms, fetchRoom } from '../../store/room';
+import { fetchRooms } from '../../store/room';
 import type { FetchRoomsOpts } from '../../store/room';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -38,6 +39,7 @@ function roleOf(room: RoomDTO, currentUserId: string | null): 'GM' | 'Player' | 
 // eslint-disable-next-line complexity
 export default function Dashboard() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { t } = useTranslation(['room', 'common', 'errors']);
   const { currentUser } = useAppSelector((s) => s.session);
   const { ownRooms, status, error } = useAppSelector((s) => s.room);
@@ -75,7 +77,7 @@ export default function Dashboard() {
     : visible;
 
   const handleOpen = (room: RoomDTO) => {
-    void dispatch(fetchRoom(room.id));
+    navigate(`/rooms/${room.id}`);
   };
 
   const handleSortChange = (newSort: SortField, newOrder: SortOrder) => {
