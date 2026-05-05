@@ -11,6 +11,15 @@ import type {
   SceneAnnotations,
 } from '@vtt/shared';
 
+/** Keys that can be buffered locally during Edit Scene mode. */
+interface SceneDraftPatch {
+  gridSize?: number;
+  gridWidth?: number;
+  gridHeight?: number;
+  gridVisible?: boolean;
+  backgroundAssetId?: string;
+}
+
 interface SceneState {
   current: SceneDTO | null;
   /**
@@ -27,6 +36,10 @@ interface SceneState {
   selectedTokenId: string | null;
   /** Selected scene object id (image-overlay selection, Sess 1). */
   selectedSceneObjectId: string | null;
+  /** Buffered scene-level edits (gridSize/gridWidth/gridHeight/gridVisible/backgroundAssetId)
+   * accumulated during Edit Scene. Flushed by EditorTopBar.handleDone via a single
+   * PATCH /scenes/:id call. Reset to null on hydrate/clear/handleDone success. */
+  draftPatch: SceneDraftPatch | null;
 }
 
 const initialState: SceneState = {
@@ -35,6 +48,7 @@ const initialState: SceneState = {
   pendingMoves: {},
   selectedTokenId: null,
   selectedSceneObjectId: null,
+  draftPatch: null,
 };
 
 const sceneSlice = createSlice({
@@ -50,12 +64,14 @@ const sceneSlice = createSlice({
       );
       state.pendingMoves = {};
       state.selectedSceneObjectId = null;
+      state.draftPatch = null;
     },
     clearScene: (state) => {
       state.current = null;
       state.version = 0;
       state.pendingMoves = {};
       state.selectedSceneObjectId = null;
+      state.draftPatch = null;
     },
     /** Optimistic move issued from the UI before the server replies. */
     moveTokenOptimistic: (
@@ -236,6 +252,37 @@ const sceneSlice = createSlice({
           : image
       ));
     },
+    /**
+     * Buffer a scene-level patch locally during Edit Scene mode (Mini-A).
+     * Merges into draftPatch (later apply of the same key overrides earlier).
+     * Also mirrors relevant fields into current so the canvas re-renders immediately.
+     * When backgroundUrl is supplied, current.backgroundUrl is updated so the GM
+     * sees the new background at once (server canonical URL is re-derived on flush).
+     * No-op when state.current is null.
+     */
+    applyDraftSceneUpdate: (
+      state,
+      action: PayloadAction<{
+        patch: SceneDraftPatch;
+        /** Locally-known signed URL for the new background asset (optional). */
+        backgroundUrl?: string;
+      }>,
+    ) => {
+      if (!state.current) return;
+      state.draftPatch = { ...(state.draftPatch ?? {}), ...action.payload.patch };
+      const { patch } = action.payload;
+      if (patch.gridSize !== undefined) state.current.gridSize = patch.gridSize;
+      if (patch.gridWidth !== undefined) state.current.gridWidth = patch.gridWidth;
+      if (patch.gridHeight !== undefined) state.current.gridHeight = patch.gridHeight;
+      if (patch.gridVisible !== undefined) state.current.gridVisible = patch.gridVisible;
+      if (action.payload.backgroundUrl !== undefined) {
+        state.current.backgroundUrl = action.payload.backgroundUrl;
+      }
+    },
+    /** Reset the buffered draft patch to null (called by Cancel handler or after Done flush). */
+    clearDraftSceneUpdate: (state) => {
+      state.draftPatch = null;
+    },
   },
 });
 
@@ -261,5 +308,7 @@ export const {
   selectSceneObject,
   deselectSceneObject,
   transformSceneObjectOptimistic,
+  applyDraftSceneUpdate,
+  clearDraftSceneUpdate,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;

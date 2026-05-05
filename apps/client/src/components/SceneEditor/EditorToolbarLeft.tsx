@@ -2,8 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { clearFogMask, hydrateScene } from '../../store/scene';
-import { apiAddImageAnnotation, apiPatchScene } from '../../api/scenes';
+import { applyDraftSceneUpdate, clearFogMask } from '../../store/scene';
+import { apiAddImageAnnotation } from '../../api/scenes';
 import { emitFogClear } from '../../api/socket';
 import ImageUpload from '../AssetUpload/ImageUpload';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
@@ -35,9 +35,6 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
   const [gridWidth, setGridWidth] = useState(String(scene?.gridWidth ?? 20));
   const [gridHeight, setGridHeight] = useState(String(scene?.gridHeight ?? 15));
   const [gridVisible, setGridVisible] = useState(scene?.gridVisible ?? true);
-  const [gridSaving, setGridSaving] = useState(false);
-  const [gridError, setGridError] = useState<string | null>(null);
-
   useEffect(() => {
     if (!scene) return;
     setGridSize(String(scene.gridSize));
@@ -46,31 +43,24 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
     setGridVisible(scene.gridVisible);
   }, [scene]);
 
-  async function handleGridSave(e: FormEvent<HTMLFormElement>): Promise<void> {
+  function handleGridSave(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-    setGridSaving(true);
-    setGridError(null);
-    try {
-      const updated = await apiPatchScene(sceneId, {
+    dispatch(applyDraftSceneUpdate({
+      patch: {
         gridSize: Number(gridSize),
         gridWidth: Number(gridWidth),
         gridHeight: Number(gridHeight),
         gridVisible,
-      }, { staged: true });
-      // PATCH now returns the fully-projected SceneDTO (signed backgroundUrl,
-      // tokens, annotations) — drop the fragile spread-merge.
-      dispatch(hydrateScene(updated));
-    } catch (err) {
-      setGridError(err instanceof Error ? err.message : t('errors:network.saveFailed'));
-    } finally {
-      setGridSaving(false);
-    }
+      },
+    }));
   }
 
   // Set the asset as the scene background.
-  async function handleSetBackground(asset: AssetDTO): Promise<void> {
-    const updated = await apiPatchScene(sceneId, { backgroundAssetId: asset.id }, { staged: true });
-    dispatch(hydrateScene(updated));
+  function handleSetBackground(asset: AssetDTO): void {
+    dispatch(applyDraftSceneUpdate({
+      patch: { backgroundAssetId: asset.id },
+      backgroundUrl: asset.url,
+    }));
   }
 
   // Place the asset as an overlay near the scene center so the user sees it
@@ -105,14 +95,14 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           roomId={roomId}
           tabs={['images']}
           activeBackgroundAssetId={activeBackgroundAssetId}
-          onSetBackground={(a) => void handleSetBackground(a)}
+          onSetBackground={(a) => handleSetBackground(a)}
           onAddToScene={(a) => void handleAddToScene(a)}
         />
       </section>
 
       <section className={styles.section}>
         <p className={styles.heading}>{t('sceneEditor.leftToolbar.grid')}</p>
-        <form onSubmit={(e) => void handleGridSave(e)} className={styles.gridForm}>
+        <form onSubmit={(e) => handleGridSave(e)} className={styles.gridForm}>
           <label className={styles.fieldRow}>
             <span className={styles.fieldLabel}>{t('sceneEditor.grid.visibleLabel')}</span>
             <input
@@ -158,8 +148,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
               aria-label={t('sceneEditor.grid.heightLabel')}
             />
           </label>
-          {gridError && <p role="alert" className={styles.error}>{gridError}</p>}
-          <button type="submit" className={styles.saveBtn} disabled={gridSaving}>
+          <button type="submit" className={styles.saveBtn}>
             {t('sceneEditor.grid.saveBtn')}
           </button>
         </form>
