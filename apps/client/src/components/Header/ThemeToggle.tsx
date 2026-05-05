@@ -3,9 +3,8 @@ import { setTheme, type ThemeMode } from '../../store/preferences';
 import styles from './Header.module.css';
 
 const OPTIONS: { value: ThemeMode; label: string }[] = [
-  { value: 'light', label: '☀️ Light' },
-  { value: 'dark', label: '🌙 Dark' },
-  { value: 'system', label: '💻 System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
 ];
 
 export default function ThemeToggle() {

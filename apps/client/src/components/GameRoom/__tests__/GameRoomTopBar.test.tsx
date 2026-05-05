@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { Provider } from 'react-redux';
+import { MemoryRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
 import roomReducer from '../../../store/room';
 import sessionReducer from '../../../store/session';
@@ -64,7 +65,9 @@ describe('GameRoomTopBar', () => {
     const store = makeStore();
     render(
       <Provider store={store}>
-        <GameRoomTopBar myRole="GM" />
+        <MemoryRouter>
+          <GameRoomTopBar myRole="GM" />
+        </MemoryRouter>
       </Provider>,
     );
     expect(screen.getByText('Кімнати')).toBeTruthy();
@@ -75,7 +78,9 @@ describe('GameRoomTopBar', () => {
     const store = makeStore();
     render(
       <Provider store={store}>
-        <GameRoomTopBar myRole="GM" />
+        <MemoryRouter>
+          <GameRoomTopBar myRole="GM" />
+        </MemoryRouter>
       </Provider>,
     );
     expect(screen.getByText('Ведучий')).toBeTruthy();
@@ -85,7 +90,9 @@ describe('GameRoomTopBar', () => {
     const store = makeStore();
     render(
       <Provider store={store}>
-        <GameRoomTopBar myRole="GM" />
+        <MemoryRouter>
+          <GameRoomTopBar myRole="GM" />
+        </MemoryRouter>
       </Provider>,
     );
     const dot = document.querySelector('[title]');
