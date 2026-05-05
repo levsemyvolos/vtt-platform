@@ -228,8 +228,8 @@ export type Ack<T> =
 
 // ---------- OCC discriminated union (algorithm A2) ----------
 
-export type OccResult =
-  | { kind: 'accepted'; sceneUpdate: SceneUpdatedPayload; rawTokens?: any[] }
+export type OccResult<TRawToken = unknown> =
+  | { kind: 'accepted'; sceneUpdate: SceneUpdatedPayload; rawTokens?: TRawToken[] }
   | { kind: 'rollback'; rollback: TokenRollbackPayload }
   | { kind: 'discarded'; reason: string };
 

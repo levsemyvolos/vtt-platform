@@ -88,7 +88,7 @@ export class SceneService {
     payload: TokenMovePayload,
     viewerRole: Role,
     viewerId: string,
-  ): Promise<OccResult> {
+  ): Promise<OccResult<Token>> {
     const token = await this.tokens.findById(payload.tokenId);
     if (!token) throw new HttpError(404, 'Token not found');
     if (token.sceneId !== payload.sceneId) {

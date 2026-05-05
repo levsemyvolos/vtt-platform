@@ -47,6 +47,10 @@ function fogEditActive(myRole: Role, mode: 'edit' | 'play', activeTool: string):
   return myRole === 'GM' && (mode === 'edit' || activeTool === 'fog');
 }
 
+function computeFowAlpha(myRole: Role, fogGmAlpha: number, theme: string): number {
+  return myRole === 'GM' ? fogGmAlpha : (theme === 'dark' ? 0.5 : 0.7);
+}
+
 export default function GameCanvas({
   scene,
   myRole,
@@ -72,7 +76,7 @@ export default function GameCanvas({
     useToolHandlers(activeTool, scene, myRole, myUserId, roomId, setTextAnnCoords, fogMode, setFogMarquee);
 
   const stageBg = theme === 'dark' ? '#0f172a' : '#fafafa';
-  const fowAlpha = myRole === 'GM' ? fogGmAlpha : (theme === 'dark' ? 0.5 : 0.7);
+  const fowAlpha = computeFowAlpha(myRole, fogGmAlpha, theme);
   const sceneWidth = scene.gridSize * scene.gridWidth;
   const sceneHeight = scene.gridSize * scene.gridHeight;
   const fogEditMode = fogEditActive(myRole, mode, activeTool);

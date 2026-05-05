@@ -109,7 +109,7 @@ describe('CharacterService.projectForViewer (algorithm A6 RBAC, §2.17.6)', () =
     const fullDto = await svc.projectForViewer(char, 'GM', GM_ID);
     expect(fullDto.kind).toBe('full');
     if (fullDto.kind === 'full') {
-      expect(fullDto.pdfUrl).toBe('https://signed.example/sheet.pdf?sig=ok');
+      expect(fullDto.pdfUrl).toBe('/api/assets/asset-1/file');
     }
 
     const shortDto = await svc.projectForViewer(char, 'Player', OTHER_PLAYER_ID);

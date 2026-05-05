@@ -1,7 +1,26 @@
-import type { DrawStrokePayload, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload } from '@vtt/shared';
+import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
 import { parseFogShapes } from '../../services/DrawService.js';
+
+function hasValidDimensions(v: Partial<FogShape>): boolean {
+  return (
+    Number.isFinite(v.x) && Number.isFinite(v.y) &&
+    Number.isFinite(v.w) && Number.isFinite(v.h) &&
+    (v.w as number) > 0 && (v.h as number) > 0
+  );
+}
+
+function isAddableFogShape(s: unknown): s is FogShape {
+  if (!s || typeof s !== 'object') return false;
+  const v = s as Partial<FogShape>;
+  return (
+    typeof v.id === 'string' &&
+    (v.mode === 'hide' || v.mode === 'reveal') &&
+    Number.isFinite(v.createdAt) &&
+    hasValidDimensions(v)
+  );
+}
 import type { SceneAnnotationService } from '../../services/SceneAnnotationService.js';
 
 /** Builds broadcaster sinks for draw events (Ф3.4.2). */
@@ -61,16 +80,7 @@ export function registerDrawHandlers(
     try {
       if (socket.data.role !== 'GM') return;
       if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-      const s = payload.shape;
-      if (
-        !s ||
-        typeof s.id !== 'string' ||
-        !Number.isFinite(s.x) || !Number.isFinite(s.y) ||
-        !Number.isFinite(s.w) || !Number.isFinite(s.h) ||
-        s.w <= 0 || s.h <= 0 ||
-        (s.mode !== 'hide' && s.mode !== 'reveal') ||
-        !Number.isFinite(s.createdAt)
-      ) return;
+      if (!isAddableFogShape(payload.shape)) return;
       await drawService.addFogShape(payload);
     } catch (err) {
       console.error('[Socket] fog:shape-add error:', err);

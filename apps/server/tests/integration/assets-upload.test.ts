@@ -131,7 +131,7 @@ describe('AssetService.finalizeUpload', () => {
       },
       OWNER_ID,
     );
-    expect(dto.url).toBe('https://example.com/signed-get');
+    expect(dto.url).toMatch(/^\/api\/assets\/.+\/file$/);
     expect(dto.roomId).toBe(ROOM_ID);
     expect(repo.create).toHaveBeenCalledOnce();
   });
