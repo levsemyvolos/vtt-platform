@@ -48,6 +48,9 @@
     "meshCeiling": "Video disabled — mesh ceiling reached",
     "negotiationError": "Peer {{peer}} connection failed — please reload"
   },
+  "gmMutedYou": "GM muted your microphone",
+  "gmCamOff": "GM disabled your camera",
+  "kickedFromRoom": "You were removed from the session by the GM",
   "mediaControls": {
     "aria": "Microphone and camera controls"
   },
@@ -59,8 +62,9 @@
     "cameraOff": "Turn off my camera",
     "cameraOn": "Turn on my camera",
     "pinForMe": "Pin (only for me)",
+    "unpinForMe": "Unpin",
     "muteLocally": "Mute locally",
-    "serverMute": "Server mute / unmute",
+    "serverMute": "Server mute",
     "forceCamOff": "Force camera off",
     "demote": "Demote to Observer",
     "kick": "Kick from session",

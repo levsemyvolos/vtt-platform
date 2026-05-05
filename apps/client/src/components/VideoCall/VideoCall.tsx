@@ -11,7 +11,12 @@ import {
   setMeshCeiling,
   upsertPeer,
   removePeer,
+  reorderPeers,
+  setPeerRtt,
+  setSpeaking,
 } from '../../store/media';
+import { SpeakingDetector } from '../../infrastructure/webrtc/SpeakingDetector';
+import { useDragReorder } from '../../hooks/useDragReorder';
 import { addToast } from '../../store/toast';
 import VideoTile from '../VideoTile/VideoTile';
 import MeshCeilingBanner from './MeshCeilingBanner';
@@ -31,13 +36,18 @@ interface VideoCallProps {
 export default function VideoCall({ roomId, myUserId, members }: VideoCallProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('gameroom');
-  const { localStreamReady, callJoined, peers } = useAppSelector((s) => s.media);
+  const { localStreamReady, callJoined, peers, peerOrder, pinnedPeerIds, speakingPeerIds } = useAppSelector((s) => s.media);
 
   const managerRef = useRef<PeerManager | null>(null);
+  const detectorRef = useRef<SpeakingDetector | null>(null);
   const remoteStreamsRef = useRef<Record<string, MediaStream>>({});
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const knownMembersRef = useRef<RoomMemberDTO[]>(members);
+  // Tracks every peer we've already invoked manager.call() on. Shared by
+  // bootstrap's initial autoCallPeers AND the reactive members-change effect,
+  // so newcomers (3rd+ participant) get dialed exactly once each.
+  const calledPeersRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     knownMembersRef.current = members;
@@ -63,11 +73,14 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
       return apiFetch<TurnConfigResponse>('/api/turn-config');
     }
 
-    async function autoCallPeers(manager: PeerManager): Promise<void> {
+    function autoCallPeers(manager: PeerManager): void {
       const list = knownMembersRef.current;
       for (const member of list) {
-        if (!cancelled && member.userId !== myUserId && myUserId < member.userId) {
-          await manager.call(member.userId);
+        if (cancelled || member.userId === myUserId) continue;
+        if (calledPeersRef.current.has(member.userId)) continue;
+        if (myUserId < member.userId) {
+          calledPeersRef.current.add(member.userId);
+          manager.call(member.userId);
         }
       }
     }
@@ -93,6 +106,7 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
               dispatch(
                 upsertPeer({ userId: peerId, hasStream: true, connectionState: 'connected' }),
               );
+              detectorRef.current?.attach(peerId, stream);
             },
 
             onConnectionStateChange: (peerId, state) => {
@@ -104,13 +118,12 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
                 }),
               );
               if (state === 'failed' && !cancelled) {
+                // ICE restart + two-stage recovery is handled inside PeerManager;
+                // refresh TURN credentials in case the previous set expired.
                 void (async () => {
                   try {
                     const refreshed = await fetchTurnConfig();
                     manager.setIceServers(refreshed.iceServers);
-                    setTimeout(() => {
-                      if (!cancelled) void manager.call(peerId);
-                    }, 2000);
                   } catch {
                     // ignore — manual reconnect will retry
                   }
@@ -121,17 +134,25 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
             onPeerClosed: (peerId) => {
               delete remoteStreamsRef.current[peerId];
               dispatch(removePeer(peerId));
+              detectorRef.current?.detach(peerId);
             },
 
             onNegotiationError: (peerId) => {
-              // Common after Reconnect — RTP extension IDs mismatch on stale PC.
-              // Peer already closed by PeerManager; surface to user, suggest reload.
               dispatch(addToast('error', t('videoCall.negotiationError', { peer: peerId.slice(0, 8) })));
+            },
+
+            onRttUpdate: (peerId, rttMs) => {
+              dispatch(setPeerRtt({ userId: peerId, rttMs }));
             },
           },
         });
         managerRef.current = manager;
         peerManagerRef.current = manager;
+        detectorRef.current = new SpeakingDetector({
+          onSpeakingChange: (peerId, speaking) => {
+            dispatch(setSpeaking({ userId: peerId, speaking }));
+          },
+        });
 
         const alreadyAtCeiling =
           Object.keys(store.getState().media.peers).length >= MESH_CEILING;
@@ -148,13 +169,15 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
         manager.setCameraEnabled(false);
         setLocalStream(stream);
         dispatch(setLocalStreamReady(true));
+        // VAD on the local stream — drives self-tile speaking outline.
+        detectorRef.current?.attach(myUserId, stream);
 
         unsubscribe = onSignal(async (event, payload) => {
           if (payload.toUserId !== myUserId) return;
           await manager.handleSignal(event, payload);
         });
 
-        await autoCallPeers(manager);
+        autoCallPeers(manager);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Не вдалося ввімкнути медіа');
@@ -171,32 +194,60 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
       managerRef.current?.closeAll();
       managerRef.current = null;
       peerManagerRef.current = null;
+      detectorRef.current?.destroy();
+      detectorRef.current = null;
       dispatch(resetMedia());
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, myUserId, dispatch, callJoined]);
 
 
-  // Reactive peer calling: fires when members arrive from session:resync after bootstrap.
-  const calledRef = useRef(false);
+  // Reactive peer calling: fires whenever a new member arrives (initial roster
+  // OR a late joiner via room:member-joined). The v3 bug was a single boolean
+  // gate so the 3rd participant never got dialed by the first two — now we
+  // track each peerId in calledPeersRef and only skip already-dialed ones.
   useEffect(() => {
     if (!callJoined) {
-      calledRef.current = false;
+      calledPeersRef.current = new Set();
       return;
     }
-    if (calledRef.current) return;
     if (!managerRef.current) return;
-    if (members.length === 0) return;
-    calledRef.current = true;
     const manager = managerRef.current;
-    void (async () => {
-      for (const member of members) {
-        if (member.userId !== myUserId && myUserId < member.userId) {
-          await manager.call(member.userId);
-        }
+    const memberIds = new Set(members.map((m) => m.userId));
+    // Drop stale entries so a kicked-and-rejoined player gets re-dialed.
+    for (const id of [...calledPeersRef.current]) {
+      if (!memberIds.has(id)) calledPeersRef.current.delete(id);
+    }
+    for (const member of members) {
+      if (member.userId === myUserId) continue;
+      if (calledPeersRef.current.has(member.userId)) continue;
+      // Lex-lower side initiates; perfect negotiation handles glare if both fire.
+      if (myUserId < member.userId) {
+        calledPeersRef.current.add(member.userId);
+        manager.call(member.userId);
       }
-    })();
+    }
   }, [members, myUserId, callJoined]);
+
+  // Compute ordered/pinned lists unconditionally (hooks must not appear after early return).
+  const orderedPeers = peerOrder.filter((id) => id in peers).map((id) => peers[id]!);
+  const pinnedPeers = pinnedPeerIds.filter((id) => id in peers).map((id) => peers[id]!);
+  const unpinnedPeers = orderedPeers.filter((p) => !pinnedPeerIds.includes(p.userId));
+
+  const { getItemProps, isDragOver } = useDragReorder(
+    orderedPeers,
+    (p) => p.userId,
+    (newOrder) => dispatch(reorderPeers(newOrder.map((p) => p.userId))),
+  );
+
+  const { getItemProps: getUnpinnedProps, isDragOver: isUnpinnedDragOver } = useDragReorder(
+    unpinnedPeers,
+    (p) => p.userId,
+    (newOrder) => {
+      const pinnedIds = pinnedPeerIds.filter((id) => id in peers);
+      dispatch(reorderPeers([...pinnedIds, ...newOrder.map((p) => p.userId)]));
+    },
+  );
 
   function onJoinCall(): void {
     setError(null);
@@ -219,20 +270,50 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
     );
   }
 
-  const remoteList = Object.values(peers);
-
   return (
     <section className={styles.videoCall} aria-label={t('videoCall.aria')}>
-      {/* Banner is non-blocking; keep above the cam list */}
       <div className={styles.cams}>
-        <VideoTile label={t('videoCall.selfLabel')} stream={localStream} muted />
-        {remoteList.map((peer) => (
-          <VideoTile
+        {/* Pinned section */}
+        {pinnedPeers.map((peer, idx) => (
+          <div
             key={peer.userId}
-            label={peer.userId.slice(0, 8)}
-            stream={remoteStreamsRef.current[peer.userId] ?? null}
-            connectionState={peer.connectionState}
-          />
+            className={`${styles.tileWrap} ${isDragOver(idx) ? styles.dragOver : ''}`}
+            {...getItemProps(idx)}
+          >
+            <VideoTile
+              label={peer.userId.slice(0, 8)}
+              stream={remoteStreamsRef.current[peer.userId] ?? null}
+              connectionState={peer.connectionState}
+              pinned
+              speaking={speakingPeerIds.includes(peer.userId)}
+              {...(peer.rttMs !== undefined ? { rttMs: peer.rttMs } : {})}
+            />
+          </div>
+        ))}
+
+        {/* Self tile — always first in unpinned area, not draggable */}
+        <VideoTile
+          label={t('videoCall.selfLabel')}
+          stream={localStream}
+          muted
+          speaking={speakingPeerIds.includes(myUserId)}
+        />
+
+        {/* Unpinned remote tiles */}
+        {unpinnedPeers.map((peer, idx) => (
+          <div
+            key={peer.userId}
+            className={`${styles.tileWrap} ${isUnpinnedDragOver(idx) ? styles.dragOver : ''}`}
+            {...getUnpinnedProps(idx)}
+          >
+            <VideoTile
+              label={peer.userId.slice(0, 8)}
+              stream={remoteStreamsRef.current[peer.userId] ?? null}
+              connectionState={peer.connectionState}
+              speaking={speakingPeerIds.includes(peer.userId)}
+              {...(peer.rttMs !== undefined ? { rttMs: peer.rttMs } : {})}
+            />
+          </div>
         ))}
       </div>
       {!localStreamReady && error && <p className={styles.error}>{error}</p>}

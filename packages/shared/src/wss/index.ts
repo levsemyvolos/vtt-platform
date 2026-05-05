@@ -278,6 +278,10 @@ export interface ClientToServerEvents {
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
   'scene:flush': (payload: SceneFlushPayload) => void;
+  'mod:kick': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
+  'mod:demote': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
+  'mod:server-mute': (payload: ModerationPayload) => void;
+  'mod:force-cam-off': (payload: ModerationPayload) => void;
 }
 
 export interface MemberJoinedPayload {
@@ -331,6 +335,17 @@ export interface ServerToClientEvents {
   'scene:activated': (payload: { sceneId: string; roomId: string }) => void;
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
+  'peer:mute-request': (payload: { userId: string }) => void;
+  'peer:cam-off-request': (payload: { userId: string }) => void;
+  'room:member-removed': (payload: { roomId: string; userId: string }) => void;
+  'room:member-updated': (payload: { roomId: string; member: import('../rest/index').RoomMemberDTO }) => void;
+  /** Sent only to the kicked user's sockets after `mod:kick`; client redirects out. */
+  'room:kicked': (payload: { roomId: string }) => void;
+}
+
+export interface ModerationPayload {
+  roomId: string;
+  targetUserId: string;
 }
 
 export interface InterServerEvents {

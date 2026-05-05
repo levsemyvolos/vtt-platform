@@ -6,13 +6,13 @@ type SignalSender = (
 ) => void;
 
 export interface PeerManagerCallbacks {
-  /** Sends a signaling envelope through the WSS proxy (server forwards as-is). */
   sendSignal: SignalSender;
   onRemoteStream: (peerId: string, stream: MediaStream) => void;
   onConnectionStateChange?: (peerId: string, state: RTCPeerConnectionState) => void;
   onPeerClosed?: (peerId: string) => void;
-  /** Fired when an SDP/ICE operation fails irrecoverably (e.g. RTP extension reassignment). */
   onNegotiationError?: (peerId: string, err: Error) => void;
+  /** Called every RTT_INTERVAL_MS with the latest round-trip time for a peer. */
+  onRttUpdate?: (peerId: string, rttMs: number) => void;
 }
 
 export interface PeerManagerOptions {
@@ -22,23 +22,36 @@ export interface PeerManagerOptions {
   callbacks: PeerManagerCallbacks;
 }
 
+const RTT_INTERVAL_MS = 5000;
+const ICE_RESTART_FALLBACK_MS = 5000;
+
 interface PeerEntry {
   pc: RTCPeerConnection;
-  /** Buffer ICE-candidates that arrive before remote SDP is set. */
-  pendingCandidates: RTCIceCandidateInit[];
-  remoteDescriptionSet: boolean;
+  rttInterval: ReturnType<typeof setInterval> | null;
+  /** Perfect Negotiation: true while createOffer→setLocalDescription is pending. */
+  makingOffer: boolean;
+  /** Perfect Negotiation: true if we lost glare resolution and must drop the offer. */
+  ignoreOffer: boolean;
+  /** Stable polite/impolite role per W3C Perfect Negotiation pattern. */
+  polite: boolean;
+  /** Timer for two-stage failed-state recovery (ICE restart → hard reconnect). */
+  recoveryTimer: ReturnType<typeof setTimeout> | null;
 }
 
 /**
- * Thin wrapper over the W3C `RTCPeerConnection` (lib.dom.d.ts). Encapsulates
- * Process View scenario E (рис. А.8): parallel ICE gathering, SDP offer /
- * answer exchange and host → TURN-relay fallback. Per §2.13.4 mesh ceiling,
- * supports ≤ 6 peers — for larger sessions an SFU is required (TODO).
+ * Mesh WebRTC peer manager. Implements the W3C Perfect Negotiation Pattern
+ * (https://www.w3.org/TR/webrtc/#perfect-negotiation-example) so SDP renegotiation
+ * is glare-safe (simultaneous offers from both sides resolve deterministically).
  *
- * Signaling transport is abstracted via the `sendSignal` callback (the WSS
- * proxy in `apps/server/src/socketio/handlers/signaling.ts`). The server
- * never inspects SDP / ICE blobs — they are forwarded to the peer's personal
- * room.
+ * Connection recovery is two-stage:
+ *   1. On `connectionState='failed'` → `pc.restartIce()` (preserves SDP m-section
+ *      structure, avoids RTP extension ID reassignment errors).
+ *   2. If still failed after 5 s → close + ensurePeer (full reconnect via
+ *      onnegotiationneeded).
+ *
+ * Polite/impolite role is fixed per pair (lex-greater userId = polite). The
+ * polite peer rolls back its in-progress offer on glare; the impolite peer
+ * keeps its offer.
  */
 export class PeerManager {
   private readonly peers = new Map<string, PeerEntry>();
@@ -51,7 +64,6 @@ export class PeerManager {
     this.iceServers = opts.iceServers;
   }
 
-  /** Replace ICE servers used for new RTCPeerConnections (TURN credential refresh). */
   setIceServers(servers: IceServer[]): void {
     this.iceServers = servers;
   }
@@ -75,16 +87,12 @@ export class PeerManager {
     this.localStream?.getVideoTracks().forEach((t) => (t.enabled = enabled));
   }
 
-  /** Initiator side: create RTCPeerConnection, attach tracks, send offer. */
-  async call(peerId: string): Promise<void> {
-    const entry = this.ensurePeer(peerId);
-    const offer = await entry.pc.createOffer();
-    await entry.pc.setLocalDescription(offer);
-    this.opts.callbacks.sendSignal('signal:offer', {
-      roomId: this.opts.roomId,
-      toUserId: peerId,
-      data: offer,
-    });
+  /**
+   * Ensure a peer connection exists for `peerId`. Triggers `onnegotiationneeded`
+   * which sends the offer through perfect negotiation. Safe to call multiple times.
+   */
+  call(peerId: string): void {
+    this.ensurePeer(peerId);
   }
 
   /** Receiver side: handle incoming offer/answer/ice envelope. */
@@ -107,6 +115,8 @@ export class PeerManager {
   closePeer(peerId: string): void {
     const entry = this.peers.get(peerId);
     if (!entry) return;
+    if (entry.rttInterval) clearInterval(entry.rttInterval);
+    if (entry.recoveryTimer) clearTimeout(entry.recoveryTimer);
     entry.pc.close();
     this.peers.delete(peerId);
     this.opts.callbacks.onPeerClosed?.(peerId);
@@ -119,30 +129,63 @@ export class PeerManager {
   }
 
   /**
-   * Hard reconnect: close every peer connection and re-initiate calls to peers
-   * for which this client should be the offer-side (lower selfUserId per
-   * lexicographic convention). Cheaper alternative to ICE-restart; works when
-   * SDP renegotiation gets stuck. Local media stream is preserved.
+   * Soft reconnect: trigger ICE restart on every active peer. Preserves SDP
+   * structure — avoids the RTP extension ID reassignment errors that plagued
+   * the previous closeAll-then-recall approach.
    */
-  restartAll(knownPeerIds: string[]): void {
-    for (const peerId of [...this.peers.keys()]) this.closePeer(peerId);
-    setTimeout(() => {
-      for (const peerId of knownPeerIds) {
-        if (peerId !== this.opts.selfUserId && this.opts.selfUserId < peerId) {
-          void this.call(peerId);
-        }
+  reconnectAll(): void {
+    for (const [, entry] of this.peers) {
+      try {
+        entry.pc.restartIce();
+      } catch {
+        // ignore — failure handler will pick it up
       }
-    }, 200);
+    }
+  }
+
+  /**
+   * Hard reconnect that mimics F5: close every existing peer and re-call all
+   * known members where this side is the lex-lower initiator. Used by the
+   * Reconnect button when ICE-restart alone isn't enough — e.g. peers that
+   * never connected on first try, or members who joined with no peer entry.
+   *
+   * Lex-higher side re-creates entries lazily on incoming offer (handleSignal),
+   * so we only initiate from the lex-lower side here. Perfect Negotiation
+   * resolves any glare with the other side.
+   */
+  fullReconnect(memberIds: readonly string[]): void {
+    for (const peerId of [...this.peers.keys()]) this.closePeer(peerId);
+    for (const peerId of memberIds) {
+      if (peerId === this.opts.selfUserId) continue;
+      if (this.opts.selfUserId < peerId) this.ensurePeer(peerId);
+    }
+  }
+
+  /** Snapshot of peers currently tracked (for reconnect bookkeeping). */
+  getKnownPeerIds(): string[] {
+    return [...this.peers.keys()];
   }
 
   // --------------- Internals ---------------
+
+  private isPolite(peerId: string): boolean {
+    // Lex-greater userId is polite (yields on glare). Symmetric and stable.
+    return this.opts.selfUserId > peerId;
+  }
 
   private ensurePeer(peerId: string): PeerEntry {
     const existing = this.peers.get(peerId);
     if (existing) return existing;
 
     const pc = new RTCPeerConnection({ iceServers: this.iceServers });
-    const entry: PeerEntry = { pc, pendingCandidates: [], remoteDescriptionSet: false };
+    const entry: PeerEntry = {
+      pc,
+      rttInterval: null,
+      makingOffer: false,
+      ignoreOffer: false,
+      polite: this.isPolite(peerId),
+      recoveryTimer: null,
+    };
 
     if (this.localStream) {
       for (const track of this.localStream.getTracks()) pc.addTrack(track, this.localStream);
@@ -162,9 +205,37 @@ export class PeerManager {
       if (stream) this.opts.callbacks.onRemoteStream(peerId, stream);
     };
 
+    // Perfect Negotiation: implicit createOffer + setLocalDescription.
+    pc.onnegotiationneeded = async () => {
+      try {
+        entry.makingOffer = true;
+        await pc.setLocalDescription();
+        if (!pc.localDescription) return;
+        this.opts.callbacks.sendSignal('signal:offer', {
+          roomId: this.opts.roomId,
+          toUserId: peerId,
+          data: pc.localDescription,
+        });
+      } catch (err) {
+        this.opts.callbacks.onNegotiationError?.(peerId, err as Error);
+      } finally {
+        entry.makingOffer = false;
+      }
+    };
+
     pc.onconnectionstatechange = () => {
       this.opts.callbacks.onConnectionStateChange?.(peerId, pc.connectionState);
-      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      if (pc.connectionState === 'connected') {
+        this.startRttPolling(peerId, entry);
+        if (entry.recoveryTimer) {
+          clearTimeout(entry.recoveryTimer);
+          entry.recoveryTimer = null;
+        }
+      }
+      if (pc.connectionState === 'failed') {
+        this.handleFailed(peerId, entry);
+      }
+      if (pc.connectionState === 'closed') {
         this.closePeer(peerId);
       }
     };
@@ -173,39 +244,73 @@ export class PeerManager {
     return entry;
   }
 
+  /**
+   * Two-stage recovery: ICE restart first; if still failed after 5 s, close
+   * and re-create the peer connection (full SDP renegotiation).
+   */
+  private handleFailed(peerId: string, entry: PeerEntry): void {
+    try {
+      entry.pc.restartIce();
+    } catch {
+      // ignore
+    }
+    if (entry.recoveryTimer) clearTimeout(entry.recoveryTimer);
+    entry.recoveryTimer = setTimeout(() => {
+      const current = this.peers.get(peerId);
+      if (!current) return;
+      if (current.pc.connectionState === 'failed' || current.pc.connectionState === 'disconnected') {
+        this.closePeer(peerId);
+        // Only the impolite side re-initiates after full close to avoid double-call.
+        if (!current.polite) this.ensurePeer(peerId);
+      }
+    }, ICE_RESTART_FALLBACK_MS);
+  }
+
+  private startRttPolling(peerId: string, entry: PeerEntry): void {
+    if (entry.rttInterval) return;
+    entry.rttInterval = setInterval(() => {
+      void entry.pc.getStats().then((stats) => {
+        stats.forEach((report) => {
+          if (
+            report.type === 'candidate-pair' &&
+            (report as RTCIceCandidatePairStats).nominated &&
+            (report as RTCIceCandidatePairStats).state === 'succeeded'
+          ) {
+            const rtt = (report as RTCIceCandidatePairStats).currentRoundTripTime;
+            if (rtt !== undefined) {
+              this.opts.callbacks.onRttUpdate?.(peerId, Math.round(rtt * 1000));
+            }
+          }
+        });
+      });
+    }, RTT_INTERVAL_MS);
+  }
+
   private peerIdFromPayload(payload: SignalingPayload): string | null {
-    // Server forwards original sender's userId via socket auth — but the
-    // WSS envelope carries `toUserId` (us). The peer id is encoded as the
-    // *sender* in the proxy: we cannot read it from the payload directly,
-    // so the upstream socket listener wraps the call with the sender id.
-    // For symmetry with the server contract (§2.16.3) we accept payloads
-    // already tagged with `toUserId === selfUserId` and use a sentinel
-    // `peerId` field set by the caller — see `socket.ts` listener.
     const peerId = (payload as SignalingPayload & { fromUserId?: string }).fromUserId;
     return peerId ?? null;
   }
 
   private async handleOffer(peerId: string, sdp: RTCSessionDescriptionInit): Promise<void> {
     const entry = this.ensurePeer(peerId);
+    const pc = entry.pc;
+    const offerCollision = entry.makingOffer || pc.signalingState !== 'stable';
+    entry.ignoreOffer = !entry.polite && offerCollision;
+    if (entry.ignoreOffer) return;
+
     try {
-      await entry.pc.setRemoteDescription(sdp);
+      // setRemoteDescription with implicit rollback on collision (polite side).
+      await pc.setRemoteDescription(sdp);
+      await pc.setLocalDescription(); // implicit createAnswer
+      if (!pc.localDescription) return;
+      this.opts.callbacks.sendSignal('signal:answer', {
+        roomId: this.opts.roomId,
+        toUserId: peerId,
+        data: pc.localDescription,
+      });
     } catch (err) {
-      // Renegotiation race after restartAll: SDP m-line / RTP extension IDs
-      // can mismatch the stale RTCPeerConnection. Drop this peer; caller can
-      // re-call() with a fresh PC.
-      this.closePeer(peerId);
       this.opts.callbacks.onNegotiationError?.(peerId, err as Error);
-      return;
     }
-    entry.remoteDescriptionSet = true;
-    await this.flushPendingCandidates(entry);
-    const answer = await entry.pc.createAnswer();
-    await entry.pc.setLocalDescription(answer);
-    this.opts.callbacks.sendSignal('signal:answer', {
-      roomId: this.opts.roomId,
-      toUserId: peerId,
-      data: answer,
-    });
   }
 
   private async handleAnswer(peerId: string, sdp: RTCSessionDescriptionInit): Promise<void> {
@@ -214,27 +319,20 @@ export class PeerManager {
     try {
       await entry.pc.setRemoteDescription(sdp);
     } catch (err) {
-      this.closePeer(peerId);
       this.opts.callbacks.onNegotiationError?.(peerId, err as Error);
-      return;
     }
-    entry.remoteDescriptionSet = true;
-    await this.flushPendingCandidates(entry);
   }
 
   private async handleIce(peerId: string, candidate: RTCIceCandidateInit): Promise<void> {
     const entry = this.ensurePeer(peerId);
-    if (!entry.remoteDescriptionSet) {
-      entry.pendingCandidates.push(candidate);
-      return;
+    try {
+      await entry.pc.addIceCandidate(candidate);
+    } catch (err) {
+      // Tolerate ICE failures only when we're explicitly ignoring this offer.
+      if (!entry.ignoreOffer) {
+        // eslint-disable-next-line no-console
+        console.warn('[PeerManager] addIceCandidate failed', err);
+      }
     }
-    await entry.pc.addIceCandidate(candidate);
-  }
-
-  private async flushPendingCandidates(entry: PeerEntry): Promise<void> {
-    for (const c of entry.pendingCandidates) {
-      await entry.pc.addIceCandidate(c);
-    }
-    entry.pendingCandidates.length = 0;
   }
 }

@@ -15,6 +15,21 @@
   padding: 8px;
 }
 
+.tileWrap {
+  cursor: grab;
+  border-radius: var(--radius-md);
+  transition: opacity 0.15s;
+}
+
+.tileWrap:active {
+  cursor: grabbing;
+}
+
+.dragOver {
+  outline: 2px dashed var(--color-primary);
+  opacity: 0.7;
+}
+
 .error {
   color: var(--color-danger);
   font-size: var(--text-sm);

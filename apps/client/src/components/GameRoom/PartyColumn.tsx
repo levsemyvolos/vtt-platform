@@ -7,6 +7,7 @@ import { Avatar, Badge } from '../ui';
 import VideoCall from '../VideoCall/VideoCall';
 import MediaControls from './MediaControls';
 import ParticipantMenu, { type MenuTarget } from './ParticipantMenu';
+import { useDragReorder } from '../../hooks/useDragReorder';
 import styles from './PartyColumn.module.css';
 
 interface PartyColumnProps {
@@ -37,7 +38,30 @@ export default function PartyColumn({ roomId, myUserId, myRole }: PartyColumnPro
   });
 
   const [menu, setMenu] = useState<{ rect: DOMRect; target: MenuTarget } | null>(null);
+  const [memberOrder, setMemberOrder] = useState<RoomMemberDTO[]>(members);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Sync order when server pushes new members (join/leave).
+  useEffect(() => {
+    setMemberOrder((prev) => {
+      const prevIds = prev.map((m) => m.userId);
+      const newIds = members.map((m) => m.userId);
+      // Keep existing order; append new; remove departed.
+      const kept = prev.filter((m) => newIds.includes(m.userId)).map((m) => {
+        // Refresh data (role may have changed via demote).
+        const fresh = members.find((x) => x.userId === m.userId);
+        return fresh ?? m;
+      });
+      const added = members.filter((m) => !prevIds.includes(m.userId));
+      return [...kept, ...added];
+    });
+  }, [members]);
+
+  const { getItemProps: getMemberDragProps, isDragOver: isMemberDragOver } = useDragReorder(
+    memberOrder,
+    (m) => m.userId,
+    setMemberOrder,
+  );
 
   useEffect(() => {
     localStorage.setItem(LS_KEY, participantsOpen ? '1' : '0');
@@ -92,10 +116,14 @@ export default function PartyColumn({ roomId, myUserId, myRole }: PartyColumnPro
 
       {participantsOpen && (
         <ul className={styles.memberList} role="list">
-          {members.map((m) => {
+          {memberOrder.map((m, idx) => {
             const isSelf = m.userId === myUserId;
             return (
-              <li key={m.userId} className={styles.memberCard}>
+              <li
+                key={m.userId}
+                className={`${styles.memberCard} ${isMemberDragOver(idx) ? styles.memberDragOver : ''}`}
+                {...getMemberDragProps(idx)}
+              >
                 <Avatar
                   name={m.name}
                   size="md"
@@ -129,6 +157,7 @@ export default function PartyColumn({ roomId, myUserId, myRole }: PartyColumnPro
           triggerRect={menu.rect}
           target={menu.target}
           viewerRole={myRole}
+          roomId={roomId}
           onClose={closeMenu}
         />
       )}

@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import type { Role, RoomMemberDTO } from '@vtt/shared';
-import { useAppDispatch } from '../../store';
+import { useAppDispatch, useAppSelector } from '../../store';
 import { addToast } from '../../store/toast';
+import { togglePinPeer } from '../../store/media';
+import { emitModKick, emitModDemote, emitModServerMute, emitModForceCamOff } from '../../api/socket';
 import styles from './ParticipantMenu.module.css';
 
 export interface MenuTarget extends RoomMemberDTO {
@@ -14,6 +16,7 @@ interface Props {
   triggerRect: DOMRect;
   target: MenuTarget;
   viewerRole: Role;
+  roomId: string;
   onClose: () => void;
 }
 
@@ -32,9 +35,11 @@ interface Pos {
 
 const MARGIN = 8;
 
-export default function ParticipantMenu({ triggerRect, target, viewerRole, onClose }: Props): JSX.Element {
+export default function ParticipantMenu({ triggerRect, target, viewerRole, roomId, onClose }: Props): JSX.Element {
   const { t } = useTranslation('gameroom');
   const dispatch = useAppDispatch();
+  const pinnedPeerIds = useAppSelector((s) => s.media.pinnedPeerIds);
+  const isPinned = pinnedPeerIds.includes(target.userId);
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<Pos | null>(null);
 
@@ -90,9 +95,8 @@ export default function ParticipantMenu({ triggerRect, target, viewerRole, onClo
   if (!target.isSelf) {
     items.push({
       key: 'pin',
-      label: t('participantMenu.pinForMe'),
-      onClick: () => mockToast(t('participantMenu.pinForMe')),
-      mock: true,
+      label: isPinned ? t('participantMenu.unpinForMe') : t('participantMenu.pinForMe'),
+      onClick: () => dispatch(togglePinPeer(target.userId)),
     });
     items.push({
       key: 'mute-local',
@@ -105,26 +109,30 @@ export default function ParticipantMenu({ triggerRect, target, viewerRole, onClo
       items.push({
         key: 'server-mute',
         label: t('participantMenu.serverMute'),
-        onClick: () => mockToast(t('participantMenu.serverMute')),
-        mock: true,
+        onClick: () => emitModServerMute({ roomId, targetUserId: target.userId }),
       });
       items.push({
         key: 'force-cam',
         label: t('participantMenu.forceCamOff'),
-        onClick: () => mockToast(t('participantMenu.forceCamOff')),
-        mock: true,
+        onClick: () => emitModForceCamOff({ roomId, targetUserId: target.userId }),
       });
       items.push({
         key: 'demote',
         label: t('participantMenu.demote'),
-        onClick: () => mockToast(t('participantMenu.demote')),
-        mock: true,
+        onClick: () => {
+          void emitModDemote({ roomId, targetUserId: target.userId }).catch((err: unknown) => {
+            dispatch(addToast('error', err instanceof Error ? err.message : 'Failed'));
+          });
+        },
       });
       items.push({
         key: 'kick',
         label: t('participantMenu.kick'),
-        onClick: () => mockToast(t('participantMenu.kick')),
-        mock: true,
+        onClick: () => {
+          void emitModKick({ roomId, targetUserId: target.userId }).catch((err: unknown) => {
+            dispatch(addToast('error', err instanceof Error ? err.message : 'Failed'));
+          });
+        },
         danger: true,
       });
     }

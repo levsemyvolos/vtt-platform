@@ -21,6 +21,7 @@ import { makeSessionResyncHandler } from './handlers/resync.js';
 import { registerSignalingHandlers } from './handlers/signaling.js';
 import { registerAnnotationHandlers } from './handlers/annotation.js';
 import { registerDrawHandlers } from './handlers/draw.js';
+import { registerModerationHandlers } from './handlers/moderation.js';
 
 interface AccessPayload {
   sub: string;
@@ -140,6 +141,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
     registerSignalingHandlers(io, socket);
     registerAnnotationHandlers(socket, deps.annotationService);
     registerDrawHandlers(io, socket, deps.drawService, deps.sceneAnnotationService);
+    registerModerationHandlers(io, socket);
   });
 
   return io;

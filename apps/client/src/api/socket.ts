@@ -17,6 +17,7 @@ import type {
   FogShapeRemovePayload,
   SceneObjectMovePayload,
   SceneObjectDeletePayload,
+  ModerationPayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
@@ -26,7 +27,11 @@ import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
 import { addPing, removePing, upsertMeasure, removeMeasure } from '../store/annotations';
 import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
-import { upsertRoomMember, removeRoom, applyRoomUpdate, startSession } from '../store/room';
+import { upsertRoomMember, removeRoomMember, removeRoom, applyRoomUpdate, startSession, clearRoom } from '../store/room';
+import { setMicEnabled, setCameraEnabled } from '../store/media';
+import { addToast } from '../store/toast';
+import i18n from 'i18next';
+import { peerManagerRef } from '../infrastructure/webrtc/peerManagerRef';
 
 export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -143,12 +148,46 @@ export function getSocket(): TypedClientSocket {
     store.dispatch(startSession());
   });
 
-  // GM renamed room or changed game system вЂ” sync to all clients without F5.
+  // GM renamed room or changed game system — sync to all clients without F5.
   socket.on('room:updated', (payload) => {
     store.dispatch(applyRoomUpdate(payload));
   });
 
-  // Р¤3.4.3 вЂ” ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.
+  // Moderation: member kicked by GM.
+  socket.on('room:member-removed', (payload) => {
+    store.dispatch(removeRoomMember(payload.userId));
+  });
+
+  // Moderation: member demoted by GM — update their role in store.
+  socket.on('room:member-updated', (payload) => {
+    store.dispatch(upsertRoomMember(payload.member));
+  });
+
+  // Moderation: server-mute request from GM.
+  socket.on('peer:mute-request', () => {
+    peerManagerRef.current?.setMicEnabled(false);
+    store.dispatch(setMicEnabled(false));
+    store.dispatch(addToast('warning', i18n.t('gameroom:gmMutedYou')));
+  });
+
+  // Moderation: force cam off request from GM.
+  socket.on('peer:cam-off-request', () => {
+    peerManagerRef.current?.setCameraEnabled(false);
+    store.dispatch(setCameraEnabled(false));
+    store.dispatch(addToast('warning', i18n.t('gameroom:gmCamOff')));
+  });
+
+  // Moderation: kicked from session — hard-redirect to dashboard.
+  // Hard navigate so PeerManager + Redux state are wiped cleanly.
+  socket.on('room:kicked', () => {
+    store.dispatch(addToast('error', i18n.t('gameroom:kickedFromRoom')));
+    store.dispatch(clearRoom());
+    setTimeout(() => {
+      window.location.href = '/dashboard';
+    }, 800);
+  });
+
+  // Ф3.4.3 — ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.
   const measureTimers = new Map<string, ReturnType<typeof setTimeout>>();
   socket.on('measure:start', (payload) => {
     store.dispatch(upsertMeasure(payload));
@@ -339,6 +378,38 @@ export function emitObjectDelete(payload: SceneObjectDeletePayload): void {
  * OTHER clients — the GM already has the correct state locally and must not
  * receive a `fog:clear` bounce that would cause a visual flicker.
  */
+export function emitModKick(payload: ModerationPayload): Promise<{ ok: boolean }> {
+  return new Promise((resolve, reject) => {
+    const sock = getSocket();
+    const timer = setTimeout(() => reject(new Error('Timeout')), ACK_TIMEOUT_MS);
+    sock.emit('mod:kick', payload, (res) => {
+      clearTimeout(timer);
+      if (res.ok) resolve({ ok: true });
+      else reject(new Error(res.error?.message ?? 'Failed'));
+    });
+  });
+}
+
+export function emitModDemote(payload: ModerationPayload): Promise<{ ok: boolean }> {
+  return new Promise((resolve, reject) => {
+    const sock = getSocket();
+    const timer = setTimeout(() => reject(new Error('Timeout')), ACK_TIMEOUT_MS);
+    sock.emit('mod:demote', payload, (res) => {
+      clearTimeout(timer);
+      if (res.ok) resolve({ ok: true });
+      else reject(new Error(res.error?.message ?? 'Failed'));
+    });
+  });
+}
+
+export function emitModServerMute(payload: ModerationPayload): void {
+  getSocket().emit('mod:server-mute', payload);
+}
+
+export function emitModForceCamOff(payload: ModerationPayload): void {
+  getSocket().emit('mod:force-cam-off', payload);
+}
+
 export function flushEditedScene(roomId: string, sceneId: string): void {
   const sock = getSocket();
   const state = store.getState();

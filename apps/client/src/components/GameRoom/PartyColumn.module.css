@@ -84,6 +84,13 @@
   background: var(--color-surface-hover);
 }
 
+.memberCard { cursor: grab; }
+.memberCard:active { cursor: grabbing; }
+.memberDragOver {
+  outline: 2px dashed var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
 .memberCard:hover .moreBtn {
   opacity: 1;
 }

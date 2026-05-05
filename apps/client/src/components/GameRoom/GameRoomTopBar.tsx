@@ -50,12 +50,12 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
 
   const currentRoom = useAppSelector((s) => s.room.currentRoom);
   const currentUser = useAppSelector((s) => s.session.currentUser);
+  const members = useAppSelector((s) => s.room.members);
   const sceneList = useAppSelector((s) => s.scenes.list);
   const activeScene = useAppSelector((s) => s.scene.current);
   const wssConnected = useWssConnected();
   const isObserver = useAppSelector(selectIsObserver);
   const callJoined = useAppSelector((s) => s.media.callJoined);
-  const peers = useAppSelector((s) => s.media.peers);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -101,8 +101,14 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
   }
 
   function handleReconnect(): void {
-    const knownIds = Object.keys(peers);
-    peerManagerRef.current?.restartAll(knownIds);
+    const manager = peerManagerRef.current;
+    if (!manager || !currentUser) return;
+    // Hard reconnect (close + re-call) — mimics F5 so peers that never
+    // connected on first try, or roster gaps, get a clean negotiation pass.
+    // ICE restart alone (the previous behaviour) only helps already-paired
+    // peers and missed first-connect failures entirely.
+    const memberIds = members.map((m) => m.userId);
+    manager.fullReconnect(memberIds);
     dispatch(addToast('info', t('topBar.reconnectToast')));
   }
 
