@@ -17,23 +17,28 @@ export interface DrawBroadcast {
   fogClear: (roomId: string, sceneId: string) => void;
 }
 
+function isFogShape(item: unknown): item is FogShape {
+  if (!item || typeof item !== 'object') return false;
+  const s = item as Partial<FogShape>;
+  return (
+    typeof s.id === 'string' &&
+    typeof s.x === 'number' &&
+    typeof s.y === 'number' &&
+    typeof s.w === 'number' &&
+    typeof s.h === 'number' &&
+    (s.mode === 'hide' || s.mode === 'reveal') &&
+    typeof s.createdAt === 'number'
+  );
+}
+
 /** Reads `Scene.fogShapes` JSON column into a normalized FogShape[]. */
 export function parseFogShapes(raw: unknown): FogShape[] {
   if (!Array.isArray(raw)) return [];
   const out: FogShape[] = [];
   for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    const s = item as Partial<FogShape>;
-    if (
-      typeof s.id !== 'string' ||
-      typeof s.x !== 'number' ||
-      typeof s.y !== 'number' ||
-      typeof s.w !== 'number' ||
-      typeof s.h !== 'number' ||
-      (s.mode !== 'hide' && s.mode !== 'reveal') ||
-      typeof s.createdAt !== 'number'
-    ) continue;
-    out.push({ id: s.id, x: s.x, y: s.y, w: s.w, h: s.h, mode: s.mode, createdAt: s.createdAt });
+    if (isFogShape(item)) {
+      out.push({ id: item.id, x: item.x, y: item.y, w: item.w, h: item.h, mode: item.mode, createdAt: item.createdAt });
+    }
   }
   out.sort((a, b) => a.createdAt - b.createdAt);
   return out;

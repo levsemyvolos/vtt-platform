@@ -125,6 +125,6 @@ describe('HandoutService (Ф7.2 — RBAC)', () => {
     (repo.listByRoom as ReturnType<typeof vi.fn>).mockResolvedValue([handoutWithAsset]);
     const svc = new HandoutService(repo, makeStorage());
     const list = await svc.listForViewer(ROOM_ID, 'GM', 'gm-1');
-    expect(list[0]?.assetUrl).toBe('https://signed.example/handout.png');
+    expect(list[0]?.assetUrl).toBe('/api/assets/asset-1/file');
   });
 });

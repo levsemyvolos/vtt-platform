@@ -131,7 +131,7 @@ describe('AssetService.listByRoomAndType', () => {
 
     expect(dtos).toHaveLength(2);
     expect(dtos[0].id).toBe('a1');
-    expect(dtos[0].url).toBe('https://signed.example/url');
+    expect(dtos[0].url).toBe('/api/assets/a1/file');
     expect(dtos[0]).not.toHaveProperty('storageKey');
     expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, '');
   });
@@ -174,7 +174,7 @@ describe('AssetService.getAssetDTO', () => {
     const dto = await service.getAssetDTO('asset-1');
 
     expect(dto.id).toBe('asset-1');
-    expect(dto.url.startsWith('https://signed.example/')).toBe(true);
+    expect(dto.url).toBe('/api/assets/asset-1/file');
     expect(dto.type).toBe('image/png');
     expect(dto).not.toHaveProperty('storageKey');
   });
