@@ -159,13 +159,15 @@ const annotationService = new AnnotationService({
 let _drawBroadcast: ReturnType<typeof buildDrawBroadcaster> = {
   stroke: () => {},
   clear: () => {},
-  fogDiff: () => {},
+  fogShapeAdd: () => {},
+  fogShapeRemove: () => {},
   fogClear: () => {},
 };
 const drawService = new DrawService(prisma, {
   stroke: (roomId, payload) => _drawBroadcast.stroke(roomId, payload),
   clear: (roomId, sceneId) => _drawBroadcast.clear(roomId, sceneId),
-  fogDiff: (roomId, payload) => _drawBroadcast.fogDiff(roomId, payload),
+  fogShapeAdd: (roomId, payload) => _drawBroadcast.fogShapeAdd(roomId, payload),
+  fogShapeRemove: (roomId, payload) => _drawBroadcast.fogShapeRemove(roomId, payload),
   fogClear: (roomId, sceneId) => _drawBroadcast.fogClear(roomId, sceneId),
 });
 const sceneAnnotationService = new SceneAnnotationService(prisma, drawService);
@@ -188,7 +190,7 @@ _drawBroadcast = buildDrawBroadcaster(io);
 // Inject io into roomsRouter so POST /rooms/join can emit room:member-joined.
 buildRoomsRouter(io);
 
-app.use(buildAnnotationsRouter(sceneAnnotationService));
+app.use(buildAnnotationsRouter(sceneAnnotationService, io));
 
 // ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------
 app.use(buildInitiativeRouter(initiativeService, roomRepo, io));

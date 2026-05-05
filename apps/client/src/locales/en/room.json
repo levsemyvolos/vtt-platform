@@ -166,6 +166,7 @@
     "breadcrumb": "Editing",
     "breadcrumbLabel": "Breadcrumbs",
     "doneBtn": "Done",
+    "cancelBtn": "Cancel",
     "leftToolbar": {
       "label": "Left editor toolbar",
       "background": "Background",

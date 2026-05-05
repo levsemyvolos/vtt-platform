@@ -4,10 +4,12 @@ import type {
   TokenPublicDTO,
   SceneUpdatedPayload,
   TokenRollbackPayload,
-  FogMaskDiffPayload,
+  FogShape,
+  FogShapeAddPayload,
+  FogShapeRemovePayload,
   DrawStrokePayload,
+  SceneAnnotations,
 } from '@vtt/shared';
-import { xorPackedMasks } from '../components/GameCanvas/fogMask';
 
 interface SceneState {
   current: SceneDTO | null;
@@ -95,19 +97,24 @@ const sceneSlice = createSlice({
       if (!state.current) return;
       state.current.tokens = state.current.tokens.filter((t) => t.id !== action.payload);
     },
-    /**
-     * Algorithm A4 trigger A (§2.17.5): GM modified the fog mask. Server emits
-     * an XOR diff against the previously broadcast packed bitmap; the client
-     * XORs it onto `current.fogMaskBase64` to obtain the new mask without
-     * re-fetching the full snapshot.
-     */
-    applyFogDiff: (state, action: PayloadAction<FogMaskDiffPayload>) => {
-      if (!state.current) return;
-      if (state.current.id !== action.payload.sceneId) return;
-      state.current.fogMaskBase64 = xorPackedMasks(
-        state.current.fogMaskBase64,
-        action.payload.diffBase64,
+    /** A GM added a new pixel-precise fog rectangle (Ф3.3, shape-list). */
+    fogShapeAdded: (state, action: PayloadAction<FogShapeAddPayload>) => {
+      if (!state.current || state.current.id !== action.payload.sceneId) return;
+      const shapes = state.current.fogShapes ?? [];
+      if (shapes.some((s) => s.id === action.payload.shape.id)) return;
+      shapes.push(action.payload.shape);
+      shapes.sort((a, b) => a.createdAt - b.createdAt);
+      state.current.fogShapes = shapes;
+    },
+    fogShapeRemoved: (state, action: PayloadAction<FogShapeRemovePayload>) => {
+      if (!state.current || state.current.id !== action.payload.sceneId) return;
+      state.current.fogShapes = (state.current.fogShapes ?? []).filter(
+        (s) => s.id !== action.payload.shapeId,
       );
+    },
+    fogShapesSet: (state, action: PayloadAction<FogShape[]>) => {
+      if (!state.current) return;
+      state.current.fogShapes = [...action.payload].sort((a, b) => a.createdAt - b.createdAt);
     },
     selectToken: (state, action: PayloadAction<string>) => {
       state.selectedTokenId = action.payload;
@@ -116,7 +123,7 @@ const sceneSlice = createSlice({
       state.selectedTokenId = null;
     },
     clearFogMask: (state) => {
-      if (state.current) state.current.fogMaskBase64 = null;
+      if (state.current) state.current.fogShapes = [];
     },
     moveSceneObjectOptimistic: (
       state,
@@ -172,6 +179,14 @@ const sceneSlice = createSlice({
       state.current.annotations.strokes = [];
       state.current.annotations.objects = (state.current.annotations.objects ?? []).filter((object) => object.type !== 'stroke');
     },
+    /** Replaces full annotations from server broadcast (annotations:updated event). */
+    applyAnnotationsUpdate: (
+      state,
+      action: PayloadAction<{ sceneId: string; annotations: SceneAnnotations }>,
+    ) => {
+      if (!state.current || state.current.id !== action.payload.sceneId) return;
+      state.current.annotations = action.payload.annotations;
+    },
     removeSceneObject: (state, action: PayloadAction<string>) => {
       if (!state.current) return;
       const id = action.payload;
@@ -191,7 +206,9 @@ export const {
   applyTokenRollback,
   upsertToken,
   removeToken,
-  applyFogDiff,
+  fogShapeAdded,
+  fogShapeRemoved,
+  fogShapesSet,
   selectToken,
   deselectToken,
   clearFogMask,
@@ -199,5 +216,6 @@ export const {
   applyDrawStroke,
   clearDrawStrokes,
   removeSceneObject,
+  applyAnnotationsUpdate,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;

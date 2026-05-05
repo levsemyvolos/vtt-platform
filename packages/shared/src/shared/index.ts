@@ -173,6 +173,20 @@ const EMPTY_SCENE_ANNOTATIONS: SceneAnnotations = {
 export { EMPTY_SCENE_ANNOTATIONS };
 
 /**
+ * Pixel-precise rectangular fog region (Ф3.3, shape-list model).
+ * Composed in `createdAt` ASC order: `hide` paints opaque, `reveal` cuts holes.
+ */
+export interface FogShape {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  mode: 'hide' | 'reveal';
+  createdAt: number;
+}
+
+/**
  * Scene snapshot used by GET /rooms/:id/scenes/:sceneId and SessionResyncPayload.
  * Tokens are projected per A6 (RBAC) before being placed in this DTO.
  */
@@ -186,7 +200,7 @@ export interface SceneDTO {
   gridVisible: boolean;
   isActive: boolean;
   isHidden: boolean;
-  fogMaskBase64: string | null;
+  fogShapes: FogShape[];
   tokens: TokenPublicDTO[];
   /** Optional URL for the scene background bitmap (Ф2.2.5). */
   backgroundUrl?: string | null;

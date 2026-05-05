@@ -6,8 +6,12 @@ import type {
   SceneDTO,
   CreateTokenRequest,
   UpdateTokenRequest,
+  ServerToClientEvents,
+  ClientToServerEvents,
 } from '@vtt/shared';
+import type { Server } from 'socket.io';
 import { projectToken } from '../services/projections.js';
+import { parseFogShapes } from '../services/DrawService.js';
 import { SceneService } from '../services/SceneService.js';
 import { SceneRepository } from '../repositories/SceneRepository.js';
 import { TokenRepository } from '../repositories/TokenRepository.js';
@@ -56,7 +60,7 @@ function toSceneDTOFromEntity(scene: {
   gridVisible: boolean;
   isActive: boolean;
   isHidden: boolean;
-  fogMaskBase64: string | null;
+  fogShapes?: unknown;
 }): SceneDTO {
   return {
     id: scene.id,
@@ -68,7 +72,7 @@ function toSceneDTOFromEntity(scene: {
     gridVisible: scene.gridVisible,
     isActive: scene.isActive,
     isHidden: scene.isHidden,
-    fogMaskBase64: scene.fogMaskBase64,
+    fogShapes: parseFogShapes(scene.fogShapes),
     tokens: [],
     annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   };
@@ -271,8 +275,16 @@ tokensRouter.delete(
 
 // ---------- Annotation endpoints ----------
 
-export function buildAnnotationsRouter(annotationService: SceneAnnotationService): IRouter {
+export function buildAnnotationsRouter(
+  annotationService: SceneAnnotationService,
+  io?: Server<ClientToServerEvents, ServerToClientEvents>,
+): IRouter {
   const router = Router({ mergeParams: true });
+
+  function broadcastAnnotations(roomId: string, sceneId: string, annotations: object): void {
+    if (!io) return;
+    io.to(roomId).emit('annotations:updated', { sceneId, annotations } as never);
+  }
 
   // POST /scenes/:id/annotations/text — GM adds a text label
   router.post(
@@ -290,6 +302,7 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
         if (fontSize !== undefined) textPayload.fontSize = fontSize;
         if (color !== undefined) textPayload.color = color;
         const annotations = await annotationService.addText(req.params.id, req.user!.id, textPayload);
+        broadcastAnnotations(scene.roomId, req.params.id, annotations);
         res.status(201).json(annotations);
       } catch (err) { handleError(err, res); }
     },
@@ -311,6 +324,7 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
         if (width !== undefined) imgPayload.width = width;
         if (height !== undefined) imgPayload.height = height;
         const annotations = await annotationService.addImage(req.params.id, req.user!.id, imgPayload);
+        broadcastAnnotations(scene.roomId, req.params.id, annotations);
         res.status(201).json(annotations);
       } catch (err) { handleError(err, res); }
     },
@@ -331,6 +345,7 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
           throw new HttpError(400, 'x and y must be numbers');
         }
         const annotations = await annotationService.moveAnnotation(req.params.id, req.params.annId, req.user!.id, role, { x, y });
+        broadcastAnnotations(scene.roomId, req.params.id, annotations);
         res.json(annotations);
       } catch (err) { handleError(err, res); }
     },
@@ -347,6 +362,9 @@ export function buildAnnotationsRouter(annotationService: SceneAnnotationService
         const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
         if (!role) throw new HttpError(403, 'Not a room member');
         await annotationService.removeAnnotation(req.params.id, req.params.annId, req.user!.id, role);
+        // Broadcast updated annotations after removal (fetch current state).
+        const updated = await prisma.scene.findUnique({ where: { id: req.params.id }, select: { annotations: true } });
+        if (updated?.annotations) broadcastAnnotations(scene.roomId, req.params.id, updated.annotations as object);
         res.status(204).send();
       } catch (err) { handleError(err, res); }
     },

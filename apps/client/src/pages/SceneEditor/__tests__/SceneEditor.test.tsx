@@ -16,6 +16,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import roomReducer, { startEditing, setCurrentRoom } from '../../../store/room';
 import sessionReducer from '../../../store/session';
 import sceneReducer from '../../../store/scene';
+import canvasViewportReducer from '../../../store/canvasViewport';
 import preferencesReducer from '../../../store/preferences';
 import toastReducer from '../../../store/toast';
 import assetsReducer from '../../../store/assets';
@@ -42,6 +43,7 @@ function makeStore(role: 'GM' | 'Player') {
       room: roomReducer,
       session: sessionReducer,
       scene: sceneReducer,
+      canvasViewport: canvasViewportReducer,
       preferences: preferencesReducer,
       toast: toastReducer,
       assets: assetsReducer,

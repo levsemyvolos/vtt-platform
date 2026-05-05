@@ -13,13 +13,14 @@ import type {
   AnnotationPingPayload,
   MeasurePayload,
   DrawStrokePayload,
-  FogMaskUpdatePayload,
+  FogShapeAddPayload,
+  FogShapeRemovePayload,
   SceneObjectMovePayload,
   SceneObjectDeletePayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, applyFogDiff, clearFogMask, moveSceneObjectOptimistic, removeSceneObject } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -89,11 +90,17 @@ export function getSocket(): TypedClientSocket {
     store.dispatch(hydrateInitiative(payload));
   });
   // Algorithm A4 trigger A вЂ” XOR fog-mask diff broadcast (В§2.17.5).
-  socket.on('fog:mask-diff', (payload) => {
-    store.dispatch(applyFogDiff(payload));
+  socket.on('fog:shape-add', (payload) => {
+    store.dispatch(fogShapeAdded(payload));
+  });
+  socket.on('fog:shape-remove', (payload) => {
+    store.dispatch(fogShapeRemoved(payload));
   });
   socket.on('fog:clear', () => {
     store.dispatch(clearFogMask());
+  });
+  socket.on('annotations:updated', (payload) => {
+    store.dispatch(applyAnnotationsUpdate(payload));
   });
   // Note: server responds to `session:resync` only via the ack callback (see
   // `emitSessionResync` below вЂ” its caller in RoomLobby dispatches the hydrate
@@ -278,28 +285,69 @@ export function emitMeasure(payload: MeasurePayload): void {
   getSocket().emit('measure:start', payload);
 }
 
+/**
+ * Edit Scene staging guard. While GM is in the Scene Editor, all real-time
+ * scene mutations are buffered locally; they are committed to other clients
+ * only when GM clicks Done (replayed via `flushEditedScene`). On Cancel the
+ * client re-fetches and re-hydrates from the server, so suppressed actions
+ * are simply discarded.
+ */
+function isEditingScene(): boolean {
+  return store.getState().room.editingSceneId !== null;
+}
+
 /** Fire-and-forget draw stroke (Р¤3.4.2). GM-only вЂ” server enforces RBAC. */
 export function emitDrawStroke(payload: DrawStrokePayload): void {
+  if (isEditingScene()) return;
   getSocket().emit('draw:stroke', payload);
 }
 
 /** Clears all strokes in the scene. GM-only. */
 export function emitDrawClear(roomId: string, sceneId: string): void {
+  if (isEditingScene()) return;
   getSocket().emit('draw:clear', { roomId, sceneId });
 }
 
-export function emitFogDiff(payload: FogMaskUpdatePayload): void {
-  getSocket().emit('fog:mask-diff', payload);
+export function emitFogShapeAdd(payload: FogShapeAddPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('fog:shape-add', payload);
+}
+
+export function emitFogShapeRemove(payload: FogShapeRemovePayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('fog:shape-remove', payload);
 }
 
 export function emitFogClear(roomId: string, sceneId: string): void {
+  if (isEditingScene()) return;
   getSocket().emit('fog:clear', { roomId, sceneId });
 }
 
 export function emitObjectMove(payload: SceneObjectMovePayload): void {
+  if (isEditingScene()) return;
   getSocket().emit('object:move', payload);
 }
 
 export function emitObjectDelete(payload: SceneObjectDeletePayload): void {
+  if (isEditingScene()) return;
   getSocket().emit('object:delete', payload);
+}
+
+/**
+ * Saves the local scene's fog shapes and draw annotations to the server and
+ * syncs other clients. Uses `scene:flush` so the server broadcasts only to
+ * OTHER clients — the GM already has the correct state locally and must not
+ * receive a `fog:clear` bounce that would cause a visual flicker.
+ */
+export function flushEditedScene(roomId: string, sceneId: string): void {
+  const sock = getSocket();
+  const state = store.getState();
+  const scene = state.scene.current;
+  if (!scene || scene.id !== sceneId) return;
+  sock.emit('scene:flush', {
+    roomId,
+    sceneId,
+    shapes: scene.fogShapes,
+    annotations: scene.annotations,
+  });
 }
