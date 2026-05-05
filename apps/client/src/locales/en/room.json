@@ -106,11 +106,14 @@
   },
   "invite": {
     "inviteBtn": "Invite Players",
-    "inviteBtnTitle": "Get invite link for players",
-    "playerLabel": "Player:",
-    "observerLabel": "Observer:",
+    "inviteBtnTitle": "Get invite codes for players and observers",
+    "playerLabel": "Players",
+    "observerLabel": "Observers",
     "copied": "Copied!",
-    "copyBtn": "Copy",
+    "copyCode": "Copy Code",
+    "copyLink": "Copy Link",
+    "codeLabel": "Code:",
+    "linkLabel": "Link:",
     "joined": "Joined room {{name}}"
   },
   "token": {

@@ -132,7 +132,6 @@ const roomSlice = createSlice({
       state.currentRoom = action.payload;
       state.members = action.payload.members;
       state.status = 'loaded';
-      state.sessionActive = action.payload.status === 'active';
     },
     clearRoom: (state) => {
       state.currentRoom = null;
@@ -227,7 +226,6 @@ const roomSlice = createSlice({
         state.status = 'loaded';
         state.currentRoom = action.payload;
         state.members = action.payload.members;
-        state.sessionActive = action.payload.status === 'active';
       })
       .addCase(fetchRoom.rejected, (state, action) => {
         state.status = 'error';

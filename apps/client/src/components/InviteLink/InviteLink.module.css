@@ -12,9 +12,26 @@
 .btnInvite:hover { background: var(--color-surface-hover); }
 .status { font-size: var(--text-xs); color: var(--color-text-muted); }
 .error { color: var(--color-danger); font-size: var(--text-xs); }
-.panel { display: flex; flex-direction: column; gap: var(--space-xs); }
+.panel { display: flex; flex-direction: column; gap: var(--space-sm); }
+.section { display: flex; flex-direction: column; gap: var(--space-xs); }
+.sectionLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .row { display: flex; align-items: center; gap: var(--space-sm); }
-.label { font-size: var(--text-xs); color: var(--color-text-secondary); flex: 1; }
+.label { font-size: var(--text-xs); color: var(--color-text-secondary); min-width: 3rem; }
+.codeText {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .btnCopy {
   padding: 2px var(--space-sm);
   background: none;
@@ -24,5 +41,6 @@
   font-size: var(--text-xs);
   cursor: pointer;
   transition: background 0.12s;
+  white-space: nowrap;
 }
 .btnCopy:hover { background: var(--color-surface-hover); }

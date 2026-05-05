@@ -8,6 +8,8 @@ interface InviteTokens {
   observerToken: string;
 }
 
+type CopiedKey = 'player-code' | 'player-link' | 'observer-code' | 'observer-link' | null;
+
 interface InviteLinkProps {
   roomId: string;
 }
@@ -17,7 +19,7 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element {
   const [tokens, setTokens] = useState<InviteTokens | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<'player' | 'observer' | null>(null);
+  const [copied, setCopied] = useState<CopiedKey>(null);
 
   async function fetchTokens(): Promise<void> {
     if (tokens) return;
@@ -35,17 +37,20 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element {
     }
   }
 
-  async function copyToClipboard(token: string, type: 'player' | 'observer'): Promise<void> {
-    const prefix = type === 'player' ? 'p_' : 'o_';
-    const url = `${window.location.origin}/?invite=${prefix}${token}`;
+  async function copy(text: string, key: Exclude<CopiedKey, null>): Promise<void> {
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(type);
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
       setTimeout(() => setCopied(null), 2000);
     } catch {
       setError(t('errors:network.copyFailed'));
     }
   }
+
+  const playerCode = tokens ? `p_${tokens.playerToken}` : '';
+  const observerCode = tokens ? `o_${tokens.observerToken}` : '';
+  const playerLink = tokens ? `${window.location.origin}/join/p_${tokens.playerToken}` : '';
+  const observerLink = tokens ? `${window.location.origin}/join/o_${tokens.observerToken}` : '';
 
   return (
     <div className={styles.container}>
@@ -70,27 +75,54 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element {
 
       {tokens && (
         <div className={styles.panel}>
-          <div className={styles.row}>
-            <span className={styles.label}>{t('room:invite.playerLabel')}</span>
-            <button
-              type="button"
-              className={styles.btnCopy}
-              onClick={() => void copyToClipboard(tokens.playerToken, 'player')}
-              title={`${window.location.origin}/?invite=p_${tokens.playerToken}`}
-            >
-              {copied === 'player' ? t('room:invite.copied') : t('room:invite.copyBtn')}
-            </button>
+          <div className={styles.section}>
+            <span className={styles.sectionLabel}>{t('room:invite.playerLabel')}</span>
+            <div className={styles.row}>
+              <span className={styles.label}>{t('room:invite.codeLabel')}</span>
+              <code className={styles.codeText}>{playerCode}</code>
+              <button
+                type="button"
+                className={styles.btnCopy}
+                onClick={() => void copy(playerCode, 'player-code')}
+              >
+                {copied === 'player-code' ? t('room:invite.copied') : t('room:invite.copyCode')}
+              </button>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.label}>{t('room:invite.linkLabel')}</span>
+              <button
+                type="button"
+                className={styles.btnCopy}
+                onClick={() => void copy(playerLink, 'player-link')}
+              >
+                {copied === 'player-link' ? t('room:invite.copied') : t('room:invite.copyLink')}
+              </button>
+            </div>
           </div>
-          <div className={styles.row}>
-            <span className={styles.label}>{t('room:invite.observerLabel')}</span>
-            <button
-              type="button"
-              className={styles.btnCopy}
-              onClick={() => void copyToClipboard(tokens.observerToken, 'observer')}
-              title={`${window.location.origin}/?invite=o_${tokens.observerToken}`}
-            >
-              {copied === 'observer' ? t('room:invite.copied') : t('room:invite.copyBtn')}
-            </button>
+
+          <div className={styles.section}>
+            <span className={styles.sectionLabel}>{t('room:invite.observerLabel')}</span>
+            <div className={styles.row}>
+              <span className={styles.label}>{t('room:invite.codeLabel')}</span>
+              <code className={styles.codeText}>{observerCode}</code>
+              <button
+                type="button"
+                className={styles.btnCopy}
+                onClick={() => void copy(observerCode, 'observer-code')}
+              >
+                {copied === 'observer-code' ? t('room:invite.copied') : t('room:invite.copyCode')}
+              </button>
+            </div>
+            <div className={styles.row}>
+              <span className={styles.label}>{t('room:invite.linkLabel')}</span>
+              <button
+                type="button"
+                className={styles.btnCopy}
+                onClick={() => void copy(observerLink, 'observer-link')}
+              >
+                {copied === 'observer-link' ? t('room:invite.copied') : t('room:invite.copyLink')}
+              </button>
+            </div>
           </div>
         </div>
       )}

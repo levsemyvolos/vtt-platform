@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Logo } from '../../components/ui';
 import Button from '../../components/ui/Button';
@@ -5,7 +6,7 @@ import ThemeToggle from '../../components/Header/ThemeToggle';
 import LanguageSwitcher from '../../components/Header/LanguageSwitcher';
 import styles from './Landing.module.css';
 
-type AuthView = 'login' | 'register' | 'observer';
+type AuthView = 'login' | 'register' | 'observer' | 'join-player' | 'join-observer';
 
 interface LandingProps {
   onNavigate: (view: AuthView) => void;
@@ -19,6 +20,7 @@ const FEATURES = [
 
 export default function Landing({ onNavigate }: LandingProps): JSX.Element {
   const { t } = useTranslation('landing');
+  const [joinExpanded, setJoinExpanded] = useState(false);
 
   return (
     <div className={styles.page}>
@@ -48,13 +50,32 @@ export default function Landing({ onNavigate }: LandingProps): JSX.Element {
           >
             {t('cta.login')}
           </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => onNavigate('observer')}
-          >
-            {t('cta.observer')}
-          </Button>
+          {!joinExpanded ? (
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={() => setJoinExpanded(true)}
+            >
+              {t('cta.join')}
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => onNavigate('join-player')}
+              >
+                {t('cta.joinPlayer')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => onNavigate('join-observer')}
+              >
+                {t('cta.joinObserver')}
+              </Button>
+            </>
+          )}
         </div>
       </section>
 

@@ -25,7 +25,7 @@ import DesktopOnlyGuard from './components/common/DesktopOnlyGuard';
 import Toast from './components/common/Toast';
 import BootstrapLoader from './components/common/BootstrapLoader';
 
-type AuthView = 'login' | 'register' | 'observer' | 'landing';
+type AuthView = 'login' | 'register' | 'observer' | 'landing' | 'join-player' | 'join-observer';
 
 interface AuthViewsProps {
   view: AuthView;

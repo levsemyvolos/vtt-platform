@@ -5,11 +5,12 @@ import { setPrefilledInviteCode, selectIsObserver, selectObserverBoundRoomId } f
 import Login from '../pages/Auth/Login';
 import Register from '../pages/Auth/Register';
 import ObserverEntry from '../pages/Auth/ObserverEntry';
+import JoinPlayer from '../pages/Auth/JoinPlayer';
 
-type AuthView = 'login' | 'register' | 'observer';
+type AuthView = 'login' | 'register' | 'observer' | 'join-player' | 'join-observer';
 
 function toAuthView(raw: string | null): AuthView {
-  if (raw === 'register' || raw === 'observer') return raw;
+  if (raw === 'register' || raw === 'observer' || raw === 'join-player' || raw === 'join-observer') return raw;
   return 'login';
 }
 
@@ -56,6 +57,15 @@ export default function AuthRoute(): JSX.Element {
         />
       )}
       {authView === 'observer' && (
+        <ObserverEntry
+          onSwitchToLogin={() => setAuthView('login')}
+          onSwitchToLanding={() => navigate('/')}
+        />
+      )}
+      {authView === 'join-player' && (
+        <JoinPlayer onSwitchToLanding={() => navigate('/')} />
+      )}
+      {authView === 'join-observer' && (
         <ObserverEntry
           onSwitchToLogin={() => setAuthView('login')}
           onSwitchToLanding={() => navigate('/')}

@@ -6,7 +6,10 @@
   "cta": {
     "login": "Sign In",
     "register": "Create Account",
-    "observer": "Join as Observer"
+    "observer": "Join as Observer",
+    "join": "Join Room",
+    "joinPlayer": "As Player",
+    "joinObserver": "As Observer"
   },
   "features": {
     "realtime": {

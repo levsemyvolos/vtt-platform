@@ -107,11 +107,14 @@
   },
   "invite": {
     "inviteBtn": "Запросити гравців",
-    "inviteBtnTitle": "Отримати посилання для запрошення гравців",
-    "playerLabel": "Гравець:",
-    "observerLabel": "Спостерігач:",
+    "inviteBtnTitle": "Отримати коди запрошення для гравців і спостерігачів",
+    "playerLabel": "Гравці",
+    "observerLabel": "Спостерігачі",
     "copied": "Скопійовано!",
-    "copyBtn": "Скопіювати",
+    "copyCode": "Копіювати код",
+    "copyLink": "Копіювати посилання",
+    "codeLabel": "Код:",
+    "linkLabel": "Посилання:",
     "joined": "Приєднано до кімнати {{name}}"
   },
   "token": {
