@@ -68,6 +68,7 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
     if (!callJoined) return;
     let cancelled = false;
     let unsubscribe: (() => void) | null = null;
+    let credRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
     async function fetchTurnConfig(): Promise<TurnConfigResponse> {
       return apiFetch<TurnConfigResponse>('/api/turn-config');
@@ -89,6 +90,16 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
       try {
         const cfg = await fetchTurnConfig();
         if (cancelled) return;
+
+        // Proactively refresh TURN credentials at 75% of TTL to survive long sessions.
+        const refreshMs = cfg.ttlSecondsRemaining * 0.75 * 1000;
+        credRefreshTimer = setInterval(async () => {
+          if (cancelled) return;
+          try {
+            const fresh = await fetchTurnConfig();
+            managerRef.current?.setIceServers(fresh.iceServers);
+          } catch { /* ignore; reactive refresh on failure still exists */ }
+        }, refreshMs);
 
         connectSocket();
         await emitRoomJoin(roomId);
@@ -121,11 +132,13 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
                 // ICE restart + two-stage recovery is handled inside PeerManager;
                 // refresh TURN credentials in case the previous set expired.
                 void (async () => {
+                  if (cancelled) return;
                   try {
                     const refreshed = await fetchTurnConfig();
+                    if (cancelled) return;
                     manager.setIceServers(refreshed.iceServers);
                   } catch {
-                    // ignore — manual reconnect will retry
+                    // ignore — proactive timer or manual reconnect will retry
                   }
                 })();
               }
@@ -190,6 +203,7 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
 
     return () => {
       cancelled = true;
+      if (credRefreshTimer) clearInterval(credRefreshTimer);
       unsubscribe?.();
       managerRef.current?.closeAll();
       managerRef.current = null;

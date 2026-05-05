@@ -127,7 +127,6 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
 // ---------- WebRTC ICE config (vertical 4) ----------
 const turnConfigProvider = new TurnConfigProvider({
   turnHost: process.env['TURN_HOST'],
-  turnRealm: process.env['TURN_REALM'],
   staticAuthSecret: process.env['TURN_STATIC_AUTH_SECRET'],
 });
 app.use(buildTurnRouter(turnConfigProvider));

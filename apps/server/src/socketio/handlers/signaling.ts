@@ -1,6 +1,7 @@
 import type { SignalingPayload } from '@vtt/shared';
 import type { TypedSocket, TypedServer } from '../types.js';
 import { userRoom } from '../types.js';
+import type { RoomRepository } from '../../repositories/RoomRepository.js';
 
 type SignalingEvent = 'signal:offer' | 'signal:answer' | 'signal:ice';
 
@@ -17,19 +18,29 @@ type SignalingEvent = 'signal:offer' | 'signal:answer' | 'signal:ice';
  *      `room:join`); off-room signaling is dropped silently to prevent a
  *      forged room bridge.
  *   2. Sender cannot signal themselves — guards against echo loops.
- *   3. The SDP / ICE blob is opaque (`unknown`) and forwarded as-is.
+ *   3. Target user must be a member of the same room — prevents cross-room
+ *      signaling injection where a peer in Room A signals a user in Room B.
+ *   4. The SDP / ICE blob is opaque (`unknown`) and forwarded as-is.
  *
  * SFU / mesh ≥ 6 participants is out of scope for vertical 4 (see §2.13.4
  * note on observer-mesh ~6 ceiling). When that limit is reached, the
  * platform should switch to an SFU (e.g. mediasoup) — TODO below.
  */
-export function registerSignalingHandlers(io: TypedServer, socket: TypedSocket): void {
+export function registerSignalingHandlers(
+  io: TypedServer,
+  socket: TypedSocket,
+  rooms: RoomRepository,
+): void {
   const forward = (event: SignalingEvent) =>
-    (payload: SignalingPayload): void => {
+    async (payload: SignalingPayload): Promise<void> => {
       const senderId = socket.data.userId;
       if (!senderId) return;
       if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
       if (payload.toUserId === senderId) return;
+
+      // Prevent cross-room signaling: verify target belongs to the same room.
+      const targetInRoom = await rooms.isMember(payload.roomId, payload.toUserId);
+      if (!targetInRoom) return;
 
       // Authoritative sender identity — overrides anything the client put in.
       const enriched: SignalingPayload = { ...payload, fromUserId: senderId };
