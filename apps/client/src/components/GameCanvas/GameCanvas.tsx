@@ -11,6 +11,7 @@ import BackgroundLayer from './layers/BackgroundLayer';
 import TokenLayer from './layers/TokenLayer';
 import AnnotationLayer from './layers/AnnotationLayer';
 import FogOfWarLayer from './layers/FogOfWarLayer';
+import FogMarqueeLayer, { type FogMarquee } from './layers/FogMarqueeLayer';
 import AddTokenButton from './AddTokenButton';
 import TextAnnotationModal from './TextAnnotationModal';
 import styles from './GameCanvas.module.css';
@@ -39,11 +40,15 @@ function getCursorStyle(activeTool: CanvasTool, myRole: Role): string {
 }
 
 function isCanvasDraggable(activeTool: CanvasTool): boolean {
-  return activeTool !== 'ruler' && activeTool !== 'draw' && activeTool !== 'text' && activeTool !== 'image';
+  return activeTool !== 'ruler' && activeTool !== 'draw' && activeTool !== 'text' && activeTool !== 'image' && activeTool !== 'fog';
 }
 
 function fogEditActive(myRole: Role, mode: 'edit' | 'play', activeTool: string): boolean {
   return myRole === 'GM' && (mode === 'edit' || activeTool === 'fog');
+}
+
+function computeFowAlpha(myRole: Role, fogGmAlpha: number, theme: string): number {
+  return myRole === 'GM' ? fogGmAlpha : (theme === 'dark' ? 0.5 : 0.7);
 }
 
 export default function GameCanvas({
@@ -58,17 +63,22 @@ export default function GameCanvas({
   const stageRef = useRef<Konva.Stage | null>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [textAnnCoords, setTextAnnCoords] = useState<{ x: number; y: number } | null>(null);
+  const [fogMarquee, setFogMarquee] = useState<FogMarquee | null>(null);
 
   const theme = useTheme();
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
   const viewportZoom = useAppSelector((s) => s.canvasViewport.zoom);
+  const fogMode = useAppSelector((s) => s.canvasViewport.fogMode);
+  const fogGmAlpha = useAppSelector((s) => s.canvasViewport.fogGmAlpha);
 
   const { onStageMouseDown, onStageMouseMove, onStageMouseUp, onStageClick } =
-    useToolHandlers(activeTool, scene, myRole, myUserId, roomId, setTextAnnCoords);
+    useToolHandlers(activeTool, scene, myRole, myUserId, roomId, setTextAnnCoords, fogMode, setFogMarquee);
 
   const stageBg = theme === 'dark' ? '#0f172a' : '#fafafa';
-  const fowAlpha = theme === 'dark' ? 0.5 : 0.7;
+  const fowAlpha = computeFowAlpha(myRole, fogGmAlpha, theme);
+  const sceneWidth = scene.gridSize * scene.gridWidth;
+  const sceneHeight = scene.gridSize * scene.gridHeight;
   const fogEditMode = fogEditActive(myRole, mode, activeTool);
   const cursor = getCursorStyle(activeTool, myRole);
   const isDraggable = isCanvasDraggable(activeTool);
@@ -155,13 +165,15 @@ export default function GameCanvas({
           myRole={myRole}
         />
         <FogOfWarLayer
-          fogMaskBase64={scene.fogMaskBase64}
-          gridSize={scene.gridSize}
-          gridWidth={scene.gridWidth}
-          gridHeight={scene.gridHeight}
+          fogShapes={scene.fogShapes ?? []}
+          sceneWidth={sceneWidth}
+          sceneHeight={sceneHeight}
           myRole={myRole}
           fowAlpha={fowAlpha}
         />
+        {activeTool === 'fog' && myRole === 'GM' && (
+          <FogMarqueeLayer marquee={fogMarquee} mode={fogMode} />
+        )}
       </Stage>
       {fogEditMode && (
         <div className={styles.fogEditBadge} aria-live="polite">

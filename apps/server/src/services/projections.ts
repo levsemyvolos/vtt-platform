@@ -10,7 +10,7 @@ import type {
   StatusMarker,
 } from '@vtt/shared';
 import { AssetService } from './AssetService.js';
-import { parseAnnotations } from './DrawService.js';
+import { parseAnnotations, parseFogShapes } from './DrawService.js';
 
 /**
  * A6 RBAC-projection of Token → TokenPublicDTO (§2.17.6).
@@ -76,7 +76,7 @@ export function projectScene(
     gridVisible: scene.gridVisible,
     isActive: scene.isActive,
     isHidden: scene.isHidden,
-    fogMaskBase64: scene.fogMaskBase64,
+    fogShapes: parseFogShapes(scene.fogShapes),
     backgroundUrl: scene.backgroundAssetId ? AssetService.getProxyUrl(scene.backgroundAssetId) : null,
     tokens,
     annotations,

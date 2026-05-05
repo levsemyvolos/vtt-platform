@@ -12,6 +12,7 @@ import Sidebar from '../../components/Sidebar/Sidebar';
 import AssistantPanel from '../../components/AssistantPanel/AssistantPanel';
 import { GameRoomTopBar, CanvasToolbar, PartyColumn, StatusBar } from '../../components/GameRoom';
 import TurnRibbon from '../../components/GameRoom/TurnRibbon';
+import FogControlsPopover from '../../components/GameRoom/FogControlsPopover';
 import type { SidebarTab } from '../../components/GameRoom';
 import styles from './GameRoom.module.css';
 
@@ -40,6 +41,10 @@ function resolveCanvasMsg(
   return noScene;
 }
 
+function canShowFogControls(scene: import('@vtt/shared').SceneDTO | null, role: import('@vtt/shared').Role, tool: string): boolean {
+  return scene !== null && role === 'GM' && tool === 'fog';
+}
+
 function resolveHydrateError(err: unknown): string | null {
   const raw = err instanceof Error ? err.message : '';
   if (raw.includes('no active scene')) return null;
@@ -61,8 +66,10 @@ export default function GameRoom(): JSX.Element | null {
   const gameRoomRef = useRef<HTMLDivElement>(null);
 
   const roomId = currentRoom?.id;
-  const myMember = members.find((m) => m.userId === currentUser?.id);
+  const myUserId = currentUser?.id ?? '';
+  const myMember = members.find((m) => m.userId === myUserId);
   const myRole: Role = myMember?.role ?? 'Observer';
+  const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
 
   useEffect(() => {
     if (!roomId) return;
@@ -203,7 +210,7 @@ export default function GameRoom(): JSX.Element | null {
 
       <PartyColumn
         roomId={currentRoom.id}
-        myUserId={currentUser?.id ?? ''}
+        myUserId={myUserId}
         myRole={myRole}
       />
 
@@ -212,7 +219,7 @@ export default function GameRoom(): JSX.Element | null {
           <GameCanvas
             scene={scene}
             myRole={myRole}
-            myUserId={currentUser?.id ?? ''}
+            myUserId={myUserId}
           />
         ) : (
           <div className={styles.canvasPlaceholder}>{canvasMsg}</div>
@@ -224,6 +231,9 @@ export default function GameRoom(): JSX.Element | null {
           onOpenAssistant={handleOpenAssistant}
         />
         <StatusBar />
+        {canShowFogControls(scene, myRole, activeTool) && (
+          <FogControlsPopover roomId={currentRoom.id} />
+        )}
       </main>
 
       <Sidebar
@@ -231,7 +241,7 @@ export default function GameRoom(): JSX.Element | null {
         sceneId={scene?.id ?? null}
         myRole={myRole}
         myCharacterId={myMember?.characterId ?? null}
-        myUserId={currentUser?.id ?? ''}
+        myUserId={myUserId}
         activeTab={sidebarTab}
         onTabChange={handleSidebarTabChange}
         containerRef={gameRoomRef}

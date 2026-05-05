@@ -4,9 +4,12 @@ import react from '@vitejs/plugin-react-swc';
 import { resolve } from 'path';
 
 export default defineConfig(({ mode }) => {
+  // loadEnv with prefix='' reads ALL keys from .env / .env.local (not just VITE_*).
+  // This lets vite.config.ts pick up CLIENT_PORT and VITE_API_URL from .env.local
+  // so each worktree only needs to set those two values — no manual config edits.
   const env = loadEnv(mode, process.cwd(), '');
-  const clientPort = Number(env['CLIENT_PORT'] ?? 5173);
-  const apiTarget = env['VITE_API_URL'] ?? 'http://localhost:4000';
+  const apiUrl = env['VITE_API_URL'] ?? 'http://localhost:4000';
+  const clientPort = parseInt(env['CLIENT_PORT'] ?? '5173', 10);
 
   return {
     plugins: [react()],
@@ -19,12 +22,12 @@ export default defineConfig(({ mode }) => {
       port: clientPort,
       proxy: {
         '/api': {
-          target: apiTarget,
+          target: apiUrl,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
         '/socket.io': {
-          target: apiTarget,
+          target: apiUrl,
           ws: true,
         },
       },

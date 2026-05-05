@@ -3,15 +3,45 @@ import type {
   DrawStrokePayload,
   DrawStroke,
   SceneAnnotations,
-  FogMaskDiffPayload,
+  FogShape,
+  FogShapeAddPayload,
+  FogShapeRemovePayload,
   SceneObject,
 } from '@vtt/shared';
 
 export interface DrawBroadcast {
   stroke: (roomId: string, payload: DrawStrokePayload) => void;
   clear: (roomId: string, sceneId: string) => void;
-  fogDiff: (roomId: string, payload: FogMaskDiffPayload) => void;
+  fogShapeAdd: (roomId: string, payload: FogShapeAddPayload) => void;
+  fogShapeRemove: (roomId: string, payload: FogShapeRemovePayload) => void;
   fogClear: (roomId: string, sceneId: string) => void;
+}
+
+function isFogShape(item: unknown): item is FogShape {
+  if (!item || typeof item !== 'object') return false;
+  const s = item as Partial<FogShape>;
+  return (
+    typeof s.id === 'string' &&
+    typeof s.x === 'number' &&
+    typeof s.y === 'number' &&
+    typeof s.w === 'number' &&
+    typeof s.h === 'number' &&
+    (s.mode === 'hide' || s.mode === 'reveal') &&
+    typeof s.createdAt === 'number'
+  );
+}
+
+/** Reads `Scene.fogShapes` JSON column into a normalized FogShape[]. */
+export function parseFogShapes(raw: unknown): FogShape[] {
+  if (!Array.isArray(raw)) return [];
+  const out: FogShape[] = [];
+  for (const item of raw) {
+    if (isFogShape(item)) {
+      out.push({ id: item.id, x: item.x, y: item.y, w: item.w, h: item.h, mode: item.mode, createdAt: item.createdAt });
+    }
+  }
+  out.sort((a, b) => a.createdAt - b.createdAt);
+  return out;
 }
 
 /** Parses raw JSONB value from Prisma into SceneAnnotations (handles both structured and legacy flat-array formats). */
@@ -167,28 +197,56 @@ export class DrawService {
     this.broadcast.clear(roomId, sceneId);
   }
 
-  async applyFogDiff(
-    roomId: string,
-    payload: FogMaskDiffPayload,
-  ): Promise<void> {
-    const scene = await this.prisma.scene.findUnique({
-      where: { id: payload.sceneId },
-      select: { fogMaskBase64: true },
+  async addFogShape(payload: FogShapeAddPayload): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const scene = await tx.scene.findUnique({
+        where: { id: payload.sceneId },
+        select: { fogShapes: true },
+      });
+      const shapes = parseFogShapes(scene?.fogShapes);
+      if (shapes.some((s) => s.id === payload.shape.id)) return;
+      shapes.push(payload.shape);
+      await tx.scene.update({
+        where: { id: payload.sceneId },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
+        data: { fogShapes: shapes as any },
+      });
     });
-    const next = xorPackedMasks(scene?.fogMaskBase64 ?? null, payload.diffBase64);
-    await this.prisma.scene.update({
-      where: { id: payload.sceneId },
-      data: { fogMaskBase64: next },
+    this.broadcast.fogShapeAdd(payload.roomId, payload);
+  }
+
+  async removeFogShape(payload: FogShapeRemovePayload): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const scene = await tx.scene.findUnique({
+        where: { id: payload.sceneId },
+        select: { fogShapes: true },
+      });
+      const shapes = parseFogShapes(scene?.fogShapes).filter((s) => s.id !== payload.shapeId);
+      await tx.scene.update({
+        where: { id: payload.sceneId },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
+        data: { fogShapes: shapes as any },
+      });
     });
-    this.broadcast.fogDiff(roomId, payload);
+    this.broadcast.fogShapeRemove(payload.roomId, payload);
   }
 
   async clearFog(roomId: string, sceneId: string): Promise<void> {
     await this.prisma.scene.update({
       where: { id: sceneId },
-      data: { fogMaskBase64: null },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
+      data: { fogShapes: [] as any },
     });
     this.broadcast.fogClear(roomId, sceneId);
+  }
+
+  /** Atomically replaces fog shapes without broadcasting (caller handles broadcast). */
+  async setFogShapes(sceneId: string, shapes: FogShape[]): Promise<void> {
+    await this.prisma.scene.update({
+      where: { id: sceneId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
+      data: { fogShapes: shapes as any },
+    });
   }
 
   async getAnnotations(sceneId: string): Promise<SceneAnnotations> {
@@ -213,13 +271,3 @@ export class DrawService {
   }
 }
 
-function xorPackedMasks(baseBase64: string | null, diffBase64: string): string {
-  const base = baseBase64 ? Buffer.from(baseBase64, 'base64') : Buffer.alloc(0);
-  const diff = Buffer.from(diffBase64, 'base64');
-  const len = Math.max(base.length, diff.length);
-  const out = Buffer.alloc(len);
-  for (let i = 0; i < len; i++) {
-    out[i] = (base[i] ?? 0) ^ (diff[i] ?? 0);
-  }
-  return out.toString('base64');
-}

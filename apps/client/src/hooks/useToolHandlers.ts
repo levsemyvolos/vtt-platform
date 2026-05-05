@@ -1,16 +1,17 @@
 import { useRef } from 'react';
 import type Konva from 'konva';
-import type { Role, SceneDTO } from '@vtt/shared';
-import type { CanvasTool } from '../store/canvasViewport';
+import type { Role, SceneDTO, FogShape } from '@vtt/shared';
+import type { CanvasTool, FogMode } from '../store/canvasViewport';
 import { useAppDispatch } from '../store';
-import { applyDrawStroke, applyFogDiff } from '../store/scene';
-import { emitAnnotationPing, emitMeasure, emitDrawStroke, emitFogDiff } from '../api/socket';
+import { applyDrawStroke, fogShapeAdded } from '../store/scene';
+import { emitAnnotationPing, emitMeasure, emitDrawStroke, emitFogShapeAdd } from '../api/socket';
 import { getUserPingColor } from '../components/GameCanvas/layers/AnnotationLayer';
-import { buildSingleCellFogDiff } from '../components/GameCanvas/fogMask';
 import { randomUUID } from '../utils/uuid';
+import type { FogMarquee } from '../components/GameCanvas/layers/FogMarqueeLayer';
 
 const RULER_THROTTLE_MS = 67;
 const DRAW_MIN_DIST = 4;
+const FOG_MIN_SIZE_PX = 2;
 
 function sceneCoords(stage: Konva.Stage): { x: number; y: number } | null {
   const scale = stage.scaleX();
@@ -27,6 +28,8 @@ export function useToolHandlers(
   myUserId: string,
   roomId: string,
   setTextAnnCoords: (coords: { x: number; y: number } | null) => void,
+  fogMode: FogMode,
+  setFogMarquee: (m: FogMarquee | null) => void,
 ) {
   const dispatch = useAppDispatch();
 
@@ -35,7 +38,7 @@ export function useToolHandlers(
   const drawStrokeIdRef = useRef<string | null>(null);
   const drawPointsRef = useRef<number[]>([]);
   const lastDrawPtRef = useRef<{ x: number; y: number } | null>(null);
-  const lastFogCellRef = useRef<string | null>(null);
+  const fogStartRef = useRef<{ x: number; y: number } | null>(null);
 
   function handleRulerMove(stage: Konva.Stage): void {
     if (!rulerStartRef.current || !roomId) return;
@@ -67,25 +70,60 @@ export function useToolHandlers(
     }));
   }
 
-  function applyFogAt(stage: Konva.Stage): void {
-    if (myRole !== 'GM' || !roomId) return;
+  function handleFogDragMove(stage: Konva.Stage): void {
+    if (!fogStartRef.current) return;
     const coords = sceneCoords(stage);
     if (!coords) return;
-    const cellX = Math.floor(coords.x / scene.gridSize);
-    const cellY = Math.floor(coords.y / scene.gridSize);
-    const key = `${cellX}:${cellY}`;
-    if (lastFogCellRef.current === key) return;
-    lastFogCellRef.current = key;
-    const diffBase64 = buildSingleCellFogDiff(scene.gridWidth, scene.gridHeight, cellX, cellY);
-    const payload = {
-      roomId,
-      sceneId: scene.id,
-      diffBase64,
-      width: scene.gridWidth,
-      height: scene.gridHeight,
+    setFogMarquee({
+      x0: fogStartRef.current.x,
+      y0: fogStartRef.current.y,
+      x1: coords.x,
+      y1: coords.y,
+    });
+  }
+
+  function commitFogShape(stage: Konva.Stage): void {
+    if (myRole !== 'GM' || !roomId || !fogStartRef.current) {
+      fogStartRef.current = null;
+      setFogMarquee(null);
+      return;
+    }
+    const coords = sceneCoords(stage);
+    if (!coords) {
+      fogStartRef.current = null;
+      setFogMarquee(null);
+      return;
+    }
+    const x0 = Math.min(fogStartRef.current.x, coords.x);
+    const y0 = Math.min(fogStartRef.current.y, coords.y);
+    const x1 = Math.max(fogStartRef.current.x, coords.x);
+    const y1 = Math.max(fogStartRef.current.y, coords.y);
+    fogStartRef.current = null;
+    setFogMarquee(null);
+    const w = x1 - x0;
+    const h = y1 - y0;
+    if (w < FOG_MIN_SIZE_PX || h < FOG_MIN_SIZE_PX) return;
+
+    const sceneW = scene.gridSize * scene.gridWidth;
+    const sceneH = scene.gridSize * scene.gridHeight;
+    const cx = Math.max(0, Math.min(sceneW, x0));
+    const cy = Math.max(0, Math.min(sceneH, y0));
+    const cw = Math.max(0, Math.min(sceneW - cx, w));
+    const ch = Math.max(0, Math.min(sceneH - cy, h));
+    if (cw < FOG_MIN_SIZE_PX || ch < FOG_MIN_SIZE_PX) return;
+
+    const shape: FogShape = {
+      id: randomUUID(),
+      x: cx,
+      y: cy,
+      w: cw,
+      h: ch,
+      mode: fogMode,
+      createdAt: Date.now(),
     };
-    dispatch(applyFogDiff(payload));
-    emitFogDiff(payload);
+    const payload = { roomId, sceneId: scene.id, shape };
+    dispatch(fogShapeAdded(payload));
+    emitFogShapeAdd(payload);
   }
 
   function onStageMouseDown(e: Konva.KonvaEventObject<MouseEvent>): void {
@@ -99,8 +137,9 @@ export function useToolHandlers(
       drawStrokeIdRef.current = randomUUID();
       drawPointsRef.current = [coords.x, coords.y];
       lastDrawPtRef.current = coords;
-    } else if (activeTool === 'fog') {
-      applyFogAt(stage);
+    } else if (activeTool === 'fog' && myRole === 'GM') {
+      fogStartRef.current = coords;
+      setFogMarquee({ x0: coords.x, y0: coords.y, x1: coords.x, y1: coords.y });
     }
   }
 
@@ -109,10 +148,10 @@ export function useToolHandlers(
     if (!stage) return;
     if (activeTool === 'ruler') handleRulerMove(stage);
     else if (activeTool === 'draw') handleDrawMove(stage);
-    else if (activeTool === 'fog') applyFogAt(stage);
+    else if (activeTool === 'fog') handleFogDragMove(stage);
   }
 
-  function onStageMouseUp(): void {
+  function onStageMouseUp(e: Konva.KonvaEventObject<MouseEvent>): void {
     if (activeTool === 'ruler') {
       rulerStartRef.current = null;
     } else if (activeTool === 'draw' && myRole === 'GM' && drawStrokeIdRef.current && roomId) {
@@ -128,7 +167,12 @@ export function useToolHandlers(
       drawPointsRef.current = [];
       lastDrawPtRef.current = null;
     } else if (activeTool === 'fog') {
-      lastFogCellRef.current = null;
+      const stage = e.target.getStage();
+      if (stage) commitFogShape(stage);
+      else {
+        fogStartRef.current = null;
+        setFogMarquee(null);
+      }
     }
   }
 

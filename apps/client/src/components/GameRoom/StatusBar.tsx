@@ -9,7 +9,7 @@ export default function StatusBar(): JSX.Element {
   const sceneName = scene?.name ?? t('statusBar.noScene');
   const gridSize = scene ? `${scene.gridSize}ft` : t('statusBar.noScene');
   const tokenCount = scene?.tokens.length ?? 0;
-  const fowOn = scene ? scene.fogMaskBase64 !== null && scene.fogMaskBase64 !== '' : false;
+  const fowOn = scene ? (scene.fogShapes?.length ?? 0) > 0 : false;
 
   return (
     <footer
