@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
-import { fetchRoom, startSession } from '../store/room';
+import { endSession, fetchRoom, startSession } from '../store/room';
 import GameRoom from '../pages/GameRoom/GameRoom';
 import SceneEditor from '../pages/SceneEditor/SceneEditor';
 
@@ -54,6 +54,14 @@ export default function RoomSessionRoute(): JSX.Element {
       navigate('/dashboard', { replace: true });
     }
   }, [currentRoom, roomStatus, navigate]);
+
+  // Clear sessionActive on unmount so re-entering the room from Dashboard
+  // (after browser back, navigate-out, etc.) always lands in lobby first.
+  useEffect(() => {
+    return () => {
+      dispatch(endSession());
+    };
+  }, [dispatch]);
 
   if (editingSceneId) {
     return <main className="room-screen"><SceneEditor /></main>;
