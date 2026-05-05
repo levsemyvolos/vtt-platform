@@ -7,6 +7,8 @@ import sessionReducer from '../../../store/session';
 import scenesReducer from '../../../store/scenes';
 import sceneReducer from '../../../store/scene';
 import preferencesReducer from '../../../store/preferences';
+import mediaReducer from '../../../store/media';
+import toastReducer from '../../../store/toast';
 import GameRoomTopBar from '../GameRoomTopBar';
 import type { RoomDTO, RoomMemberDTO } from '@vtt/shared';
 
@@ -36,6 +38,8 @@ function makeStore() {
       scenes: scenesReducer,
       scene: sceneReducer,
       preferences: preferencesReducer,
+      media: mediaReducer,
+      toast: toastReducer,
     },
     preloadedState: {
       room: {
@@ -64,7 +68,7 @@ describe('GameRoomTopBar', () => {
     const store = makeStore();
     render(
       <Provider store={store}>
-        <GameRoomTopBar myRole="GM" />
+        <GameRoomTopBar myRole="GM" sidebarCollapsed={false} onToggleSidebar={() => {}} />
       </Provider>,
     );
     expect(screen.getByText('Кімнати')).toBeTruthy();
@@ -75,7 +79,7 @@ describe('GameRoomTopBar', () => {
     const store = makeStore();
     render(
       <Provider store={store}>
-        <GameRoomTopBar myRole="GM" />
+        <GameRoomTopBar myRole="GM" sidebarCollapsed={false} onToggleSidebar={() => {}} />
       </Provider>,
     );
     expect(screen.getByText('Ведучий')).toBeTruthy();
@@ -85,7 +89,7 @@ describe('GameRoomTopBar', () => {
     const store = makeStore();
     render(
       <Provider store={store}>
-        <GameRoomTopBar myRole="GM" />
+        <GameRoomTopBar myRole="GM" sidebarCollapsed={false} onToggleSidebar={() => {}} />
       </Provider>,
     );
     const dot = document.querySelector('[title]');

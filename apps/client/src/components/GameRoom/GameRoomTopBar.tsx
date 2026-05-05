@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Film } from 'lucide-react';
+import { Film, PanelRightClose, PanelRightOpen, RotateCw } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { clearRoom } from '../../store/room';
 import { activateScene, loadScenes } from '../../store/scenes';
 import { logout, selectIsObserver } from '../../store/session';
+import { addToast } from '../../store/toast';
+import { peerManagerRef } from '../../infrastructure/webrtc/peerManagerRef';
 import { Logo, Badge, Avatar } from '../ui';
 import ThemeToggle from '../Header/ThemeToggle';
 import LanguageSwitcher from '../Header/LanguageSwitcher';
@@ -14,6 +16,8 @@ import styles from './GameRoomTopBar.module.css';
 
 interface GameRoomTopBarProps {
   myRole: Role;
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
 }
 
 function useWssConnected(): boolean {
@@ -39,17 +43,19 @@ function useWssConnected(): boolean {
 }
 
 // eslint-disable-next-line complexity
-export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Element {
+export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSidebar }: GameRoomTopBarProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('gameroom');
   const { t: tRoom } = useTranslation('room');
 
   const currentRoom = useAppSelector((s) => s.room.currentRoom);
   const currentUser = useAppSelector((s) => s.session.currentUser);
+  const members = useAppSelector((s) => s.room.members);
   const sceneList = useAppSelector((s) => s.scenes.list);
   const activeScene = useAppSelector((s) => s.scene.current);
   const wssConnected = useWssConnected();
   const isObserver = useAppSelector(selectIsObserver);
+  const callJoined = useAppSelector((s) => s.media.callJoined);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -92,6 +98,18 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
     if (myRole === 'GM') {
       void dispatch(activateScene(sceneId));
     }
+  }
+
+  function handleReconnect(): void {
+    const manager = peerManagerRef.current;
+    if (!manager || !currentUser) return;
+    // Hard reconnect (close + re-call) — mimics F5 so peers that never
+    // connected on first try, or roster gaps, get a clean negotiation pass.
+    // ICE restart alone (the previous behaviour) only helps already-paired
+    // peers and missed first-connect failures entirely.
+    const memberIds = members.map((m) => m.userId);
+    manager.fullReconnect(memberIds);
+    dispatch(addToast('info', t('topBar.reconnectToast')));
   }
 
   function handleLogout(): void {
@@ -141,6 +159,27 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
       </div>
 
       <div className={styles.right}>
+        <button
+          type="button"
+          className={styles.iconBtn}
+          onClick={onToggleSidebar}
+          aria-pressed={sidebarCollapsed}
+          title={sidebarCollapsed ? t('topBar.showSidebar') : t('topBar.hideSidebar')}
+          aria-label={sidebarCollapsed ? t('topBar.showSidebar') : t('topBar.hideSidebar')}
+        >
+          {sidebarCollapsed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
+        </button>
+        {callJoined && (
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={handleReconnect}
+            title={t('topBar.reconnect')}
+            aria-label={t('topBar.reconnect')}
+          >
+            <RotateCw size={16} />
+          </button>
+        )}
         <span
           className={`${styles.wssDot} ${wssConnected ? styles.wssOnline : styles.wssOffline}`}
           title={wssConnected ? t('topBar.wssHealthOnline') : t('topBar.wssHealthOffline')}

@@ -5,6 +5,10 @@
     "wssHealthOffline": "WSS disconnected",
     "noScene": "Select scene",
     "settingsDisabled": "Settings (coming soon)",
+    "hideSidebar": "Hide sidebar",
+    "showSidebar": "Show sidebar",
+    "reconnect": "Reconnect peers",
+    "reconnectToast": "Re-establishing peer connections…",
     "logout": "Log out",
     "editScene": "Edit scene"
   },
@@ -25,7 +29,50 @@
     "unboundToast": "Feature in development; will be enabled in the next release"
   },
   "party": {
-    "eyebrow": "PARTICIPANTS"
+    "eyebrow": "PARTICIPANTS",
+    "participantsCount": "Participants · {{count}}",
+    "participantsHide": "HIDE",
+    "participantsShow": "SHOW"
+  },
+  "videoCall": {
+    "aria": "Session video call",
+    "joinPrompt": "Connect to voice and video to see other participants",
+    "joinBtn": "Connect",
+    "selfLabel": "Me",
+    "muteMic": "Mute microphone",
+    "unmuteMic": "Unmute microphone",
+    "camOn": "Camera",
+    "camOff": "Cam off",
+    "micOn": "Mic",
+    "micOff": "Muted",
+    "meshCeiling": "Video disabled — mesh ceiling reached",
+    "negotiationError": "Peer {{peer}} connection failed — please reload"
+  },
+  "gmMutedYou": "GM muted your microphone",
+  "gmCamOff": "GM disabled your camera",
+  "kickedFromRoom": "You were removed from the session by the GM",
+  "mediaControls": {
+    "aria": "Microphone and camera controls"
+  },
+  "participantMenu": {
+    "openMenu": "More actions",
+    "youPrefix": "You ·",
+    "muteSelf": "Mute self",
+    "unmuteSelf": "Unmute self",
+    "cameraOff": "Turn off my camera",
+    "cameraOn": "Turn on my camera",
+    "pinForMe": "Pin (only for me)",
+    "unpinForMe": "Unpin",
+    "muteLocally": "Mute locally",
+    "serverMute": "Server mute",
+    "forceCamOff": "Force camera off",
+    "demote": "Demote to Observer",
+    "kick": "Kick from session",
+    "comingNextEpoch": "coming in next epoch",
+    "notJoined": "Click \"Connect\" first"
+  },
+  "turnRibbon": {
+    "format": "{{name}} · TURN · ROUND {{round}}"
   },
   "statusBar": {
     "scene": "Scene",

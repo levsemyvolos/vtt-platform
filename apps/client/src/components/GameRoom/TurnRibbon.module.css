@@ -1,0 +1,23 @@
+.ribbon {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--color-primary);
+  color: var(--color-bg);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.dot {
+  font-size: 10px;
+  line-height: 1;
+}
