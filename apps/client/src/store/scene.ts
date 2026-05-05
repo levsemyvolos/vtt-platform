@@ -212,25 +212,27 @@ const sceneSlice = createSlice({
       state.selectedSceneObjectId = null;
     },
     /**
-     * Optimistic transform (resize + rotate) applied before server confirms (Sess 2).
+     * Optimistic transform (reposition + resize + rotate) applied before server confirms (Sess 2).
+     * Includes x/y because Konva Transformer can reposition the Group during corner-resize and
+     * rotation, which would cause Player-side desync if only width/height/rotation were stored (Sess 2.5).
      * Mutates BOTH objects[] AND images[] mirror so subsequent moves don't drop rotation (RED 1).
      * Idempotent: re-dispatching same values is a no-op.
      */
     transformSceneObjectOptimistic: (
       state,
-      action: PayloadAction<{ objectId: string; width: number; height: number; rotation: number }>,
+      action: PayloadAction<{ objectId: string; x: number; y: number; width: number; height: number; rotation: number }>,
     ) => {
       if (!state.current) return;
-      const { objectId, width, height, rotation } = action.payload;
+      const { objectId, x, y, width, height, rotation } = action.payload;
       const annotations = state.current.annotations;
       annotations.objects = (annotations.objects ?? []).map((object) => (
         object.id === objectId
-          ? { ...object, width, height, rotation }
+          ? { ...object, x, y, width, height, rotation }
           : object
       ));
       annotations.images = annotations.images.map((image) => (
         image.id === objectId
-          ? { ...image, width, height, rotation }
+          ? { ...image, x, y, width, height, rotation }
           : image
       ));
     },

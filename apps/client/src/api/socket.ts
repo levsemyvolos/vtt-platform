@@ -22,7 +22,7 @@ import type {
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -86,6 +86,8 @@ export function getSocket(): TypedClientSocket {
   socket.on('object:transform', (payload) => {
     store.dispatch(transformSceneObjectOptimistic({
       objectId: payload.objectId,
+      x: payload.x,
+      y: payload.y,
       width: payload.width,
       height: payload.height,
       rotation: payload.rotation,
@@ -115,6 +117,12 @@ export function getSocket(): TypedClientSocket {
   });
   socket.on('annotations:updated', (payload) => {
     store.dispatch(applyAnnotationsUpdate(payload));
+  });
+  // Mini-C: full scene snapshot broadcast (background, grid mutations).
+  // Sender's hydrateScene from PATCH response is idempotent; others get the update.
+  // On scene:flush (Done), players receive background/grid changes staged during Edit Scene.
+  socket.on('scene:snapshot', (payload) => {
+    store.dispatch(hydrateScene(payload.scene));
   });
   // Note: server responds to `session:resync` only via the ack callback (see
   // `emitSessionResync` below вЂ” its caller in RoomLobby dispatches the hydrate

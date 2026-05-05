@@ -376,10 +376,16 @@ export default function AnnotationLayer({
     }
 
     const newRotation = ((rawRot % 360) + 360) % 360;
+    // Read node position AFTER transform — Konva Transformer repositions the Group
+    // during corner-resize and rotation, so x/y may differ from pre-transform values.
+    const newX = node.x();
+    const newY = node.y();
 
     // Order CRITICAL (Fix D RED 3): dispatch first, then reset scale, then emit
     dispatch(transformSceneObjectOptimistic({
       objectId: selectedObject.id,
+      x: newX,
+      y: newY,
       width: newWidth,
       height: newHeight,
       rotation: newRotation,
@@ -393,6 +399,8 @@ export default function AnnotationLayer({
       roomId,
       sceneId,
       objectId: selectedObject.id,
+      x: newX,
+      y: newY,
       width: newWidth,
       height: newHeight,
       rotation: newRotation,

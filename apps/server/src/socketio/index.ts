@@ -140,7 +140,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
     socket.on('session:resync', makeSessionResyncHandler(socket, deps.resyncService));
     registerSignalingHandlers(io, socket);
     registerAnnotationHandlers(socket, deps.annotationService);
-    registerDrawHandlers(io, socket, deps.drawService, deps.sceneAnnotationService);
+    registerDrawHandlers(io, socket, deps.drawService, deps.sceneAnnotationService, deps.sceneService);
     registerModerationHandlers(io, socket);
   });
 

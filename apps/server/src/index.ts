@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import path from 'path';
 import { authRouter } from './routes/auth.js';
 import { roomsRouter, buildRoomsRouter } from './routes/rooms.js';
-import { scenesRouter, roomScenesSubRouter, tokensRouter } from './routes/scenes.js';
+import { buildScenesRouter, roomScenesSubRouter, tokensRouter } from './routes/scenes.js';
 import { buildAiRouter } from './routes/ai.js';
 import { buildAssetsRouter } from './routes/assets.js';
 import { buildTurnRouter } from './routes/turn.js';
@@ -64,7 +64,7 @@ app.use('/auth', authRouter);
 // Sub-route: POST /rooms/:id/scenes — must be mounted before catch-all rooms router order is irrelevant
 app.use('/rooms/:id/scenes', roomScenesSubRouter);
 app.use('/rooms', roomsRouter);
-app.use('/scenes', scenesRouter);
+// scenesRouter is wired after io is built (needs io for scene:snapshot broadcast).
 app.use('/tokens', tokensRouter);
 
 // ---------- Repositories (shared across verticals) ----------
@@ -189,6 +189,9 @@ _annotationBroadcast = buildAnnotationBroadcaster(io);
 _drawBroadcast = buildDrawBroadcaster(io);
 // Inject io into roomsRouter so POST /rooms/join can emit room:member-joined.
 buildRoomsRouter(io);
+
+// Wire scenes router with io so PATCH /scenes/:id can broadcast scene:snapshot.
+app.use('/scenes', buildScenesRouter(io));
 
 app.use(buildAnnotationsRouter(sceneAnnotationService, io));
 

@@ -22,6 +22,7 @@ function isAddableFogShape(s: unknown): s is FogShape {
   );
 }
 import type { SceneAnnotationService } from '../../services/SceneAnnotationService.js';
+import type { SceneService } from '../../services/SceneService.js';
 
 /** Builds broadcaster sinks for draw events (Ф3.4.2). */
 export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
@@ -55,6 +56,7 @@ export function registerDrawHandlers(
   socket: TypedSocket,
   drawService: import('../../services/DrawService.js').DrawService,
   sceneAnnotationService?: SceneAnnotationService,
+  sceneService?: SceneService,
 ): void {
   socket.on('draw:stroke', async (payload: DrawStrokePayload) => {
     try {
@@ -149,6 +151,26 @@ export function registerDrawHandlers(
             points: s.points, color: s.color, width: s.width,
           });
         }
+        // Broadcast full annotations (includes objects[] transforms/moves/deletes that
+        // were buffered locally during Edit Scene and never emitted via object:* events).
+        // Sender (GM) already has correct local state — exclude via socket.broadcast.
+        // drawService.persist() updates the in-memory cache so getAnnotations() here
+        // returns the freshly normalized data without an extra DB round-trip.
+        const persistedAnnotations = await drawService.getAnnotations(sceneId);
+        socket.broadcast.to(roomId).emit('annotations:updated', {
+          sceneId,
+          annotations: persistedAnnotations,
+        });
+      }
+      // Deliver buffered scene-level mutations (background, grid) that were
+      // staged during Edit Scene to all OTHER clients on Done.
+      if (sceneService) {
+        const snapshot = await sceneService.getSnapshot(
+          sceneId,
+          socket.data.role,
+          socket.data.userId,
+        );
+        socket.broadcast.to(roomId).emit('scene:snapshot', { scene: snapshot });
       }
     } catch (err) {
       console.error('[Socket] scene:flush error:', err);
@@ -178,6 +200,8 @@ export function registerDrawHandlers(
       if (!sceneAnnotationService) return;
       if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
       if (
+        typeof payload.x !== 'number' || !Number.isFinite(payload.x) ||
+        typeof payload.y !== 'number' || !Number.isFinite(payload.y) ||
         typeof payload.width !== 'number' || !Number.isFinite(payload.width) ||
         typeof payload.height !== 'number' || !Number.isFinite(payload.height) ||
         typeof payload.rotation !== 'number' || !Number.isFinite(payload.rotation)
@@ -186,7 +210,7 @@ export function registerDrawHandlers(
         payload.sceneId,
         payload.objectId,
         socket.data.role,
-        { width: payload.width, height: payload.height, rotation: payload.rotation },
+        { x: payload.x, y: payload.y, width: payload.width, height: payload.height, rotation: payload.rotation },
       );
       io.to(payload.roomId).emit('object:transform', payload);
     } catch (err) {

@@ -56,7 +56,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
         gridWidth: Number(gridWidth),
         gridHeight: Number(gridHeight),
         gridVisible,
-      });
+      }, { staged: true });
       // PATCH now returns the fully-projected SceneDTO (signed backgroundUrl,
       // tokens, annotations) — drop the fragile spread-merge.
       dispatch(hydrateScene(updated));
@@ -69,7 +69,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
 
   // Set the asset as the scene background.
   async function handleSetBackground(asset: AssetDTO): Promise<void> {
-    const updated = await apiPatchScene(sceneId, { backgroundAssetId: asset.id });
+    const updated = await apiPatchScene(sceneId, { backgroundAssetId: asset.id }, { staged: true });
     dispatch(hydrateScene(updated));
   }
 

@@ -187,11 +187,15 @@ export interface SceneObjectDeletePayload {
 /**
  * Discrete transform event — fired once on transformEnd (Sess 2).
  * Not throttled (unlike object:move) because transforms are rare user gestures.
+ * x/y are included because Konva Transformer can reposition the Group during
+ * corner-resize and rotation, causing Player-side desync if omitted (Sess 2.5).
  */
 export interface SceneObjectTransformPayload {
   roomId: string;
   sceneId: string;
   objectId: string;
+  x: number;
+  y: number;
   width: number;
   height: number;
   /** Normalized rotation in degrees [0, 360). */
@@ -324,6 +328,10 @@ export interface AnnotationsUpdatedPayload {
   annotations: SceneAnnotations;
 }
 
+export interface SceneSnapshotPayload {
+  scene: SceneDTO;
+}
+
 export interface ServerToClientEvents {
   'room:member-joined': (payload: MemberJoinedPayload) => void;
   'room:deleted': (payload: RoomDeletedPayload) => void;
@@ -357,6 +365,8 @@ export interface ServerToClientEvents {
   'room:member-updated': (payload: { roomId: string; member: import('../rest/index').RoomMemberDTO }) => void;
   /** Sent only to the kicked user's sockets after `mod:kick`; client redirects out. */
   'room:kicked': (payload: { roomId: string }) => void;
+  /** Full scene snapshot broadcast — used for background/grid changes and scene:flush delivery. */
+  'scene:snapshot': (payload: SceneSnapshotPayload) => void;
 }
 
 export interface ModerationPayload {

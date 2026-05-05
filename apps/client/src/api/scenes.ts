@@ -39,8 +39,10 @@ export function apiDeleteToken(tokenId: string): Promise<void> {
 export function apiPatchScene(
   sceneId: string,
   data: UpdateSceneRequest,
+  opts?: { staged?: boolean },
 ): Promise<SceneDTO> {
-  return apiFetch<SceneDTO>(`/api/scenes/${sceneId}`, {
+  const qs = opts?.staged ? '?staged=1' : '';
+  return apiFetch<SceneDTO>(`/api/scenes/${sceneId}${qs}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });

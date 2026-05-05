@@ -10,6 +10,8 @@ import { HttpError } from '../lib/errors.js';
 import type { PrismaClient } from '@prisma/client';
 
 export interface TransformPayload {
+  x: number;
+  y: number;
   width: number;
   height: number;
   rotation: number;
@@ -177,6 +179,9 @@ export class SceneAnnotationService {
     const newWidth = Math.max(minSize, Math.min(maxWidth, Math.round(payload.width)));
     const newHeight = Math.max(minSize, Math.min(maxHeight, Math.round(payload.height)));
     const newRotation = ((payload.rotation % 360) + 360) % 360;
+    // x/y are passed through as-is — no clamping (overlays may legitimately be off-screen)
+    const newX = payload.x;
+    const newY = payload.y;
 
     const annotations = await this.drawService.getAnnotations(sceneId);
 
@@ -184,17 +189,17 @@ export class SceneAnnotationService {
       annotations.images.some((img) => img.id === objectId);
     if (!objectExists) throw new HttpError(404, 'Annotation not found');
 
-    // Update objects[] entry
+    // Update objects[] entry (includes x/y so position desync is fixed on Player side)
     annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
       candidate.id === objectId
-        ? { ...candidate, width: newWidth, height: newHeight, rotation: newRotation }
+        ? { ...candidate, x: newX, y: newY, width: newWidth, height: newHeight, rotation: newRotation }
         : candidate
     ));
 
     // Update images[] mirror entry (RED 1: prevents rotation drop on next mutation)
     annotations.images = annotations.images.map((image) => (
       image.id === objectId
-        ? { ...image, width: newWidth, height: newHeight, rotation: newRotation }
+        ? { ...image, x: newX, y: newY, width: newWidth, height: newHeight, rotation: newRotation }
         : image
     ));
 
