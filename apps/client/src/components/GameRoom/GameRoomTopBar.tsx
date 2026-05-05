@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Film } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { clearRoom } from '../../store/room';
 import { activateScene, loadScenes } from '../../store/scenes';
 import { logout, selectIsObserver } from '../../store/session';
 import { Logo, Badge, Avatar } from '../ui';
@@ -41,6 +41,7 @@ function useWssConnected(): boolean {
 // eslint-disable-next-line complexity
 export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Element {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { t } = useTranslation('gameroom');
   const { t: tRoom } = useTranslation('room');
 
@@ -80,11 +81,11 @@ export default function GameRoomTopBar({ myRole }: GameRoomTopBarProps): JSX.Ele
   }, [currentRoom?.id, dispatch]);
 
   function handleBack(): void {
-    // Observers have no Dashboard to return to — dispatch logout instead.
     if (isObserver) {
       void dispatch(logout());
     } else {
-      dispatch(clearRoom());
+      // Navigate back to lobby view; session stays active on server for other participants
+      navigate(`/rooms/${currentRoom?.id ?? ''}`);
     }
   }
 
