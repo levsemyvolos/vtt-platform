@@ -11,9 +11,9 @@ import type {
   TextAnnotation,
 } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../../store';
-import { moveSceneObjectOptimistic } from '../../../store/scene';
+import { moveSceneObjectOptimistic, selectSceneObject } from '../../../store/scene';
 import { fetchAsset } from '../../../store/assets';
-import { emitObjectDelete, emitObjectMove } from '../../../api/socket';
+import { emitObjectMove } from '../../../api/socket';
 import { useImage } from '../useImage';
 
 const PING_DURATION_MS = 3000;
@@ -143,9 +143,10 @@ interface ObjectNodeProps {
   draggable: boolean;
   roomId: string;
   sceneId: string;
+  myRole: Role;
 }
 
-function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JSX.Element {
+function ObjectNode({ object, draggable, roomId, sceneId, myRole }: ObjectNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
   const lastMoveAt = useRef(0);
   // Read the signed URL from the assets cache. If the asset isn't there yet
@@ -154,6 +155,8 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
   // so a hard-coded `/api/assets/:id/file` would always 403.
   const assetId = object.type === 'image' ? object.assetId : undefined;
   const cachedAsset = useAppSelector((s) => (assetId ? s.assets.byId[assetId] : undefined));
+  const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
+  const selectedId = useAppSelector((s) => s.scene.selectedSceneObjectId);
   useEffect(() => {
     if (assetId && !cachedAsset) {
       void dispatch(fetchAsset(assetId));
@@ -184,10 +187,25 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
     broadcastMove(x, y, true);
   }
 
-  function handleDelete(): void {
-    if (!draggable) return;
-    emitObjectDelete({ roomId, sceneId, objectId: object.id });
+  function handleMouseDown(): void {
+    if (object.type !== 'image') return;
+    if (activeTool === 'fog' || activeTool === 'draw') return;
+    dispatch(selectSceneObject(object.id));
   }
+
+  function handleMouseEnter(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (object.type !== 'image' || !draggable) return;
+    const stage = e.target.getStage();
+    if (stage) stage.container().style.cursor = 'pointer';
+  }
+
+  function handleMouseLeave(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (object.type !== 'image' || !draggable) return;
+    const stage = e.target.getStage();
+    if (stage) stage.container().style.cursor = 'default';
+  }
+
+  const isSelected = object.type === 'image' && selectedId === object.id && myRole === 'GM';
 
   return (
     <Group
@@ -197,8 +215,9 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
       listening={draggable}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onDblClick={handleDelete}
-      onDblTap={handleDelete}
+      onMouseDown={handleMouseDown}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {object.type === 'stroke' && (
         <Line
@@ -228,6 +247,18 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
         ) : (
           <Rect width={object.width} height={object.height} fill="#334155" stroke="#94a3b8" strokeWidth={1} />
         )
+      )}
+      {isSelected && object.type === 'image' && (
+        <Rect
+          x={-2}
+          y={-2}
+          width={object.width + 4}
+          height={object.height + 4}
+          stroke="#7c5cff"
+          strokeWidth={2}
+          dash={[6, 4]}
+          listening={false}
+        />
       )}
     </Group>
   );
@@ -269,6 +300,7 @@ export default function AnnotationLayer({
           draggable={canEditObjects}
           roomId={roomId}
           sceneId={sceneId}
+          myRole={myRole}
         />
       ))}
       {pings.map((ping) => (

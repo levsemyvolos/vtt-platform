@@ -25,6 +25,8 @@ interface SceneState {
   pendingMoves: Record<string, { x: number; y: number }>;
   /** Selected token id for the SceneEditor properties panel. */
   selectedTokenId: string | null;
+  /** Selected scene object id (image-overlay selection, Sess 1). */
+  selectedSceneObjectId: string | null;
 }
 
 const initialState: SceneState = {
@@ -32,6 +34,7 @@ const initialState: SceneState = {
   version: 0,
   pendingMoves: {},
   selectedTokenId: null,
+  selectedSceneObjectId: null,
 };
 
 const sceneSlice = createSlice({
@@ -46,11 +49,13 @@ const sceneSlice = createSlice({
         0,
       );
       state.pendingMoves = {};
+      state.selectedSceneObjectId = null;
     },
     clearScene: (state) => {
       state.current = null;
       state.version = 0;
       state.pendingMoves = {};
+      state.selectedSceneObjectId = null;
     },
     /** Optimistic move issued from the UI before the server replies. */
     moveTokenOptimistic: (
@@ -194,6 +199,17 @@ const sceneSlice = createSlice({
       state.current.annotations.images = state.current.annotations.images.filter((i) => i.id !== id);
       state.current.annotations.strokes = state.current.annotations.strokes.filter((s) => s.strokeId !== id);
       state.current.annotations.objects = (state.current.annotations.objects ?? []).filter((o) => o.id !== id);
+      if (state.selectedSceneObjectId === id) {
+        state.selectedSceneObjectId = null;
+      }
+    },
+    /** Select an image-overlay scene object (Sess 1). */
+    selectSceneObject: (state, action: PayloadAction<string>) => {
+      state.selectedSceneObjectId = action.payload;
+    },
+    /** Clear the image-overlay selection (Sess 1). */
+    deselectSceneObject: (state) => {
+      state.selectedSceneObjectId = null;
     },
   },
 });
@@ -217,5 +233,7 @@ export const {
   clearDrawStrokes,
   removeSceneObject,
   applyAnnotationsUpdate,
+  selectSceneObject,
+  deselectSceneObject,
 } = sceneSlice.actions;
 export default sceneSlice.reducer;

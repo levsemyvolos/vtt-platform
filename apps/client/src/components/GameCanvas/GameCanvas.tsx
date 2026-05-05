@@ -3,7 +3,9 @@ import { Stage } from 'react-konva';
 import type Konva from 'konva';
 import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { selectToken } from '../../store/scene';
+import { store } from '../../store';
+import { selectToken, deselectSceneObject } from '../../store/scene';
+import { emitObjectDelete } from '../../api/socket';
 import type { CanvasTool } from '../../store/canvasViewport';
 import { useTheme } from '../../hooks/useTheme';
 import { useToolHandlers } from '../../hooks/useToolHandlers';
@@ -105,6 +107,33 @@ export default function GameCanvas({
     stage.batchDraw();
   }, [viewportZoom]);
 
+  useEffect(() => {
+    if (myRole !== 'GM') return;
+    function handleKeyDown(e: KeyboardEvent): void {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) return;
+      const id = store.getState().scene.selectedSceneObjectId;
+      if (!id) return;
+      e.preventDefault();
+      emitObjectDelete({ roomId, sceneId: scene.id, objectId: id });
+      dispatch(deselectSceneObject());
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [roomId, scene.id, myRole, dispatch]);
+
+  function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (e.target === e.target.getStage()) {
+      dispatch(deselectSceneObject());
+    }
+    onStageClick(e);
+  }
+
   function handleWheel(e: Konva.KonvaEventObject<WheelEvent>): void {
     e.evt.preventDefault();
     const stage = e.target.getStage();
@@ -141,7 +170,7 @@ export default function GameCanvas({
         onMouseDown={onStageMouseDown}
         onMouseMove={onStageMouseMove}
         onMouseUp={onStageMouseUp}
-        onClick={onStageClick}
+        onClick={handleStageClick}
         style={{ background: stageBg }}
       >
         <BackgroundLayer
