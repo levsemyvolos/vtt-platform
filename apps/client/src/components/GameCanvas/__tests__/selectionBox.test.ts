@@ -15,6 +15,8 @@ describe('computeSelectionBox', () => {
       width: 100,
       height: 80,
       rotation: 0,
+      layer: 'tile',
+      visibility: 'all',
     };
     const box = computeSelectionBox(obj);
     expect(box).toEqual({ x: -2, y: -2, w: 104, h: 84 });
@@ -31,6 +33,8 @@ describe('computeSelectionBox', () => {
       text: 'Hello',
       fontSize: 20,
       color: '#fff',
+      layer: 'overlay',
+      visibility: 'all',
     };
     const box = computeSelectionBox(obj);
     // width = 5 * 20 * 0.55 = 55; height = 20 * 1.2 = 24
@@ -52,6 +56,8 @@ describe('computeSelectionBox', () => {
       text: '',
       fontSize: 14,
       color: '#fff',
+      layer: 'overlay',
+      visibility: 'all',
     };
     const box = computeSelectionBox(obj);
     // text.length=0 → Math.max(20, 0) = 20
@@ -69,6 +75,8 @@ describe('computeSelectionBox', () => {
       points: [10, 20, 50, 80, 30, 40],
       color: '#f00',
       strokeWidth: 4,
+      layer: 'overlay',
+      visibility: 'all',
     };
     // minX=10, maxX=50, minY=20, maxY=80
     // padding = 4 + 4 = 8
@@ -91,6 +99,8 @@ describe('computeSelectionBox', () => {
       points: [0, 0, 100, 100],
       color: '#00f',
       strokeWidth: 2,
+      layer: 'overlay',
+      visibility: 'all',
     };
     // padding = 2+4 = 6
     // x=0-6=-6, y=0-6=-6, w=100+12=112, h=100+12=112
@@ -112,6 +122,8 @@ describe('computeSelectionBox', () => {
       points: [],
       color: '#0f0',
       strokeWidth: 2,
+      layer: 'overlay',
+      visibility: 'all',
     };
     const box = computeSelectionBox(obj);
     expect(box).toEqual({ x: -4, y: -4, w: 8, h: 8 });

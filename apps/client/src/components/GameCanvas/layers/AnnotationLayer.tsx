@@ -113,6 +113,8 @@ function toObjects(
       points: stroke.points,
       color: stroke.color,
       strokeWidth: stroke.width,
+      layer: stroke.layer ?? 'overlay',
+      visibility: stroke.visibility ?? 'all',
     })),
     ...texts.map((ann, index): SceneObject => ({
       id: ann.id,
@@ -124,6 +126,8 @@ function toObjects(
       text: ann.text,
       fontSize: ann.fontSize,
       color: ann.color,
+      layer: ann.layer ?? 'overlay',
+      visibility: ann.visibility ?? 'all',
     })),
     ...images.map((ann, index): SceneObject => ({
       id: ann.id,
@@ -135,6 +139,8 @@ function toObjects(
       assetId: ann.assetId,
       width: ann.width,
       height: ann.height,
+      layer: ann.layer ?? 'tile',
+      visibility: ann.visibility ?? 'all',
     })),
   ];
 }
@@ -149,7 +155,7 @@ interface ObjectNodeProps {
   onContextMenu?: (objectId: string, x: number, y: number) => void;
 }
 
-function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onContextMenu }: ObjectNodeProps): JSX.Element {
+function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onContextMenu }: ObjectNodeProps): JSX.Element | null {
   const dispatch = useAppDispatch();
   const lastMoveAt = useRef(0);
   // Read the signed URL from the assets cache. If the asset isn't there yet
@@ -223,6 +229,13 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
     onContextMenu(object.id, pos.x, pos.y);
   }
 
+  // Defensive: gm-only objects should never reach a Player's render tree (Mini-A/B filter
+  // them out upstream). If one slips through anyway, hide it entirely.
+  if (object.visibility === 'gm-only' && myRole !== 'GM') return null;
+
+  const isGmOnly = object.visibility === 'gm-only';
+  const groupOpacity = isGmOnly && myRole === 'GM' ? 0.6 : 1;
+
   const objectRotation = object.type === 'image' ? (object.rotation ?? 0) : 0;
 
   // id attr needed only for image — Transformer uses stage.findOne('#id') lookup.
@@ -237,6 +250,7 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
       x={object.x}
       y={object.y}
       rotation={objectRotation}
+      opacity={groupOpacity}
       draggable={isDraggable}
       listening={canEdit}
       onDragMove={handleDragMove}
@@ -290,6 +304,23 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
           />
         );
       })()}
+      {/* Permanent amber dashed marker for GM-only objects — always visible to GM,
+          hidden when selected (the blue selection rect already signals the state). */}
+      {isGmOnly && myRole === 'GM' && !isSelected && (() => {
+        const box = computeSelectionBox(object);
+        return (
+          <Rect
+            x={box.x}
+            y={box.y}
+            width={box.w}
+            height={box.h}
+            stroke="#fbbf24"
+            strokeWidth={1}
+            dash={[4, 4]}
+            listening={false}
+          />
+        );
+      })()}
     </Group>
   );
 }
@@ -299,6 +330,13 @@ interface AnnotationLayerProps {
   roomId: string;
   sceneId: string;
   myRole: Role;
+  /** Filter objects by their `layer` field. */
+  layerFilter: 'tile' | 'overlay';
+  /**
+   * When true, pings and ruler measures are rendered inside this Konva Layer.
+   * Set true only on the overlay instance so transient helpers appear above tokens.
+   */
+  renderTransientHelpers: boolean;
   onObjectContextMenu?: (objectId: string, x: number, y: number) => void;
 }
 
@@ -307,6 +345,8 @@ export default function AnnotationLayer({
   roomId,
   sceneId,
   myRole,
+  layerFilter,
+  renderTransientHelpers,
   onObjectContextMenu,
 }: AnnotationLayerProps): JSX.Element {
   const dispatch = useAppDispatch();
@@ -323,10 +363,12 @@ export default function AnnotationLayer({
     ),
     [annotations],
   );
-  // Render order: sort by zIndex ascending (stable — same-zIndex objects keep insertion order).
+  // Filter by layerFilter, then sort by zIndex ascending.
   const sceneObjects = useMemo(
-    () => [...rawObjects].sort((a, b) => a.zIndex - b.zIndex),
-    [rawObjects],
+    () => [...rawObjects]
+      .filter((o) => o.layer === layerFilter)
+      .sort((a, b) => a.zIndex - b.zIndex),
+    [rawObjects, layerFilter],
   );
   const canEditObjects = myRole === 'GM';
 
@@ -335,7 +377,8 @@ export default function AnnotationLayer({
   // Ctrl-snap ref — read by boundBoxFunc via closure (Fix D keyboard modifiers)
   const ctrlSnapRef = useRef(false);
 
-  // Transformer shown only when EXACTLY ONE image is selected and it is not locked (Sess 3 Mini-C).
+  // Transformer shown only when EXACTLY ONE image is selected, it is not locked,
+  // AND the selected object belongs to THIS layer (tile vs overlay).
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : undefined;
   const selectedObject = useMemo(
     () => (selectedId !== undefined
@@ -345,6 +388,7 @@ export default function AnnotationLayer({
   );
   // Do not show Transformer for locked objects — GM still sees selection rect.
   const isSelectedLocked = selectedObject?.locked === true;
+  // Only render Transformer in the layer that actually contains the selected object.
   const showTransformer = myRole === 'GM' && !!selectedObject && !isSelectedLocked;
 
   // Wire Transformer to Konva node by ID (Fix D — stage.findOne lookup)
@@ -492,10 +536,10 @@ export default function AnnotationLayer({
           onTransformEnd={handleTransformEnd}
         />
       )}
-      {pings.map((ping) => (
+      {renderTransientHelpers && pings.map((ping) => (
         <PingCircle key={ping.timestamp} ping={ping} />
       ))}
-      {measures.map((m) => (
+      {renderTransientHelpers && measures.map((m) => (
         <RulerLine key={m.userId} measure={m} gridSize={gridSize} />
       ))}
     </Layer>

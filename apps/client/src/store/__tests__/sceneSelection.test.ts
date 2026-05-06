@@ -38,7 +38,7 @@ function makeSceneWithImage(): SceneDTO {
       strokes: [],
       texts: [],
       images: [{ id: 'img-1', userId: 'u1', x: 0, y: 0, assetId: 'asset-1', width: 100, height: 100, rotation: 0 }],
-      objects: [{ id: 'img-1', type: 'image', userId: 'u1', x: 0, y: 0, zIndex: 0, assetId: 'asset-1', width: 100, height: 100, rotation: 0 }],
+      objects: [{ id: 'img-1', type: 'image', userId: 'u1', x: 0, y: 0, zIndex: 0, assetId: 'asset-1', width: 100, height: 100, rotation: 0, layer: 'tile' as const, visibility: 'all' as const }],
     },
   };
 }

@@ -67,6 +67,16 @@ export function projectScene(
     if (projected) tokens.push(projected);
   }
   const annotations = parseAnnotations(scene.annotations);
+  // RBAC: filter gm-only objects from Player/Observer projections (Sess 5 Mini-A).
+  const filteredAnnotations: import('@vtt/shared').SceneAnnotations = viewerRole === 'GM'
+    ? annotations
+    : {
+        ...annotations,
+        objects: (annotations.objects ?? []).filter((o) => o.visibility !== 'gm-only'),
+        images: annotations.images.filter((img) => img.visibility !== 'gm-only'),
+        texts: annotations.texts.filter((t) => t.visibility !== 'gm-only'),
+        strokes: annotations.strokes.filter((s) => s.visibility !== 'gm-only'),
+      };
   return {
     id: scene.id,
     roomId: scene.roomId,
@@ -84,7 +94,7 @@ export function projectScene(
     backgroundOffsetY: scene.backgroundOffsetY,
     backgroundScale: scene.backgroundScale,
     tokens,
-    annotations,
+    annotations: filteredAnnotations,
   };
 }
 

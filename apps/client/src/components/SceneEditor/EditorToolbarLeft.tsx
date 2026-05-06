@@ -149,6 +149,8 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
       height: h,
       zIndex,
       assetId: asset.id,
+      layer: 'tile',
+      visibility: 'all',
     };
     dispatch(appendSceneObject(newObject));
   }

@@ -31,6 +31,7 @@ export function buildClonedObject(
     y: source.y + 20,
     zIndex: maxZ + 1,
     userId: newUserId,
+    // layer + visibility are preserved by the spread of `source` above.
   };
 
   // Re-assert the discriminated-union type so TypeScript is satisfied with

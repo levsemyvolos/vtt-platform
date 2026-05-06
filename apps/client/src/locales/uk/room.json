@@ -258,7 +258,14 @@
     "lock": "Замкнути",
     "unlock": "Розблокувати",
     "duplicate": "Дублювати",
-    "delete": "Видалити"
+    "delete": "Видалити",
+    "layerLabel": "Шар",
+    "layer": {
+      "tile": "Tile (під токенами)",
+      "overlay": "Overlay (над токенами)"
+    },
+    "makeGmOnly": "Зробити лише для GM",
+    "makeVisibleToAll": "Видимо для всіх"
   },
   "aiGenerate": {
     "dialogLabel": "Генерація фону",

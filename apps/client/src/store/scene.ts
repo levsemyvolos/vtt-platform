@@ -10,6 +10,8 @@ import type {
   DrawStrokePayload,
   SceneAnnotations,
   SceneObject,
+  SceneObjectLayer,
+  SceneObjectVisibility,
 } from '@vtt/shared';
 
 /** Keys that can be buffered locally during Edit Scene mode. */
@@ -195,6 +197,8 @@ const sceneSlice = createSlice({
         points,
         color,
         strokeWidth: width,
+        layer: (existing?.layer ?? 'overlay') as import('@vtt/shared').SceneObjectLayer,
+        visibility: (existing?.visibility ?? 'all') as import('@vtt/shared').SceneObjectVisibility,
       };
       if (objectIdx >= 0) objects[objectIdx] = object;
       else objects.push(object);
@@ -419,6 +423,68 @@ const sceneSlice = createSlice({
       }
     },
     /**
+     * Changes the render layer of a scene object (Sess 5 Mini-B).
+     * Mirrors to the appropriate legacy array per type so both objects[] and
+     * the type-specific array stay in sync.
+     */
+    setSceneObjectLayer: (
+      state,
+      action: PayloadAction<{ objectId: string; layer: SceneObjectLayer }>,
+    ) => {
+      if (!state.current) return;
+      const { objectId, layer } = action.payload;
+      const obj = state.current.annotations.objects?.find((o) => o.id === objectId);
+      if (obj) obj.layer = layer;
+      const targetImage = state.current.annotations.images.find((i) => i.id === objectId);
+      if (targetImage) targetImage.layer = layer;
+      const targetText = state.current.annotations.texts.find((t) => t.id === objectId);
+      if (targetText) targetText.layer = layer;
+      const targetStroke = state.current.annotations.strokes.find((s) => s.strokeId === objectId);
+      if (targetStroke) targetStroke.layer = layer;
+    },
+    /**
+     * Changes the RBAC visibility of a scene object (Sess 5 Mini-B).
+     * Player-side behavior: when `visibility` becomes 'gm-only' and `viewerIsGM`
+     * is false, the object is REMOVED from all local arrays (objects[], images[],
+     * texts[], strokes[]) and deselected. GM and the 'all' path just update the flag.
+     */
+    setSceneObjectVisibility: (
+      state,
+      action: PayloadAction<{ objectId: string; visibility: SceneObjectVisibility; viewerIsGM: boolean }>,
+    ) => {
+      if (!state.current) return;
+      const { objectId, visibility, viewerIsGM } = action.payload;
+      if (visibility === 'gm-only' && !viewerIsGM) {
+        state.current.annotations.objects = (state.current.annotations.objects ?? []).filter(
+          (o) => o.id !== objectId,
+        );
+        state.current.annotations.images = state.current.annotations.images.filter(
+          (i) => i.id !== objectId,
+        );
+        state.current.annotations.texts = state.current.annotations.texts.filter(
+          (t) => t.id !== objectId,
+        );
+        state.current.annotations.strokes = state.current.annotations.strokes.filter(
+          (s) => s.strokeId !== objectId,
+        );
+        if (state.selectedSceneObjectIds.includes(objectId)) {
+          state.selectedSceneObjectIds = state.selectedSceneObjectIds.filter(
+            (id) => id !== objectId,
+          );
+        }
+        return;
+      }
+      // GM viewing or visibility flipping back to 'all' — just update the flag.
+      const obj = state.current.annotations.objects?.find((o) => o.id === objectId);
+      if (obj) obj.visibility = visibility;
+      const targetImage = state.current.annotations.images.find((i) => i.id === objectId);
+      if (targetImage) targetImage.visibility = visibility;
+      const targetText = state.current.annotations.texts.find((t) => t.id === objectId);
+      if (targetText) targetText.visibility = visibility;
+      const targetStroke = state.current.annotations.strokes.find((s) => s.strokeId === objectId);
+      if (targetStroke) targetStroke.visibility = visibility;
+    },
+    /**
      * Buffer a scene-level patch locally during Edit Scene mode (Mini-A).
      * Merges into draftPatch (later apply of the same key overrides earlier).
      * Also mirrors relevant fields into current so the canvas re-renders immediately.
@@ -481,6 +547,8 @@ export const {
   lockSceneObject,
   setSceneObjectZIndex,
   appendSceneObject,
+  setSceneObjectLayer,
+  setSceneObjectVisibility,
   applyDraftSceneUpdate,
   clearDraftSceneUpdate,
 } = sceneSlice.actions;

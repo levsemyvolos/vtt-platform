@@ -139,6 +139,8 @@ describe('EditorToolbarLeft', () => {
       height: 256,
       zIndex: 0,
       assetId: mockAsset.id,
+      layer: 'tile' as const,
+      visibility: 'all' as const,
     }));
 
     const state = store.getState().scene.current;
@@ -148,6 +150,9 @@ describe('EditorToolbarLeft', () => {
     expect(obj?.width).toBe(256);
     expect(obj?.height).toBe(256);
     expect((obj as { assetId: string } | undefined)?.assetId).toBe('asset-abc');
+    // Mini-E: verify layer and visibility defaults are set
+    expect(obj?.layer).toBe('tile');
+    expect(obj?.visibility).toBe('all');
 
     uuidSpy.mockRestore();
     dispatchSpy.mockRestore();

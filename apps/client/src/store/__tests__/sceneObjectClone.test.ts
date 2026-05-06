@@ -15,6 +15,8 @@ function makeImage(overrides: Partial<ImageSceneObject> = {}): ImageSceneObject 
     assetId: 'asset-abc',
     width: 300,
     height: 150,
+    layer: 'tile',
+    visibility: 'all',
     ...overrides,
   };
 }
@@ -30,6 +32,8 @@ function makeText(overrides: Partial<TextSceneObject> = {}): TextSceneObject {
     text: 'Hello World',
     fontSize: 18,
     color: '#ff0000',
+    layer: 'overlay',
+    visibility: 'all',
     ...overrides,
   };
 }
@@ -45,6 +49,8 @@ function makeStroke(overrides: Partial<StrokeSceneObject> = {}): StrokeSceneObje
     points: [10, 20, 30, 40],
     color: '#00ff00',
     strokeWidth: 3,
+    layer: 'overlay',
+    visibility: 'all',
     ...overrides,
   };
 }
@@ -154,6 +160,36 @@ describe('buildClonedObject — stroke', () => {
     const peer = makeImage({ id: 'img-peer', zIndex: 3 });
     const clone = buildClonedObject(source, [source, peer], USER_ID);
     expect(clone.zIndex).toBe(4);
+  });
+});
+
+describe('buildClonedObject — layer and visibility preservation', () => {
+  it('image: preserves layer=overlay and visibility=gm-only from source', () => {
+    const source = makeImage({ layer: 'overlay', visibility: 'gm-only' });
+    const clone = buildClonedObject(source, [source], USER_ID);
+    expect(clone.layer).toBe('overlay');
+    expect(clone.visibility).toBe('gm-only');
+  });
+
+  it('image: preserves layer=tile and visibility=all from source', () => {
+    const source = makeImage({ layer: 'tile', visibility: 'all' });
+    const clone = buildClonedObject(source, [source], USER_ID);
+    expect(clone.layer).toBe('tile');
+    expect(clone.visibility).toBe('all');
+  });
+
+  it('text: preserves layer=tile from source', () => {
+    const source = makeText({ layer: 'tile', visibility: 'all' });
+    const clone = buildClonedObject(source, [source], USER_ID);
+    expect(clone.layer).toBe('tile');
+    expect(clone.visibility).toBe('all');
+  });
+
+  it('text: preserves layer=overlay and visibility=gm-only from source', () => {
+    const source = makeText({ layer: 'overlay', visibility: 'gm-only' });
+    const clone = buildClonedObject(source, [source], USER_ID);
+    expect(clone.layer).toBe('overlay');
+    expect(clone.visibility).toBe('gm-only');
   });
 });
 

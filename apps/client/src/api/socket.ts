@@ -21,11 +21,13 @@ import type {
   SceneObjectLockPayload,
   SceneObjectZOrderPayload,
   SceneObjectDuplicatePayload,
+  SceneObjectSetLayerPayload,
+  SceneObjectSetVisibilityPayload,
   ModerationPayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject, setSceneObjectLayer, setSceneObjectVisibility } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -110,6 +112,24 @@ export function getSocket(): TypedClientSocket {
   });
   socket.on('object:duplicated', (payload) => {
     store.dispatch(appendSceneObject(payload.object));
+  });
+  socket.on('object:set-layer', (payload) => {
+    store.dispatch(setSceneObjectLayer({
+      objectId: payload.objectId,
+      layer: payload.layer,
+    }));
+  });
+  socket.on('object:set-visibility', (payload) => {
+    // Determine viewer role at dispatch time so the reducer can filter
+    // gm-only objects from non-GM clients while keeping them on GM clients.
+    const myUserId = store.getState().session.currentUser?.id;
+    const myMember = store.getState().room.members.find((m) => m.userId === myUserId);
+    const viewerIsGM = myMember?.role === 'GM';
+    store.dispatch(setSceneObjectVisibility({
+      objectId: payload.objectId,
+      visibility: payload.visibility,
+      viewerIsGM,
+    }));
   });
   socket.on('token:rollback', (payload) => {
     store.dispatch(applyTokenRollback(payload));
@@ -432,6 +452,18 @@ export function emitObjectZOrder(payload: SceneObjectZOrderPayload): void {
 export function emitObjectDuplicate(payload: SceneObjectDuplicatePayload): void {
   if (isEditingScene()) return;
   getSocket().emit('object:duplicate', payload);
+}
+
+/** Changes the render layer of a scene object (Sess 5 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectSetLayer(payload: SceneObjectSetLayerPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:set-layer', payload);
+}
+
+/** Changes the RBAC visibility of a scene object (Sess 5 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectSetVisibility(payload: SceneObjectSetVisibilityPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:set-visibility', payload);
 }
 
 /**

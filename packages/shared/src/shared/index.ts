@@ -1,5 +1,8 @@
 export type Role = 'GM' | 'Player' | 'Observer';
 
+export type SceneObjectLayer = 'tile' | 'overlay';
+export type SceneObjectVisibility = 'all' | 'gm-only';
+
 export type BackgroundFit = 'cover' | 'contain' | 'stretch';
 
 export type ChatMode = 'normal' | 'ic' | 'ooc' | 'whisper' | 'secret_roll';
@@ -92,6 +95,8 @@ export interface DrawStroke {
   width: number;
   x?: number;
   y?: number;
+  layer?: SceneObjectLayer;
+  visibility?: SceneObjectVisibility;
 }
 
 /** Pinned text label on the scene canvas (Ф3.4.4). GM-only. */
@@ -103,6 +108,8 @@ export interface TextAnnotation {
   text: string;
   fontSize: number;
   color: string;
+  layer?: SceneObjectLayer;
+  visibility?: SceneObjectVisibility;
 }
 
 /** Pinned image overlay on the scene canvas (Ф3.4.5). GM-only. */
@@ -118,6 +125,8 @@ export interface ImageAnnotation {
   rotation?: number;
   /** When true, the overlay is rendered but ignores drag/transform until unlocked (Sess 3). */
   locked?: boolean;
+  layer?: SceneObjectLayer;
+  visibility?: SceneObjectVisibility;
 }
 
 export type SceneObjectType = 'text' | 'image' | 'stroke';
@@ -135,6 +144,10 @@ export interface SceneObjectBase {
   scaleY?: number;
   zIndex: number;
   locked?: boolean;
+  /** Render layer relative to tokens (Sess 5 Mini-A). */
+  layer: SceneObjectLayer;
+  /** RBAC visibility — 'gm-only' objects are filtered from Player/Observer projections (Sess 5 Mini-A). */
+  visibility: SceneObjectVisibility;
 }
 
 export interface TextSceneObject extends SceneObjectBase {

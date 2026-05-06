@@ -8,6 +8,8 @@ import type {
   ChatMode,
   DiceMode,
   FogShape,
+  SceneObjectLayer,
+  SceneObjectVisibility,
 } from '../shared/index';
 
 // ---------- C→S payloads ----------
@@ -253,6 +255,28 @@ export interface SceneObjectDuplicatedPayload {
 }
 
 /**
+ * Changes the render layer of a SceneObject (Sess 5 Mini-A).
+ * 'tile' renders below tokens; 'overlay' renders above tokens.
+ */
+export interface SceneObjectSetLayerPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  layer: SceneObjectLayer;
+}
+
+/**
+ * Changes the RBAC visibility of a SceneObject (Sess 5 Mini-A).
+ * 'gm-only' objects are filtered from Player/Observer projections.
+ */
+export interface SceneObjectSetVisibilityPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  visibility: SceneObjectVisibility;
+}
+
+/**
  * Ephemeral ruler broadcast (Ф3.4.3, table 2.14).
  * Never persisted — server forwards to room; client auto-fades 5 s after last update.
  */
@@ -343,6 +367,8 @@ export interface ClientToServerEvents {
   'object:lock': (payload: SceneObjectLockPayload) => void;
   'object:zorder': (payload: SceneObjectZOrderPayload) => void;
   'object:duplicate': (payload: SceneObjectDuplicatePayload) => void;
+  'object:set-layer': (payload: SceneObjectSetLayerPayload) => void;
+  'object:set-visibility': (payload: SceneObjectSetVisibilityPayload) => void;
   'scene:flush': (payload: SceneFlushPayload) => void;
   'mod:kick': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
   'mod:demote': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
@@ -409,6 +435,8 @@ export interface ServerToClientEvents {
   'object:lock': (payload: SceneObjectLockPayload) => void;
   'object:zorder': (payload: SceneObjectZOrderPayload) => void;
   'object:duplicated': (payload: SceneObjectDuplicatedPayload) => void;
+  'object:set-layer': (payload: SceneObjectSetLayerPayload) => void;
+  'object:set-visibility': (payload: SceneObjectSetVisibilityPayload) => void;
   'peer:mute-request': (payload: { userId: string }) => void;
   'peer:cam-off-request': (payload: { userId: string }) => void;
   'room:member-removed': (payload: { roomId: string; userId: string }) => void;

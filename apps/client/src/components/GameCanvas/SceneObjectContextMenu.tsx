@@ -6,14 +6,19 @@ import {
   appendSceneObject,
   lockSceneObject,
   removeSceneObject,
+  setSceneObjectLayer,
+  setSceneObjectVisibility,
   setSceneObjectZIndex,
 } from '../../store/scene';
 import {
   emitObjectDelete,
   emitObjectDuplicate,
   emitObjectLock,
+  emitObjectSetLayer,
+  emitObjectSetVisibility,
   emitObjectZOrder,
 } from '../../api/socket';
+import type { SceneObjectLayer, SceneObjectVisibility } from '@vtt/shared';
 import { buildClonedObject } from '../../store/sceneObjectClone';
 import styles from './SceneObjectContextMenu.module.css';
 
@@ -108,6 +113,30 @@ export default function SceneObjectContextMenu({
     onClose();
   }
 
+  function handleSetLayer(layer: SceneObjectLayer): void {
+    if (!obj) return;
+    const inEditScene = store.getState().room.editingSceneId !== null;
+    dispatch(setSceneObjectLayer({ objectId, layer }));
+    if (!inEditScene) {
+      emitObjectSetLayer({ roomId, sceneId, objectId, layer });
+    }
+    onClose();
+  }
+
+  function handleToggleVisibility(): void {
+    if (!obj) return;
+    const next: SceneObjectVisibility = obj.visibility === 'gm-only' ? 'all' : 'gm-only';
+    const inEditScene = store.getState().room.editingSceneId !== null;
+    const myUserId = store.getState().session.currentUser?.id;
+    const myMember = store.getState().room.members.find((m) => m.userId === myUserId);
+    const viewerIsGM = myMember?.role === 'GM';
+    dispatch(setSceneObjectVisibility({ objectId, visibility: next, viewerIsGM }));
+    if (!inEditScene) {
+      emitObjectSetVisibility({ roomId, sceneId, objectId, visibility: next });
+    }
+    onClose();
+  }
+
   return (
     <div
       ref={ref}
@@ -136,6 +165,27 @@ export default function SceneObjectContextMenu({
         onClick={handleToggleLock}
       >
         {isLocked ? t('sceneObjectMenu.unlock') : t('sceneObjectMenu.lock')}
+      </button>
+      <label className={styles.fieldRow}>
+        <span className={styles.layerLabel}>{t('sceneObjectMenu.layerLabel')}</span>
+        <select
+          className={styles.layerSelect}
+          value={obj?.layer ?? 'overlay'}
+          onChange={(e) => { handleSetLayer(e.target.value as SceneObjectLayer); }}
+          aria-label={t('sceneObjectMenu.layerLabel')}
+        >
+          <option value="tile">{t('sceneObjectMenu.layer.tile')}</option>
+          <option value="overlay">{t('sceneObjectMenu.layer.overlay')}</option>
+        </select>
+      </label>
+      <button
+        className={styles.item}
+        role="menuitem"
+        onClick={handleToggleVisibility}
+      >
+        {obj?.visibility === 'gm-only'
+          ? t('sceneObjectMenu.makeVisibleToAll')
+          : t('sceneObjectMenu.makeGmOnly')}
       </button>
       <button
         className={styles.item}

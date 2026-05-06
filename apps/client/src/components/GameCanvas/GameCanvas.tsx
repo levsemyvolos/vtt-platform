@@ -217,6 +217,15 @@ export default function GameCanvas({
           offsetY={scene.backgroundOffsetY}
           scale={scene.backgroundScale}
         />
+        <AnnotationLayer
+          layerFilter="tile"
+          renderTransientHelpers={false}
+          gridSize={scene.gridSize}
+          roomId={roomId}
+          sceneId={scene.id}
+          myRole={myRole}
+          onObjectContextMenu={(id, x, y) => { setObjCtxMenu({ objectId: id, x, y }); }}
+        />
         <TokenLayer
           sceneId={scene.id}
           tokens={scene.tokens}
@@ -237,6 +246,8 @@ export default function GameCanvas({
           }
         />
         <AnnotationLayer
+          layerFilter="overlay"
+          renderTransientHelpers={true}
           gridSize={scene.gridSize}
           roomId={roomId}
           sceneId={scene.id}

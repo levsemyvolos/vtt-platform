@@ -257,7 +257,14 @@
     "lock": "Lock",
     "unlock": "Unlock",
     "duplicate": "Duplicate",
-    "delete": "Delete"
+    "delete": "Delete",
+    "layerLabel": "Layer",
+    "layer": {
+      "tile": "Tile (under tokens)",
+      "overlay": "Overlay (above tokens)"
+    },
+    "makeGmOnly": "Make GM-only",
+    "makeVisibleToAll": "Make visible to all"
   },
   "aiGenerate": {
     "dialogLabel": "Generate Background",

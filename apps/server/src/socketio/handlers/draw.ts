@@ -1,4 +1,4 @@
-import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload, SceneObjectTransformPayload, SceneObjectLockPayload, SceneObjectZOrderPayload, SceneObjectDuplicatePayload } from '@vtt/shared';
+import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload, SceneObjectTransformPayload, SceneObjectLockPayload, SceneObjectZOrderPayload, SceneObjectDuplicatePayload, SceneObjectSetLayerPayload, SceneObjectSetVisibilityPayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
 import { parseFogShapes } from '../../services/DrawService.js';
@@ -262,6 +262,32 @@ export function registerDrawHandlers(
       });
     } catch (err) {
       console.error('[Socket] object:duplicate error:', err);
+    }
+  });
+
+  socket.on('object:set-layer', async (payload: SceneObjectSetLayerPayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      if (payload.layer !== 'tile' && payload.layer !== 'overlay') return;
+      await sceneAnnotationService.setObjectLayer(payload.sceneId, payload.objectId, socket.data.role, payload.layer);
+      io.to(payload.roomId).emit('object:set-layer', payload);
+    } catch (err) {
+      console.error('[Socket] object:set-layer error:', err);
+    }
+  });
+
+  socket.on('object:set-visibility', async (payload: SceneObjectSetVisibilityPayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      if (payload.visibility !== 'all' && payload.visibility !== 'gm-only') return;
+      await sceneAnnotationService.setObjectVisibility(payload.sceneId, payload.objectId, socket.data.role, payload.visibility);
+      io.to(payload.roomId).emit('object:set-visibility', payload);
+    } catch (err) {
+      console.error('[Socket] object:set-visibility error:', err);
     }
   });
 }

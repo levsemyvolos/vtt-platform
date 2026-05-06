@@ -4,6 +4,8 @@ import type {
   ImageAnnotation,
   SceneAnnotations,
   SceneObject,
+  SceneObjectLayer,
+  SceneObjectVisibility,
 } from '@vtt/shared';
 import { normalizeAnnotations, type DrawService } from './DrawService.js';
 import { HttpError } from '../lib/errors.js';
@@ -33,9 +35,11 @@ export class SceneAnnotationService {
   async addText(
     sceneId: string,
     userId: string,
-    payload: { x: number; y: number; text: string; fontSize?: number; color?: string },
+    payload: { x: number; y: number; text: string; fontSize?: number; color?: string; layer?: SceneObjectLayer },
   ): Promise<SceneAnnotations> {
     const annotations = await this.drawService.getAnnotations(sceneId);
+    const layer: SceneObjectLayer = payload.layer ?? 'overlay';
+    const visibility: SceneObjectVisibility = 'all';
     const entry: TextAnnotation = {
       id: randomUUID(),
       userId,
@@ -44,6 +48,8 @@ export class SceneAnnotationService {
       text: payload.text,
       fontSize: payload.fontSize ?? 16,
       color: payload.color ?? '#ffffff',
+      layer,
+      visibility,
     };
     annotations.texts.push(entry);
     annotations.objects = [
@@ -58,6 +64,8 @@ export class SceneAnnotationService {
         text: entry.text,
         fontSize: entry.fontSize,
         color: entry.color,
+        layer,
+        visibility,
       },
     ];
     await this.drawService.persist(sceneId, annotations);
@@ -67,9 +75,11 @@ export class SceneAnnotationService {
   async addImage(
     sceneId: string,
     userId: string,
-    payload: { x: number; y: number; assetId: string; width?: number; height?: number },
+    payload: { x: number; y: number; assetId: string; width?: number; height?: number; layer?: SceneObjectLayer },
   ): Promise<SceneAnnotations> {
     const annotations = await this.drawService.getAnnotations(sceneId);
+    const layer: SceneObjectLayer = payload.layer ?? 'tile';
+    const visibility: SceneObjectVisibility = 'all';
     const entry: ImageAnnotation = {
       id: randomUUID(),
       userId,
@@ -78,6 +88,8 @@ export class SceneAnnotationService {
       assetId: payload.assetId,
       width: payload.width ?? 128,
       height: payload.height ?? 128,
+      layer,
+      visibility,
     };
     annotations.images.push(entry);
     annotations.objects = [
@@ -92,6 +104,8 @@ export class SceneAnnotationService {
         assetId: entry.assetId,
         width: entry.width,
         height: entry.height,
+        layer,
+        visibility,
       },
     ];
     await this.drawService.persist(sceneId, annotations);
@@ -338,6 +352,84 @@ export class SceneAnnotationService {
 
     // Return the exact newObject before normalization so the id matches
     return { annotations: normalized, newObject };
+  }
+
+  /**
+   * Changes the render layer of a scene object (Sess 5 Mini-A).
+   *
+   * RBAC: GM-only.
+   * Mirrors mutation to the appropriate legacy array entry.
+   */
+  async setObjectLayer(
+    sceneId: string,
+    objectId: string,
+    role: string,
+    layer: SceneObjectLayer,
+  ): Promise<SceneAnnotations> {
+    if (role !== 'GM') throw new HttpError(403, 'Only GM can change object layer');
+
+    const annotations = await this.drawService.getAnnotations(sceneId);
+    const obj = (annotations.objects ?? []).find((o) => o.id === objectId);
+    if (!obj) throw new HttpError(404, 'Object not found');
+
+    annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
+      candidate.id === objectId ? { ...candidate, layer } : candidate
+    ));
+
+    // Mirror to legacy arrays
+    annotations.images = annotations.images.map((image) => (
+      image.id === objectId ? { ...image, layer } : image
+    ));
+    annotations.texts = annotations.texts.map((text) => (
+      text.id === objectId ? { ...text, layer } : text
+    ));
+    annotations.strokes = annotations.strokes.map((stroke) => (
+      stroke.strokeId === objectId ? { ...stroke, layer } : stroke
+    ));
+
+    const normalized = normalizeAnnotations(annotations);
+    await this.drawService.persist(sceneId, normalized);
+    return normalized;
+  }
+
+  /**
+   * Changes the RBAC visibility of a scene object (Sess 5 Mini-A).
+   *
+   * RBAC: GM-only.
+   * Mirrors mutation to the appropriate legacy array entry.
+   * Note: broadcasting is handled by the caller; Player clients receive the event
+   * and their reducer removes gm-only objects from local state (Mini-B).
+   */
+  async setObjectVisibility(
+    sceneId: string,
+    objectId: string,
+    role: string,
+    visibility: SceneObjectVisibility,
+  ): Promise<SceneAnnotations> {
+    if (role !== 'GM') throw new HttpError(403, 'Only GM can change object visibility');
+
+    const annotations = await this.drawService.getAnnotations(sceneId);
+    const obj = (annotations.objects ?? []).find((o) => o.id === objectId);
+    if (!obj) throw new HttpError(404, 'Object not found');
+
+    annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
+      candidate.id === objectId ? { ...candidate, visibility } : candidate
+    ));
+
+    // Mirror to legacy arrays
+    annotations.images = annotations.images.map((image) => (
+      image.id === objectId ? { ...image, visibility } : image
+    ));
+    annotations.texts = annotations.texts.map((text) => (
+      text.id === objectId ? { ...text, visibility } : text
+    ));
+    annotations.strokes = annotations.strokes.map((stroke) => (
+      stroke.strokeId === objectId ? { ...stroke, visibility } : stroke
+    ));
+
+    const normalized = normalizeAnnotations(annotations);
+    await this.drawService.persist(sceneId, normalized);
+    return normalized;
   }
 }
 

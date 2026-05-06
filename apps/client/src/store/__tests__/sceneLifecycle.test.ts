@@ -61,6 +61,8 @@ function makeSceneWithImage(): SceneDTO {
           height: 100,
           rotation: 0,
           locked: false,
+          layer: 'tile' as const,
+          visibility: 'all' as const,
         },
       ],
     },
@@ -76,9 +78,9 @@ function makeSceneWithMultipleObjects(): SceneDTO {
       texts: [],
       images: [],
       objects: [
-        { id: 'obj-1', type: 'text', userId: 'u1', x: 0, y: 0, zIndex: 1, text: 'A', fontSize: 16, color: '#fff' },
-        { id: 'obj-2', type: 'text', userId: 'u1', x: 10, y: 10, zIndex: 3, text: 'B', fontSize: 16, color: '#fff' },
-        { id: 'obj-3', type: 'text', userId: 'u1', x: 20, y: 20, zIndex: 7, text: 'C', fontSize: 16, color: '#fff' },
+        { id: 'obj-1', type: 'text', userId: 'u1', x: 0, y: 0, zIndex: 1, text: 'A', fontSize: 16, color: '#fff', layer: 'overlay' as const, visibility: 'all' as const },
+        { id: 'obj-2', type: 'text', userId: 'u1', x: 10, y: 10, zIndex: 3, text: 'B', fontSize: 16, color: '#fff', layer: 'overlay' as const, visibility: 'all' as const },
+        { id: 'obj-3', type: 'text', userId: 'u1', x: 20, y: 20, zIndex: 7, text: 'C', fontSize: 16, color: '#fff', layer: 'overlay' as const, visibility: 'all' as const },
       ],
     },
   };
@@ -157,8 +159,8 @@ describe('scene slice — setSceneObjectZIndex', () => {
         texts: [],
         images: [],
         objects: [
-          { id: 'obj-a', type: 'text', userId: 'u1', x: 0, y: 0, zIndex: 0, text: 'A', fontSize: 16, color: '#fff' },
-          { id: 'obj-b', type: 'text', userId: 'u1', x: 0, y: 0, zIndex: 0, text: 'B', fontSize: 16, color: '#fff' },
+          { id: 'obj-a', type: 'text', userId: 'u1', x: 0, y: 0, zIndex: 0, text: 'A', fontSize: 16, color: '#fff', layer: 'overlay' as const, visibility: 'all' as const },
+          { id: 'obj-b', type: 'text', userId: 'u1', x: 0, y: 0, zIndex: 0, text: 'B', fontSize: 16, color: '#fff', layer: 'overlay' as const, visibility: 'all' as const },
         ],
       },
     };
@@ -201,6 +203,8 @@ describe('scene slice — appendSceneObject', () => {
       width: 64,
       height: 64,
       rotation: 0,
+      layer: 'tile' as const,
+      visibility: 'all' as const,
     };
     state = sceneReducer(state, appendSceneObject(newObj));
 
@@ -227,6 +231,8 @@ describe('scene slice — appendSceneObject', () => {
       text: 'Hello',
       fontSize: 16,
       color: '#fff',
+      layer: 'overlay' as const,
+      visibility: 'all' as const,
     };
     state = sceneReducer(state, appendSceneObject(newObj));
 
@@ -250,6 +256,8 @@ describe('scene slice — appendSceneObject', () => {
       points: [0, 0, 10, 10],
       color: '#f00',
       strokeWidth: 3,
+      layer: 'overlay' as const,
+      visibility: 'all' as const,
     };
     state = sceneReducer(state, appendSceneObject(newObj));
 
@@ -275,6 +283,8 @@ describe('scene slice — appendSceneObject', () => {
       assetId: 'asset-1',
       width: 100,
       height: 100,
+      layer: 'tile' as const,
+      visibility: 'all' as const,
     };
     state = sceneReducer(state, appendSceneObject(updatedObj));
 
@@ -298,6 +308,8 @@ describe('scene slice — appendSceneObject', () => {
       assetId: 'asset-1',
       width: 200,
       height: 200,
+      layer: 'tile' as const,
+      visibility: 'all' as const,
     };
     state = sceneReducer(state, appendSceneObject(updatedObj));
 
