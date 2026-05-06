@@ -5,6 +5,7 @@ import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { store } from '../../store';
 import { selectToken, deselectSceneObject, appendSceneObject } from '../../store/scene';
+import { requestAddFromToken } from '../../store/initiativeUi';
 import { emitObjectDelete, emitObjectDuplicate } from '../../api/socket';
 import { buildClonedObject } from '../../store/sceneObjectClone';
 import type { CanvasTool } from '../../store/canvasViewport';
@@ -289,6 +290,11 @@ export default function GameCanvas({
           y={ctxMenu.y}
           onEdit={() => { setEditTokenId(ctxMenu.tokenId); setCtxMenu(null); }}
           onClose={() => setCtxMenu(null)}
+          onAddToInitiative={() => {
+            const token = scene.tokens.find((tk) => tk.id === ctxMenu.tokenId);
+            if (token) dispatch(requestAddFromToken({ tokenId: token.id, name: token.name }));
+            setCtxMenu(null);
+          }}
         />
       )}
       {objCtxMenu && (

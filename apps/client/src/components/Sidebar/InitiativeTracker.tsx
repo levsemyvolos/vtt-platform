@@ -23,8 +23,11 @@ import {
   reorderThunk,
 } from '../../store/initiative';
 import { loadMembers } from '../../store/members';
+import { clearPendingAdd } from '../../store/initiativeUi';
 import { Button, IconButton, Avatar } from '../ui';
 import styles from './InitiativeTracker.module.css';
+
+const EMPTY_TOKENS: [] = [];
 
 interface InitiativeTrackerProps {
   sceneId: string;
@@ -40,10 +43,14 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
   const membersState = useAppSelector((s) => s.members.byRoom[roomId]);
   const isGM = myRole === 'GM';
 
+  const sceneTokens = useAppSelector((s) => s.scene.current?.tokens ?? EMPTY_TOKENS);
+  const pendingAdd = useAppSelector((s) => s.initiativeUi.pendingAdd);
+
   const [showAdd, setShowAdd] = useState(false);
+  const [mode, setMode] = useState<'member' | 'npc'>('member');
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [customName, setCustomName] = useState('');
-  const [useCustomName, setUseCustomName] = useState(false);
+  const [selectedTokenId, setSelectedTokenId] = useState('');
   const [initiative, setInitiative] = useState<number>(10);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,32 +61,59 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
     if (isGM && roomId && !membersState) void dispatch(loadMembers(roomId));
   }, [isGM, roomId, membersState, dispatch]);
 
+  useEffect(() => {
+    if (!pendingAdd) return;
+    setMode('npc');
+    setCustomName(pendingAdd.name);
+    setSelectedTokenId(pendingAdd.tokenId);
+    setInitiative(rollInitiative());
+    setShowAdd(true);
+    dispatch(clearPendingAdd());
+  }, [pendingAdd, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function rollInitiative(dexMod = 0): number {
     const die = (crypto.getRandomValues(new Uint32Array(1))[0]! % 20) + 1;
     return die + dexMod;
   }
 
   function onOpenAdd(): void {
-    setShowAdd(true); setSelectedMemberId(''); setCustomName('');
-    setUseCustomName(false); setInitiative(rollInitiative()); setError(null);
+    setShowAdd(true);
+    setMode('member');
+    setSelectedMemberId('');
+    setCustomName('');
+    setSelectedTokenId('');
+    setInitiative(rollInitiative());
+    setError(null);
   }
 
   async function onAdd(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
-    const name = useCustomName
-      ? customName.trim()
-      : (() => {
-          if (!selectedMemberId) return '';
-          const all = [
-            ...(membersState?.players ?? []),
-            ...(membersState ? [membersState.gm] : []),
-          ].filter(Boolean);
-          return all.find((m) => m!.id === selectedMemberId)?.name ?? '';
-        })();
-    if (!name) { setError(t('errors:validation.selectMemberOrName')); return; }
+    let name: string;
+    let derivedTokenId: string | undefined;
+    if (mode === 'member') {
+      if (!selectedMemberId) { setError(t('errors:validation.selectMemberOrName')); return; }
+      const all = [
+        ...(membersState?.players ?? []),
+        ...(membersState ? [membersState.gm] : []),
+      ].filter(Boolean);
+      name = all.find((m) => m!.id === selectedMemberId)?.name ?? '';
+      if (!name) { setError(t('errors:validation.selectMemberOrName')); return; }
+      const matched = sceneTokens.find((tk) => tk.assignedUserId === selectedMemberId);
+      derivedTokenId = matched?.id;
+    } else {
+      name = customName.trim();
+      if (!name) { setError(t('errors:validation.selectMemberOrName')); return; }
+      derivedTokenId = selectedTokenId || undefined;
+    }
+    const tokenId = derivedTokenId;
     setBusy(true); setError(null);
     try {
-      await dispatch(addEntryThunk({ sceneId, name, initiative })).unwrap();
+      await dispatch(addEntryThunk({
+        sceneId,
+        name,
+        initiative,
+        ...(tokenId ? { tokenId } : {}),
+      })).unwrap();
       setShowAdd(false);
     } catch (err) {
       setError(typeof err === 'string' ? err : t('errors:network.generic'));
@@ -115,7 +149,31 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
   function renderAddForm(): JSX.Element {
     return (
       <form onSubmit={(e) => void onAdd(e)} className={styles.addForm}>
-        {allMembers.length > 0 && !useCustomName && (
+        <fieldset>
+          <legend>{t('campaign:initiative.sourceSection')}</legend>
+          <label>
+            <input
+              type="radio"
+              name="initiative-source"
+              value="member"
+              checked={mode === 'member'}
+              onChange={() => setMode('member')}
+            />
+            {' '}{t('campaign:initiative.sourceMember')}
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="initiative-source"
+              value="npc"
+              checked={mode === 'npc'}
+              onChange={() => setMode('npc')}
+            />
+            {' '}{t('campaign:initiative.sourceNpc')}
+          </label>
+        </fieldset>
+
+        {mode === 'member' && (
           <select
             value={selectedMemberId}
             onChange={(e) => setSelectedMemberId(e.target.value)}
@@ -127,23 +185,31 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
             ))}
           </select>
         )}
-        <label>
-          <input
-            type="checkbox"
-            checked={useCustomName}
-            onChange={(e) => setUseCustomName(e.target.checked)}
-          />
-          {' '}{t('campaign:initiative.customNameToggle')}
-        </label>
-        {useCustomName && (
-          <input
-            type="text"
-            value={customName}
-            onChange={(e) => setCustomName(e.target.value)}
-            placeholder={t('campaign:initiative.namePlaceholder')}
-            aria-label={t('campaign:initiative.nameLabel')}
-          />
+
+        {mode === 'npc' && (
+          <>
+            <input
+              type="text"
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              placeholder={t('campaign:initiative.namePlaceholder')}
+              aria-label={t('campaign:initiative.nameLabel')}
+            />
+            <label>
+              {t('campaign:initiative.tokenPickerLabel')}
+              <select
+                value={selectedTokenId}
+                onChange={(e) => setSelectedTokenId(e.target.value)}
+              >
+                <option value="">{t('campaign:initiative.tokenPickerNone')}</option>
+                {sceneTokens.map((tk) => (
+                  <option key={tk.id} value={tk.id}>{tk.name}</option>
+                ))}
+              </select>
+            </label>
+          </>
         )}
+
         <label>
           {t('campaign:initiative.initiativeLabel')}
           <input
@@ -153,14 +219,17 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
             aria-label={t('campaign:initiative.initiativeAriaLabel')}
           />
         </label>
+
         <div className={styles.addActions}>
-          <button
+          <IconButton
+            variant="ghost"
+            size="sm"
             type="button"
             onClick={() => setInitiative(rollInitiative())}
             aria-label={t('campaign:initiative.rollAriaLabel')}
           >
-            D
-          </button>
+            ⚄
+          </IconButton>
           <Button type="submit" variant="primary" size="sm" disabled={busy}>OK</Button>
           <Button
             type="button"

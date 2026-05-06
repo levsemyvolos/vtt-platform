@@ -132,5 +132,6 @@ export function projectInitiative(entry: InitiativeEntry): InitiativeEntryDTO {
     initiative: entry.initiative,
     orderIndex: entry.orderIndex,
     isCurrent: entry.isCurrent,
+    ...(entry.tokenId !== null && entry.tokenId !== undefined ? { tokenId: entry.tokenId } : {}),
   };
 }

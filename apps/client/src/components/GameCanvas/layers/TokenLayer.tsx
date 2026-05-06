@@ -52,6 +52,11 @@ export default function TokenLayer({
   // someone else.
   const remotePreviews = useAppSelector((s) => s.annotations.tokenDragPreviews);
 
+  const activeTokenId = useAppSelector((s) => {
+    const active = s.initiative.entries.find((e) => e.isCurrent);
+    return active?.tokenId ?? null;
+  });
+
   return (
     <Layer>
       {ghost && (
@@ -73,6 +78,7 @@ export default function TokenLayer({
             gridSize={gridSize}
             draggable={myRole === 'GM' || token.assignedUserId === myUserId}
             remotePreview={preview ?? null}
+            isActive={activeTokenId !== null && activeTokenId === token.id}
             onGhostMove={setGhost}
             onGhostEnd={() => setGhost(null)}
             onEditClick={onTokenSelect}
@@ -92,6 +98,8 @@ interface TokenNodeProps {
   draggable: boolean;
   /** Remote drag-preview position (Sess 5.5 Mini-D); overrides token.x/y for non-draggers. */
   remotePreview: { x: number; y: number } | null;
+  /** True when this token is the current initiative turn's active token. */
+  isActive: boolean;
   onGhostMove: (pos: { x: number; y: number }) => void;
   onGhostEnd: () => void;
   onEditClick: ((id: string) => void) | undefined;
@@ -99,11 +107,10 @@ interface TokenNodeProps {
 }
 
 function TokenNode({
-  token, sceneId, roomId, gridSize, draggable, remotePreview,
+  token, sceneId, roomId, gridSize, draggable, remotePreview, isActive,
   onGhostMove, onGhostEnd, onEditClick, onContextMenu,
 }: TokenNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
-  const sceneVersion = useAppSelector((s) => s.scene.version);
   const image = useImage(token.imageUrl);
   const tokenColor = token.color ?? '#7c5cff';
 
@@ -152,7 +159,7 @@ function TokenNode({
       sceneId,
       x: targetX,
       y: targetY,
-      clientSeq: sceneVersion,
+      clientSeq: token.version,
     }).catch(() => {
       dispatch(applyTokenRollback({
         tokenId: token.id, x: previousX, y: previousY, version: token.version,
@@ -169,7 +176,7 @@ function TokenNode({
       onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onClick={() => onEditClick?.(token.id)}
+      onClick={(e) => { if (e.evt.button !== 0) return; onEditClick?.(token.id); }}
       onContextMenu={(e) => {
         e.evt.preventDefault();
         const stage = e.target.getStage();
@@ -178,6 +185,22 @@ function TokenNode({
       }}
       listening={true}
     >
+      {isActive && !isDraggingLocallyRef.current && (
+        <Rect
+          x={-3}
+          y={-3}
+          width={gridSize + 6}
+          height={gridSize + 6}
+          fill="transparent"
+          stroke="#ffd43b"
+          strokeWidth={3}
+          cornerRadius={6}
+          shadowBlur={12}
+          shadowColor="#ffd43b"
+          shadowOpacity={0.8}
+          listening={false}
+        />
+      )}
       {image ? (
         <KonvaImage image={image} width={gridSize} height={gridSize} />
       ) : (

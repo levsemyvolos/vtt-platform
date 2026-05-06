@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { InitiativeEntry } from '@prisma/client';
+import type { InitiativeEntry, PrismaClient } from '@prisma/client';
 import type { InitiativeEntryDTO } from '@vtt/shared';
 import type { InitiativeRepository } from '../repositories/InitiativeRepository.js';
 import type { SceneRepository } from '../repositories/SceneRepository.js';
@@ -30,6 +30,7 @@ export class InitiativeService {
   constructor(
     private readonly initiativeRepo: InitiativeRepository,
     private readonly sceneRepo: SceneRepository,
+    private readonly db: PrismaClient,
   ) {}
 
   /**
@@ -56,12 +57,23 @@ export class InitiativeService {
 
   /**
    * Appends a new entry at the end of the order (orderIndex = current count).
+   * If `tokenId` is provided it must belong to the same scene; otherwise
+   * HttpError 400 is thrown. The FK is stored with ON DELETE SET NULL so the
+   * entry survives token removal.
    */
   async addEntry(
     sceneId: string,
     name: string,
     initiative: number,
+    tokenId?: string,
   ): Promise<InitiativeSnapshot> {
+    if (tokenId !== undefined) {
+      const token = await this.db.token.findUnique({ where: { id: tokenId } });
+      if (!token || token.sceneId !== sceneId) {
+        throw new HttpError(400, 'Token does not belong to this scene');
+      }
+    }
+
     const count = await this.initiativeRepo.count(sceneId);
     await this.initiativeRepo.create({
       id: randomUUID(),
@@ -69,6 +81,7 @@ export class InitiativeService {
       name,
       initiative,
       orderIndex: count,
+      ...(tokenId !== undefined ? { token: { connect: { id: tokenId } } } : {}),
     });
     return this.getSnapshot(sceneId);
   }

@@ -4,6 +4,8 @@ import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import initiativeReducer from '../../../store/initiative';
 import membersReducer from '../../../store/members';
+import sceneReducer from '../../../store/scene';
+import initiativeUiReducer from '../../../store/initiativeUi';
 import InitiativeTracker from '../InitiativeTracker';
 import * as initiativeStore from '../../../store/initiative';
 
@@ -32,7 +34,7 @@ function makeStore(membersPreloaded?: {
     : undefined;
 
   return configureStore({
-    reducer: { initiative: initiativeReducer, members: membersReducer },
+    reducer: { initiative: initiativeReducer, initiativeUi: initiativeUiReducer, members: membersReducer, scene: sceneReducer },
     preloadedState,
   });
 }
@@ -78,8 +80,8 @@ describe('InitiativeTracker — AddEntry modal (GM)', () => {
       </Provider>,
     );
     fireEvent.click(screen.getByRole('button', { name: /додати позицію/i }));
-    // Toggle custom name
-    fireEvent.click(screen.getByRole('checkbox', { name: /власне ім/i }));
+    // Switch to NPC mode via radio button (label is localised: "Custom NPC" / "Власний NPC")
+    fireEvent.click(screen.getByRole('radio', { name: /npc/i }));
     // Fill custom name
     fireEvent.change(screen.getByRole('textbox', { name: /ім'я учасника/i }), {
       target: { value: 'Goblin King' },

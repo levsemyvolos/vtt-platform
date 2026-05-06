@@ -23,7 +23,13 @@
     "rollTitle": "1d20",
     "rollAriaLabel": "Кинути ініціативу (1d20)",
     "currentBadge": "current",
-    "deleteLabel": "Видалити {{name}}"
+    "deleteLabel": "Видалити {{name}}",
+    "sourceSection": "Джерело",
+    "sourceMember": "Учасник кімнати",
+    "sourceNpc": "Власний NPC",
+    "tokenPickerLabel": "Прив'язати до токена",
+    "tokenPickerNone": "— без токена —",
+    "addToInitiative": "До ініціативи"
   },
   "handouts": {
     "sidebarTab": "Handouts",

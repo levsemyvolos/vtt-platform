@@ -18,6 +18,7 @@ import preferencesReducer from './preferences';
 import toastReducer from './toast';
 import canvasViewportReducer from './canvasViewport';
 import assetsReducer from './assets';
+import initiativeUiReducer from './initiativeUi';
 
 export const store = configureStore({
   reducer: {
@@ -27,6 +28,7 @@ export const store = configureStore({
     scenes: scenesReducer,
     chat: chatReducer,
     initiative: initiativeReducer,
+    initiativeUi: initiativeUiReducer,
     media: mediaReducer,
     handouts: handoutsReducer,
     notes: notesReducer,

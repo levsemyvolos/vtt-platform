@@ -27,6 +27,7 @@ import toastReducer from '../../../store/toast';
 import preferencesReducer from '../../../store/preferences';
 import roomReducer from '../../../store/room';
 import annotationsReducer from '../../../store/annotations';
+import initiativeReducer from '../../../store/initiative';
 import GameCanvas from '../GameCanvas';
 import type { SceneDTO } from '@vtt/shared';
 
@@ -71,6 +72,7 @@ function makeStore() {
       preferences: preferencesReducer,
       room: roomReducer,
       annotations: annotationsReducer,
+      initiative: initiativeReducer,
     },
   });
 }

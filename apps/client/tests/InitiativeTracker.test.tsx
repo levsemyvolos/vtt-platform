@@ -20,12 +20,14 @@ import { configureStore } from '@reduxjs/toolkit';
 import type { InitiativeEntryDTO } from '@vtt/shared';
 import initiativeReducer, { hydrateInitiative } from '../src/store/initiative';
 import membersReducer from '../src/store/members';
+import sceneReducer from '../src/store/scene';
+import initiativeUiReducer from '../src/store/initiativeUi';
 import InitiativeTracker from '../src/components/Sidebar/InitiativeTracker';
 
 const ROOM_ID = 'room-1';
 
 function buildStore(entries: InitiativeEntryDTO[], currentRound = 1) {
-  const store = configureStore({ reducer: { initiative: initiativeReducer, members: membersReducer } });
+  const store = configureStore({ reducer: { initiative: initiativeReducer, initiativeUi: initiativeUiReducer, members: membersReducer, scene: sceneReducer } });
   store.dispatch(
     hydrateInitiative({ sceneId: 'scene-1', entries, currentRound }),
   );

@@ -158,9 +158,10 @@ model Token {
   version        Int      @default(0)
   visionRadius   Int      @default(6)
 
-  scene        Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
-  assignedUser User?  @relation("TokenAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  imageAsset   Asset? @relation("TokenImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  scene             Scene            @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  assignedUser      User?            @relation("TokenAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  imageAsset        Asset?           @relation("TokenImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  initiativeEntries InitiativeEntry[] @relation("InitiativeEntryToken")
 
   @@index([sceneId])
 }
@@ -260,8 +261,12 @@ model InitiativeEntry {
   initiative Int
   orderIndex Int
   isCurrent  Boolean @default(false)
+  tokenId    String? @db.Uuid
 
-  scene Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  scene Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  token Token? @relation("InitiativeEntryToken", fields: [tokenId], references: [id], onDelete: SetNull)
+
+  @@index([tokenId])
 }
 
 model Session {

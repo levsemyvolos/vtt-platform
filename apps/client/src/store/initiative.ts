@@ -26,11 +26,11 @@ type HydratePayload = InitiativeEntryDTO[] | InitiativeUpdatedPayload;
 
 export const addEntryThunk = createAsyncThunk<
   InitiativeUpdatedPayload,
-  { sceneId: string; name: string; initiative: number },
+  { sceneId: string; name: string; initiative: number; tokenId?: string },
   { rejectValue: string }
->('initiative/add', async ({ sceneId, name, initiative }, { rejectWithValue }) => {
+>('initiative/add', async ({ sceneId, name, initiative, tokenId }, { rejectWithValue }) => {
   try {
-    return await addInitiative(sceneId, { name, initiative });
+    return await addInitiative(sceneId, name, initiative, tokenId);
   } catch (err) {
     return rejectWithValue(err instanceof Error ? err.message : 'Не вдалося додати позицію');
   }

@@ -94,11 +94,14 @@ export function buildInitiativeRouter(
           req.user!.role,
           req.user!.boundRoomId,
         );
-        const { name, initiative } = req.body;
+        const { name, initiative, tokenId } = req.body;
         if (typeof name !== 'string' || typeof initiative !== 'number') {
           throw new HttpError(400, 'name (string) and initiative (number) are required');
         }
-        const snapshot = await initService.addEntry(req.params.sceneId, name, initiative);
+        if (tokenId !== undefined && typeof tokenId !== 'string') {
+          throw new HttpError(400, 'tokenId must be a string');
+        }
+        const snapshot = await initService.addEntry(req.params.sceneId, name, initiative, tokenId);
         io.to(roomId).emit('initiative:updated', {
           sceneId: req.params.sceneId,
           entries: snapshot.entries,
