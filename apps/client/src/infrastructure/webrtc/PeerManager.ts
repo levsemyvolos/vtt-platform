@@ -327,9 +327,9 @@ export class PeerManager {
   private async handleIce(peerId: string, candidate: RTCIceCandidateInit | null): Promise<void> {
     const entry = this.ensurePeer(peerId);
     try {
-      // null = end-of-candidates signal; RTCIceCandidate() with no args is the
-      // spec-correct way to consume it (addIceCandidate(null) is deprecated).
-      await entry.pc.addIceCandidate(candidate ? new RTCIceCandidate(candidate) : new RTCIceCandidate());
+      // Pass RTCIceCandidateInit dict directly — spec allows it without wrapping
+      // in RTCIceCandidate(); null → {} signals end-of-candidates.
+      await entry.pc.addIceCandidate(candidate ?? {});
     } catch (err) {
       // Tolerate ICE failures only when we're explicitly ignoring this offer.
       if (!entry.ignoreOffer) {
