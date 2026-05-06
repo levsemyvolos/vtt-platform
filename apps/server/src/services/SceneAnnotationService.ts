@@ -311,7 +311,6 @@ export class SceneAnnotationService {
     sceneId: string,
     objectId: string,
     role: string,
-    _userId: string,
   ): Promise<{ annotations: SceneAnnotations; newObject: SceneObject }> {
     if (role !== 'GM') throw new HttpError(403, 'Only GM can duplicate annotations');
 
@@ -327,8 +326,23 @@ export class SceneAnnotationService {
     const newObject: SceneObject = { ...src, id: newId, x: src.x + 20, y: src.y + 20, zIndex: topZIndex };
 
     annotations.objects = [...objects, newObject];
+    this.mirrorLegacy(annotations, src, objectId, newId);
 
-    // Mirror to the appropriate legacy array
+    const normalized = normalizeAnnotations(annotations);
+    await this.drawService.persist(sceneId, normalized);
+
+    // Return the exact newObject before normalization so the id matches
+    return { annotations: normalized, newObject };
+  }
+
+  /** Mirrors a duplicated object into the appropriate legacy array (images/texts/strokes).
+   *  Extracted from duplicateObject to keep cyclomatic complexity ≤ 10 (lint gate). */
+  private mirrorLegacy(
+    annotations: SceneAnnotations,
+    src: SceneObject,
+    objectId: string,
+    newId: string,
+  ): void {
     if (src.type === 'image') {
       const imgSrc = annotations.images.find((img) => img.id === objectId);
       if (imgSrc) {
@@ -346,12 +360,6 @@ export class SceneAnnotationService {
         annotations.strokes = [...annotations.strokes, { ...strokeSrc, strokeId: newId, x: (strokeSrc.x ?? 0) + 20, y: (strokeSrc.y ?? 0) + 20 }];
       }
     }
-
-    const normalized = normalizeAnnotations(annotations);
-    await this.drawService.persist(sceneId, normalized);
-
-    // Return the exact newObject before normalization so the id matches
-    return { annotations: normalized, newObject };
   }
 
   /**

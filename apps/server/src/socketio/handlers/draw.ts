@@ -24,6 +24,18 @@ function isAddableFogShape(s: unknown): s is FogShape {
 import type { SceneAnnotationService } from '../../services/SceneAnnotationService.js';
 import type { SceneService } from '../../services/SceneService.js';
 
+/** Guards that all five numeric transform fields are finite numbers.
+ *  Extracted from the object:transform handler to keep cyclomatic complexity ≤ 10 (lint gate). */
+function isValidTransformPayload(p: SceneObjectTransformPayload): boolean {
+  return (
+    Number.isFinite(p.x) &&
+    Number.isFinite(p.y) &&
+    Number.isFinite(p.width) &&
+    Number.isFinite(p.height) &&
+    Number.isFinite(p.rotation)
+  );
+}
+
 /** Builds broadcaster sinks for draw events (Ф3.4.2). */
 export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
   return {
@@ -43,6 +55,44 @@ export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
       io.to(roomId).emit('fog:clear', { roomId, sceneId });
     },
   };
+}
+
+/** Broadcasts fog/annotation/snapshot events after a scene:flush to all clients
+ *  except the sender (GM). Extracted from the handler to keep cyclomatic complexity ≤ 10. */
+async function broadcastFlushResult(
+  socket: TypedSocket,
+  payload: SceneFlushPayload,
+  shapes: FogShape[],
+  drawService: import('../../services/DrawService.js').DrawService,
+  sceneService: SceneService | undefined,
+): Promise<void> {
+  const { roomId, sceneId } = payload;
+  // Broadcast to ALL EXCEPT the sender — the sender (GM) already has correct local state.
+  socket.broadcast.to(roomId).emit('fog:clear', { roomId, sceneId });
+  for (const shape of shapes) {
+    socket.broadcast.to(roomId).emit('fog:shape-add', { roomId, sceneId, shape });
+  }
+  if (payload.annotations) {
+    socket.broadcast.to(roomId).emit('draw:clear', { roomId, sceneId });
+    for (const s of payload.annotations.strokes ?? []) {
+      socket.broadcast.to(roomId).emit('draw:stroke', {
+        roomId, sceneId, strokeId: s.strokeId, userId: s.userId,
+        points: s.points, color: s.color, width: s.width,
+      });
+    }
+    // Broadcast full annotations (includes objects[] transforms/moves/deletes that
+    // were buffered locally during Edit Scene and never emitted via object:* events).
+    // drawService.persist() updated the in-memory cache so getAnnotations() returns
+    // freshly normalized data without an extra DB round-trip.
+    const persistedAnnotations = await drawService.getAnnotations(sceneId);
+    socket.broadcast.to(roomId).emit('annotations:updated', { sceneId, annotations: persistedAnnotations });
+  }
+  // Deliver buffered scene-level mutations (background, grid, token positions)
+  // to all OTHER clients on Done. scene:snapshot carries the full SceneDTO.
+  if (sceneService) {
+    const snapshot = await sceneService.getSnapshot(sceneId, socket.data.role, socket.data.userId);
+    socket.broadcast.to(roomId).emit('scene:snapshot', { scene: snapshot });
+  }
 }
 
 /**
@@ -142,43 +192,7 @@ export function registerDrawHandlers(
       if (sceneService && payload.tokens && payload.tokens.length > 0) {
         await sceneService.applyTokenSnapshot(payload.sceneId, payload.tokens);
       }
-      const { roomId, sceneId } = payload;
-      // Broadcast to ALL EXCEPT the sender — the sender (GM) already has correct local state.
-      socket.broadcast.to(roomId).emit('fog:clear', { roomId, sceneId });
-      for (const shape of shapes) {
-        socket.broadcast.to(roomId).emit('fog:shape-add', { roomId, sceneId, shape });
-      }
-      if (payload.annotations) {
-        socket.broadcast.to(roomId).emit('draw:clear', { roomId, sceneId });
-        for (const s of payload.annotations.strokes ?? []) {
-          socket.broadcast.to(roomId).emit('draw:stroke', {
-            roomId, sceneId, strokeId: s.strokeId, userId: s.userId,
-            points: s.points, color: s.color, width: s.width,
-          });
-        }
-        // Broadcast full annotations (includes objects[] transforms/moves/deletes that
-        // were buffered locally during Edit Scene and never emitted via object:* events).
-        // Sender (GM) already has correct local state — exclude via socket.broadcast.
-        // drawService.persist() updates the in-memory cache so getAnnotations() here
-        // returns the freshly normalized data without an extra DB round-trip.
-        const persistedAnnotations = await drawService.getAnnotations(sceneId);
-        socket.broadcast.to(roomId).emit('annotations:updated', {
-          sceneId,
-          annotations: persistedAnnotations,
-        });
-      }
-      // Deliver buffered scene-level mutations (background, grid, token positions)
-      // that were staged during Edit Scene to all OTHER clients on Done.
-      // scene:snapshot carries the full SceneDTO including updated token positions,
-      // so Players receive new token state automatically via hydrateScene.
-      if (sceneService) {
-        const snapshot = await sceneService.getSnapshot(
-          sceneId,
-          socket.data.role,
-          socket.data.userId,
-        );
-        socket.broadcast.to(roomId).emit('scene:snapshot', { scene: snapshot });
-      }
+      await broadcastFlushResult(socket, payload, shapes, drawService, sceneService);
     } catch (err) {
       console.error('[Socket] scene:flush error:', err);
     }
@@ -206,13 +220,7 @@ export function registerDrawHandlers(
       if (socket.data.role !== 'GM') return;
       if (!sceneAnnotationService) return;
       if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-      if (
-        typeof payload.x !== 'number' || !Number.isFinite(payload.x) ||
-        typeof payload.y !== 'number' || !Number.isFinite(payload.y) ||
-        typeof payload.width !== 'number' || !Number.isFinite(payload.width) ||
-        typeof payload.height !== 'number' || !Number.isFinite(payload.height) ||
-        typeof payload.rotation !== 'number' || !Number.isFinite(payload.rotation)
-      ) return;
+      if (!isValidTransformPayload(payload)) return;
       await sceneAnnotationService.transformObject(
         payload.sceneId,
         payload.objectId,
@@ -260,7 +268,6 @@ export function registerDrawHandlers(
         payload.sceneId,
         payload.objectId,
         socket.data.role,
-        socket.data.userId,
       );
       io.to(payload.roomId).emit('object:duplicated', {
         roomId: payload.roomId,

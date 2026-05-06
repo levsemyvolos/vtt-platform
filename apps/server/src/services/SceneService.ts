@@ -269,14 +269,20 @@ export class SceneService {
     });
   }
 
-  async updateScene(sceneId: string, dto: UpdateSceneRequest): Promise<Scene> {
-    const data: Parameters<SceneRepository['update']>[1] = {};
+  /** Fills the mutable grid/name/visibility fields from the DTO into the Prisma update object.
+   *  Extracted from updateScene to keep cyclomatic complexity ≤ 10 (lint gate). */
+  private fillGridFields(data: Prisma.SceneUpdateInput, dto: UpdateSceneRequest): void {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.gridSize !== undefined) data.gridSize = dto.gridSize;
     if (dto.gridWidth !== undefined) data.gridWidth = dto.gridWidth;
     if (dto.gridHeight !== undefined) data.gridHeight = dto.gridHeight;
     if (dto.gridVisible !== undefined) data.gridVisible = dto.gridVisible;
     if (dto.isHidden !== undefined) data.isHidden = dto.isHidden;
+  }
+
+  /** Fills the mutable background fields from the DTO into the Prisma update object.
+   *  Extracted from updateScene to keep cyclomatic complexity ≤ 10 (lint gate). */
+  private fillBackgroundFields(data: Prisma.SceneUpdateInput, dto: UpdateSceneRequest): void {
     if (dto.backgroundAssetId !== undefined) {
       data.backgroundAsset = dto.backgroundAssetId
         ? { connect: { id: dto.backgroundAssetId } }
@@ -286,6 +292,12 @@ export class SceneService {
     if (dto.backgroundOffsetX !== undefined) data.backgroundOffsetX = dto.backgroundOffsetX;
     if (dto.backgroundOffsetY !== undefined) data.backgroundOffsetY = dto.backgroundOffsetY;
     if (dto.backgroundScale !== undefined) data.backgroundScale = dto.backgroundScale;
+  }
+
+  async updateScene(sceneId: string, dto: UpdateSceneRequest): Promise<Scene> {
+    const data: Prisma.SceneUpdateInput = {};
+    this.fillGridFields(data, dto);
+    this.fillBackgroundFields(data, dto);
     return this.scenes.update(sceneId, data);
   }
 
