@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useMemo, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetDTO, CreateTokenRequest, Role, TokenPublicDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -6,6 +6,7 @@ import { apiFetch } from '../../api/apiFetch';
 import { upsertToken } from '../../store/scene';
 import ImageUpload from '../AssetUpload/ImageUpload';
 import styles from './AddTokenButton.module.css';
+import { findFreeTokenSpawn } from './tokenPlacement';
 
 interface AddTokenButtonProps {
   myRole: Role;
@@ -22,6 +23,19 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const previewSpawn = useMemo(
+    () =>
+      scene
+        ? findFreeTokenSpawn({
+            existingTokens: scene.tokens,
+            gridSize: scene.gridSize,
+            gridWidth: scene.gridWidth,
+            gridHeight: scene.gridHeight,
+          })
+        : { x: 0, y: 0 },
+    [scene],
+  );
+
   if (myRole !== 'GM') return null;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
@@ -30,10 +44,16 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
     setBusy(true);
     setError(null);
     try {
+      const spawn = findFreeTokenSpawn({
+        existingTokens: scene.tokens,
+        gridSize: scene.gridSize,
+        gridWidth: scene.gridWidth,
+        gridHeight: scene.gridHeight,
+      });
       const body: CreateTokenRequest = {
         name: name.trim(),
-        x: Math.floor((scene.gridWidth * scene.gridSize) / 2),
-        y: Math.floor((scene.gridHeight * scene.gridSize) / 2),
+        x: spawn.x,
+        y: spawn.y,
         ...(asset ? { imageAssetId: asset.id } : {}),
       };
       const token = await apiFetch<TokenPublicDTO>(`/api/scenes/${sceneId}/tokens`, {
@@ -97,8 +117,8 @@ export default function AddTokenButton({ myRole, sceneId }: AddTokenButtonProps)
 
               <p className={styles.note}>
                 {t('room:token.tokenPlacedNote', {
-                  x: Math.floor((scene.gridWidth * scene.gridSize) / 2),
-                  y: Math.floor((scene.gridHeight * scene.gridSize) / 2),
+                  x: previewSpawn.x,
+                  y: previewSpawn.y,
                 })}
               </p>
               {error && <p role="alert" className={styles.error}>{error}</p>}

@@ -228,6 +228,7 @@ export default function GameCanvas({
         />
         <TokenLayer
           sceneId={scene.id}
+          roomId={roomId}
           tokens={scene.tokens}
           gridSize={scene.gridSize}
           myRole={myRole}

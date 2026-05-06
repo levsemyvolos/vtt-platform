@@ -231,6 +231,33 @@ describe('SceneAnnotationService.setObjectVisibility', () => {
     await svc.setObjectVisibility(SCENE_ID, 'img-1', 'GM', 'gm-only');
     expect(drawSvc.persist).toHaveBeenCalledOnce();
   });
+
+  // Sess 5.5 Mini-A: handler pulls updatedObject from returned annotations.
+  // Verify the returned annotations contain the object with the new visibility
+  // so the handler's `annotations.objects.find(...)` lookup succeeds.
+  it('returned annotations contain the updated object (handler can extract it for broadcast)', async () => {
+    const drawSvc = makeDrawService(makeAnnotationsWithImage());
+    const svc = new SceneAnnotationService(makePrisma() as never, drawSvc as never);
+
+    const result = await svc.setObjectVisibility(SCENE_ID, 'img-1', 'GM', 'gm-only');
+    const found = (result.objects ?? []).find((o) => o.id === 'img-1');
+    expect(found).toBeDefined();
+    expect(found?.visibility).toBe('gm-only');
+  });
+
+  it('returned annotations contain updated object when flipping back to all', async () => {
+    const base = makeAnnotationsWithImage();
+    base.objects![0]!.visibility = 'gm-only';
+    base.images[0]!.visibility = 'gm-only';
+
+    const drawSvc = makeDrawService(base);
+    const svc = new SceneAnnotationService(makePrisma() as never, drawSvc as never);
+
+    const result = await svc.setObjectVisibility(SCENE_ID, 'img-1', 'GM', 'all');
+    const found = (result.objects ?? []).find((o) => o.id === 'img-1');
+    expect(found).toBeDefined();
+    expect(found?.visibility).toBe('all');
+  });
 });
 
 // ---------------------------------------------------------------------------

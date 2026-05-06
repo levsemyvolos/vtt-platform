@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { SceneDTO } from '@vtt/shared';
+import type { SceneDTO, SceneObject } from '@vtt/shared';
 import sceneReducer, {
   hydrateScene,
   selectSceneObject,
   setSceneObjectLayer,
   setSceneObjectVisibility,
+  appendSceneObject,
 } from '../scene';
 
 function makeScene(): SceneDTO {
@@ -250,5 +251,71 @@ describe('scene slice — setSceneObjectVisibility (Sess 5 Mini-B)', () => {
         setSceneObjectVisibility({ objectId: 'nonexistent', visibility: 'gm-only', viewerIsGM: false }),
       );
     }).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sess 5.5 Mini-A: Player re-add via appendSceneObject when flipping to 'all'
+// ---------------------------------------------------------------------------
+
+describe('scene slice — appendSceneObject re-adds object stripped by gm-only (Sess 5.5 Mini-A)', () => {
+  it('Player: object removed by gm-only flip is re-added via appendSceneObject', () => {
+    // Start as Player (viewerIsGM: false); object is in state
+    let state = sceneReducer(undefined, hydrateScene(makeSceneWithAll()));
+
+    // Player receives gm-only flip — object is removed from local state
+    state = sceneReducer(
+      state,
+      setSceneObjectVisibility({ objectId: 'img-1', visibility: 'gm-only', viewerIsGM: false }),
+    );
+    expect(state.current?.annotations.objects?.find((o) => o.id === 'img-1')).toBeUndefined();
+
+    // GM flips back to 'all' — server sends full object in payload.
+    // Client socket handler dispatches appendSceneObject(payload.object).
+    const fullObject: SceneObject = {
+      id: 'img-1',
+      type: 'image',
+      userId: 'u1',
+      x: 0,
+      y: 0,
+      zIndex: 0,
+      assetId: 'asset-1',
+      width: 100,
+      height: 100,
+      layer: 'tile',
+      visibility: 'all',
+    };
+    state = sceneReducer(state, appendSceneObject(fullObject));
+
+    const obj = state.current?.annotations.objects?.find((o) => o.id === 'img-1');
+    expect(obj).toBeDefined();
+    expect(obj?.visibility).toBe('all');
+    // images[] mirror also re-added
+    const img = state.current?.annotations.images.find((i) => i.id === 'img-1');
+    expect(img).toBeDefined();
+  });
+
+  it('GM: appendSceneObject is idempotent — existing object is replaced in-place, no duplicate', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeSceneWithAll()));
+
+    const updatedObject: SceneObject = {
+      id: 'img-1',
+      type: 'image',
+      userId: 'u1',
+      x: 5,
+      y: 5,
+      zIndex: 0,
+      assetId: 'asset-1',
+      width: 100,
+      height: 100,
+      layer: 'tile',
+      visibility: 'all',
+    };
+    state = sceneReducer(state, appendSceneObject(updatedObject));
+
+    const objects = state.current?.annotations.objects ?? [];
+    const matching = objects.filter((o) => o.id === 'img-1');
+    expect(matching).toHaveLength(1);
+    expect(matching[0]?.x).toBe(5);
   });
 });

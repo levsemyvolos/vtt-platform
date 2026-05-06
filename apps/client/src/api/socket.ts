@@ -5,6 +5,7 @@ import type {
   Ack,
   SessionResyncPayload,
   TokenMovePayload,
+  TokenDragPreviewPayload,
   DiceRollInput,
   ChatMessageInput,
   ChatDicePayload,
@@ -31,7 +32,7 @@ import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, c
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
-import { addPing, removePing, upsertMeasure, removeMeasure } from '../store/annotations';
+import { addPing, removePing, upsertMeasure, removeMeasure, upsertTokenDragPreview, removeTokenDragPreview } from '../store/annotations';
 import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
 import { upsertRoomMember, removeRoomMember, removeRoom, applyRoomUpdate, startSession, clearRoom } from '../store/room';
 import { setMicEnabled, setCameraEnabled } from '../store/media';
@@ -125,6 +126,15 @@ export function getSocket(): TypedClientSocket {
     const myUserId = store.getState().session.currentUser?.id;
     const myMember = store.getState().room.members.find((m) => m.userId === myUserId);
     const viewerIsGM = myMember?.role === 'GM';
+
+    // Player flipping back from gm-only to 'all' needs the full object re-added,
+    // because the Player's reducer removed it when visibility was set to gm-only.
+    // The full object is included in the broadcast payload by the server (Sess 5.5).
+    if (!viewerIsGM && payload.visibility === 'all' && payload.object) {
+      store.dispatch(appendSceneObject(payload.object));
+      return;
+    }
+
     store.dispatch(setSceneObjectVisibility({
       objectId: payload.objectId,
       visibility: payload.visibility,
@@ -257,6 +267,27 @@ export function getSocket(): TypedClientSocket {
     );
   });
 
+  // Sess 5.5 Mini-D — ephemeral token drag-preview; upsert per-tokenId, auto
+  // cleared shortly after the last update so the ghost vanishes when the
+  // dragger releases (final position arrives via `scene:updated`).
+  const dragPreviewTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  socket.on('token:drag-preview', (payload) => {
+    store.dispatch(upsertTokenDragPreview({
+      tokenId: payload.tokenId,
+      x: payload.x,
+      y: payload.y,
+    }));
+    const existing = dragPreviewTimers.get(payload.tokenId);
+    if (existing) clearTimeout(existing);
+    dragPreviewTimers.set(
+      payload.tokenId,
+      setTimeout(() => {
+        store.dispatch(removeTokenDragPreview(payload.tokenId));
+        dragPreviewTimers.delete(payload.tokenId);
+      }, 800),
+    );
+  });
+
   return socket;
 }
 
@@ -301,6 +332,12 @@ export function emitRoomJoin(roomId: string): Promise<{ joined: true }> {
 export function emitTokenMove(
   payload: TokenMovePayload,
 ): Promise<{ accepted: boolean; version: number }> {
+  if (isEditingScene()) {
+    // Edit-scene staging: GM's local moveTokenOptimistic dispatch already updated
+    // Redux. Pretend OCC accepted to avoid the rollback path. The full token
+    // positions snapshot is sent on Done via scene:flush → applyTokenSnapshot.
+    return Promise.resolve({ accepted: true, version: 0 });
+  }
   return withTimeout(
     new Promise<{ accepted: boolean; version: number }>((resolve, reject) => {
       getSocket().emit('token:move', payload, (r) => {
@@ -308,6 +345,16 @@ export function emitTokenMove(
       });
     }),
   );
+}
+
+/**
+ * Sess 5.5 Mini-D — fire-and-forget ephemeral drag preview. Server forwards to
+ * OTHER sockets in the room only (sender does not receive its own broadcast).
+ * Suppressed in edit-scene mode to keep staging consistent with token:move.
+ */
+export function emitTokenDragPreview(payload: TokenDragPreviewPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('token:drag-preview', payload);
 }
 
 export function emitDiceRoll(payload: DiceRollInput): Promise<ChatDicePayload> {
@@ -514,5 +561,6 @@ export function flushEditedScene(roomId: string, sceneId: string): void {
     sceneId,
     shapes: scene.fogShapes,
     annotations: scene.annotations,
+    tokens: scene.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })),
   });
 }

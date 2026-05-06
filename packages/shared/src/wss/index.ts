@@ -27,6 +27,19 @@ export interface TokenMovePayload {
   clientSeq: number;
 }
 
+/**
+ * Ephemeral token drag preview — broadcast during dragMove for smooth Player
+ * visualization. Not persisted; final position lands via `token:move` OCC on
+ * dragEnd. Server forwards to OTHER sockets in the room only.
+ */
+export interface TokenDragPreviewPayload {
+  roomId: string;
+  sceneId: string;
+  tokenId: string;
+  x: number;
+  y: number;
+}
+
 export interface ChatMessageInput {
   roomId: string;
   text: string;
@@ -274,6 +287,11 @@ export interface SceneObjectSetVisibilityPayload {
   sceneId: string;
   objectId: string;
   visibility: SceneObjectVisibility;
+  /** Full SceneObject — server includes it on every broadcast so non-GM
+   *  recipients can re-add an object that was previously gm-only-stripped
+   *  from their local state. The originating GM client may ignore it.
+   */
+  object?: SceneObject;
 }
 
 /**
@@ -334,6 +352,10 @@ export interface SceneFlushPayload {
   sceneId: string;
   shapes: FogShape[];
   annotations: SceneAnnotations;
+  /** Token position snapshot applied as the authoritative final state.
+   *  Server bulk-updates Token rows without bumping version (no OCC).
+   *  Caller (scene:flush handler) already enforces GM RBAC. */
+  tokens?: { id: string; x: number; y: number }[];
 }
 
 export interface ClientToServerEvents {
@@ -342,6 +364,7 @@ export interface ClientToServerEvents {
     payload: TokenMovePayload,
     ack: (response: Ack<{ accepted: boolean; version: number }>) => void,
   ) => void;
+  'token:drag-preview': (payload: TokenDragPreviewPayload) => void;
   'chat:message': (
     payload: ChatMessageInput,
     ack: (response: Ack<ChatMessageDTO>) => void,
@@ -413,6 +436,7 @@ export interface ServerToClientEvents {
   'scene:updated': (payload: SceneUpdatedPayload) => void;
   'annotations:updated': (payload: AnnotationsUpdatedPayload) => void;
   'token:rollback': (payload: TokenRollbackPayload) => void;
+  'token:drag-preview': (payload: TokenDragPreviewPayload) => void;
   'chat:dice': (payload: ChatDicePayload) => void;
   'chat:message': (payload: ChatMessageDTO) => void;
   'initiative:updated': (payload: InitiativeUpdatedPayload) => void;

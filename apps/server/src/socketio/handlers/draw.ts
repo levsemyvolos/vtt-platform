@@ -137,6 +137,11 @@ export function registerDrawHandlers(
       if (payload.annotations) {
         await drawService.persist(payload.sceneId, payload.annotations);
       }
+      // Persist token positions from the Edit Scene staging buffer (Sess 5.5 Mini-C).
+      // applyTokenSnapshot is a no-op when the list is empty or absent.
+      if (sceneService && payload.tokens && payload.tokens.length > 0) {
+        await sceneService.applyTokenSnapshot(payload.sceneId, payload.tokens);
+      }
       const { roomId, sceneId } = payload;
       // Broadcast to ALL EXCEPT the sender — the sender (GM) already has correct local state.
       socket.broadcast.to(roomId).emit('fog:clear', { roomId, sceneId });
@@ -162,8 +167,10 @@ export function registerDrawHandlers(
           annotations: persistedAnnotations,
         });
       }
-      // Deliver buffered scene-level mutations (background, grid) that were
-      // staged during Edit Scene to all OTHER clients on Done.
+      // Deliver buffered scene-level mutations (background, grid, token positions)
+      // that were staged during Edit Scene to all OTHER clients on Done.
+      // scene:snapshot carries the full SceneDTO including updated token positions,
+      // so Players receive new token state automatically via hydrateScene.
       if (sceneService) {
         const snapshot = await sceneService.getSnapshot(
           sceneId,
@@ -284,8 +291,14 @@ export function registerDrawHandlers(
       if (!sceneAnnotationService) return;
       if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
       if (payload.visibility !== 'all' && payload.visibility !== 'gm-only') return;
-      await sceneAnnotationService.setObjectVisibility(payload.sceneId, payload.objectId, socket.data.role, payload.visibility);
-      io.to(payload.roomId).emit('object:set-visibility', payload);
+      const annotations = await sceneAnnotationService.setObjectVisibility(
+        payload.sceneId, payload.objectId, socket.data.role, payload.visibility,
+      );
+      const updatedObject = (annotations.objects ?? []).find((o) => o.id === payload.objectId);
+      io.to(payload.roomId).emit('object:set-visibility', {
+        ...payload,
+        ...(updatedObject !== undefined ? { object: updatedObject } : {}),
+      });
     } catch (err) {
       console.error('[Socket] object:set-visibility error:', err);
     }

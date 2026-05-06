@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Layer, Group, Image as KonvaImage, Rect, Text, Circle } from 'react-konva';
 import type Konva from 'konva';
 import type { Role, TokenPublicDTO, StatusMarker } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import { moveTokenOptimistic, applyTokenRollback } from '../../../store/scene';
-import { emitTokenMove } from '../../../api/socket';
+import { emitTokenMove, emitTokenDragPreview } from '../../../api/socket';
 import { useImage } from '../useImage';
 import HpBar from '../HpBar';
 
+/** Throttle for `token:drag-preview` broadcasts (Sess 5.5 Mini-D). */
+const TOKEN_DRAG_PREVIEW_THROTTLE_MS = 50;
+
 interface TokenLayerProps {
   sceneId: string;
+  /** Required for `token:drag-preview` broadcast (Sess 5.5 Mini-D). */
+  roomId: string;
   tokens: TokenPublicDTO[];
   gridSize: number;
   myRole: Role;
@@ -38,9 +43,14 @@ const STATUS_COLORS: Record<StatusMarker, string> = {
  * DOM-inside-Konva constraint).
  */
 export default function TokenLayer({
-  sceneId, tokens, gridSize, myRole, myUserId, onTokenSelect, onTokenContextMenu,
+  sceneId, roomId, tokens, gridSize, myRole, myUserId, onTokenSelect, onTokenContextMenu,
 }: TokenLayerProps): JSX.Element {
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
+  // Sess 5.5 Mini-D — remote drag previews broadcast by other clients.
+  // The local dragger does NOT receive its own preview (server uses
+  // socket.broadcast.to), so this map only contains tokens being moved by
+  // someone else.
+  const remotePreviews = useAppSelector((s) => s.annotations.tokenDragPreviews);
 
   return (
     <Layer>
@@ -52,19 +62,24 @@ export default function TokenLayer({
           fill="#ffffff" opacity={0.25} cornerRadius={4} listening={false}
         />
       )}
-      {tokens.map((token) => (
-        <TokenNode
-          key={token.id}
-          token={token}
-          sceneId={sceneId}
-          gridSize={gridSize}
-          draggable={myRole === 'GM' || token.assignedUserId === myUserId}
-          onGhostMove={setGhost}
-          onGhostEnd={() => setGhost(null)}
-          onEditClick={onTokenSelect}
-          onContextMenu={onTokenContextMenu}
-        />
-      ))}
+      {tokens.map((token) => {
+        const preview = remotePreviews[token.id];
+        return (
+          <TokenNode
+            key={token.id}
+            token={token}
+            sceneId={sceneId}
+            roomId={roomId}
+            gridSize={gridSize}
+            draggable={myRole === 'GM' || token.assignedUserId === myUserId}
+            remotePreview={preview ?? null}
+            onGhostMove={setGhost}
+            onGhostEnd={() => setGhost(null)}
+            onEditClick={onTokenSelect}
+            onContextMenu={onTokenContextMenu}
+          />
+        );
+      })}
     </Layer>
   );
 }
@@ -72,8 +87,11 @@ export default function TokenLayer({
 interface TokenNodeProps {
   token: TokenPublicDTO;
   sceneId: string;
+  roomId: string;
   gridSize: number;
   draggable: boolean;
+  /** Remote drag-preview position (Sess 5.5 Mini-D); overrides token.x/y for non-draggers. */
+  remotePreview: { x: number; y: number } | null;
   onGhostMove: (pos: { x: number; y: number }) => void;
   onGhostEnd: () => void;
   onEditClick: ((id: string) => void) | undefined;
@@ -81,7 +99,7 @@ interface TokenNodeProps {
 }
 
 function TokenNode({
-  token, sceneId, gridSize, draggable,
+  token, sceneId, roomId, gridSize, draggable, remotePreview,
   onGhostMove, onGhostEnd, onEditClick, onContextMenu,
 }: TokenNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
@@ -89,15 +107,36 @@ function TokenNode({
   const image = useImage(token.imageUrl);
   const tokenColor = token.color ?? '#7c5cff';
 
-  const px = token.x;
-  const py = token.y;
+  // Track local drag state so remotePreview never overrides our own Konva-driven
+  // position (the server doesn't echo our preview back, but the guard adds safety
+  // against any future change that might).
+  const isDraggingLocallyRef = useRef(false);
+  const lastPreviewEmitRef = useRef(0);
+
+  const usePreview = remotePreview !== null && !isDraggingLocallyRef.current;
+  const px = usePreview ? remotePreview.x : token.x;
+  const py = usePreview ? remotePreview.y : token.y;
+
+  function handleDragStart(): void {
+    isDraggingLocallyRef.current = true;
+  }
 
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
     const node = e.target;
-    onGhostMove({ x: node.x(), y: node.y() });
+    const x = node.x();
+    const y = node.y();
+    onGhostMove({ x, y });
+
+    // Sess 5.5 Mini-D — throttled ephemeral broadcast for smooth remote view.
+    const now = Date.now();
+    if (now - lastPreviewEmitRef.current >= TOKEN_DRAG_PREVIEW_THROTTLE_MS) {
+      lastPreviewEmitRef.current = now;
+      emitTokenDragPreview({ roomId, sceneId, tokenId: token.id, x, y });
+    }
   }
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
+    isDraggingLocallyRef.current = false;
     onGhostEnd();
     const node = e.target;
     const targetX = Math.max(0, node.x());
@@ -127,6 +166,7 @@ function TokenNode({
     <Group
       x={px} y={py}
       draggable={draggable}
+      onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onClick={() => onEditClick?.(token.id)}

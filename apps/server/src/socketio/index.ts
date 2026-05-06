@@ -14,7 +14,7 @@ import type { DrawService } from '../services/DrawService.js';
 import type { SceneAnnotationService } from '../services/SceneAnnotationService.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
 import { RoomAccessService } from '../services/RoomAccessService.js';
-import { makeTokenMoveHandler } from './handlers/token.js';
+import { makeTokenMoveHandler, makeTokenDragPreviewHandler } from './handlers/token.js';
 import { makeDiceRollHandler } from './handlers/dice.js';
 import { makeChatMessageHandler } from './handlers/chat.js';
 import { makeSessionResyncHandler } from './handlers/resync.js';
@@ -132,6 +132,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
     );
 
     socket.on('token:move', makeTokenMoveHandler(io, socket, deps.sceneService));
+    socket.on('token:drag-preview', makeTokenDragPreviewHandler(socket, deps.sceneService));
     socket.on(
       'dice:roll',
       makeDiceRollHandler(io, socket, deps.diceService, deps.chatService, deps.rooms),

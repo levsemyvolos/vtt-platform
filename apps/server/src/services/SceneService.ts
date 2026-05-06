@@ -329,6 +329,14 @@ export class SceneService {
     return token?.sceneId ?? null;
   }
 
+  /**
+   * Thin read used by the drag-preview RBAC check.
+   * Returns the raw Token (with assignedUserId) or null if not found.
+   */
+  async findTokenById(tokenId: string): Promise<Token | null> {
+    return this.tokens.findById(tokenId);
+  }
+
   async buildSceneUpdateForViewer(
     sceneId: string,
     version: number,
@@ -398,5 +406,19 @@ export class SceneService {
     const token = await this.tokens.findById(tokenId);
     if (!token) throw new HttpError(404, 'Token not found');
     await this.tokens.delete(tokenId);
+  }
+
+  /**
+   * Bulk-applies token positions from an Edit Scene flush (Sess 5.5 Mini-C).
+   * Skipped when the tokens list is empty. Does NOT bump version — OCC version
+   * bumps only happen on real-time `token:move` events. Caller (scene:flush
+   * handler) already enforces GM RBAC.
+   */
+  async applyTokenSnapshot(
+    sceneId: string,
+    tokens: ReadonlyArray<{ id: string; x: number; y: number }>,
+  ): Promise<void> {
+    if (tokens.length === 0) return;
+    await this.tokens.bulkUpdatePositions(sceneId, tokens);
   }
 }
