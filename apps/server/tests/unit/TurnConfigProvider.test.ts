@@ -14,7 +14,6 @@ describe('TurnConfigProvider', () => {
     const secret = 'test-secret-32-bytes-long-aaaaaa';
     const provider = new TurnConfigProvider({
       turnHost: 'turn.vtt.example.com',
-      turnRealm: 'vtt.example.com',
       staticAuthSecret: secret,
       ttlSeconds: 3600,
     });
@@ -34,7 +33,7 @@ describe('TurnConfigProvider', () => {
     expect(turnEntry?.credential).toBe(expectedCredential);
   });
 
-  it('emits both turn:udp and turns:tcp URIs for client fallback', () => {
+  it('emits RFC-7065-compliant turn:udp and turns:tcp URIs', () => {
     const provider = new TurnConfigProvider({
       turnHost: 'turn.vtt.example.com',
       staticAuthSecret: 's',
@@ -42,8 +41,9 @@ describe('TurnConfigProvider', () => {
     const { iceServers } = provider.getIceServers('u');
     const urls = iceServers[1]?.urls as string[];
     expect(Array.isArray(urls)).toBe(true);
-    expect(urls.some((u) => u.startsWith('turn:turn.vtt.example.com:3478'))).toBe(true);
-    expect(urls.some((u) => u.startsWith('turns:turn.vtt.example.com:5349'))).toBe(true);
+    // Exact format — no extra query params (realm must not appear per RFC 7065)
+    expect(urls[0]).toBe('turn:turn.vtt.example.com:3478?transport=udp');
+    expect(urls[1]).toBe('turns:turn.vtt.example.com:5349?transport=tcp');
   });
 
   it('produces deterministic credentials within the same second', () => {

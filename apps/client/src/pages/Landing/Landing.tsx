@@ -1,11 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Logo } from '../../components/ui';
 import Button from '../../components/ui/Button';
 import ThemeToggle from '../../components/Header/ThemeToggle';
 import LanguageSwitcher from '../../components/Header/LanguageSwitcher';
 import styles from './Landing.module.css';
 
-type AuthView = 'login' | 'register' | 'observer';
+type AuthView = 'login' | 'register' | 'observer' | 'join-observer';
 
 interface LandingProps {
   onNavigate: (view: AuthView) => void;
@@ -29,7 +28,6 @@ export default function Landing({ onNavigate }: LandingProps): JSX.Element {
 
       <section className={styles.hero}>
         <div className={styles.logoWrap}>
-          <Logo size={56} />
           <span className={styles.logoText}>{t('hero.title')}</span>
         </div>
         <p className={styles.subtitle}>{t('hero.subtitle')}</p>
@@ -51,9 +49,9 @@ export default function Landing({ onNavigate }: LandingProps): JSX.Element {
           <Button
             variant="ghost"
             size="lg"
-            onClick={() => onNavigate('observer')}
+            onClick={() => onNavigate('join-observer')}
           >
-            {t('cta.observer')}
+            {t('cta.joinObserver')}
           </Button>
         </div>
       </section>

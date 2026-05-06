@@ -56,7 +56,12 @@ export class SpeakingDetector {
       lastSpeakAt: 0,
     };
     const tick = (): void => {
-      analyser.getByteFrequencyData(data);
+      try {
+        analyser.getByteFrequencyData(data);
+      } catch {
+        // AudioContext closed or source disconnected; stop the loop silently.
+        return;
+      }
       let sum = 0;
       for (let i = 0; i < data.length; i++) sum += data[i] ?? 0;
       const avg = sum / data.length;

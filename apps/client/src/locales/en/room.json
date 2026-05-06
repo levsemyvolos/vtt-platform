@@ -3,6 +3,14 @@
     "heading": "My Rooms",
     "subheading": "{{active}} active · {{total}} total",
     "createBtn": "Create Room",
+    "joinBtn": "Join by code",
+    "joinModal": {
+      "heading": "Join a room",
+      "inputLabel": "Invite code",
+      "placeholder": "p_… or full link",
+      "submitBtn": "Join",
+      "formLabel": "join by code form"
+    },
     "noRooms": "No rooms yet. Create your first!",
     "membersCount": "{{count}} members",
     "membersCount_one": "{{count}} member",
@@ -106,11 +114,19 @@
   },
   "invite": {
     "inviteBtn": "Invite Players",
-    "inviteBtnTitle": "Get invite link for players",
-    "playerLabel": "Player:",
-    "observerLabel": "Observer:",
+    "inviteBtnTitle": "Get invite codes for players and observers",
+    "playerLabel": "Players",
+    "observerLabel": "Observers",
+    "tabPlayer": "Player",
+    "tabObserver": "Observer",
+    "joinCodeLabelPlayer": "Player join code",
+    "joinCodeLabelObserver": "Observer join code",
+    "shareLinkSecondary": "or copy the link",
     "copied": "Copied!",
-    "copyBtn": "Copy",
+    "copyCode": "Copy Code",
+    "copyLink": "Copy Link",
+    "codeLabel": "Code:",
+    "linkLabel": "Link:",
     "joined": "Joined room {{name}}"
   },
   "token": {

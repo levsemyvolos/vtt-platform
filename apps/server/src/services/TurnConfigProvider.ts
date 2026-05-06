@@ -6,8 +6,6 @@ export interface TurnConfigOptions {
   stunUrl?: string | undefined;
   /** TURN host (e.g. `turn.vtt.example.com`). When empty, only STUN is returned. */
   turnHost?: string | undefined;
-  /** TURN realm (must match `realm` in turnserver.conf). */
-  turnRealm?: string | undefined;
   /** coturn `static-auth-secret` — must NOT leak to clients (HMAC only). */
   staticAuthSecret?: string | undefined;
   /** Credential lifetime, seconds. Default 1 hour per RFC 7635. */
@@ -32,14 +30,12 @@ const DEFAULT_TTL = 3600;
 export class TurnConfigProvider {
   private readonly stunUrl: string;
   private readonly turnHost: string | undefined;
-  private readonly turnRealm: string | undefined;
   private readonly secret: string | undefined;
   private readonly ttlSeconds: number;
 
   constructor(opts: TurnConfigOptions = {}) {
     this.stunUrl = opts.stunUrl ?? DEFAULT_STUN;
     this.turnHost = opts.turnHost?.trim() || undefined;
-    this.turnRealm = opts.turnRealm?.trim() || undefined;
     this.secret = opts.staticAuthSecret?.trim() || undefined;
     this.ttlSeconds = opts.ttlSeconds ?? DEFAULT_TTL;
   }
@@ -55,12 +51,11 @@ export class TurnConfigProvider {
       const expiry = Math.floor(now / 1000) + this.ttlSeconds;
       const username = `${expiry}:${userId}`;
       const credential = createHmac('sha1', this.secret).update(username).digest('base64');
-      const realmSuffix = this.turnRealm ? `?realm=${encodeURIComponent(this.turnRealm)}` : '';
 
       iceServers.push({
         urls: [
-          `turn:${this.turnHost}:3478?transport=udp${realmSuffix.replace(/^\?/, '&')}`,
-          `turns:${this.turnHost}:5349?transport=tcp${realmSuffix.replace(/^\?/, '&')}`,
+          `turn:${this.turnHost}:3478?transport=udp`,
+          `turns:${this.turnHost}:5349?transport=tcp`,
         ],
         username,
         credential,

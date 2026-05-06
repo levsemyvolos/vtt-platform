@@ -139,10 +139,16 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
     );
     socket.on('chat:message', makeChatMessageHandler(io, socket, deps.chatService));
     socket.on('session:resync', makeSessionResyncHandler(socket, deps.resyncService));
-    registerSignalingHandlers(io, socket);
+    registerSignalingHandlers(io, socket, deps.rooms);
     registerAnnotationHandlers(socket, deps.annotationService);
     registerDrawHandlers(io, socket, deps.drawService, deps.sceneAnnotationService, deps.sceneService);
     registerModerationHandlers(io, socket);
+
+    socket.on('disconnect', (reason) => {
+      console.log(
+        `[ws] disconnect uid=${socket.data.userId} room=${socket.data.roomId ?? 'none'} reason=${reason}`,
+      );
+    });
   });
 
   return io;

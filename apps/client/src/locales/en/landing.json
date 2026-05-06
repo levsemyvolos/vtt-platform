@@ -1,12 +1,13 @@
 {
   "hero": {
-    "title": "VTT Platform",
+    "title": "Obscure VTT",
     "subtitle": "AI-assisted virtual tabletop for TTRPGs"
   },
   "cta": {
     "login": "Sign In",
     "register": "Create Account",
-    "observer": "Join as Observer"
+    "observer": "Join as Observer",
+    "joinObserver": "Join as Observer"
   },
   "features": {
     "realtime": {
@@ -22,5 +23,5 @@
       "desc": "Chat, initiative tracker, notes, handouts, and dice roller"
     }
   },
-  "footer": "© 2026 VTT Platform · v0.0.1"
+  "footer": "© 2026 Obscure VTT · v0.0.1"
 }

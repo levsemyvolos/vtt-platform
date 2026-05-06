@@ -108,7 +108,7 @@ export class PeerManager {
     } else if (event === 'signal:answer') {
       await this.handleAnswer(peerId, payload.data as RTCSessionDescriptionInit);
     } else {
-      await this.handleIce(peerId, payload.data as RTCIceCandidateInit);
+      await this.handleIce(peerId, payload.data as RTCIceCandidateInit | null);
     }
   }
 
@@ -192,11 +192,12 @@ export class PeerManager {
     }
 
     pc.onicecandidate = (ev) => {
-      if (!ev.candidate) return;
+      // null candidate = end-of-candidates per RFC 8829; forward it so the
+      // remote peer can call addIceCandidate(null) to complete gathering.
       this.opts.callbacks.sendSignal('signal:ice', {
         roomId: this.opts.roomId,
         toUserId: peerId,
-        data: ev.candidate.toJSON(),
+        data: ev.candidate ? ev.candidate.toJSON() : null,
       });
     };
 
@@ -323,10 +324,12 @@ export class PeerManager {
     }
   }
 
-  private async handleIce(peerId: string, candidate: RTCIceCandidateInit): Promise<void> {
+  private async handleIce(peerId: string, candidate: RTCIceCandidateInit | null): Promise<void> {
     const entry = this.ensurePeer(peerId);
     try {
-      await entry.pc.addIceCandidate(candidate);
+      // Pass RTCIceCandidateInit dict directly — spec allows it without wrapping
+      // in RTCIceCandidate(); null → {} signals end-of-candidates.
+      await entry.pc.addIceCandidate(candidate ?? {});
     } catch (err) {
       // Tolerate ICE failures only when we're explicitly ignoring this offer.
       if (!entry.ignoreOffer) {

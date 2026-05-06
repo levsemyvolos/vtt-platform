@@ -4,7 +4,6 @@ import type { UserPublic, AuthTokenPair, ObserverJoinResponse } from '@vtt/share
 import { apiFetch } from '../api/apiFetch';
 import { tokenStore } from '../api/tokenStore';
 import { addToast } from './toast';
-import { fetchRoom, getPersistedRoomId } from './room';
 
 /**
  * Wave 6.2 — error source discrimination.
@@ -119,7 +118,7 @@ export const bootstrapSession = createAsyncThunk<
 >(
   'session/bootstrap',
   // eslint-disable-next-line complexity
-  async (_, { rejectWithValue, dispatch }) => {
+  async (_, { rejectWithValue }) => {
     const refreshToken = tokenStore.getRefresh();
     if (!refreshToken) return null;
 
@@ -131,12 +130,6 @@ export const bootstrapSession = createAsyncThunk<
           method: 'POST',
           body: JSON.stringify({ refreshToken }),
         });
-        // BUG-001-F5: if user was in a room before F5, restore it so App.tsx shows Lobby.
-        const persistedRoomId = getPersistedRoomId();
-        if (persistedRoomId && pair) {
-          // fetchRoom.rejected clears localStorage via room.ts reducer (404/403).
-          void (dispatch as (a: unknown) => unknown)(fetchRoom(persistedRoomId));
-        }
         return pair;
       } catch (err) {
         // AbortError: the fetch was cancelled mid-flight (e.g. rapid F5 with AbortController).
@@ -266,8 +259,6 @@ const sessionSlice = createSlice({
         state.status = 'idle';
         state.error = null;
         state.errorSource = null;
-        // BUG-001-F5: clear persisted room so the user doesn't get auto-redirected after logout.
-        try { localStorage.removeItem('vtt_current_room_id'); } catch { /* ignore */ }
       })
       .addCase(bootstrapSession.pending, (state) => {
         if (state.status !== 'authenticated') state.status = 'bootstrapping';
