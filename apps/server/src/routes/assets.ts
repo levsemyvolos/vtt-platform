@@ -1,11 +1,13 @@
 import { Router, type IRouter } from 'express';
 import type { Request, Response } from 'express';
+import multer from 'multer';
 import type { PrismaClient } from '@prisma/client';
 import type { AssetService } from '../services/AssetService.js';
 import { jwtAuth } from '../middleware/jwtAuth.js';
-import { validate } from '../middleware/validate.js';
 import { HttpError } from '../lib/errors.js';
-import { initUploadSchema, finalizeUploadSchema } from '../schemas/asset.schema.js';
+import { ALLOWED_MIMES, IMAGE_MAX_BYTES, renameAssetSchema } from '../schemas/asset.schema.js';
+import { verifyAssetUrl } from '../lib/assetUrlSigner.js';
+import { validate } from '../middleware/validate.js';
 
 function handleError(err: unknown, res: Response): void {
   if (err instanceof HttpError) {
@@ -39,6 +41,18 @@ async function assertAssetListAccess(
   const boundObserver = user.role === 'Observer' && user.boundRoomId === roomId;
   if (!member && !char && !boundObserver) throw new HttpError(403, 'Not a room member');
 }
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: IMAGE_MAX_BYTES },
+  fileFilter(_req, file, cb) {
+    if ((ALLOWED_MIMES as readonly string[]).includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new HttpError(400, `Unsupported MIME type: ${file.mimetype}`));
+    }
+  },
+});
 
 export function buildAssetsRouter(assetService: AssetService, db: PrismaClient): IRouter {
   const router = Router();
@@ -74,29 +88,70 @@ export function buildAssetsRouter(assetService: AssetService, db: PrismaClient):
     }
   });
 
+  /**
+   * GET /assets/:id/file?exp=&sig=
+   * Streams asset bytes from GCS through the server. Auth: HMAC-signed URL only.
+   *
+   * Why no jwtAuth: <img> and new Image() can't send Authorization headers.
+   * Capability-based access via short-lived signed URL is the standard pattern
+   * (see assetUrlSigner). The URL is issued by JWT-authenticated GET /api/assets/:id.
+   * Bucket stays fully private; the signature scopes access to one asset for 4h.
+   */
   router.get('/:id/file', async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const dto = await assetService.getAssetDTO(req.params.id);
-      res.redirect(dto.url);
+      const exp = req.query['exp'] as string | undefined;
+      const sig = req.query['sig'] as string | undefined;
+      if (!verifyAssetUrl(req.params.id, exp, sig)) {
+        throw new HttpError(403, 'Invalid or expired asset URL');
+      }
+
+      const { stream, mimeType, size } = await assetService.getAssetStream(req.params.id);
+
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Length', size);
+      // Stable cache key (assetId+exp+sig identical on repeat) — safe to cache long.
+      res.setHeader('Cache-Control', 'public, max-age=3600, immutable');
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+
+      stream.on('error', () => {
+        if (!res.headersSent) res.status(500).end();
+        else res.destroy();
+      });
+
+      stream.pipe(res);
     } catch (err) {
       handleError(err, res);
     }
   });
 
   /**
-   * POST /assets/uploads
-   * Initiates a presigned upload: returns a GCS signed PUT URL + storageKey.
-   * RBAC: user must be room owner or RoomMember.
-   * Ф6.1, НФВ 6.2 — Додаток Г Г.1.
+   * PATCH /assets/:id
+   * Renames an asset (display name only — storageKey is immutable).
+   * RBAC: asset owner OR room GM may rename.
    */
-  router.post(
-    '/uploads',
+  router.patch(
+    '/:id',
     jwtAuth,
-    validate(initUploadSchema),
-    async (req: Request, res: Response) => {
+    validate(renameAssetSchema),
+    async (req: Request<{ id: string }, object, { name: string }>, res: Response) => {
       try {
-        const result = await assetService.initUpload(req.body, req.user!.id);
-        res.status(200).json(result);
+        const asset = await assetService.findById(req.params.id);
+        if (!asset) throw new HttpError(404, 'Asset not found');
+
+        const isOwner = asset.ownerId === req.user!.id;
+        const room = await db.room.findUnique({
+          where: { id: asset.roomId },
+          select: { ownerId: true },
+        });
+        const isRoomGm = room?.ownerId === req.user!.id;
+        if (!isOwner && !isRoomGm) {
+          throw new HttpError(403, 'Only the asset owner or room GM may rename');
+        }
+
+        const updated = await assetService.rename(req.params.id, req.body.name);
+        const dto = await assetService.getAssetDTO(updated.id);
+        res.json(dto);
       } catch (err) {
         handleError(err, res);
       }
@@ -105,17 +160,40 @@ export function buildAssetsRouter(assetService: AssetService, db: PrismaClient):
 
   /**
    * POST /assets
-   * Finalizes an upload: verifies the file in storage and creates Asset record.
-   * RBAC: user must be room owner or RoomMember; storageKey must match roomId.
-   * Ф6.1, Ф7.2.
+   * Uploads a file directly through the server to GCS. No presigned URL exposed to the client.
+   * RBAC: requester must be room owner or RoomMember.
+   * Ф6.1, Ф7.2, НФВ 6.2.
    */
   router.post(
     '/',
     jwtAuth,
-    validate(finalizeUploadSchema),
+    upload.single('file'),
     async (req: Request, res: Response) => {
       try {
-        const dto = await assetService.finalizeUpload(req.body, req.user!.id);
+        const roomId = req.body['roomId'] as string | undefined;
+        if (!roomId) throw new HttpError(400, 'roomId is required');
+
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(roomId)) throw new HttpError(400, 'roomId must be a UUID');
+
+        if (!req.file) throw new HttpError(400, 'file is required');
+
+        await assertAssetListAccess(db, roomId, req.user!);
+
+        // Multer decodes multipart filename as latin1 per RFC 7578 legacy default,
+        // but browsers send UTF-8 bytes. Re-decode to recover Cyrillic/Unicode names.
+        const rawName = req.file.originalname || 'upload';
+        const originalName = Buffer.from(rawName, 'latin1').toString('utf8');
+
+        const asset = await assetService.uploadUserFile(
+          req.file.buffer,
+          req.file.mimetype,
+          req.user!.id,
+          roomId,
+          originalName,
+        );
+
+        const dto = await assetService.getAssetDTO(asset.id);
         res.status(201).json(dto);
       } catch (err) {
         handleError(err, res);

@@ -5,6 +5,7 @@
 export interface InitiativeAddRequest {
   name: string;
   initiative: number;
+  tokenId?: string;
 }
 
 export interface InitiativeReorderRequest {

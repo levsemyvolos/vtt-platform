@@ -40,7 +40,7 @@ export default function EditorToolbarRight(): JSX.Element {
       });
       dispatch(upsertToken(updated));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('errors:network.saveFailed' as never));
+      setError(err instanceof Error ? err.message : t('errors:network.saveFailed'));
     } finally {
       setSaving(false);
     }

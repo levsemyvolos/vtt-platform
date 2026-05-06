@@ -19,6 +19,7 @@ import sceneReducer from '../../../store/scene';
 import canvasViewportReducer from '../../../store/canvasViewport';
 import preferencesReducer from '../../../store/preferences';
 import toastReducer from '../../../store/toast';
+import assetsReducer from '../../../store/assets';
 import SceneEditor from '../SceneEditor';
 
 afterEach(() => cleanup());
@@ -45,6 +46,7 @@ function makeStore(role: 'GM' | 'Player') {
       canvasViewport: canvasViewportReducer,
       preferences: preferencesReducer,
       toast: toastReducer,
+      assets: assetsReducer,
     },
     preloadedState: {
       session: {

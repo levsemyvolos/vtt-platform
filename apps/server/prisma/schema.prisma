@@ -85,13 +85,18 @@ model RoomMember {
 }
 
 model Asset {
-  id         String   @id @default(uuid()) @db.Uuid
-  ownerId    String   @db.Uuid
-  roomId     String   @db.Uuid
-  mimeType   String   @db.VarChar(128)
-  size       BigInt
-  storageKey String   @unique @db.VarChar(256)
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  id           String   @id @default(uuid()) @db.Uuid
+  ownerId      String   @db.Uuid
+  roomId       String   @db.Uuid
+  mimeType     String   @db.VarChar(128)
+  size         BigInt
+  // storageKey is the immutable GCS object path (rooms/<uuid>/<kind>/<uuid>.<ext>).
+  // It MUST stay UUID-based for storage stability — rename UI mutates `originalName` only.
+  storageKey   String   @unique @db.VarChar(256)
+  // Display name shown in the asset library. Backfilled from storageKey suffix
+  // for rows created before the rename feature; new uploads carry file.originalname.
+  originalName String   @default("") @db.VarChar(128)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
   owner            User        @relation("AssetOwner", fields: [ownerId], references: [id])
   room             Room        @relation("AssetRoom", fields: [roomId], references: [id], onDelete: Cascade)
@@ -107,6 +112,10 @@ model Scene {
   roomId            String   @db.Uuid
   name              String   @db.VarChar(128)
   backgroundAssetId String?  @db.Uuid
+  backgroundFit     String   @default("cover")
+  backgroundOffsetX Float    @default(0)
+  backgroundOffsetY Float    @default(0)
+  backgroundScale   Float    @default(1.0)
   gridSize          Int
   // Scene grid dimensions in cells — used by FoW algorithm A4 (visibility[W][H]).
   gridWidth         Int      @default(40)
@@ -149,9 +158,10 @@ model Token {
   version        Int      @default(0)
   visionRadius   Int      @default(6)
 
-  scene        Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
-  assignedUser User?  @relation("TokenAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  imageAsset   Asset? @relation("TokenImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  scene             Scene            @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  assignedUser      User?            @relation("TokenAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  imageAsset        Asset?           @relation("TokenImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  initiativeEntries InitiativeEntry[] @relation("InitiativeEntryToken")
 
   @@index([sceneId])
 }
@@ -251,8 +261,12 @@ model InitiativeEntry {
   initiative Int
   orderIndex Int
   isCurrent  Boolean @default(false)
+  tokenId    String? @db.Uuid
 
-  scene Scene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  scene Scene  @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  token Token? @relation("InitiativeEntryToken", fields: [tokenId], references: [id], onDelete: SetNull)
+
+  @@index([tokenId])
 }
 
 model Session {

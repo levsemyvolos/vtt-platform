@@ -27,6 +27,7 @@ import toastReducer from '../../../store/toast';
 import preferencesReducer from '../../../store/preferences';
 import roomReducer from '../../../store/room';
 import annotationsReducer from '../../../store/annotations';
+import initiativeReducer from '../../../store/initiative';
 import GameCanvas from '../GameCanvas';
 import type { SceneDTO } from '@vtt/shared';
 
@@ -56,6 +57,10 @@ const MOCK_SCENE: SceneDTO = {
   fogShapes: [],
   annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   tokens: [],
+  backgroundFit: 'cover' as const,
+  backgroundOffsetX: 0,
+  backgroundOffsetY: 0,
+  backgroundScale: 1.0,
 };
 
 function makeStore() {
@@ -67,6 +72,7 @@ function makeStore() {
       preferences: preferencesReducer,
       room: roomReducer,
       annotations: annotationsReducer,
+      initiative: initiativeReducer,
     },
   });
 }

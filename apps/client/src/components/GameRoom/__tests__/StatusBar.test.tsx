@@ -34,6 +34,10 @@ function makeScene(overrides?: Partial<SceneDTO>): SceneDTO {
     fogShapes: [],
     annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
     tokens: [],
+    backgroundFit: 'cover',
+    backgroundOffsetX: 0,
+    backgroundOffsetY: 0,
+    backgroundScale: 1.0,
     ...overrides,
   };
 }

@@ -1,5 +1,13 @@
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, type MockedFunction } from 'vitest';
 import { AssetService } from '../../src/services/AssetService.js';
+import { _resetKeyCacheForTests } from '../../src/lib/assetUrlSigner.js';
+
+beforeAll(() => {
+  if (!process.env['JWT_SECRET']) {
+    process.env['JWT_SECRET'] = 'unit-test-secret-' + 'z'.repeat(48);
+  }
+  _resetKeyCacheForTests();
+});
 import type { AIProvider, GeneratedBinary } from '../../src/infrastructure/ai/AIProvider.js';
 import type {
   FileStorageAdapter,
@@ -46,6 +54,7 @@ function makeStorage(): { storage: FileStorageAdapter; mocks: StorageMocks } {
 
 interface RepoMocksExt extends RepoMocks {
   findByRoomAndType: MockedFunction<AssetRepository['findByRoomAndType']>;
+  rename: MockedFunction<AssetRepository['rename']>;
 }
 
 function makeRepo(): { repo: AssetRepository; mocks: RepoMocksExt } {
@@ -54,6 +63,7 @@ function makeRepo(): { repo: AssetRepository; mocks: RepoMocksExt } {
     create: vi.fn(),
     deleteById: vi.fn(),
     findByRoomAndType: vi.fn(),
+    rename: vi.fn(),
   };
   return { repo: mocks as unknown as AssetRepository, mocks };
 }
@@ -89,6 +99,7 @@ describe('AssetService.storeAiAsset', () => {
         mimeType: data.mimeType as string,
         size: data.size as bigint,
         storageKey: data.storageKey as string,
+        originalName: (data.originalName as string | undefined) ?? '',
         createdAt: new Date(),
       } satisfies Asset;
     });
@@ -99,6 +110,7 @@ describe('AssetService.storeAiAsset', () => {
       ROOM_ID,
       { bytes: PNG_BYTES, mimeType: 'image/png' },
       'image',
+      'a sleeping dragon',
     );
 
     expect(asset.ownerId).toBe(USER_ID);
@@ -115,14 +127,14 @@ describe('AssetService.storeAiAsset', () => {
 describe('AssetService.listByRoomAndType', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('returns AssetDTOs with presigned URLs for all assets in room', async () => {
+  it('returns AssetDTOs with proxy URLs (never presigned) for all assets in room', async () => {
     const { provider } = makeAi();
     const { storage, mocks: storageMocks } = makeStorage();
     const { repo, mocks: repoMocks } = makeRepo();
 
     repoMocks.findByRoomAndType.mockResolvedValue([
-      { id: 'a1', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'image/png', size: BigInt(4), storageKey: 'rooms/r/image/a.png', createdAt: new Date() },
-      { id: 'a2', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'audio/wav', size: BigInt(8), storageKey: 'rooms/r/audio/b.wav', createdAt: new Date() },
+      { id: 'a1', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'image/png', size: BigInt(4), storageKey: 'rooms/r/image/a.png', originalName: 'cat.png', createdAt: new Date() },
+      { id: 'a2', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'audio/wav', size: BigInt(8), storageKey: 'rooms/r/audio/b.wav', originalName: 'theme.wav', createdAt: new Date() },
     ]);
     storageMocks.getPresignedUrl.mockResolvedValue('https://signed.example/url');
 
@@ -130,9 +142,13 @@ describe('AssetService.listByRoomAndType', () => {
     const dtos = await service.listByRoomAndType(ROOM_ID, 'all');
 
     expect(dtos).toHaveLength(2);
-    expect(dtos[0].id).toBe('a1');
-    expect(dtos[0].url).toBe('/api/assets/a1/file');
+    expect(dtos[0]!.id).toBe('a1');
+    // URL is now signed: /api/assets/a1/file?exp=...&sig=...
+    expect(dtos[0]!.url).toMatch(/^\/api\/assets\/a1\/file\?exp=\d+&sig=[A-Za-z0-9_-]+$/);
+    expect(dtos[0]!.url).not.toContain('storage.googleapis.com');
+    expect(dtos[0]!.name).toBe('cat.png');
     expect(dtos[0]).not.toHaveProperty('storageKey');
+    expect(storageMocks.getPresignedUrl).not.toHaveBeenCalled();
     expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, '');
   });
 
@@ -154,7 +170,7 @@ describe('AssetService.listByRoomAndType', () => {
 describe('AssetService.getAssetDTO', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('returns DTO with presigned URL and never exposes storageKey', async () => {
+  it('returns DTO with proxy URL (never a presigned URL) and never exposes storageKey', async () => {
     const { provider } = makeAi();
     const { storage, mocks: storageMocks } = makeStorage();
     const { repo, mocks: repoMocks } = makeRepo();
@@ -166,6 +182,7 @@ describe('AssetService.getAssetDTO', () => {
       mimeType: 'image/png',
       size: BigInt(4),
       storageKey: 'rooms/r/image/k.png',
+      originalName: 'goblin-token.png',
       createdAt: new Date(),
     });
     storageMocks.getPresignedUrl.mockResolvedValue('https://signed.example/r/image/k.png?sig=...');
@@ -174,9 +191,12 @@ describe('AssetService.getAssetDTO', () => {
     const dto = await service.getAssetDTO('asset-1');
 
     expect(dto.id).toBe('asset-1');
-    expect(dto.url).toBe('/api/assets/asset-1/file');
+    expect(dto.url).toMatch(/^\/api\/assets\/asset-1\/file\?exp=\d+&sig=[A-Za-z0-9_-]+$/);
+    expect(dto.url).not.toContain('storage.googleapis.com');
     expect(dto.type).toBe('image/png');
+    expect(dto.name).toBe('goblin-token.png');
     expect(dto).not.toHaveProperty('storageKey');
+    expect(storageMocks.getPresignedUrl).not.toHaveBeenCalled();
   });
 
   it('throws HttpError 404 when asset is missing', async () => {

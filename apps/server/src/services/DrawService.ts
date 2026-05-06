@@ -7,6 +7,8 @@ import type {
   FogShapeAddPayload,
   FogShapeRemovePayload,
   SceneObject,
+  SceneObjectLayer,
+  SceneObjectVisibility,
 } from '@vtt/shared';
 
 export interface DrawBroadcast {
@@ -123,6 +125,8 @@ function strokeToObject(stroke: DrawStroke, index = 0): SceneObject {
     points: stroke.points,
     color: stroke.color,
     strokeWidth: stroke.width,
+    layer: (stroke.layer ?? 'overlay') as SceneObjectLayer,
+    visibility: (stroke.visibility ?? 'all') as SceneObjectVisibility,
   };
 }
 
@@ -137,6 +141,8 @@ function textToObject(text: NonNullable<SceneAnnotations['texts']>[number], inde
     text: text.text,
     fontSize: text.fontSize,
     color: text.color,
+    layer: (text.layer ?? 'overlay') as SceneObjectLayer,
+    visibility: (text.visibility ?? 'all') as SceneObjectVisibility,
   };
 }
 
@@ -149,8 +155,15 @@ function imageToObject(image: NonNullable<SceneAnnotations['images']>[number], i
     y: image.y,
     width: image.width,
     height: image.height,
+    // Sess 2: preserve rotation so subsequent mutations don't drop it (RED 1 fix).
+    rotation: image.rotation ?? 0,
+    // Sess 3: preserve locked flag so lock state survives normalization round-trips.
+    ...(image.locked !== undefined ? { locked: image.locked } : {}),
     zIndex: index,
     assetId: image.assetId,
+    // Sess 5 Mini-A: layer/visibility defaults — 'tile' for images, 'all' visibility.
+    layer: (image.layer ?? 'tile') as SceneObjectLayer,
+    visibility: (image.visibility ?? 'all') as SceneObjectVisibility,
   };
 }
 

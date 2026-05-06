@@ -31,6 +31,10 @@ export const sceneUpdateSchema = z.object({
   gridVisible: z.boolean().optional(),
   backgroundAssetId: z.string().uuid().nullable().optional(),
   isHidden: z.boolean().optional(),
+  backgroundFit: z.enum(['cover', 'contain', 'stretch']).optional(),
+  backgroundOffsetX: z.number().finite().optional(),
+  backgroundOffsetY: z.number().finite().optional(),
+  backgroundScale: z.number().finite().min(0.05).max(20).optional(),
 });
 
 export type SceneCreateInput = z.infer<typeof sceneCreateSchema>;

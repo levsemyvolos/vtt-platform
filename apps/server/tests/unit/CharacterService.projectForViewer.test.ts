@@ -31,6 +31,7 @@ function makeAsset(): Asset {
     mimeType: 'application/pdf',
     size: BigInt(1024),
     storageKey: 'rooms/r/doc/sheet.pdf',
+    originalName: 'sheet.pdf',
     createdAt: new Date(),
   };
 }
@@ -101,15 +102,15 @@ describe('CharacterService.projectForViewer (algorithm A6 RBAC, §2.17.6)', () =
     expect(Object.keys(dto)).not.toContain('sheetData');
   });
 
-  it('Character with PDF: full includes pdfUrl, short never includes it', async () => {
-    const storage = makeStorage('https://signed.example/sheet.pdf?sig=ok');
-    const svc = new CharacterService(makeRepo(), storage, null);
+  it('Character with PDF: full includes proxy pdfUrl, short never includes it', async () => {
+    const svc = new CharacterService(makeRepo(), makeStorage(), null);
     const char = makeCharacter({ pdfAssetId: 'asset-1', pdfAsset: makeAsset() });
 
     const fullDto = await svc.projectForViewer(char, 'GM', GM_ID);
     expect(fullDto.kind).toBe('full');
     if (fullDto.kind === 'full') {
-      expect(fullDto.pdfUrl).toBe('/api/assets/asset-1/file');
+      expect(fullDto.pdfUrl).toMatch(/^\/api\/assets\/asset-1\/file\?exp=\d+&sig=[A-Za-z0-9_-]+$/);
+      expect(fullDto.pdfUrl).not.toContain('storage.googleapis.com');
     }
 
     const shortDto = await svc.projectForViewer(char, 'Player', OTHER_PLAYER_ID);

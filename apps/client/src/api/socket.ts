@@ -5,6 +5,7 @@ import type {
   Ack,
   SessionResyncPayload,
   TokenMovePayload,
+  TokenDragPreviewPayload,
   DiceRollInput,
   ChatMessageInput,
   ChatDicePayload,
@@ -17,15 +18,21 @@ import type {
   FogShapeRemovePayload,
   SceneObjectMovePayload,
   SceneObjectDeletePayload,
+  SceneObjectTransformPayload,
+  SceneObjectLockPayload,
+  SceneObjectZOrderPayload,
+  SceneObjectDuplicatePayload,
+  SceneObjectSetLayerPayload,
+  SceneObjectSetVisibilityPayload,
   ModerationPayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject, setSceneObjectLayer, setSceneObjectVisibility } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
-import { addPing, removePing, upsertMeasure, removeMeasure } from '../store/annotations';
+import { addPing, removePing, upsertMeasure, removeMeasure, upsertTokenDragPreview, removeTokenDragPreview } from '../store/annotations';
 import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
 import { upsertRoomMember, removeRoomMember, removeRoom, applyRoomUpdate, startSession, clearRoom } from '../store/room';
 import { setMicEnabled, setCameraEnabled } from '../store/media';
@@ -37,7 +44,7 @@ export type TypedClientSocket = Socket<ServerToClientEvents, ClientToServerEvent
 
 let socket: TypedClientSocket | null = null;
 
-const SERVER_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+const SERVER_URL = import.meta.env.VITE_API_URL ?? (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
 const ACK_TIMEOUT_MS = 5000;
 
 /**
@@ -82,6 +89,58 @@ export function getSocket(): TypedClientSocket {
   socket.on('object:delete', (payload) => {
     store.dispatch(removeSceneObject(payload.objectId));
   });
+  socket.on('object:transform', (payload) => {
+    store.dispatch(transformSceneObjectOptimistic({
+      objectId: payload.objectId,
+      x: payload.x,
+      y: payload.y,
+      width: payload.width,
+      height: payload.height,
+      rotation: payload.rotation,
+    }));
+  });
+  socket.on('object:lock', (payload) => {
+    store.dispatch(lockSceneObject({
+      objectId: payload.objectId,
+      locked: payload.locked,
+    }));
+  });
+  socket.on('object:zorder', (payload) => {
+    store.dispatch(setSceneObjectZIndex({
+      objectId: payload.objectId,
+      direction: payload.direction,
+    }));
+  });
+  socket.on('object:duplicated', (payload) => {
+    store.dispatch(appendSceneObject(payload.object));
+  });
+  socket.on('object:set-layer', (payload) => {
+    store.dispatch(setSceneObjectLayer({
+      objectId: payload.objectId,
+      layer: payload.layer,
+    }));
+  });
+  socket.on('object:set-visibility', (payload) => {
+    // Determine viewer role at dispatch time so the reducer can filter
+    // gm-only objects from non-GM clients while keeping them on GM clients.
+    const myUserId = store.getState().session.currentUser?.id;
+    const myMember = store.getState().room.members.find((m) => m.userId === myUserId);
+    const viewerIsGM = myMember?.role === 'GM';
+
+    // Player flipping back from gm-only to 'all' needs the full object re-added,
+    // because the Player's reducer removed it when visibility was set to gm-only.
+    // The full object is included in the broadcast payload by the server (Sess 5.5).
+    if (!viewerIsGM && payload.visibility === 'all' && payload.object) {
+      store.dispatch(appendSceneObject(payload.object));
+      return;
+    }
+
+    store.dispatch(setSceneObjectVisibility({
+      objectId: payload.objectId,
+      visibility: payload.visibility,
+      viewerIsGM,
+    }));
+  });
   socket.on('token:rollback', (payload) => {
     store.dispatch(applyTokenRollback(payload));
   });
@@ -106,6 +165,12 @@ export function getSocket(): TypedClientSocket {
   });
   socket.on('annotations:updated', (payload) => {
     store.dispatch(applyAnnotationsUpdate(payload));
+  });
+  // Mini-C: full scene snapshot broadcast (background, grid mutations).
+  // Sender's hydrateScene from PATCH response is idempotent; others get the update.
+  // On scene:flush (Done), players receive background/grid changes staged during Edit Scene.
+  socket.on('scene:snapshot', (payload) => {
+    store.dispatch(hydrateScene(payload.scene));
   });
   // Note: server responds to `session:resync` only via the ack callback (see
   // `emitSessionResync` below вЂ” its caller in RoomLobby dispatches the hydrate
@@ -202,6 +267,27 @@ export function getSocket(): TypedClientSocket {
     );
   });
 
+  // Sess 5.5 Mini-D — ephemeral token drag-preview; upsert per-tokenId, auto
+  // cleared shortly after the last update so the ghost vanishes when the
+  // dragger releases (final position arrives via `scene:updated`).
+  const dragPreviewTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  socket.on('token:drag-preview', (payload) => {
+    store.dispatch(upsertTokenDragPreview({
+      tokenId: payload.tokenId,
+      x: payload.x,
+      y: payload.y,
+    }));
+    const existing = dragPreviewTimers.get(payload.tokenId);
+    if (existing) clearTimeout(existing);
+    dragPreviewTimers.set(
+      payload.tokenId,
+      setTimeout(() => {
+        store.dispatch(removeTokenDragPreview(payload.tokenId));
+        dragPreviewTimers.delete(payload.tokenId);
+      }, 800),
+    );
+  });
+
   return socket;
 }
 
@@ -246,6 +332,12 @@ export function emitRoomJoin(roomId: string): Promise<{ joined: true }> {
 export function emitTokenMove(
   payload: TokenMovePayload,
 ): Promise<{ accepted: boolean; version: number }> {
+  if (isEditingScene()) {
+    // Edit-scene staging: GM's local moveTokenOptimistic dispatch already updated
+    // Redux. Pretend OCC accepted to avoid the rollback path. The full token
+    // positions snapshot is sent on Done via scene:flush → applyTokenSnapshot.
+    return Promise.resolve({ accepted: true, version: 0 });
+  }
   return withTimeout(
     new Promise<{ accepted: boolean; version: number }>((resolve, reject) => {
       getSocket().emit('token:move', payload, (r) => {
@@ -253,6 +345,16 @@ export function emitTokenMove(
       });
     }),
   );
+}
+
+/**
+ * Sess 5.5 Mini-D — fire-and-forget ephemeral drag preview. Server forwards to
+ * OTHER sockets in the room only (sender does not receive its own broadcast).
+ * Suppressed in edit-scene mode to keep staging consistent with token:move.
+ */
+export function emitTokenDragPreview(payload: TokenDragPreviewPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('token:drag-preview', payload);
 }
 
 export function emitDiceRoll(payload: DiceRollInput): Promise<ChatDicePayload> {
@@ -373,6 +475,45 @@ export function emitObjectDelete(payload: SceneObjectDeletePayload): void {
 }
 
 /**
+ * Discrete transform broadcast — no throttle, fired once on transformEnd (Sess 2).
+ * Server persists and re-broadcasts to room (including sender for idempotency).
+ */
+export function emitObjectTransform(payload: SceneObjectTransformPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:transform', payload);
+}
+
+/** Toggles the locked flag on a scene object (Sess 3 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectLock(payload: SceneObjectLockPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:lock', payload);
+}
+
+/** Changes the zIndex of a scene object (Sess 3 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectZOrder(payload: SceneObjectZOrderPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:zorder', payload);
+}
+
+/** Creates a deep copy of a scene object offset by (+20, +20) (Sess 3 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectDuplicate(payload: SceneObjectDuplicatePayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:duplicate', payload);
+}
+
+/** Changes the render layer of a scene object (Sess 5 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectSetLayer(payload: SceneObjectSetLayerPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:set-layer', payload);
+}
+
+/** Changes the RBAC visibility of a scene object (Sess 5 Mini-B). GM-only — server enforces RBAC. */
+export function emitObjectSetVisibility(payload: SceneObjectSetVisibilityPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:set-visibility', payload);
+}
+
+/**
  * Saves the local scene's fog shapes and draw annotations to the server and
  * syncs other clients. Uses `scene:flush` so the server broadcasts only to
  * OTHER clients — the GM already has the correct state locally and must not
@@ -420,5 +561,6 @@ export function flushEditedScene(roomId: string, sceneId: string): void {
     sceneId,
     shapes: scene.fogShapes,
     annotations: scene.annotations,
+    tokens: scene.tokens.map((t) => ({ id: t.id, x: t.x, y: t.y })),
   });
 }

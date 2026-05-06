@@ -39,4 +39,15 @@ export class AssetRepository {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  /**
+   * Updates the display name of an asset. storageKey is intentionally NOT
+   * touched — UUID-based storage paths must stay stable for GCS object identity.
+   */
+  rename(id: string, originalName: string): Promise<Asset> {
+    return this.db.asset.update({
+      where: { id },
+      data: { originalName },
+    });
+  }
 }

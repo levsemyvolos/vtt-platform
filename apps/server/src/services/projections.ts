@@ -8,6 +8,7 @@ import type {
   ChatMode,
   DiceMode,
   StatusMarker,
+  BackgroundFit,
 } from '@vtt/shared';
 import { AssetService } from './AssetService.js';
 import { parseAnnotations, parseFogShapes } from './DrawService.js';
@@ -42,7 +43,7 @@ export function projectToken(
     x: token.x,
     y: token.y,
     sceneId: token.sceneId,
-    imageUrl: token.imageAssetId ? `/api/assets/${token.imageAssetId}/file` : '',
+    imageUrl: token.imageAssetId ? AssetService.getProxyUrl(token.imageAssetId) : '',
     version: token.version,
     color: token.color ?? '#7c5cff',
     assignedUserId: token.assignedUserId,
@@ -66,6 +67,16 @@ export function projectScene(
     if (projected) tokens.push(projected);
   }
   const annotations = parseAnnotations(scene.annotations);
+  // RBAC: filter gm-only objects from Player/Observer projections (Sess 5 Mini-A).
+  const filteredAnnotations: import('@vtt/shared').SceneAnnotations = viewerRole === 'GM'
+    ? annotations
+    : {
+        ...annotations,
+        objects: (annotations.objects ?? []).filter((o) => o.visibility !== 'gm-only'),
+        images: annotations.images.filter((img) => img.visibility !== 'gm-only'),
+        texts: annotations.texts.filter((t) => t.visibility !== 'gm-only'),
+        strokes: annotations.strokes.filter((s) => s.visibility !== 'gm-only'),
+      };
   return {
     id: scene.id,
     roomId: scene.roomId,
@@ -78,8 +89,12 @@ export function projectScene(
     isHidden: scene.isHidden,
     fogShapes: parseFogShapes(scene.fogShapes),
     backgroundUrl: scene.backgroundAssetId ? AssetService.getProxyUrl(scene.backgroundAssetId) : null,
+    backgroundFit: (scene.backgroundFit as BackgroundFit) ?? 'cover',
+    backgroundOffsetX: scene.backgroundOffsetX,
+    backgroundOffsetY: scene.backgroundOffsetY,
+    backgroundScale: scene.backgroundScale,
     tokens,
-    annotations,
+    annotations: filteredAnnotations,
   };
 }
 
@@ -117,5 +132,6 @@ export function projectInitiative(entry: InitiativeEntry): InitiativeEntryDTO {
     initiative: entry.initiative,
     orderIndex: entry.orderIndex,
     isCurrent: entry.isCurrent,
+    ...(entry.tokenId !== null && entry.tokenId !== undefined ? { tokenId: entry.tokenId } : {}),
   };
 }

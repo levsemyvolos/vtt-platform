@@ -1,5 +1,10 @@
 export type Role = 'GM' | 'Player' | 'Observer';
 
+export type SceneObjectLayer = 'tile' | 'overlay';
+export type SceneObjectVisibility = 'all' | 'gm-only';
+
+export type BackgroundFit = 'cover' | 'contain' | 'stretch';
+
 export type ChatMode = 'normal' | 'ic' | 'ooc' | 'whisper' | 'secret_roll';
 
 export type DiceMode = 'normal' | 'advantage' | 'disadvantage' | 'secret';
@@ -90,6 +95,8 @@ export interface DrawStroke {
   width: number;
   x?: number;
   y?: number;
+  layer?: SceneObjectLayer;
+  visibility?: SceneObjectVisibility;
 }
 
 /** Pinned text label on the scene canvas (Ф3.4.4). GM-only. */
@@ -101,6 +108,8 @@ export interface TextAnnotation {
   text: string;
   fontSize: number;
   color: string;
+  layer?: SceneObjectLayer;
+  visibility?: SceneObjectVisibility;
 }
 
 /** Pinned image overlay on the scene canvas (Ф3.4.5). GM-only. */
@@ -112,6 +121,12 @@ export interface ImageAnnotation {
   assetId: string;
   width: number;
   height: number;
+  /** Rotation in degrees [0, 360). Added in Sess 2 for Transformer support. */
+  rotation?: number;
+  /** When true, the overlay is rendered but ignores drag/transform until unlocked (Sess 3). */
+  locked?: boolean;
+  layer?: SceneObjectLayer;
+  visibility?: SceneObjectVisibility;
 }
 
 export type SceneObjectType = 'text' | 'image' | 'stroke';
@@ -129,6 +144,10 @@ export interface SceneObjectBase {
   scaleY?: number;
   zIndex: number;
   locked?: boolean;
+  /** Render layer relative to tokens (Sess 5 Mini-A). */
+  layer: SceneObjectLayer;
+  /** RBAC visibility — 'gm-only' objects are filtered from Player/Observer projections (Sess 5 Mini-A). */
+  visibility: SceneObjectVisibility;
 }
 
 export interface TextSceneObject extends SceneObjectBase {
@@ -204,6 +223,14 @@ export interface SceneDTO {
   tokens: TokenPublicDTO[];
   /** Optional URL for the scene background bitmap (Ф2.2.5). */
   backgroundUrl?: string | null;
+  /** Background image fit mode (Mini-A). */
+  backgroundFit: BackgroundFit;
+  /** Horizontal offset of the background image in pixels (Mini-A). */
+  backgroundOffsetX: number;
+  /** Vertical offset of the background image in pixels (Mini-A). */
+  backgroundOffsetY: number;
+  /** Scale multiplier applied to the background image natural size (Mini-A). */
+  backgroundScale: number;
   /** Structured canvas annotations — strokes + text labels + image overlays (Ф3.4.2–5). */
   annotations: SceneAnnotations;
 }

@@ -8,6 +8,8 @@ import type {
   ChatMode,
   DiceMode,
   FogShape,
+  SceneObjectLayer,
+  SceneObjectVisibility,
 } from '../shared/index';
 
 // ---------- C→S payloads ----------
@@ -23,6 +25,19 @@ export interface TokenMovePayload {
   sceneId: string;
   /** Last Token.version known to the client (OCC algorithm A2, §2.17). */
   clientSeq: number;
+}
+
+/**
+ * Ephemeral token drag preview — broadcast during dragMove for smooth Player
+ * visualization. Not persisted; final position lands via `token:move` OCC on
+ * dragEnd. Server forwards to OTHER sockets in the room only.
+ */
+export interface TokenDragPreviewPayload {
+  roomId: string;
+  sceneId: string;
+  tokenId: string;
+  x: number;
+  y: number;
 }
 
 export interface ChatMessageInput {
@@ -184,10 +199,99 @@ export interface SceneObjectDeletePayload {
   objectId: string;
 }
 
+/**
+ * Discrete transform event — fired once on transformEnd (Sess 2).
+ * Not throttled (unlike object:move) because transforms are rare user gestures.
+ * x/y are included because Konva Transformer can reposition the Group during
+ * corner-resize and rotation, causing Player-side desync if omitted (Sess 2.5).
+ */
+export interface SceneObjectTransformPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Normalized rotation in degrees [0, 360). */
+  rotation: number;
+}
+
 export interface SceneObjectUpsertPayload {
   roomId: string;
   sceneId: string;
   object: SceneObject;
+}
+
+/**
+ * Toggles the locked flag on a SceneObject (Sess 3).
+ * Locked objects render but ignore drag/transform until unlocked.
+ */
+export interface SceneObjectLockPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  locked: boolean;
+}
+
+/**
+ * Changes the zIndex of a SceneObject (Sess 3).
+ * direction='front' sends to front (max+1), 'back' to back (min-1).
+ * Server normalizes the new value relative to peers.
+ */
+export interface SceneObjectZOrderPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  direction: 'front' | 'back';
+}
+
+/**
+ * Creates a deep copy of a SceneObject offset by (+20, +20) (Sess 3).
+ * Server returns the new object via room broadcast (`object:duplicated`).
+ */
+export interface SceneObjectDuplicatePayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+}
+
+/**
+ * Server response for object:duplicate — broadcasts the full new object
+ * so clients can append it to local state without a re-fetch.
+ */
+export interface SceneObjectDuplicatedPayload {
+  roomId: string;
+  sceneId: string;
+  /** Full new SceneObject with new id. */
+  object: SceneObject;
+}
+
+/**
+ * Changes the render layer of a SceneObject (Sess 5 Mini-A).
+ * 'tile' renders below tokens; 'overlay' renders above tokens.
+ */
+export interface SceneObjectSetLayerPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  layer: SceneObjectLayer;
+}
+
+/**
+ * Changes the RBAC visibility of a SceneObject (Sess 5 Mini-A).
+ * 'gm-only' objects are filtered from Player/Observer projections.
+ */
+export interface SceneObjectSetVisibilityPayload {
+  roomId: string;
+  sceneId: string;
+  objectId: string;
+  visibility: SceneObjectVisibility;
+  /** Full SceneObject — server includes it on every broadcast so non-GM
+   *  recipients can re-add an object that was previously gm-only-stripped
+   *  from their local state. The originating GM client may ignore it.
+   */
+  object?: SceneObject;
 }
 
 /**
@@ -248,6 +352,10 @@ export interface SceneFlushPayload {
   sceneId: string;
   shapes: FogShape[];
   annotations: SceneAnnotations;
+  /** Token position snapshot applied as the authoritative final state.
+   *  Server bulk-updates Token rows without bumping version (no OCC).
+   *  Caller (scene:flush handler) already enforces GM RBAC. */
+  tokens?: { id: string; x: number; y: number }[];
 }
 
 export interface ClientToServerEvents {
@@ -256,6 +364,7 @@ export interface ClientToServerEvents {
     payload: TokenMovePayload,
     ack: (response: Ack<{ accepted: boolean; version: number }>) => void,
   ) => void;
+  'token:drag-preview': (payload: TokenDragPreviewPayload) => void;
   'chat:message': (
     payload: ChatMessageInput,
     ack: (response: Ack<ChatMessageDTO>) => void,
@@ -277,6 +386,12 @@ export interface ClientToServerEvents {
   'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
+  'object:transform': (payload: SceneObjectTransformPayload) => void;
+  'object:lock': (payload: SceneObjectLockPayload) => void;
+  'object:zorder': (payload: SceneObjectZOrderPayload) => void;
+  'object:duplicate': (payload: SceneObjectDuplicatePayload) => void;
+  'object:set-layer': (payload: SceneObjectSetLayerPayload) => void;
+  'object:set-visibility': (payload: SceneObjectSetVisibilityPayload) => void;
   'scene:flush': (payload: SceneFlushPayload) => void;
   'mod:kick': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
   'mod:demote': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
@@ -309,6 +424,10 @@ export interface AnnotationsUpdatedPayload {
   annotations: SceneAnnotations;
 }
 
+export interface SceneSnapshotPayload {
+  scene: SceneDTO;
+}
+
 export interface ServerToClientEvents {
   'room:member-joined': (payload: MemberJoinedPayload) => void;
   'room:deleted': (payload: RoomDeletedPayload) => void;
@@ -317,6 +436,7 @@ export interface ServerToClientEvents {
   'scene:updated': (payload: SceneUpdatedPayload) => void;
   'annotations:updated': (payload: AnnotationsUpdatedPayload) => void;
   'token:rollback': (payload: TokenRollbackPayload) => void;
+  'token:drag-preview': (payload: TokenDragPreviewPayload) => void;
   'chat:dice': (payload: ChatDicePayload) => void;
   'chat:message': (payload: ChatMessageDTO) => void;
   'initiative:updated': (payload: InitiativeUpdatedPayload) => void;
@@ -335,12 +455,20 @@ export interface ServerToClientEvents {
   'scene:activated': (payload: { sceneId: string; roomId: string }) => void;
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
+  'object:transform': (payload: SceneObjectTransformPayload) => void;
+  'object:lock': (payload: SceneObjectLockPayload) => void;
+  'object:zorder': (payload: SceneObjectZOrderPayload) => void;
+  'object:duplicated': (payload: SceneObjectDuplicatedPayload) => void;
+  'object:set-layer': (payload: SceneObjectSetLayerPayload) => void;
+  'object:set-visibility': (payload: SceneObjectSetVisibilityPayload) => void;
   'peer:mute-request': (payload: { userId: string }) => void;
   'peer:cam-off-request': (payload: { userId: string }) => void;
   'room:member-removed': (payload: { roomId: string; userId: string }) => void;
   'room:member-updated': (payload: { roomId: string; member: import('../rest/index').RoomMemberDTO }) => void;
   /** Sent only to the kicked user's sockets after `mod:kick`; client redirects out. */
   'room:kicked': (payload: { roomId: string }) => void;
+  /** Full scene snapshot broadcast — used for background/grid changes and scene:flush delivery. */
+  'scene:snapshot': (payload: SceneSnapshotPayload) => void;
 }
 
 export interface ModerationPayload {

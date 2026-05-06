@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { InitiativeEntry, Scene } from '@prisma/client';
+import type { InitiativeEntry, PrismaClient, Scene } from '@prisma/client';
 import { InitiativeService } from '../../src/services/InitiativeService.js';
 import type { InitiativeRepository } from '../../src/repositories/InitiativeRepository.js';
 import type { SceneRepository } from '../../src/repositories/SceneRepository.js';
+import { projectInitiative } from '../../src/services/projections.js';
 
 const SCENE_ID = 'scene-1';
 const ROOM_ID = 'room-1';
@@ -15,8 +16,18 @@ function makeEntry(overrides: Partial<InitiativeEntry>): InitiativeEntry {
     initiative: 10,
     orderIndex: 0,
     isCurrent: false,
+    tokenId: null,
     ...overrides,
   };
+}
+
+/** Minimal PrismaClient stub — only token.findUnique is needed by InitiativeService. */
+function makeDb(): PrismaClient {
+  return {
+    token: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+  } as unknown as PrismaClient;
 }
 
 interface RepoState {
@@ -32,12 +43,19 @@ function makeRepo(state: RepoState): InitiativeRepository {
         return a.orderIndex - b.orderIndex;
       }),
     ),
-    create: vi.fn(async (data: { id?: string; name: string; initiative: number; orderIndex: number }) => {
+    create: vi.fn(async (data: {
+      id?: string;
+      name: string;
+      initiative: number;
+      orderIndex: number;
+      token?: { connect: { id: string } };
+    }) => {
       const created = makeEntry({
         id: data.id ?? `gen-${state.rows.length}`,
         name: data.name,
         initiative: data.initiative,
         orderIndex: data.orderIndex,
+        tokenId: data.token?.connect.id ?? null,
       });
       state.rows.push(created);
       return created;
@@ -110,7 +128,7 @@ describe('InitiativeService (Ф7.3)', () => {
 
   it('addEntry assigns orderIndex = current count (push to end)', async () => {
     const state: RepoState = { rows: [] };
-    const svc = new InitiativeService(makeRepo(state), makeSceneRepo());
+    const svc = new InitiativeService(makeRepo(state), makeSceneRepo(), makeDb());
 
     const s1 = await svc.addEntry(SCENE_ID, 'Alice', 18);
     const s2 = await svc.addEntry(SCENE_ID, 'Bob', 12);
@@ -127,7 +145,7 @@ describe('InitiativeService (Ф7.3)', () => {
         makeEntry({ id: 'c', name: 'C', initiative: 10, orderIndex: 2 }),
       ],
     };
-    const svc = new InitiativeService(makeRepo(state), makeSceneRepo());
+    const svc = new InitiativeService(makeRepo(state), makeSceneRepo(), makeDb());
 
     await svc.reorder(SCENE_ID, ['c', 'a', 'b']);
 
@@ -143,7 +161,7 @@ describe('InitiativeService (Ф7.3)', () => {
         makeEntry({ id: 'b', name: 'B', initiative: 15, orderIndex: 1 }),
       ],
     };
-    const svc = new InitiativeService(makeRepo(state), makeSceneRepo());
+    const svc = new InitiativeService(makeRepo(state), makeSceneRepo(), makeDb());
 
     // First call → A becomes current, round = 1.
     const s1 = await svc.advanceTurn(SCENE_ID);
@@ -169,7 +187,7 @@ describe('InitiativeService (Ф7.3)', () => {
         makeEntry({ id: 'c', name: 'C', initiative: 10, orderIndex: 2 }),
       ],
     };
-    const svc = new InitiativeService(makeRepo(state), makeSceneRepo());
+    const svc = new InitiativeService(makeRepo(state), makeSceneRepo(), makeDb());
 
     const snap = await svc.removeEntry(SCENE_ID, 'a');
     // After removal A is gone; the entry that was at orderIndex 1 (B) takes
@@ -191,15 +209,59 @@ describe('InitiativeService (Ф7.3)', () => {
     const repo = makeRepo(state);
     const sceneRepo = makeSceneRepo(); // shared "DB" state
 
-    const svc1 = new InitiativeService(repo, sceneRepo);
+    const svc1 = new InitiativeService(repo, sceneRepo, makeDb());
     await svc1.advanceTurn(SCENE_ID); // A current, round = 1
     await svc1.advanceTurn(SCENE_ID); // B current, round = 1
     const snapBeforeRestart = await svc1.advanceTurn(SCENE_ID); // wrap → A, round = 2
     expect(snapBeforeRestart.currentRound).toBe(2);
 
     // Simulate restart: new service instance, same shared sceneRepo.
-    const svc2 = new InitiativeService(repo, sceneRepo);
+    const svc2 = new InitiativeService(repo, sceneRepo, makeDb());
     const snapAfterRestart = await svc2.getSnapshot(SCENE_ID);
     expect(snapAfterRestart.currentRound).toBe(2); // not reset to 1
+  });
+});
+
+const TOKEN_ID = 'token-uuid-1';
+
+describe('InitiativeService — tokenId threading', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('addEntry with valid same-scene tokenId stores tokenId on the created entry', async () => {
+    const state: RepoState = { rows: [] };
+    const db: PrismaClient = {
+      token: {
+        findUnique: vi.fn().mockResolvedValue({ id: TOKEN_ID, sceneId: SCENE_ID }),
+      },
+    } as unknown as PrismaClient;
+
+    const svc = new InitiativeService(makeRepo(state), makeSceneRepo(), db);
+    const snap = await svc.addEntry(SCENE_ID, 'Hero', 15, TOKEN_ID);
+
+    const entry = snap.entries.find((e) => e.name === 'Hero');
+    expect(entry).toBeDefined();
+    expect(entry!.tokenId).toBe(TOKEN_ID);
+  });
+
+  it('addEntry with tokenId from a different scene throws HttpError 400', async () => {
+    const state: RepoState = { rows: [] };
+    const db: PrismaClient = {
+      token: {
+        findUnique: vi.fn().mockResolvedValue({ id: TOKEN_ID, sceneId: 'other-scene' }),
+      },
+    } as unknown as PrismaClient;
+
+    const svc = new InitiativeService(makeRepo(state), makeSceneRepo(), db);
+    await expect(svc.addEntry(SCENE_ID, 'Hero', 15, TOKEN_ID)).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+
+  it('projectInitiative omits tokenId property when entry.tokenId is null (FK SET NULL)', () => {
+    const entry = makeEntry({ id: 'e-null', name: 'Ghost', initiative: 5, tokenId: null });
+    const dto = projectInitiative(entry);
+
+    // tokenId must be entirely absent — not present as undefined or null
+    expect(Object.prototype.hasOwnProperty.call(dto, 'tokenId')).toBe(false);
   });
 });

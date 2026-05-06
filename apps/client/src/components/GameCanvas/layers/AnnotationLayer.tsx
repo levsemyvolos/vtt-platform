@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Layer, Circle, Group, Image as KonvaImage, Line, Rect, Text } from 'react-konva';
+import { Layer, Circle, Group, Image as KonvaImage, Line, Rect, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import type {
   AnnotationPingPayload,
@@ -11,9 +11,11 @@ import type {
   TextAnnotation,
 } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../../store';
-import { moveSceneObjectOptimistic } from '../../../store/scene';
-import { emitObjectDelete, emitObjectMove } from '../../../api/socket';
+import { moveSceneObjectOptimistic, selectSceneObject, transformSceneObjectOptimistic } from '../../../store/scene';
+import { fetchAsset } from '../../../store/assets';
+import { emitObjectMove, emitObjectTransform } from '../../../api/socket';
 import { useImage } from '../useImage';
+import { computeSelectionBox } from '../selectionBox';
 
 const PING_DURATION_MS = 3000;
 const PING_FADE_START_MS = 2000;
@@ -111,6 +113,8 @@ function toObjects(
       points: stroke.points,
       color: stroke.color,
       strokeWidth: stroke.width,
+      layer: stroke.layer ?? 'overlay',
+      visibility: stroke.visibility ?? 'all',
     })),
     ...texts.map((ann, index): SceneObject => ({
       id: ann.id,
@@ -122,6 +126,8 @@ function toObjects(
       text: ann.text,
       fontSize: ann.fontSize,
       color: ann.color,
+      layer: ann.layer ?? 'overlay',
+      visibility: ann.visibility ?? 'all',
     })),
     ...images.map((ann, index): SceneObject => ({
       id: ann.id,
@@ -133,21 +139,43 @@ function toObjects(
       assetId: ann.assetId,
       width: ann.width,
       height: ann.height,
+      layer: ann.layer ?? 'tile',
+      visibility: ann.visibility ?? 'all',
     })),
   ];
 }
 
 interface ObjectNodeProps {
   object: SceneObject;
-  draggable: boolean;
+  canEdit: boolean;
+  isSelected: boolean;
+  myRole: Role;
   roomId: string;
   sceneId: string;
+  onContextMenu?: (objectId: string, x: number, y: number) => void;
 }
 
-function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JSX.Element {
+function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onContextMenu }: ObjectNodeProps): JSX.Element | null {
   const dispatch = useAppDispatch();
   const lastMoveAt = useRef(0);
-  const image = useImage(object.type === 'image' ? `/api/assets/${object.assetId}/file` : undefined);
+  // Read the signed URL from the assets cache. If the asset isn't there yet
+  // (e.g. mid-session arrival via scene snapshot), fetch a fresh DTO so the
+  // signature is valid. <img>/Konva.Image can't send Authorization headers,
+  // so a hard-coded `/api/assets/:id/file` would always 403.
+  const assetId = object.type === 'image' ? object.assetId : undefined;
+  const cachedAsset = useAppSelector((s) => (assetId ? s.assets.byId[assetId] : undefined));
+  const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
+  useEffect(() => {
+    if (assetId && !cachedAsset) {
+      void dispatch(fetchAsset(assetId));
+    }
+  }, [assetId, cachedAsset, dispatch]);
+  const image = useImage(cachedAsset?.url);
+
+  // Locked objects are selectable (GM can right-click → unlock) but NOT draggable.
+  // Applies to all types — text/stroke respect locked flag too.
+  const isLocked = object.locked === true;
+  const isDraggable = canEdit && !isLocked;
 
   function broadcastMove(x: number, y: number, force = false): void {
     const now = Date.now();
@@ -158,13 +186,13 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
   }
 
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
-    if (!draggable) return;
+    if (!isDraggable) return;
     const node = e.target;
     broadcastMove(Math.max(0, node.x()), Math.max(0, node.y()));
   }
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
-    if (!draggable) return;
+    if (!isDraggable) return;
     const node = e.target;
     const x = Math.max(0, node.x());
     const y = Math.max(0, node.y());
@@ -172,21 +200,65 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
     broadcastMove(x, y, true);
   }
 
-  function handleDelete(): void {
-    if (!draggable) return;
-    emitObjectDelete({ roomId, sceneId, objectId: object.id });
+  function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (activeTool === 'fog' || activeTool === 'draw') return;
+    const additive = e.evt.shiftKey;
+    dispatch(selectSceneObject({ id: object.id, additive }));
   }
+
+  function handleMouseEnter(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (myRole !== 'GM' || !isDraggable) return;
+    const stage = e.target.getStage();
+    if (stage) stage.container().style.cursor = 'pointer';
+  }
+
+  function handleMouseLeave(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (myRole !== 'GM' || !isDraggable) return;
+    const stage = e.target.getStage();
+    if (stage) stage.container().style.cursor = 'default';
+  }
+
+  function handleContextMenu(e: Konva.KonvaEventObject<PointerEvent>): void {
+    if (myRole !== 'GM') return;
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (!pos || !onContextMenu) return;
+    // Single-select the object on right-click for visual feedback
+    dispatch(selectSceneObject({ id: object.id }));
+    onContextMenu(object.id, pos.x, pos.y);
+  }
+
+  // Defensive: gm-only objects should never reach a Player's render tree (Mini-A/B filter
+  // them out upstream). If one slips through anyway, hide it entirely.
+  if (object.visibility === 'gm-only' && myRole !== 'GM') return null;
+
+  const isGmOnly = object.visibility === 'gm-only';
+  const groupOpacity = isGmOnly && myRole === 'GM' ? 0.6 : 1;
+
+  const objectRotation = object.type === 'image' ? (object.rotation ?? 0) : 0;
+
+  // id attr needed only for image — Transformer uses stage.findOne('#id') lookup.
+  const groupId = object.type === 'image' ? object.id : undefined;
+
+  // Selection rect shown for GM when this object is selected (all types — Mini-E).
+  const showSelectionRect = myRole === 'GM' && isSelected;
 
   return (
     <Group
+      {...(groupId !== undefined ? { id: groupId } : {})}
       x={object.x}
       y={object.y}
-      draggable={draggable}
-      listening={draggable}
+      rotation={objectRotation}
+      opacity={groupOpacity}
+      draggable={isDraggable}
+      listening={canEdit}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onDblClick={handleDelete}
-      onDblTap={handleDelete}
+      onMouseDown={handleMouseDown}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onContextMenu={handleContextMenu}
     >
       {object.type === 'stroke' && (
         <Line
@@ -217,6 +289,38 @@ function ObjectNode({ object, draggable, roomId, sceneId }: ObjectNodeProps): JS
           <Rect width={object.width} height={object.height} fill="#334155" stroke="#94a3b8" strokeWidth={1} />
         )
       )}
+      {/* Selection highlight rect for GM multi-select — all object types (Mini-E) */}
+      {showSelectionRect && (() => {
+        const box = computeSelectionBox(object);
+        return (
+          <Rect
+            x={box.x}
+            y={box.y}
+            width={box.w}
+            height={box.h}
+            stroke="#3b82f6"
+            strokeWidth={2}
+            listening={false}
+          />
+        );
+      })()}
+      {/* Permanent amber dashed marker for GM-only objects — always visible to GM,
+          hidden when selected (the blue selection rect already signals the state). */}
+      {isGmOnly && myRole === 'GM' && !isSelected && (() => {
+        const box = computeSelectionBox(object);
+        return (
+          <Rect
+            x={box.x}
+            y={box.y}
+            width={box.w}
+            height={box.h}
+            stroke="#fbbf24"
+            strokeWidth={1}
+            dash={[4, 4]}
+            listening={false}
+          />
+        );
+      })()}
     </Group>
   );
 }
@@ -226,6 +330,14 @@ interface AnnotationLayerProps {
   roomId: string;
   sceneId: string;
   myRole: Role;
+  /** Filter objects by their `layer` field. */
+  layerFilter: 'tile' | 'overlay';
+  /**
+   * When true, pings and ruler measures are rendered inside this Konva Layer.
+   * Set true only on the overlay instance so transient helpers appear above tokens.
+   */
+  renderTransientHelpers: boolean;
+  onObjectContextMenu?: (objectId: string, x: number, y: number) => void;
 }
 
 export default function AnnotationLayer({
@@ -233,11 +345,16 @@ export default function AnnotationLayer({
   roomId,
   sceneId,
   myRole,
+  layerFilter,
+  renderTransientHelpers,
+  onObjectContextMenu,
 }: AnnotationLayerProps): JSX.Element {
+  const dispatch = useAppDispatch();
   const pings = useAppSelector((s) => s.annotations.activePings);
   const measures = useAppSelector((s) => s.annotations.activeMeasures);
   const annotations = useAppSelector((s) => s.scene.current?.annotations);
-  const sceneObjects = useMemo(
+  const selectedIds = useAppSelector((s) => s.scene.selectedSceneObjectIds);
+  const rawObjects = useMemo(
     () => toObjects(
       annotations?.strokes ?? [],
       annotations?.texts ?? [],
@@ -246,7 +363,144 @@ export default function AnnotationLayer({
     ),
     [annotations],
   );
+  // Filter by layerFilter, then sort by zIndex ascending.
+  const sceneObjects = useMemo(
+    () => [...rawObjects]
+      .filter((o) => o.layer === layerFilter)
+      .sort((a, b) => a.zIndex - b.zIndex),
+    [rawObjects, layerFilter],
+  );
   const canEditObjects = myRole === 'GM';
+
+  // Konva Transformer ref — wired via stage.findOne(`#${selectedId}`) (Fix D)
+  const trRef = useRef<Konva.Transformer | null>(null);
+  // Ctrl-snap ref — read by boundBoxFunc via closure (Fix D keyboard modifiers)
+  const ctrlSnapRef = useRef(false);
+
+  // Transformer shown only when EXACTLY ONE image is selected, it is not locked,
+  // AND the selected object belongs to THIS layer (tile vs overlay).
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : undefined;
+  const selectedObject = useMemo(
+    () => (selectedId !== undefined
+      ? sceneObjects.find((o) => o.id === selectedId && o.type === 'image')
+      : undefined),
+    [sceneObjects, selectedId],
+  );
+  // Do not show Transformer for locked objects — GM still sees selection rect.
+  const isSelectedLocked = selectedObject?.locked === true;
+  // Only render Transformer in the layer that actually contains the selected object.
+  const showTransformer = myRole === 'GM' && !!selectedObject && !isSelectedLocked;
+
+  // Wire Transformer to Konva node by ID (Fix D — stage.findOne lookup)
+  useEffect(() => {
+    const tr = trRef.current;
+    if (!tr) return;
+    if (selectedId === undefined || !showTransformer) {
+      tr.nodes([]);
+      return;
+    }
+    const stage = tr.getStage();
+    const node = stage?.findOne(`#${selectedId}`);
+    if (node) {
+      tr.nodes([node]);
+      tr.getLayer()?.batchDraw();
+    } else {
+      tr.nodes([]);
+    }
+  }, [selectedId, showTransformer]);
+
+  // Keyboard modifiers: Shift = keepRatio + rotation snaps; Ctrl = grid-snap (Fix D)
+  useEffect(() => {
+    if (myRole !== 'GM') return;
+
+    const ROTATION_SNAPS = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165,
+      180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345];
+
+    function handleKeyDown(e: KeyboardEvent): void {
+      const tr = trRef.current;
+      if (!tr) return;
+      if (e.key === 'Shift') {
+        tr.keepRatio(true);
+        tr.rotationSnaps(ROTATION_SNAPS);
+        tr.getLayer()?.batchDraw();
+      }
+      if (e.key === 'Control') {
+        ctrlSnapRef.current = true;
+      }
+    }
+
+    function handleKeyUp(e: KeyboardEvent): void {
+      const tr = trRef.current;
+      if (!tr) return;
+      if (e.key === 'Shift') {
+        tr.keepRatio(false);
+        tr.rotationSnaps([]);
+        tr.getLayer()?.batchDraw();
+      }
+      if (e.key === 'Control') {
+        ctrlSnapRef.current = false;
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [myRole]);
+
+  // onTransformEnd handler — CRITICAL order: dispatch → scale reset → emit (Fix D RED 3)
+  function handleTransformEnd(e: Konva.KonvaEventObject<Event>): void {
+    if (!selectedObject || selectedObject.type !== 'image') return;
+    const node = e.target as Konva.Group;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    const rawRot = node.rotation();
+
+    const baseWidth = selectedObject.width ?? gridSize;
+    const baseHeight = selectedObject.height ?? gridSize;
+
+    let newWidth = Math.max(gridSize, Math.round(baseWidth * scaleX));
+    let newHeight = Math.max(gridSize, Math.round(baseHeight * scaleY));
+
+    // Ctrl-snap: round to gridSize multiples
+    if (ctrlSnapRef.current) {
+      newWidth = Math.max(gridSize, Math.round(newWidth / gridSize) * gridSize);
+      newHeight = Math.max(gridSize, Math.round(newHeight / gridSize) * gridSize);
+    }
+
+    const newRotation = ((rawRot % 360) + 360) % 360;
+    // Read node position AFTER transform — Konva Transformer repositions the Group
+    // during corner-resize and rotation, so x/y may differ from pre-transform values.
+    const newX = node.x();
+    const newY = node.y();
+
+    // Order CRITICAL (Fix D RED 3): dispatch first, then reset scale, then emit
+    dispatch(transformSceneObjectOptimistic({
+      objectId: selectedObject.id,
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight,
+      rotation: newRotation,
+    }));
+
+    // Reset Konva scale to identity AFTER dispatch so React re-render uses new width/height
+    node.scaleX(1);
+    node.scaleY(1);
+
+    emitObjectTransform({
+      roomId,
+      sceneId,
+      objectId: selectedObject.id,
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight,
+      rotation: newRotation,
+    });
+  }
 
   return (
     <Layer listening={true}>
@@ -254,15 +508,38 @@ export default function AnnotationLayer({
         <ObjectNode
           key={object.id}
           object={object}
-          draggable={canEditObjects}
+          canEdit={canEditObjects}
+          isSelected={selectedIds.includes(object.id)}
+          myRole={myRole}
           roomId={roomId}
           sceneId={sceneId}
+          {...(onObjectContextMenu !== undefined ? { onContextMenu: onObjectContextMenu } : {})}
         />
       ))}
-      {pings.map((ping) => (
+      {showTransformer && (
+        <Transformer
+          ref={trRef}
+          rotateEnabled={true}
+          boundBoxFunc={(oldBox, newBox) => {
+            // Clamp to minimum 1 grid cell; apply Ctrl-snap via ref closure
+            let { width, height } = newBox;
+            const minSize = gridSize;
+            if (ctrlSnapRef.current) {
+              width = Math.max(minSize, Math.round(Math.abs(width) / minSize) * minSize);
+              height = Math.max(minSize, Math.round(Math.abs(height) / minSize) * minSize);
+            } else {
+              width = Math.max(minSize, Math.abs(width));
+              height = Math.max(minSize, Math.abs(height));
+            }
+            return { ...newBox, width, height };
+          }}
+          onTransformEnd={handleTransformEnd}
+        />
+      )}
+      {renderTransientHelpers && pings.map((ping) => (
         <PingCircle key={ping.timestamp} ping={ping} />
       ))}
-      {measures.map((m) => (
+      {renderTransientHelpers && measures.map((m) => (
         <RulerLine key={m.userId} measure={m} gridSize={gridSize} />
       ))}
     </Layer>

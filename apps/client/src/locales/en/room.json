@@ -186,21 +186,50 @@
     "leftToolbar": {
       "label": "Left editor toolbar",
       "background": "Background",
+      "assetLibrary": "Asset Library",
       "grid": "Grid",
       "tokens": "Tokens",
       "fog": "Fog"
+    },
+    "assetLibrary": {
+      "loading": "Loading assets…",
+      "empty": "No assets yet — drop a file above to get started.",
+      "useAsBackground": "Set as background",
+      "addToScene": "Add to scene",
+      "delete": "Delete",
+      "deleteConfirm": "Delete asset «{{name}}»? This cannot be undone.",
+      "rename": "Rename",
+      "active": "Active",
+      "filter": {
+        "all": "All",
+        "images": "Images",
+        "audio": "Audio",
+        "pdfs": "PDFs"
+      }
     },
     "rightToolbar": {
       "heading": "Properties"
     },
     "placeholder": "Select an element to edit",
     "bg": {
-      "aiBtn": "Generate AI"
+      "aiBtn": "Generate AI",
+      "fitLabel": "Fit",
+      "fit": {
+        "cover": "Cover",
+        "contain": "Contain",
+        "stretch": "Stretch"
+      },
+      "offsetXLabel": "Offset X",
+      "offsetYLabel": "Offset Y",
+      "scaleLabel": "Scale",
+      "fitToImageBtn": "Fit to image"
     },
     "grid": {
       "sizeLabel": "Cell size (px)",
       "widthLabel": "Width (cells)",
       "heightLabel": "Height (cells)",
+      "visibleLabel": "Show grid",
+      "lockAspectLabel": "Lock aspect",
       "saveBtn": "Save"
     },
     "fog": {
@@ -237,6 +266,22 @@
     "orderDesc": "Descending"
   },
   "limitCounter": "{{used}}/{{limit}} rooms",
+  "sceneObjectMenu": {
+    "label": "Scene object actions",
+    "front": "Bring to front",
+    "back": "Send to back",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "layerLabel": "Layer",
+    "layer": {
+      "tile": "Tile (under tokens)",
+      "overlay": "Overlay (above tokens)"
+    },
+    "makeGmOnly": "Make GM-only",
+    "makeVisibleToAll": "Make visible to all"
+  },
   "aiGenerate": {
     "dialogLabel": "Generate Background",
     "heading": "Generate Scene Background (AI)",

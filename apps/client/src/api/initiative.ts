@@ -13,11 +13,18 @@ export function listInitiative(sceneId: string): Promise<InitiativeUpdatedPayloa
 /** POST /scenes/:sceneId/initiative — додає нову позицію (RBAC: GM). */
 export function addInitiative(
   sceneId: string,
-  req: InitiativeAddRequest,
+  name: string,
+  initiative: number,
+  tokenId?: string,
 ): Promise<InitiativeUpdatedPayload> {
+  const body: InitiativeAddRequest = {
+    name,
+    initiative,
+    ...(tokenId !== undefined ? { tokenId } : {}),
+  };
   return apiFetch<InitiativeUpdatedPayload>(`/api/scenes/${sceneId}/initiative`, {
     method: 'POST',
-    body: JSON.stringify(req),
+    body: JSON.stringify(body),
   });
 }
 

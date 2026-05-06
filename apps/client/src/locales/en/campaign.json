@@ -23,7 +23,13 @@
     "rollTitle": "1d20",
     "rollAriaLabel": "Roll initiative (1d20)",
     "currentBadge": "current",
-    "deleteLabel": "Delete {{name}}"
+    "deleteLabel": "Delete {{name}}",
+    "sourceSection": "Source",
+    "sourceMember": "Room member",
+    "sourceNpc": "Custom NPC",
+    "tokenPickerLabel": "Link to token",
+    "tokenPickerNone": "— no token —",
+    "addToInitiative": "Add to initiative"
   },
   "handouts": {
     "sidebarTab": "Handouts",

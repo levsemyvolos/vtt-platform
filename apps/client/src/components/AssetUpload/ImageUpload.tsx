@@ -6,18 +6,19 @@ import {
   IMAGE_MAX_BYTES,
   IMAGE_ALLOWED_MIME,
   type ImageMime,
-  initImageUpload,
-  finalizeImageUpload,
-  uploadBytesToGcs,
 } from '../../api/assets';
+import { useAppDispatch } from '../../store';
+import { uploadAsset } from '../../store/assets';
 
 interface ImageUploadProps {
   roomId: string;
-  onUploaded: (asset: AssetDTO) => void;
+  /** Optional callback fired after the new asset lands in the Redux cache. */
+  onUploaded?: (asset: AssetDTO) => void;
 }
 
 export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): JSX.Element {
   const { t } = useTranslation(['room', 'errors']);
+  const dispatch = useAppDispatch();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -42,27 +43,13 @@ export default function ImageUpload({ roomId, onUploaded }: ImageUploadProps): J
     }
     setBusy(true);
     setError(null);
+    setProgress(t('room:asset.progressUpload'));
     try {
-      setProgress(t('room:asset.progressUrl'));
-      const init = await initImageUpload({
-        roomId,
-        mimeType: file.type as ImageMime,
-        size: file.size,
-      });
-
-      setProgress(t('room:asset.progressUpload'));
-      await uploadBytesToGcs(init.uploadUrl, file);
-
-      setProgress(t('room:asset.progressSave'));
-      const asset = await finalizeImageUpload({
-        roomId,
-        storageKey: init.storageKey,
-        mimeType: file.type as ImageMime,
-        size: file.size,
-      });
-
+      // uploadAsset thunk both POSTs the file and pushes the result into the
+      // assets slice (byId + byRoom), so the AssetLibrary updates without a refetch.
+      const asset = await dispatch(uploadAsset({ roomId, file })).unwrap();
       setProgress(null);
-      onUploaded(asset);
+      onUploaded?.(asset);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors:network.uploadFailed'));
     } finally {

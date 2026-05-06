@@ -39,6 +39,27 @@ export class TokenRepository {
     return this.db.token.findUnique({ where: { id } });
   }
 
+  /**
+   * Bulk-applies token positions from an Edit Scene flush (Sess 5.5 Mini-C).
+   * Updates x/y for each token in the list, scoped to sceneId to prevent
+   * cross-scene token id collisions. Does NOT bump version — OCC version bumps
+   * only happen on real-time `token:move` events. Atomic via Prisma transaction.
+   */
+  async bulkUpdatePositions(
+    sceneId: string,
+    tokens: ReadonlyArray<{ id: string; x: number; y: number }>,
+  ): Promise<void> {
+    if (tokens.length === 0) return;
+    await this.db.$transaction(
+      tokens.map((t) =>
+        this.db.token.update({
+          where: { id: t.id, sceneId },
+          data: { x: t.x, y: t.y },
+        }),
+      ),
+    );
+  }
+
   update(id: string, data: Prisma.TokenUpdateInput): Promise<Token> {
     return this.db.token.update({ where: { id }, data });
   }

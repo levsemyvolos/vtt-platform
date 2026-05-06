@@ -1,23 +1,28 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Layer, Group, Image as KonvaImage, Rect, Text, Circle } from 'react-konva';
 import type Konva from 'konva';
 import type { Role, TokenPublicDTO, StatusMarker } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import { moveTokenOptimistic, applyTokenRollback } from '../../../store/scene';
-import { emitTokenMove } from '../../../api/socket';
+import { emitTokenMove, emitTokenDragPreview } from '../../../api/socket';
 import { useImage } from '../useImage';
 import HpBar from '../HpBar';
-import TokenEditModal from '../../Token/TokenEditModal';
-import TokenContextMenu from '../../Token/TokenContextMenu';
+
+/** Throttle for `token:drag-preview` broadcasts (Sess 5.5 Mini-D). */
+const TOKEN_DRAG_PREVIEW_THROTTLE_MS = 50;
 
 interface TokenLayerProps {
   sceneId: string;
+  /** Required for `token:drag-preview` broadcast (Sess 5.5 Mini-D). */
+  roomId: string;
   tokens: TokenPublicDTO[];
   gridSize: number;
   myRole: Role;
   myUserId: string;
-  /** When provided, token left-click calls this instead of opening TokenEditModal. */
-  onTokenSelect?: (tokenId: string) => void;
+  /** Called on token left-click. Parent owns the modal/menu (must live outside <Stage>). */
+  onTokenSelect?: ((tokenId: string) => void) | undefined;
+  /** Called on token right-click with viewport coords. GM-only when set. */
+  onTokenContextMenu?: ((tokenId: string, x: number, y: number) => void) | undefined;
 }
 
 const STATUS_COLORS: Record<StatusMarker, string> = {
@@ -38,64 +43,63 @@ const STATUS_COLORS: Record<StatusMarker, string> = {
  * DOM-inside-Konva constraint).
  */
 export default function TokenLayer({
-  sceneId, tokens, gridSize, myRole, myUserId, onTokenSelect,
+  sceneId, roomId, tokens, gridSize, myRole, myUserId, onTokenSelect, onTokenContextMenu,
 }: TokenLayerProps): JSX.Element {
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
-  const [editTokenId, setEditTokenId] = useState<string | null>(null);
-  const [ctxMenu, setCtxMenu] = useState<{ tokenId: string; x: number; y: number } | null>(null);
+  // Sess 5.5 Mini-D — remote drag previews broadcast by other clients.
+  // The local dragger does NOT receive its own preview (server uses
+  // socket.broadcast.to), so this map only contains tokens being moved by
+  // someone else.
+  const remotePreviews = useAppSelector((s) => s.annotations.tokenDragPreviews);
 
-  const handleEditClick = onTokenSelect ?? (myRole === 'GM' ? setEditTokenId : undefined);
+  const activeTokenId = useAppSelector((s) => {
+    const active = s.initiative.entries.find((e) => e.isCurrent);
+    return active?.tokenId ?? null;
+  });
 
   return (
-    <>
-      <Layer>
-        {ghost && (
-          <Rect
-            key="drag-ghost"
-            x={ghost.x} y={ghost.y}
-            width={gridSize} height={gridSize}
-            fill="#ffffff" opacity={0.25} cornerRadius={4} listening={false}
-          />
-        )}
-        {tokens.map((token) => (
+    <Layer>
+      {ghost && (
+        <Rect
+          key="drag-ghost"
+          x={ghost.x} y={ghost.y}
+          width={gridSize} height={gridSize}
+          fill="#ffffff" opacity={0.25} cornerRadius={4} listening={false}
+        />
+      )}
+      {tokens.map((token) => {
+        const preview = remotePreviews[token.id];
+        return (
           <TokenNode
             key={token.id}
             token={token}
             sceneId={sceneId}
+            roomId={roomId}
             gridSize={gridSize}
             draggable={myRole === 'GM' || token.assignedUserId === myUserId}
+            remotePreview={preview ?? null}
+            isActive={activeTokenId !== null && activeTokenId === token.id}
             onGhostMove={setGhost}
             onGhostEnd={() => setGhost(null)}
-            onEditClick={handleEditClick}
-            onContextMenu={
-              myRole === 'GM' && !onTokenSelect
-                ? (id, x, y) => setCtxMenu({ tokenId: id, x, y })
-                : undefined
-            }
+            onEditClick={onTokenSelect}
+            onContextMenu={onTokenContextMenu}
           />
-        ))}
-      </Layer>
-      {editTokenId && (
-        <TokenEditModal tokenId={editTokenId} onClose={() => setEditTokenId(null)} />
-      )}
-      {ctxMenu && (
-        <TokenContextMenu
-          tokenId={ctxMenu.tokenId}
-          x={ctxMenu.x}
-          y={ctxMenu.y}
-          onEdit={() => setEditTokenId(ctxMenu.tokenId)}
-          onClose={() => setCtxMenu(null)}
-        />
-      )}
-    </>
+        );
+      })}
+    </Layer>
   );
 }
 
 interface TokenNodeProps {
   token: TokenPublicDTO;
   sceneId: string;
+  roomId: string;
   gridSize: number;
   draggable: boolean;
+  /** Remote drag-preview position (Sess 5.5 Mini-D); overrides token.x/y for non-draggers. */
+  remotePreview: { x: number; y: number } | null;
+  /** True when this token is the current initiative turn's active token. */
+  isActive: boolean;
   onGhostMove: (pos: { x: number; y: number }) => void;
   onGhostEnd: () => void;
   onEditClick: ((id: string) => void) | undefined;
@@ -103,23 +107,43 @@ interface TokenNodeProps {
 }
 
 function TokenNode({
-  token, sceneId, gridSize, draggable,
+  token, sceneId, roomId, gridSize, draggable, remotePreview, isActive,
   onGhostMove, onGhostEnd, onEditClick, onContextMenu,
 }: TokenNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
-  const sceneVersion = useAppSelector((s) => s.scene.version);
   const image = useImage(token.imageUrl);
   const tokenColor = token.color ?? '#7c5cff';
 
-  const px = token.x;
-  const py = token.y;
+  // Track local drag state so remotePreview never overrides our own Konva-driven
+  // position (the server doesn't echo our preview back, but the guard adds safety
+  // against any future change that might).
+  const isDraggingLocallyRef = useRef(false);
+  const lastPreviewEmitRef = useRef(0);
+
+  const usePreview = remotePreview !== null && !isDraggingLocallyRef.current;
+  const px = usePreview ? remotePreview.x : token.x;
+  const py = usePreview ? remotePreview.y : token.y;
+
+  function handleDragStart(): void {
+    isDraggingLocallyRef.current = true;
+  }
 
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
     const node = e.target;
-    onGhostMove({ x: node.x(), y: node.y() });
+    const x = node.x();
+    const y = node.y();
+    onGhostMove({ x, y });
+
+    // Sess 5.5 Mini-D — throttled ephemeral broadcast for smooth remote view.
+    const now = Date.now();
+    if (now - lastPreviewEmitRef.current >= TOKEN_DRAG_PREVIEW_THROTTLE_MS) {
+      lastPreviewEmitRef.current = now;
+      emitTokenDragPreview({ roomId, sceneId, tokenId: token.id, x, y });
+    }
   }
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
+    isDraggingLocallyRef.current = false;
     onGhostEnd();
     const node = e.target;
     const targetX = Math.max(0, node.x());
@@ -135,7 +159,7 @@ function TokenNode({
       sceneId,
       x: targetX,
       y: targetY,
-      clientSeq: sceneVersion,
+      clientSeq: token.version,
     }).catch(() => {
       dispatch(applyTokenRollback({
         tokenId: token.id, x: previousX, y: previousY, version: token.version,
@@ -149,9 +173,10 @@ function TokenNode({
     <Group
       x={px} y={py}
       draggable={draggable}
+      onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onClick={() => onEditClick?.(token.id)}
+      onClick={(e) => { if (e.evt.button !== 0) return; onEditClick?.(token.id); }}
       onContextMenu={(e) => {
         e.evt.preventDefault();
         const stage = e.target.getStage();
@@ -160,6 +185,22 @@ function TokenNode({
       }}
       listening={true}
     >
+      {isActive && !isDraggingLocallyRef.current && (
+        <Rect
+          x={-3}
+          y={-3}
+          width={gridSize + 6}
+          height={gridSize + 6}
+          fill="transparent"
+          stroke="#ffd43b"
+          strokeWidth={3}
+          cornerRadius={6}
+          shadowBlur={12}
+          shadowColor="#ffd43b"
+          shadowOpacity={0.8}
+          listening={false}
+        />
+      )}
       {image ? (
         <KonvaImage image={image} width={gridSize} height={gridSize} />
       ) : (

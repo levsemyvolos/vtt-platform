@@ -8,6 +8,7 @@ import type {
   UpdateTokenRequest,
   ServerToClientEvents,
   ClientToServerEvents,
+  BackgroundFit,
 } from '@vtt/shared';
 import type { Server } from 'socket.io';
 import { projectToken } from '../services/projections.js';
@@ -31,12 +32,11 @@ const sceneService = new SceneService(
 );
 const roomRepo = new RoomRepository(prisma);
 
-export const scenesRouter: IRouter = Router({ mergeParams: true });
-
 function handleError(err: unknown, res: Response): void {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: { code: err.status, message: err.message } });
   } else {
+    console.error('[scenes] unhandled error:', err);
     res.status(500).json({ error: { code: 500, message: 'Internal server error' } });
   }
 }
@@ -60,6 +60,10 @@ function toSceneDTOFromEntity(scene: {
   isActive: boolean;
   isHidden: boolean;
   fogShapes?: unknown;
+  backgroundFit?: string | null;
+  backgroundOffsetX?: number | null;
+  backgroundOffsetY?: number | null;
+  backgroundScale?: number | null;
 }): SceneDTO {
   return {
     id: scene.id,
@@ -72,6 +76,10 @@ function toSceneDTOFromEntity(scene: {
     isActive: scene.isActive,
     isHidden: scene.isHidden,
     fogShapes: parseFogShapes(scene.fogShapes),
+    backgroundFit: (scene.backgroundFit as BackgroundFit) ?? 'cover',
+    backgroundOffsetX: scene.backgroundOffsetX ?? 0,
+    backgroundOffsetY: scene.backgroundOffsetY ?? 0,
+    backgroundScale: scene.backgroundScale ?? 1.0,
     tokens: [],
     annotations: { schemaVersion: 2, strokes: [], texts: [], images: [], objects: [] },
   };
@@ -128,93 +136,117 @@ roomScenesSubRouter.post(
 
 // ---------- Scenes router ----------
 
-// PATCH /scenes/:sceneId
-scenesRouter.patch(
-  '/:sceneId',
-  jwtAuth,
-  requireRole('GM', 'Player'),
-  validate(sceneUpdateSchema),
-  async (
-    req: Request<{ sceneId: string }, object, UpdateSceneRequest>,
-    res: Response,
-  ) => {
-    try {
-      const existing = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
-      if (!existing) throw new HttpError(404, 'Scene not found');
-      await assertOwner(existing.roomId, req.user!.id);
-      const scene = await sceneService.updateScene(req.params.sceneId, req.body);
-      res.json(toSceneDTOFromEntity(scene));
-    } catch (err) {
-      handleError(err, res);
-    }
-  },
-);
+export function buildScenesRouter(
+  io?: Server<ClientToServerEvents, ServerToClientEvents>,
+): IRouter {
+  const router = Router({ mergeParams: true });
 
-// POST /scenes/:sceneId/activate
-scenesRouter.post(
-  '/:sceneId/activate',
-  jwtAuth,
-  requireRole('GM', 'Player'),
-  async (req: Request<{ sceneId: string }>, res: Response) => {
-    try {
-      const existing = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
-      if (!existing) throw new HttpError(404, 'Scene not found');
-      await assertOwner(existing.roomId, req.user!.id);
-      await sceneService.setActiveScene(existing.roomId, req.params.sceneId);
-      res.status(204).send();
-    } catch (err) {
-      handleError(err, res);
-    }
-  },
-);
+  // PATCH /scenes/:sceneId
+  router.patch(
+    '/:sceneId',
+    jwtAuth,
+    requireRole('GM', 'Player'),
+    validate(sceneUpdateSchema),
+    async (
+      req: Request<{ sceneId: string }, object, UpdateSceneRequest>,
+      res: Response,
+    ) => {
+      try {
+        const existing = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
+        if (!existing) throw new HttpError(404, 'Scene not found');
+        await assertOwner(existing.roomId, req.user!.id);
+        await sceneService.updateScene(req.params.sceneId, req.body);
+        // Return the full projected snapshot (incl. signed backgroundUrl + tokens
+        // + annotations) so clients can `dispatch(hydrateScene(updated))` without
+        // a fragile spread-merge that would drop fields not echoed by PATCH.
+        const role = await roomRepo.getRoleInRoom(
+          existing.roomId,
+          req.user!.id,
+          req.user!.role,
+          req.user!.boundRoomId,
+        );
+        if (!role) throw new HttpError(403, 'Not a room member');
+        const dto = await sceneService.getSnapshot(req.params.sceneId, role, req.user!.id);
+        // Broadcast to room unless caller explicitly staged (Edit Scene mode).
+        const staged = req.query['staged'] === '1';
+        if (!staged && io) {
+          io.to(existing.roomId).emit('scene:snapshot', { scene: dto });
+        }
+        res.json(dto);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
 
-// GET /scenes/:sceneId
-scenesRouter.get(
-  '/:sceneId',
-  jwtAuth,
-  async (req: Request<{ sceneId: string }>, res: Response) => {
-    try {
-      const scene = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
-      if (!scene) throw new HttpError(404, 'Scene not found');
-      const role = await roomRepo.getRoleInRoom(
-        scene.roomId,
-        req.user!.id,
-        req.user!.role,
-        req.user!.boundRoomId,
-      );
-      if (!role) throw new HttpError(403, 'Not a room member');
-      const dto = await sceneService.getSnapshot(
-        req.params.sceneId,
-        role,
-        req.user!.id,
-      );
-      res.json(dto);
-    } catch (err) {
-      handleError(err, res);
-    }
-  },
-);
+  // POST /scenes/:sceneId/activate
+  router.post(
+    '/:sceneId/activate',
+    jwtAuth,
+    requireRole('GM', 'Player'),
+    async (req: Request<{ sceneId: string }>, res: Response) => {
+      try {
+        const existing = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
+        if (!existing) throw new HttpError(404, 'Scene not found');
+        await assertOwner(existing.roomId, req.user!.id);
+        await sceneService.setActiveScene(existing.roomId, req.params.sceneId);
+        res.status(204).send();
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
 
-// POST /scenes/:sceneId/tokens — GM creates a token on a scene
-scenesRouter.post(
-  '/:sceneId/tokens',
-  jwtAuth,
-  validate(tokenCreateSchema),
-  async (
-    req: Request<{ sceneId: string }, object, CreateTokenRequest>,
-    res: Response,
-  ) => {
-    try {
-      const existing = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
-      if (!existing) throw new HttpError(404, 'Scene not found');
-      await assertOwner(existing.roomId, req.user!.id);
-      const token = await sceneService.createToken(req.params.sceneId, req.body);
-      res.status(201).json(projectToken(token, 'GM', req.user!.id));
-    } catch (err) {
-      handleError(err, res);
-    }
-  },
-);
+  // GET /scenes/:sceneId
+  router.get(
+    '/:sceneId',
+    jwtAuth,
+    async (req: Request<{ sceneId: string }>, res: Response) => {
+      try {
+        const scene = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
+        if (!scene) throw new HttpError(404, 'Scene not found');
+        const role = await roomRepo.getRoleInRoom(
+          scene.roomId,
+          req.user!.id,
+          req.user!.role,
+          req.user!.boundRoomId,
+        );
+        if (!role) throw new HttpError(403, 'Not a room member');
+        const dto = await sceneService.getSnapshot(
+          req.params.sceneId,
+          role,
+          req.user!.id,
+        );
+        res.json(dto);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  // POST /scenes/:sceneId/tokens — GM creates a token on a scene
+  router.post(
+    '/:sceneId/tokens',
+    jwtAuth,
+    validate(tokenCreateSchema),
+    async (
+      req: Request<{ sceneId: string }, object, CreateTokenRequest>,
+      res: Response,
+    ) => {
+      try {
+        const existing = await prisma.scene.findUnique({ where: { id: req.params.sceneId } });
+        if (!existing) throw new HttpError(404, 'Scene not found');
+        await assertOwner(existing.roomId, req.user!.id);
+        const token = await sceneService.createToken(req.params.sceneId, req.body);
+        res.status(201).json(projectToken(token, 'GM', req.user!.id));
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  return router;
+}
 
 // ---------- Tokens router ----------
 

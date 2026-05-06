@@ -11,13 +11,14 @@ interface TokenContextMenuProps {
   y: number;
   onEdit: () => void;
   onClose: () => void;
+  onAddToInitiative?: () => void;
 }
 
 export default function TokenContextMenu({
-  tokenId, x, y, onEdit, onClose,
+  tokenId, x, y, onEdit, onClose, onAddToInitiative,
 }: TokenContextMenuProps): JSX.Element {
   const dispatch = useAppDispatch();
-  const { t } = useTranslation(['room', 'common']);
+  const { t } = useTranslation(['room', 'common', 'campaign']);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,6 +62,15 @@ export default function TokenContextMenu({
       >
         {t('common:btn.edit')}
       </button>
+      {onAddToInitiative !== undefined && (
+        <button
+          className={styles.item}
+          role="menuitem"
+          onClick={() => { onAddToInitiative(); onClose(); }}
+        >
+          {t('campaign:initiative.addToInitiative')}
+        </button>
+      )}
       <button
         className={`${styles.item} ${styles['item--danger']}`}
         role="menuitem"

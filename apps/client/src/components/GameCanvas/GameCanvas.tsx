@@ -3,7 +3,11 @@ import { Stage } from 'react-konva';
 import type Konva from 'konva';
 import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { selectToken } from '../../store/scene';
+import { store } from '../../store';
+import { selectToken, deselectSceneObject, appendSceneObject } from '../../store/scene';
+import { requestAddFromToken } from '../../store/initiativeUi';
+import { emitObjectDelete, emitObjectDuplicate } from '../../api/socket';
+import { buildClonedObject } from '../../store/sceneObjectClone';
 import type { CanvasTool } from '../../store/canvasViewport';
 import { useTheme } from '../../hooks/useTheme';
 import { useToolHandlers } from '../../hooks/useToolHandlers';
@@ -14,14 +18,15 @@ import FogOfWarLayer from './layers/FogOfWarLayer';
 import FogMarqueeLayer, { type FogMarquee } from './layers/FogMarqueeLayer';
 import AddTokenButton from './AddTokenButton';
 import TextAnnotationModal from './TextAnnotationModal';
+import TokenEditModal from '../Token/TokenEditModal';
+import TokenContextMenu from '../Token/TokenContextMenu';
+import SceneObjectContextMenu from './SceneObjectContextMenu';
 import styles from './GameCanvas.module.css';
 
 export interface GameCanvasProps {
   scene: SceneDTO;
   myRole: Role;
   myUserId: string;
-  /** Optional URL for the scene background bitmap (Ф2.2.5). */
-  backgroundUrl?: string;
   /** 'edit' enables fog-drag for GM and token-click-to-select. Default: 'play'. */
   mode?: 'edit' | 'play';
 }
@@ -55,14 +60,18 @@ export default function GameCanvas({
   scene,
   myRole,
   myUserId,
-  backgroundUrl,
   mode = 'play',
 }: GameCanvasProps): JSX.Element {
+  // The signed background URL lives on the DTO itself (projections.ts).
+  const backgroundUrl = scene.backgroundUrl ?? undefined;
   const dispatch = useAppDispatch();
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [textAnnCoords, setTextAnnCoords] = useState<{ x: number; y: number } | null>(null);
+  const [editTokenId, setEditTokenId] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ tokenId: string; x: number; y: number } | null>(null);
+  const [objCtxMenu, setObjCtxMenu] = useState<{ objectId: string; x: number; y: number } | null>(null);
   const [fogMarquee, setFogMarquee] = useState<FogMarquee | null>(null);
 
   const theme = useTheme();
@@ -102,6 +111,63 @@ export default function GameCanvas({
     stage.batchDraw();
   }, [viewportZoom]);
 
+  useEffect(() => {
+    if (myRole !== 'GM') return;
+    function handleKeyDown(e: KeyboardEvent): void {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) return;
+      const ids = store.getState().scene.selectedSceneObjectIds;
+      if (ids.length === 0) return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        for (const id of ids) {
+          emitObjectDelete({ roomId, sceneId: scene.id, objectId: id });
+        }
+        dispatch(deselectSceneObject());
+        return;
+      }
+
+      if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const state = store.getState();
+        const inEditScene = state.room.editingSceneId !== null;
+        const objects = state.scene.current?.annotations.objects ?? [];
+        for (const id of ids) {
+          if (inEditScene) {
+            // Edit Scene: optimistic local clone only — flushed to server on Done.
+            // No emit, so players don't see it until the scene is saved.
+            const source = objects.find((o) => o.id === id);
+            if (source) {
+              const userId = state.session.currentUser?.id ?? '';
+              const clone = buildClonedObject(source, objects, userId);
+              dispatch(appendSceneObject(clone));
+            }
+          } else {
+            // Play mode: emit to server. Server creates the canonical copy and
+            // broadcasts object:duplicated → appendSceneObject on all clients.
+            // No local optimistic here to avoid double-creation.
+            emitObjectDuplicate({ roomId, sceneId: scene.id, objectId: id });
+          }
+        }
+        // Selection intentionally not changed (future: select new ids).
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [roomId, scene.id, myRole, dispatch]);
+
+  function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (e.target === e.target.getStage()) {
+      dispatch(deselectSceneObject());
+    }
+    onStageClick(e);
+  }
+
   function handleWheel(e: Konva.KonvaEventObject<WheelEvent>): void {
     e.evt.preventDefault();
     const stage = e.target.getStage();
@@ -138,7 +204,7 @@ export default function GameCanvas({
         onMouseDown={onStageMouseDown}
         onMouseMove={onStageMouseMove}
         onMouseUp={onStageMouseUp}
-        onClick={onStageClick}
+        onClick={handleStageClick}
         style={{ background: stageBg }}
       >
         <BackgroundLayer
@@ -147,22 +213,48 @@ export default function GameCanvas({
           gridWidth={scene.gridWidth}
           gridHeight={scene.gridHeight}
           gridVisible={scene.gridVisible}
-        />
-        <TokenLayer
-          sceneId={scene.id}
-          tokens={scene.tokens}
-          gridSize={scene.gridSize}
-          myRole={myRole}
-          myUserId={myUserId}
-          {...(mode === 'edit' && {
-            onTokenSelect: (id: string) => { dispatch(selectToken(id)); },
-          })}
+          fit={scene.backgroundFit}
+          offsetX={scene.backgroundOffsetX}
+          offsetY={scene.backgroundOffsetY}
+          scale={scene.backgroundScale}
         />
         <AnnotationLayer
+          layerFilter="tile"
+          renderTransientHelpers={false}
           gridSize={scene.gridSize}
           roomId={roomId}
           sceneId={scene.id}
           myRole={myRole}
+          onObjectContextMenu={(id, x, y) => { setObjCtxMenu({ objectId: id, x, y }); }}
+        />
+        <TokenLayer
+          sceneId={scene.id}
+          roomId={roomId}
+          tokens={scene.tokens}
+          gridSize={scene.gridSize}
+          myRole={myRole}
+          myUserId={myUserId}
+          onTokenSelect={
+            mode === 'edit'
+              ? (id: string) => { dispatch(selectToken(id)); }
+              : myRole === 'GM'
+                ? (id: string) => setEditTokenId(id)
+                : undefined
+          }
+          onTokenContextMenu={
+            myRole === 'GM' && mode !== 'edit'
+              ? (id, x, y) => setCtxMenu({ tokenId: id, x, y })
+              : undefined
+          }
+        />
+        <AnnotationLayer
+          layerFilter="overlay"
+          renderTransientHelpers={true}
+          gridSize={scene.gridSize}
+          roomId={roomId}
+          sceneId={scene.id}
+          myRole={myRole}
+          onObjectContextMenu={(id, x, y) => { setObjCtxMenu({ objectId: id, x, y }); }}
         />
         <FogOfWarLayer
           fogShapes={scene.fogShapes ?? []}
@@ -186,6 +278,31 @@ export default function GameCanvas({
           x={textAnnCoords.x}
           y={textAnnCoords.y}
           onClose={() => setTextAnnCoords(null)}
+        />
+      )}
+      {editTokenId && (
+        <TokenEditModal tokenId={editTokenId} onClose={() => setEditTokenId(null)} />
+      )}
+      {ctxMenu && (
+        <TokenContextMenu
+          tokenId={ctxMenu.tokenId}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onEdit={() => { setEditTokenId(ctxMenu.tokenId); setCtxMenu(null); }}
+          onClose={() => setCtxMenu(null)}
+          onAddToInitiative={() => {
+            const token = scene.tokens.find((tk) => tk.id === ctxMenu.tokenId);
+            if (token) dispatch(requestAddFromToken({ tokenId: token.id, name: token.name }));
+            setCtxMenu(null);
+          }}
+        />
+      )}
+      {objCtxMenu && (
+        <SceneObjectContextMenu
+          objectId={objCtxMenu.objectId}
+          x={objCtxMenu.x}
+          y={objCtxMenu.y}
+          onClose={() => setObjCtxMenu(null)}
         />
       )}
     </div>
