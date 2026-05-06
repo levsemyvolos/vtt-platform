@@ -29,6 +29,32 @@ import styles from './InitiativeTracker.module.css';
 
 const EMPTY_TOKENS: [] = [];
 
+/**
+ * Pure helper — resolves name + optional tokenId from the add-entry form state.
+ * Extracted to keep `onAdd` cyclomatic complexity ≤ 10 (lint gate).
+ * Returns null when validation fails (caller shows the error).
+ */
+function resolveInitiativeEntry(
+  mode: 'member' | 'npc',
+  selectedMemberId: string,
+  customName: string,
+  selectedTokenId: string,
+  members: { id?: string; name?: string }[],
+  sceneTokens: { id: string; assignedUserId?: string | null }[],
+): { name: string; tokenId?: string } | null {
+  if (mode === 'member') {
+    if (!selectedMemberId) return null;
+    const member = members.find((m) => m?.id === selectedMemberId);
+    const name = member?.name;
+    if (!name) return null;
+    const linked = sceneTokens.find((tk) => tk.assignedUserId === selectedMemberId);
+    return { name, ...(linked ? { tokenId: linked.id } : {}) };
+  }
+  const name = customName.trim();
+  if (!name) return null;
+  return { name, ...(selectedTokenId ? { tokenId: selectedTokenId } : {}) };
+}
+
 interface InitiativeTrackerProps {
   sceneId: string;
   myRole: Role;
@@ -88,24 +114,15 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
 
   async function onAdd(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
-    let name: string;
-    let derivedTokenId: string | undefined;
-    if (mode === 'member') {
-      if (!selectedMemberId) { setError(t('errors:validation.selectMemberOrName')); return; }
-      const all = [
-        ...(membersState?.players ?? []),
-        ...(membersState ? [membersState.gm] : []),
-      ].filter(Boolean);
-      name = all.find((m) => m!.id === selectedMemberId)?.name ?? '';
-      if (!name) { setError(t('errors:validation.selectMemberOrName')); return; }
-      const matched = sceneTokens.find((tk) => tk.assignedUserId === selectedMemberId);
-      derivedTokenId = matched?.id;
-    } else {
-      name = customName.trim();
-      if (!name) { setError(t('errors:validation.selectMemberOrName')); return; }
-      derivedTokenId = selectedTokenId || undefined;
-    }
-    const tokenId = derivedTokenId;
+    const allMembersForResolve = [
+      ...(membersState?.players ?? []),
+      ...(membersState ? [membersState.gm] : []),
+    ].filter(Boolean) as { id?: string; name?: string }[];
+    const resolved = resolveInitiativeEntry(
+      mode, selectedMemberId, customName, selectedTokenId, allMembersForResolve, sceneTokens,
+    );
+    if (!resolved) { setError(t('errors:validation.selectMemberOrName')); return; }
+    const { name, tokenId } = resolved;
     setBusy(true); setError(null);
     try {
       await dispatch(addEntryThunk({

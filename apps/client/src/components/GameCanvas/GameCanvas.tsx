@@ -56,6 +56,132 @@ function computeFowAlpha(myRole: Role, fogGmAlpha: number, theme: string): numbe
   return myRole === 'GM' ? fogGmAlpha : (theme === 'dark' ? 0.5 : 0.7);
 }
 
+/** True if the keyboard target is a focusable input/textarea/contenteditable;
+ *  used to suppress canvas shortcuts. Extracted to keep handleKeyDown ≤ 10. */
+function isInputTarget(target: HTMLElement): boolean {
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable
+  );
+}
+
+/** Resolves the token-select callback for TokenLayer based on mode + role.
+ *  Extracted to keep GameCanvas cyclomatic complexity ≤ 10 (lint gate). */
+function resolveTokenSelect(
+  mode: 'edit' | 'play',
+  myRole: Role,
+  selectTokenForEdit: (id: string) => void,
+  setEditTokenId: (id: string) => void,
+): ((id: string) => void) | undefined {
+  if (mode === 'edit') return selectTokenForEdit;
+  if (myRole === 'GM') return setEditTokenId;
+  return undefined;
+}
+
+/** Resolves the token-context-menu callback (GM-only in play mode). */
+function resolveTokenContextMenu(
+  mode: 'edit' | 'play',
+  myRole: Role,
+  open: (id: string, x: number, y: number) => void,
+): ((id: string, x: number, y: number) => void) | undefined {
+  if (myRole === 'GM' && mode !== 'edit') return open;
+  return undefined;
+}
+
+interface CanvasOverlaysProps {
+  scene: SceneDTO;
+  fogEditMode: boolean;
+  textAnnCoords: { x: number; y: number } | null;
+  editTokenId: string | null;
+  ctxMenu: { tokenId: string; x: number; y: number } | null;
+  objCtxMenu: { objectId: string; x: number; y: number } | null;
+  onCloseTextAnn: () => void;
+  onCloseEditToken: () => void;
+  onEditTokenFromCtx: (tokenId: string) => void;
+  onCloseCtxMenu: () => void;
+  onAddToInitiative: (tokenId: string) => void;
+  onCloseObjCtx: () => void;
+}
+
+/** Renders DOM-level modal/overlay UI that lives outside the Konva stage.
+ *  Extracted from GameCanvas to keep cyclomatic complexity ≤ 10 (lint gate). */
+function CanvasOverlays(props: CanvasOverlaysProps): JSX.Element {
+  const { scene, fogEditMode, textAnnCoords, editTokenId, ctxMenu, objCtxMenu,
+    onCloseTextAnn, onCloseEditToken, onEditTokenFromCtx, onCloseCtxMenu, onAddToInitiative, onCloseObjCtx } = props;
+  return (
+    <>
+      {fogEditMode && (
+        <div className={styles.fogEditBadge} aria-live="polite">
+          Fog edit mode
+        </div>
+      )}
+      {textAnnCoords && (
+        <TextAnnotationModal
+          sceneId={scene.id}
+          x={textAnnCoords.x}
+          y={textAnnCoords.y}
+          onClose={onCloseTextAnn}
+        />
+      )}
+      {editTokenId && (
+        <TokenEditModal tokenId={editTokenId} onClose={onCloseEditToken} />
+      )}
+      {ctxMenu && (
+        <TokenContextMenu
+          tokenId={ctxMenu.tokenId}
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onEdit={() => onEditTokenFromCtx(ctxMenu.tokenId)}
+          onClose={onCloseCtxMenu}
+          onAddToInitiative={() => onAddToInitiative(ctxMenu.tokenId)}
+        />
+      )}
+      {objCtxMenu && (
+        <SceneObjectContextMenu
+          objectId={objCtxMenu.objectId}
+          x={objCtxMenu.x}
+          y={objCtxMenu.y}
+          onClose={onCloseObjCtx}
+        />
+      )}
+    </>
+  );
+}
+
+/** Emits delete for every currently-selected object id. */
+function deleteSelectedObjects(ids: string[], roomId: string, sceneId: string): void {
+  for (const id of ids) {
+    emitObjectDelete({ roomId, sceneId, objectId: id });
+  }
+}
+
+/** Duplicates each selected object — locally in Edit Scene, via emit otherwise. */
+function duplicateSelectedObjects(
+  ids: string[],
+  roomId: string,
+  sceneId: string,
+  dispatch: ReturnType<typeof useAppDispatch>,
+): void {
+  const state = store.getState();
+  const inEditScene = state.room.editingSceneId !== null;
+  const objects = state.scene.current?.annotations.objects ?? [];
+  for (const id of ids) {
+    if (inEditScene) {
+      // Edit Scene: optimistic local clone only — flushed to server on Done.
+      const source = objects.find((o) => o.id === id);
+      if (source) {
+        const userId = state.session.currentUser?.id ?? '';
+        const clone = buildClonedObject(source, objects, userId);
+        dispatch(appendSceneObject(clone));
+      }
+    } else {
+      // Play mode: emit to server; server broadcasts object:duplicated.
+      emitObjectDuplicate({ roomId, sceneId, objectId: id });
+    }
+  }
+}
+
 export default function GameCanvas({
   scene,
   myRole,
@@ -115,46 +241,18 @@ export default function GameCanvas({
     if (myRole !== 'GM') return;
     function handleKeyDown(e: KeyboardEvent): void {
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) return;
+      if (isInputTarget(target)) return;
       const ids = store.getState().scene.selectedSceneObjectIds;
       if (ids.length === 0) return;
-
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        for (const id of ids) {
-          emitObjectDelete({ roomId, sceneId: scene.id, objectId: id });
-        }
+        deleteSelectedObjects(ids, roomId, scene.id);
         dispatch(deselectSceneObject());
         return;
       }
-
       if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        const state = store.getState();
-        const inEditScene = state.room.editingSceneId !== null;
-        const objects = state.scene.current?.annotations.objects ?? [];
-        for (const id of ids) {
-          if (inEditScene) {
-            // Edit Scene: optimistic local clone only — flushed to server on Done.
-            // No emit, so players don't see it until the scene is saved.
-            const source = objects.find((o) => o.id === id);
-            if (source) {
-              const userId = state.session.currentUser?.id ?? '';
-              const clone = buildClonedObject(source, objects, userId);
-              dispatch(appendSceneObject(clone));
-            }
-          } else {
-            // Play mode: emit to server. Server creates the canonical copy and
-            // broadcasts object:duplicated → appendSceneObject on all clients.
-            // No local optimistic here to avoid double-creation.
-            emitObjectDuplicate({ roomId, sceneId: scene.id, objectId: id });
-          }
-        }
-        // Selection intentionally not changed (future: select new ids).
+        duplicateSelectedObjects(ids, roomId, scene.id, dispatch);
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -234,18 +332,17 @@ export default function GameCanvas({
           gridSize={scene.gridSize}
           myRole={myRole}
           myUserId={myUserId}
-          onTokenSelect={
-            mode === 'edit'
-              ? (id: string) => { dispatch(selectToken(id)); }
-              : myRole === 'GM'
-                ? (id: string) => setEditTokenId(id)
-                : undefined
-          }
-          onTokenContextMenu={
-            myRole === 'GM' && mode !== 'edit'
-              ? (id, x, y) => setCtxMenu({ tokenId: id, x, y })
-              : undefined
-          }
+          onTokenSelect={resolveTokenSelect(
+            mode,
+            myRole,
+            (id) => dispatch(selectToken(id)),
+            (id) => setEditTokenId(id),
+          )}
+          onTokenContextMenu={resolveTokenContextMenu(
+            mode,
+            myRole,
+            (id, x, y) => setCtxMenu({ tokenId: id, x, y }),
+          )}
         />
         <AnnotationLayer
           layerFilter="overlay"
@@ -267,44 +364,24 @@ export default function GameCanvas({
           <FogMarqueeLayer marquee={fogMarquee} mode={fogMode} />
         )}
       </Stage>
-      {fogEditMode && (
-        <div className={styles.fogEditBadge} aria-live="polite">
-          Fog edit mode
-        </div>
-      )}
-      {textAnnCoords && (
-        <TextAnnotationModal
-          sceneId={scene.id}
-          x={textAnnCoords.x}
-          y={textAnnCoords.y}
-          onClose={() => setTextAnnCoords(null)}
-        />
-      )}
-      {editTokenId && (
-        <TokenEditModal tokenId={editTokenId} onClose={() => setEditTokenId(null)} />
-      )}
-      {ctxMenu && (
-        <TokenContextMenu
-          tokenId={ctxMenu.tokenId}
-          x={ctxMenu.x}
-          y={ctxMenu.y}
-          onEdit={() => { setEditTokenId(ctxMenu.tokenId); setCtxMenu(null); }}
-          onClose={() => setCtxMenu(null)}
-          onAddToInitiative={() => {
-            const token = scene.tokens.find((tk) => tk.id === ctxMenu.tokenId);
-            if (token) dispatch(requestAddFromToken({ tokenId: token.id, name: token.name }));
-            setCtxMenu(null);
-          }}
-        />
-      )}
-      {objCtxMenu && (
-        <SceneObjectContextMenu
-          objectId={objCtxMenu.objectId}
-          x={objCtxMenu.x}
-          y={objCtxMenu.y}
-          onClose={() => setObjCtxMenu(null)}
-        />
-      )}
+      <CanvasOverlays
+        scene={scene}
+        fogEditMode={fogEditMode}
+        textAnnCoords={textAnnCoords}
+        editTokenId={editTokenId}
+        ctxMenu={ctxMenu}
+        objCtxMenu={objCtxMenu}
+        onCloseTextAnn={() => setTextAnnCoords(null)}
+        onCloseEditToken={() => setEditTokenId(null)}
+        onEditTokenFromCtx={(tokenId) => { setEditTokenId(tokenId); setCtxMenu(null); }}
+        onCloseCtxMenu={() => setCtxMenu(null)}
+        onAddToInitiative={(tokenId) => {
+          const token = scene.tokens.find((tk) => tk.id === tokenId);
+          if (token) dispatch(requestAddFromToken({ tokenId: token.id, name: token.name }));
+          setCtxMenu(null);
+        }}
+        onCloseObjCtx={() => setObjCtxMenu(null)}
+      />
     </div>
   );
 }

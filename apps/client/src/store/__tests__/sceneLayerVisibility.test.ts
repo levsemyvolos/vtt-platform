@@ -243,7 +243,7 @@ describe('scene slice — setSceneObjectVisibility (Sess 5 Mini-B)', () => {
   });
 
   it('is a no-op for a non-existent objectId (no throw)', () => {
-    let state = sceneReducer(undefined, hydrateScene(makeSceneWithAll()));
+    const state = sceneReducer(undefined, hydrateScene(makeSceneWithAll()));
     // should not throw
     expect(() => {
       sceneReducer(

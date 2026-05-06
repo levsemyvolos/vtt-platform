@@ -19,6 +19,108 @@ interface TokenEditModalProps {
   onClose: () => void;
 }
 
+interface TokenImageSectionProps {
+  imagePreviewUrl: string | null;
+  showUploader: boolean;
+  showLibrary: boolean;
+  roomId: string;
+  saving: boolean;
+  fieldLabel: string;
+  changeImageLabel: string;
+  uploadImageLabel: string;
+  pickFromLibraryLabel: string;
+  imagePreviewAlt: string;
+  pickerLabel: string;
+  onImageUploaded: (asset: AssetDTO) => void;
+  onShowUploader: () => void;
+  onShowLibrary: () => void;
+}
+
+/** Token-image picker section (preview, uploader, library).
+ *  Extracted from TokenEditModal to keep cyclomatic complexity ≤ 10 (lint gate). */
+function TokenImageSection(props: TokenImageSectionProps): JSX.Element {
+  const { imagePreviewUrl, showUploader, showLibrary, roomId, saving,
+    fieldLabel, changeImageLabel, uploadImageLabel, pickFromLibraryLabel,
+    imagePreviewAlt, pickerLabel,
+    onImageUploaded, onShowUploader, onShowLibrary } = props;
+  const showPreview = imagePreviewUrl !== null && !showUploader;
+  return (
+    <div className={styles.field}>
+      <span className={styles.fieldLabel}>{fieldLabel}</span>
+      {showPreview ? (
+        <div style={{ marginBottom: 'var(--space-xs)' }}>
+          <img
+            src={imagePreviewUrl ?? ''}
+            alt={imagePreviewAlt}
+            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+          />
+        </div>
+      ) : null}
+      {renderImagePicker({
+        showUploader, showLibrary, roomId, saving, imagePreviewUrl,
+        changeImageLabel, uploadImageLabel, pickFromLibraryLabel, pickerLabel,
+        onImageUploaded, onShowUploader, onShowLibrary,
+      })}
+    </div>
+  );
+}
+
+interface ImagePickerArgs {
+  showUploader: boolean;
+  showLibrary: boolean;
+  roomId: string;
+  saving: boolean;
+  imagePreviewUrl: string | null;
+  changeImageLabel: string;
+  uploadImageLabel: string;
+  pickFromLibraryLabel: string;
+  pickerLabel: string;
+  onImageUploaded: (asset: AssetDTO) => void;
+  onShowUploader: () => void;
+  onShowLibrary: () => void;
+}
+
+/** Renders the uploader, library, or picker buttons depending on UI state. */
+function renderImagePicker(a: ImagePickerArgs): JSX.Element {
+  if (a.showUploader && a.roomId) {
+    return <ImageUpload roomId={a.roomId} onUploaded={a.onImageUploaded} />;
+  }
+  if (a.showLibrary && a.roomId) {
+    return (
+      <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-xs)' }}>
+        <AssetLibrary
+          roomId={a.roomId}
+          tabs={['images']}
+          pickLabel={a.pickerLabel}
+          onPick={a.onImageUploaded}
+        />
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
+      <button
+        type="button"
+        className={styles.btnCancel}
+        style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
+        onClick={a.onShowUploader}
+        disabled={a.saving || !a.roomId}
+      >
+        {a.imagePreviewUrl ? a.changeImageLabel : a.uploadImageLabel}
+      </button>
+      <button
+        type="button"
+        className={styles.btnCancel}
+        style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
+        onClick={a.onShowLibrary}
+        disabled={a.saving || !a.roomId}
+      >
+        {a.pickFromLibraryLabel}
+      </button>
+    </div>
+  );
+}
+
 export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps): JSX.Element | null {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['room', 'common', 'errors']);
@@ -128,52 +230,22 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
           />
         </label>
 
-        {/* Token image section */}
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>{t('room:token.imageLabel', 'Token Image')}</span>
-          {imagePreviewUrl && !showUploader && (
-            <div style={{ marginBottom: 'var(--space-xs)' }}>
-              <img
-                src={imagePreviewUrl}
-                alt={t('room:token.imagePreviewAlt', 'Token image')}
-                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
-              />
-            </div>
-          )}
-          {showUploader && roomId ? (
-            <ImageUpload roomId={roomId} onUploaded={handleImageUploaded} />
-          ) : showLibrary && roomId ? (
-            <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-xs)' }}>
-              <AssetLibrary
-                roomId={roomId}
-                tabs={['images']}
-                pickLabel={t('room:token.useForToken', 'Use for token')}
-                onPick={handleImageUploaded}
-              />
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className={styles.btnCancel}
-                style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
-                onClick={() => setShowUploader(true)}
-                disabled={saving || !roomId}
-              >
-                {imagePreviewUrl ? t('room:token.changeImage', 'Change image') : t('room:token.uploadImage', 'Upload image')}
-              </button>
-              <button
-                type="button"
-                className={styles.btnCancel}
-                style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
-                onClick={() => setShowLibrary(true)}
-                disabled={saving || !roomId}
-              >
-                {t('room:token.pickFromLibrary', 'Pick from library')}
-              </button>
-            </div>
-          )}
-        </div>
+        <TokenImageSection
+          imagePreviewUrl={imagePreviewUrl}
+          showUploader={showUploader}
+          showLibrary={showLibrary}
+          roomId={roomId}
+          saving={saving}
+          fieldLabel={t('room:token.imageLabel', 'Token Image')}
+          changeImageLabel={t('room:token.changeImage', 'Change image')}
+          uploadImageLabel={t('room:token.uploadImage', 'Upload image')}
+          pickFromLibraryLabel={t('room:token.pickFromLibrary', 'Pick from library')}
+          imagePreviewAlt={t('room:token.imagePreviewAlt', 'Token image')}
+          pickerLabel={t('room:token.useForToken', 'Use for token')}
+          onImageUploaded={handleImageUploaded}
+          onShowUploader={() => setShowUploader(true)}
+          onShowLibrary={() => setShowLibrary(true)}
+        />
 
         <div className={styles.row}>
           <label className={styles.field}>

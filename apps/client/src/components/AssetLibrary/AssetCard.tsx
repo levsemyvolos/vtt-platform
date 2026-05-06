@@ -30,6 +30,63 @@ function formatType(mime: string): string {
   return sub.toUpperCase();
 }
 
+/** Renders the type-appropriate thumbnail (image/audio/document).
+ *  Extracted from AssetCard to keep cyclomatic complexity ≤ 10 (lint gate). */
+function AssetThumb({ asset, isImage, isAudio }: { asset: AssetDTO; isImage: boolean; isAudio: boolean }): JSX.Element {
+  if (isImage) return <img src={asset.url} alt={asset.name} className={styles.thumb} loading="lazy" />;
+  if (isAudio) return <div className={styles.thumbAudio} aria-label={asset.type}>♪</div>;
+  return <div className={styles.thumbDoc} aria-label={asset.type}>📄</div>;
+}
+
+interface AssetActionsRowProps {
+  asset: AssetDTO;
+  isImage: boolean;
+  pickLabel?: string | undefined;
+  deleteConfirmMsg: string;
+  deleteLabel: string;
+  useAsBackgroundLabel: string;
+  addToSceneLabel: string;
+  onPick?: ((asset: AssetDTO) => void) | undefined;
+  onSetBackground?: ((asset: AssetDTO) => void) | undefined;
+  onAddToScene?: ((asset: AssetDTO) => void) | undefined;
+  onDelete?: ((asset: AssetDTO) => void) | undefined;
+}
+
+/** Action buttons rendered over the thumbnail (pick, set bg, add, delete).
+ *  Extracted to keep AssetCard cyclomatic complexity ≤ 10 (lint gate). */
+function AssetActionsRow(props: AssetActionsRowProps): JSX.Element {
+  const { asset, isImage, pickLabel, deleteConfirmMsg, deleteLabel, useAsBackgroundLabel, addToSceneLabel,
+    onPick, onSetBackground, onAddToScene, onDelete } = props;
+  return (
+    <div className={styles.actions}>
+      {onPick && isImage ? (
+        <button type="button" className={styles.actionBtn} onClick={() => onPick(asset)}>
+          {pickLabel ?? 'Pick'}
+        </button>
+      ) : null}
+      {onSetBackground && isImage ? (
+        <button type="button" className={styles.actionBtn} onClick={() => onSetBackground(asset)}>
+          {useAsBackgroundLabel}
+        </button>
+      ) : null}
+      {onAddToScene && isImage ? (
+        <button type="button" className={styles.actionBtn} onClick={() => onAddToScene(asset)}>
+          {addToSceneLabel}
+        </button>
+      ) : null}
+      {onDelete ? (
+        <button
+          type="button"
+          className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+          onClick={() => { if (window.confirm(deleteConfirmMsg)) onDelete(asset); }}
+        >
+          {deleteLabel}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export default function AssetCard({
   asset,
   isActiveBackground,
@@ -85,49 +142,28 @@ export default function AssetCard({
   const isImage = asset.type.startsWith('image/');
   const isAudio = asset.type.startsWith('audio/');
 
+  const cardClass = `${styles.card} ${isActiveBackground ? styles.cardActive : ''}`;
+
   return (
-    <div className={`${styles.card} ${isActiveBackground ? styles.cardActive : ''}`}>
+    <div className={cardClass}>
       <div className={styles.thumbWrap}>
-        {isImage ? (
-          <img src={asset.url} alt={asset.name} className={styles.thumb} loading="lazy" />
-        ) : isAudio ? (
-          <div className={styles.thumbAudio} aria-label={asset.type}>♪</div>
-        ) : (
-          <div className={styles.thumbDoc} aria-label={asset.type}>📄</div>
-        )}
+        <AssetThumb asset={asset} isImage={isImage} isAudio={isAudio} />
         {isActiveBackground ? (
           <span className={styles.activeBadge}>{t('sceneEditor.assetLibrary.active')}</span>
         ) : null}
-        <div className={styles.actions}>
-          {onPick && isImage ? (
-            <button type="button" className={styles.actionBtn} onClick={() => onPick(asset)}>
-              {pickLabel ?? 'Pick'}
-            </button>
-          ) : null}
-          {onSetBackground && isImage ? (
-            <button type="button" className={styles.actionBtn} onClick={() => onSetBackground(asset)}>
-              {t('sceneEditor.assetLibrary.useAsBackground')}
-            </button>
-          ) : null}
-          {onAddToScene && isImage ? (
-            <button type="button" className={styles.actionBtn} onClick={() => onAddToScene(asset)}>
-              {t('sceneEditor.assetLibrary.addToScene')}
-            </button>
-          ) : null}
-          {onDelete ? (
-            <button
-              type="button"
-              className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
-              onClick={() => {
-                if (window.confirm(t('sceneEditor.assetLibrary.deleteConfirm', { name: asset.name }))) {
-                  onDelete(asset);
-                }
-              }}
-            >
-              {t('sceneEditor.assetLibrary.delete')}
-            </button>
-          ) : null}
-        </div>
+        <AssetActionsRow
+          asset={asset}
+          isImage={isImage}
+          pickLabel={pickLabel}
+          deleteConfirmMsg={t('sceneEditor.assetLibrary.deleteConfirm', { name: asset.name })}
+          deleteLabel={t('sceneEditor.assetLibrary.delete')}
+          useAsBackgroundLabel={t('sceneEditor.assetLibrary.useAsBackground')}
+          addToSceneLabel={t('sceneEditor.assetLibrary.addToScene')}
+          onPick={onPick}
+          onSetBackground={onSetBackground}
+          onAddToScene={onAddToScene}
+          onDelete={onDelete}
+        />
       </div>
       {editing ? (
         <input

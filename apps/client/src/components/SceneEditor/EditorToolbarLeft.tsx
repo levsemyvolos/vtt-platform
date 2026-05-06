@@ -15,6 +15,27 @@ interface EditorToolbarLeftProps {
   sceneId: string;
 }
 
+/** Reads scene background defaults with safe fallbacks.
+ *  Extracted to keep EditorToolbarLeft cyclomatic complexity ≤ 10 (lint gate). */
+function getBackgroundDefaults(scene: { backgroundFit?: string; backgroundOffsetX?: number; backgroundOffsetY?: number; backgroundScale?: number } | null): {
+  fit: string; offsetX: number; offsetY: number; scale: number;
+} {
+  return {
+    fit: scene?.backgroundFit ?? 'cover',
+    offsetX: scene?.backgroundOffsetX ?? 0,
+    offsetY: scene?.backgroundOffsetY ?? 0,
+    scale: scene?.backgroundScale ?? 1,
+  };
+}
+
+/** Extracts the assetId embedded in a signed `/api/assets/:id/file` URL.
+ *  Extracted to keep EditorToolbarLeft cyclomatic complexity ≤ 10 (lint gate). */
+function extractActiveBgAssetId(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const m = /\/api\/assets\/([^/]+)\/file/.exec(url);
+  return m ? m[1] : undefined;
+}
+
 export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeftProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['room', 'errors']);
@@ -23,12 +44,8 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
   const tokens = scene?.tokens ?? [];
   // SceneDTO carries backgroundUrl (signed), not the assetId. Extract the id
   // from the path so AssetLibrary can highlight the active card.
-  const activeBackgroundAssetId = (() => {
-    const url = scene?.backgroundUrl;
-    if (!url) return undefined;
-    const m = /\/api\/assets\/([^/]+)\/file/.exec(url);
-    return m ? m[1] : undefined;
-  })();
+  const activeBackgroundAssetId = extractActiveBgAssetId(scene?.backgroundUrl);
+  const bgDefaults = getBackgroundDefaults(scene ?? null);
 
   const [aiOpen, setAiOpen] = useState(false);
   const [gridSize, setGridSize] = useState(String(scene?.gridSize ?? 50));
@@ -182,7 +199,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           <span className={styles.fieldLabel}>{t('sceneEditor.bg.fitLabel')}</span>
           <select
             className={styles.numInput}
-            value={scene?.backgroundFit ?? 'cover'}
+            value={bgDefaults.fit}
             onChange={(e) => dispatch(applyDraftSceneUpdate({
               patch: { backgroundFit: e.target.value as BackgroundFit },
             }))}
@@ -198,7 +215,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           <input
             type="number"
             className={styles.numInput}
-            value={scene?.backgroundOffsetX ?? 0}
+            value={bgDefaults.offsetX}
             step={10}
             onChange={(e) => dispatch(applyDraftSceneUpdate({
               patch: { backgroundOffsetX: Number(e.target.value) },
@@ -211,7 +228,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           <input
             type="number"
             className={styles.numInput}
-            value={scene?.backgroundOffsetY ?? 0}
+            value={bgDefaults.offsetY}
             step={10}
             onChange={(e) => dispatch(applyDraftSceneUpdate({
               patch: { backgroundOffsetY: Number(e.target.value) },
@@ -224,7 +241,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           <input
             type="number"
             className={styles.numInput}
-            value={scene?.backgroundScale ?? 1}
+            value={bgDefaults.scale}
             step={0.1}
             min={0.05}
             max={20}

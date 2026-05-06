@@ -32,6 +32,36 @@ const STATUS_COLORS: Record<StatusMarker, string> = {
   petrified: '#adb5bd', restrained: '#fd7e14', unconscious: '#495057',
 };
 
+/** Status marker dots rendered below the token. Extracted to keep TokenNode
+ *  cyclomatic complexity ≤ 10 (lint gate). Returns null when no markers set. */
+function TokenMarkers({ markers, gridSize }: { markers: StatusMarker[]; gridSize: number }): JSX.Element | null {
+  if (markers.length === 0) return null;
+  return (
+    <Group y={gridSize - 10}>
+      {markers.slice(0, 8).map((m, i) => (
+        <Circle key={m} x={i * 10 + 5} y={5} radius={4}
+          fill={STATUS_COLORS[m]} stroke="#000" strokeWidth={0.5}
+        />
+      ))}
+    </Group>
+  );
+}
+
+/** Decorative highlight rect drawn behind the active-initiative token. Extracted
+ *  to keep TokenNode cyclomatic complexity ≤ 10 (lint gate). */
+function ActiveHighlight({ gridSize }: { gridSize: number }): JSX.Element {
+  return (
+    <Rect
+      x={-3} y={-3}
+      width={gridSize + 6} height={gridSize + 6}
+      fill="transparent"
+      stroke="#ffd43b" strokeWidth={3} cornerRadius={6}
+      shadowBlur={12} shadowColor="#ffd43b" shadowOpacity={0.8}
+      listening={false}
+    />
+  );
+}
+
 /**
  * Middle layer (Ф3.1, Ф3.2). Renders all RBAC-projected tokens received from
  * the server (algorithm A6 already filtered hidden ones upstream).
@@ -169,6 +199,18 @@ function TokenNode({
 
   const markers = (token.statusMarkers ?? []) as StatusMarker[];
 
+  function handleClick(e: Konva.KonvaEventObject<MouseEvent>): void {
+    if (e.evt.button !== 0) return;
+    onEditClick?.(token.id);
+  }
+
+  function handleContextMenu(e: Konva.KonvaEventObject<MouseEvent>): void {
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (pos) onContextMenu?.(token.id, pos.x, pos.y);
+  }
+
   return (
     <Group
       x={px} y={py}
@@ -176,31 +218,11 @@ function TokenNode({
       onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
-      onClick={(e) => { if (e.evt.button !== 0) return; onEditClick?.(token.id); }}
-      onContextMenu={(e) => {
-        e.evt.preventDefault();
-        const stage = e.target.getStage();
-        const pos = stage?.getPointerPosition();
-        if (pos) onContextMenu?.(token.id, pos.x, pos.y);
-      }}
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
       listening={true}
     >
-      {isActive && !isDraggingLocallyRef.current && (
-        <Rect
-          x={-3}
-          y={-3}
-          width={gridSize + 6}
-          height={gridSize + 6}
-          fill="transparent"
-          stroke="#ffd43b"
-          strokeWidth={3}
-          cornerRadius={6}
-          shadowBlur={12}
-          shadowColor="#ffd43b"
-          shadowOpacity={0.8}
-          listening={false}
-        />
-      )}
+      {isActive && !isDraggingLocallyRef.current && <ActiveHighlight gridSize={gridSize} />}
       {image ? (
         <KonvaImage image={image} width={gridSize} height={gridSize} />
       ) : (
@@ -216,19 +238,7 @@ function TokenNode({
       {token.hp !== undefined && (
         <HpBar hp={token.hp} maxHp={token.maxHp} gridSize={gridSize} />
       )}
-      {markers.length > 0 && (
-        <Group y={gridSize - 10}>
-          {markers.slice(0, 8).map((m, i) => (
-            <Circle
-              key={m}
-              x={i * 10 + 5} y={5}
-              radius={4}
-              fill={STATUS_COLORS[m]}
-              stroke="#000" strokeWidth={0.5}
-            />
-          ))}
-        </Group>
-      )}
+      <TokenMarkers markers={markers} gridSize={gridSize} />
     </Group>
   );
 }

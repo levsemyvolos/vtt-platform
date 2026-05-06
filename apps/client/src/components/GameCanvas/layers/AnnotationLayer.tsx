@@ -145,6 +145,78 @@ function toObjects(
   ];
 }
 
+/** Renders the visual primitive for a single SceneObject (stroke/text/image).
+ *  Extracted from ObjectNode to keep cyclomatic complexity ≤ 10 (lint gate). */
+function ObjectShape({ object, image }: { object: SceneObject; image: HTMLImageElement | null | undefined }): JSX.Element | null {
+  if (object.type === 'stroke') {
+    return (
+      <Line
+        points={object.points}
+        stroke={object.color}
+        strokeWidth={object.strokeWidth}
+        lineCap="round"
+        lineJoin="round"
+        tension={0.3}
+      />
+    );
+  }
+  if (object.type === 'text') {
+    return (
+      <Text
+        text={object.text}
+        fontSize={object.fontSize}
+        fill={object.color}
+        fontStyle="bold"
+        shadowColor="rgba(0,0,0,0.6)"
+        shadowBlur={4}
+        shadowOffsetX={1}
+        shadowOffsetY={1}
+      />
+    );
+  }
+  if (object.type === 'image') {
+    return image
+      ? <KonvaImage image={image} width={object.width} height={object.height} />
+      : <Rect width={object.width} height={object.height} fill="#334155" stroke="#94a3b8" strokeWidth={1} />;
+  }
+  return null;
+}
+
+/** Blue selection-highlight rect rendered on top of an object when GM-selected.
+ *  Extracted from ObjectNode to keep cyclomatic complexity ≤ 10 (lint gate). */
+function SelectionRect({ object }: { object: SceneObject }): JSX.Element {
+  const box = computeSelectionBox(object);
+  return (
+    <Rect
+      x={box.x}
+      y={box.y}
+      width={box.w}
+      height={box.h}
+      stroke="#3b82f6"
+      strokeWidth={2}
+      listening={false}
+    />
+  );
+}
+
+/** Permanent amber dashed marker for GM-only objects (visible to GM only).
+ *  Extracted from ObjectNode to keep cyclomatic complexity ≤ 10 (lint gate). */
+function GmOnlyMarker({ object }: { object: SceneObject }): JSX.Element {
+  const box = computeSelectionBox(object);
+  return (
+    <Rect
+      x={box.x}
+      y={box.y}
+      width={box.w}
+      height={box.h}
+      stroke="#fbbf24"
+      strokeWidth={1}
+      dash={[4, 4]}
+      listening={false}
+    />
+  );
+}
+
 interface ObjectNodeProps {
   object: SceneObject;
   canEdit: boolean;
@@ -231,26 +303,16 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
 
   // Defensive: gm-only objects should never reach a Player's render tree (Mini-A/B filter
   // them out upstream). If one slips through anyway, hide it entirely.
-  if (object.visibility === 'gm-only' && myRole !== 'GM') return null;
-
-  const isGmOnly = object.visibility === 'gm-only';
-  const groupOpacity = isGmOnly && myRole === 'GM' ? 0.6 : 1;
-
-  const objectRotation = object.type === 'image' ? (object.rotation ?? 0) : 0;
-
-  // id attr needed only for image — Transformer uses stage.findOne('#id') lookup.
-  const groupId = object.type === 'image' ? object.id : undefined;
-
-  // Selection rect shown for GM when this object is selected (all types — Mini-E).
-  const showSelectionRect = myRole === 'GM' && isSelected;
+  const meta = computeObjectMeta(object, myRole, isSelected);
+  if (meta === null) return null;
 
   return (
     <Group
-      {...(groupId !== undefined ? { id: groupId } : {})}
+      {...(meta.groupId !== undefined ? { id: meta.groupId } : {})}
       x={object.x}
       y={object.y}
-      rotation={objectRotation}
-      opacity={groupOpacity}
+      rotation={meta.rotation}
+      opacity={meta.opacity}
       draggable={isDraggable}
       listening={canEdit}
       onDragMove={handleDragMove}
@@ -260,69 +322,46 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
       onMouseLeave={handleMouseLeave}
       onContextMenu={handleContextMenu}
     >
-      {object.type === 'stroke' && (
-        <Line
-          points={object.points}
-          stroke={object.color}
-          strokeWidth={object.strokeWidth}
-          lineCap="round"
-          lineJoin="round"
-          tension={0.3}
-        />
-      )}
-      {object.type === 'text' && (
-        <Text
-          text={object.text}
-          fontSize={object.fontSize}
-          fill={object.color}
-          fontStyle="bold"
-          shadowColor="rgba(0,0,0,0.6)"
-          shadowBlur={4}
-          shadowOffsetX={1}
-          shadowOffsetY={1}
-        />
-      )}
-      {object.type === 'image' && (
-        image ? (
-          <KonvaImage image={image} width={object.width} height={object.height} />
-        ) : (
-          <Rect width={object.width} height={object.height} fill="#334155" stroke="#94a3b8" strokeWidth={1} />
-        )
-      )}
-      {/* Selection highlight rect for GM multi-select — all object types (Mini-E) */}
-      {showSelectionRect && (() => {
-        const box = computeSelectionBox(object);
-        return (
-          <Rect
-            x={box.x}
-            y={box.y}
-            width={box.w}
-            height={box.h}
-            stroke="#3b82f6"
-            strokeWidth={2}
-            listening={false}
-          />
-        );
-      })()}
-      {/* Permanent amber dashed marker for GM-only objects — always visible to GM,
-          hidden when selected (the blue selection rect already signals the state). */}
-      {isGmOnly && myRole === 'GM' && !isSelected && (() => {
-        const box = computeSelectionBox(object);
-        return (
-          <Rect
-            x={box.x}
-            y={box.y}
-            width={box.w}
-            height={box.h}
-            stroke="#fbbf24"
-            strokeWidth={1}
-            dash={[4, 4]}
-            listening={false}
-          />
-        );
-      })()}
+      <ObjectShape object={object} image={image} />
+      {meta.showSelection && <SelectionRect object={object} />}
+      {meta.showGmOnlyMarker && <GmOnlyMarker object={object} />}
     </Group>
   );
+}
+
+interface ObjectMeta {
+  groupId: string | undefined;
+  rotation: number;
+  opacity: number;
+  showSelection: boolean;
+  showGmOnlyMarker: boolean;
+}
+
+/** Image-specific group id and rotation (other types render at the Group origin). */
+function getImageMeta(object: SceneObject): { groupId: string | undefined; rotation: number } {
+  if (object.type !== 'image') return { groupId: undefined, rotation: 0 };
+  return { groupId: object.id, rotation: object.rotation ?? 0 };
+}
+
+/** Computes per-render meta for ObjectNode (visibility, opacity, rotation, group id, marker flags).
+ *  Returns null when the object should not be rendered (defensive gm-only-for-Player guard).
+ *  Extracted to keep ObjectNode cyclomatic complexity ≤ 10 (lint gate). */
+function computeObjectMeta(
+  object: SceneObject,
+  myRole: Role,
+  isSelected: boolean,
+): ObjectMeta | null {
+  const isGM = myRole === 'GM';
+  const isGmOnly = object.visibility === 'gm-only';
+  if (isGmOnly && !isGM) return null;
+  const { groupId, rotation } = getImageMeta(object);
+  return {
+    groupId,
+    rotation,
+    opacity: isGmOnly && isGM ? 0.6 : 1,
+    showSelection: isGM && isSelected,
+    showGmOnlyMarker: isGmOnly && isGM && !isSelected,
+  };
 }
 
 interface AnnotationLayerProps {

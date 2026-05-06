@@ -14,6 +14,109 @@ import type {
   SceneObjectVisibility,
 } from '@vtt/shared';
 
+/**
+ * Builds the SceneObject form for a draw stroke, deriving x/y/zIndex/layer/visibility
+ * from any pre-existing object with the same id (so re-drawn strokes keep their meta).
+ * Extracted to keep applyDrawStroke cyclomatic complexity ≤ 10 (lint gate).
+ */
+function buildStrokeObject(
+  strokeId: string,
+  userId: string,
+  points: number[],
+  color: string,
+  width: number,
+  existing: SceneObject | undefined,
+  fallbackZIndex: number,
+): SceneObject {
+  return {
+    id: strokeId,
+    type: 'stroke' as const,
+    userId,
+    x: existing?.x ?? 0,
+    y: existing?.y ?? 0,
+    zIndex: existing?.zIndex ?? fallbackZIndex,
+    points,
+    color,
+    strokeWidth: width,
+    layer: (existing?.layer ?? 'overlay') as SceneObjectLayer,
+    visibility: (existing?.visibility ?? 'all') as SceneObjectVisibility,
+  };
+}
+
+/**
+ * Mirrors a freshly appended SceneObject into the appropriate legacy array
+ * (images[]/texts[]/strokes[]). Extracted from `appendSceneObject` to keep
+ * cyclomatic complexity ≤ 10 (lint gate).
+ */
+function mirrorAppendToLegacy(annotations: SceneAnnotations, object: SceneObject): void {
+  if (object.type === 'image') {
+    const imgIdx = annotations.images.findIndex((i) => i.id === object.id);
+    const imageBase = {
+      id: object.id,
+      userId: object.userId,
+      x: object.x,
+      y: object.y,
+      assetId: object.assetId,
+      width: object.width,
+      height: object.height,
+    };
+    // exactOptionalPropertyTypes: only include optional fields when defined
+    const imageEntry = {
+      ...imageBase,
+      ...(object.rotation !== undefined ? { rotation: object.rotation } : {}),
+      ...(object.locked !== undefined ? { locked: object.locked } : {}),
+    };
+    if (imgIdx >= 0) annotations.images[imgIdx] = imageEntry;
+    else annotations.images.push(imageEntry);
+    return;
+  }
+  if (object.type === 'text') {
+    const textIdx = annotations.texts.findIndex((t) => t.id === object.id);
+    const textEntry = {
+      id: object.id,
+      userId: object.userId,
+      x: object.x,
+      y: object.y,
+      text: object.text,
+      fontSize: object.fontSize,
+      color: object.color,
+    };
+    if (textIdx >= 0) annotations.texts[textIdx] = textEntry;
+    else annotations.texts.push(textEntry);
+    return;
+  }
+  if (object.type === 'stroke') {
+    const strokeIdx = annotations.strokes.findIndex((s) => s.strokeId === object.id);
+    const strokeEntry = {
+      strokeId: object.id,
+      userId: object.userId,
+      x: object.x,
+      y: object.y,
+      points: object.points,
+      color: object.color,
+      width: object.strokeWidth,
+    };
+    if (strokeIdx >= 0) annotations.strokes[strokeIdx] = strokeEntry;
+    else annotations.strokes.push(strokeEntry);
+  }
+}
+
+/**
+ * Applies the patch fields onto the live SceneDTO so the canvas re-renders
+ * immediately (Edit Scene mirroring). Extracted from `applyDraftSceneUpdate` to
+ * keep cyclomatic complexity ≤ 10 (lint gate).
+ */
+function applyPatchToScene(scene: SceneDTO, patch: SceneDraftPatch): void {
+  if (patch.gridSize !== undefined) scene.gridSize = patch.gridSize;
+  if (patch.gridWidth !== undefined) scene.gridWidth = patch.gridWidth;
+  if (patch.gridHeight !== undefined) scene.gridHeight = patch.gridHeight;
+  if (patch.gridVisible !== undefined) scene.gridVisible = patch.gridVisible;
+  if (patch.backgroundFit !== undefined) scene.backgroundFit = patch.backgroundFit;
+  if (patch.backgroundOffsetX !== undefined) scene.backgroundOffsetX = patch.backgroundOffsetX;
+  if (patch.backgroundOffsetY !== undefined) scene.backgroundOffsetY = patch.backgroundOffsetY;
+  if (patch.backgroundScale !== undefined) scene.backgroundScale = patch.backgroundScale;
+}
+
 /** Keys that can be buffered locally during Edit Scene mode. */
 interface SceneDraftPatch {
   gridSize?: number;
@@ -187,19 +290,7 @@ const sceneSlice = createSlice({
       const objects = state.current.annotations.objects ?? [];
       const objectIdx = objects.findIndex((object) => object.id === strokeId);
       const existing = objectIdx >= 0 ? objects[objectIdx] : undefined;
-      const object = {
-        id: strokeId,
-        type: 'stroke' as const,
-        userId,
-        x: existing?.x ?? 0,
-        y: existing?.y ?? 0,
-        zIndex: existing?.zIndex ?? objects.length,
-        points,
-        color,
-        strokeWidth: width,
-        layer: (existing?.layer ?? 'overlay') as import('@vtt/shared').SceneObjectLayer,
-        visibility: (existing?.visibility ?? 'all') as import('@vtt/shared').SceneObjectVisibility,
-      };
+      const object = buildStrokeObject(strokeId, userId, points, color, width, existing, objects.length);
       if (objectIdx >= 0) objects[objectIdx] = object;
       else objects.push(object);
       state.current.annotations.objects = objects;
@@ -357,70 +448,11 @@ const sceneSlice = createSlice({
       const objects = annotations.objects ?? [];
 
       const existingIdx = objects.findIndex((o) => o.id === object.id);
-      if (existingIdx >= 0) {
-        objects[existingIdx] = object;
-      } else {
-        objects.push(object);
-      }
+      if (existingIdx >= 0) objects[existingIdx] = object;
+      else objects.push(object);
       state.current.annotations.objects = objects;
 
-      if (object.type === 'image') {
-        const imgIdx = annotations.images.findIndex((i) => i.id === object.id);
-        const imageBase = {
-          id: object.id,
-          userId: object.userId,
-          x: object.x,
-          y: object.y,
-          assetId: object.assetId,
-          width: object.width,
-          height: object.height,
-        };
-        // exactOptionalPropertyTypes: only include optional fields when defined
-        const imageEntry = object.rotation !== undefined
-          ? object.locked !== undefined
-            ? { ...imageBase, rotation: object.rotation, locked: object.locked }
-            : { ...imageBase, rotation: object.rotation }
-          : object.locked !== undefined
-            ? { ...imageBase, locked: object.locked }
-            : imageBase;
-        if (imgIdx >= 0) {
-          annotations.images[imgIdx] = imageEntry;
-        } else {
-          annotations.images.push(imageEntry);
-        }
-      } else if (object.type === 'text') {
-        const textIdx = annotations.texts.findIndex((t) => t.id === object.id);
-        const textEntry = {
-          id: object.id,
-          userId: object.userId,
-          x: object.x,
-          y: object.y,
-          text: object.text,
-          fontSize: object.fontSize,
-          color: object.color,
-        };
-        if (textIdx >= 0) {
-          annotations.texts[textIdx] = textEntry;
-        } else {
-          annotations.texts.push(textEntry);
-        }
-      } else if (object.type === 'stroke') {
-        const strokeIdx = annotations.strokes.findIndex((s) => s.strokeId === object.id);
-        const strokeEntry = {
-          strokeId: object.id,
-          userId: object.userId,
-          x: object.x,
-          y: object.y,
-          points: object.points,
-          color: object.color,
-          width: object.strokeWidth,
-        };
-        if (strokeIdx >= 0) {
-          annotations.strokes[strokeIdx] = strokeEntry;
-        } else {
-          annotations.strokes.push(strokeEntry);
-        }
-      }
+      mirrorAppendToLegacy(annotations, object);
     },
     /**
      * Changes the render layer of a scene object (Sess 5 Mini-B).
@@ -502,15 +534,7 @@ const sceneSlice = createSlice({
     ) => {
       if (!state.current) return;
       state.draftPatch = { ...(state.draftPatch ?? {}), ...action.payload.patch };
-      const { patch } = action.payload;
-      if (patch.gridSize !== undefined) state.current.gridSize = patch.gridSize;
-      if (patch.gridWidth !== undefined) state.current.gridWidth = patch.gridWidth;
-      if (patch.gridHeight !== undefined) state.current.gridHeight = patch.gridHeight;
-      if (patch.gridVisible !== undefined) state.current.gridVisible = patch.gridVisible;
-      if (patch.backgroundFit !== undefined) state.current.backgroundFit = patch.backgroundFit;
-      if (patch.backgroundOffsetX !== undefined) state.current.backgroundOffsetX = patch.backgroundOffsetX;
-      if (patch.backgroundOffsetY !== undefined) state.current.backgroundOffsetY = patch.backgroundOffsetY;
-      if (patch.backgroundScale !== undefined) state.current.backgroundScale = patch.backgroundScale;
+      applyPatchToScene(state.current, action.payload.patch);
       if (action.payload.backgroundUrl !== undefined) {
         state.current.backgroundUrl = action.payload.backgroundUrl;
       }
