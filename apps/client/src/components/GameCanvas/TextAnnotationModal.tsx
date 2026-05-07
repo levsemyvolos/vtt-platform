@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import Modal from '../common/Modal';
 import { apiAddTextAnnotation } from '../../api/scenes';
+import { store } from '../../store';
+import { recordUndo } from '../../store/undoDispatcher';
 
 interface Props {
   sceneId: string;
@@ -24,7 +26,15 @@ export default function TextAnnotationModal({ sceneId, x, y, onClose }: Props): 
     if (!text.trim()) return;
     setSubmitting(true);
     try {
-      await apiAddTextAnnotation(sceneId, { x, y, text: text.trim(), color });
+      // Sess 7.5: capture id-set before so we can recognize the newly-created
+      // text object in the response (server generates the id; broadcast is what
+      // updates state, but the response itself carries the canonical annotations).
+      const beforeIds = new Set(
+        (store.getState().scene.current?.annotations.objects ?? []).map((o) => o.id),
+      );
+      const result = await apiAddTextAnnotation(sceneId, { x, y, text: text.trim(), color });
+      const newObj = (result.objects ?? []).find((o) => !beforeIds.has(o.id) && o.type === 'text');
+      if (newObj) recordUndo({ kind: 'object_add', object: newObj });
     } finally {
       setSubmitting(false);
       onClose();

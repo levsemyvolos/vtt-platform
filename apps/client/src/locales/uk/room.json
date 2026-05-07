@@ -146,7 +146,13 @@
     "statusLabel": "Статуси",
     "assignedPlayerLabel": "Призначений гравець",
     "noAssigned": "— не призначено —",
-    "contextMenuLabel": "Дії з токеном"
+    "contextMenuLabel": "Дії з токеном",
+    "imageLabel": "Зображення токена",
+    "imagePreviewAlt": "Зображення токена",
+    "changeImage": "Змінити зображення",
+    "uploadImage": "Завантажити зображення",
+    "pickFromLibrary": "Вибрати з бібліотеки",
+    "useForToken": "Використати для токена"
   },
   "annotation": {
     "toolbarLabel": "Інструменти анотацій",
@@ -281,7 +287,8 @@
       "overlay": "Overlay (над токенами)"
     },
     "makeGmOnly": "Зробити лише для GM",
-    "makeVisibleToAll": "Видимо для всіх"
+    "makeVisibleToAll": "Видимо для всіх",
+    "resetTransform": "Скинути трансформацію"
   },
   "aiGenerate": {
     "dialogLabel": "Генерація фону",

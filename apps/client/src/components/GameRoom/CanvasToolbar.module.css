@@ -53,3 +53,26 @@
   background: var(--color-surface-hover);
   color: var(--color-text-primary);
 }
+
+/* Sess 7 — brush-size slider, visible only when draw tool is active. */
+.brushSize {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px var(--space-xs);
+  border-radius: var(--radius-sm);
+}
+
+.brushSize input[type='range'] {
+  width: 96px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.brushSizeValue {
+  min-width: 28px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

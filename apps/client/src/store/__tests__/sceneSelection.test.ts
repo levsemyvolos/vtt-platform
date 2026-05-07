@@ -192,3 +192,119 @@ describe('scene slice — transformSceneObjectOptimistic', () => {
     expect(img?.y).toBe(-100);
   });
 });
+
+/* ------------------------------------------------------------------ */
+/*  Sess 7 — type-specific transform reducer behavior                 */
+/* ------------------------------------------------------------------ */
+
+function makeSceneWithStroke(): SceneDTO {
+  return {
+    ...makeScene(),
+    annotations: {
+      schemaVersion: 2,
+      strokes: [{ strokeId: 'st-1', userId: 'u1', x: 0, y: 0, points: [100, 100, 200, 200], color: '#fff', width: 3 }],
+      texts: [],
+      images: [],
+      objects: [{
+        id: 'st-1', type: 'stroke', userId: 'u1', x: 0, y: 0, zIndex: 0,
+        points: [100, 100, 200, 200], color: '#fff', strokeWidth: 3,
+        layer: 'overlay' as const, visibility: 'all' as const,
+      }],
+    },
+  };
+}
+
+function makeSceneWithText(): SceneDTO {
+  return {
+    ...makeScene(),
+    annotations: {
+      schemaVersion: 2,
+      strokes: [],
+      texts: [{ id: 'tx-1', userId: 'u1', x: 50, y: 60, text: 'Hi', fontSize: 16, color: '#fff' }],
+      images: [],
+      objects: [{
+        id: 'tx-1', type: 'text', userId: 'u1', x: 50, y: 60, zIndex: 0,
+        text: 'Hi', fontSize: 16, color: '#fff',
+        layer: 'overlay' as const, visibility: 'all' as const,
+      }],
+    },
+  };
+}
+
+describe('scene slice — Sess 7 stroke matrix transform (2β)', () => {
+  it('writes scaleX/scaleY/rotation to the stroke object without touching points[]', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeSceneWithStroke()));
+    state = sceneReducer(state, transformSceneObjectOptimistic({
+      objectId: 'st-1', x: -25, y: 0, rotation: 45, scaleX: 2, scaleY: 2,
+    }));
+    const obj = state.current?.annotations.objects?.find((o) => o.id === 'st-1');
+    expect(obj?.type).toBe('stroke');
+    if (obj?.type !== 'stroke') return;
+    expect(obj.scaleX).toBe(2);
+    expect(obj.scaleY).toBe(2);
+    expect(obj.rotation).toBe(45);
+    expect(obj.x).toBe(-25);
+    // Critical: points[] are unchanged (matrix transform is non-destructive)
+    expect(obj.points).toEqual([100, 100, 200, 200]);
+  });
+
+  it('does NOT compound scale across repeated dispatches (regression for Sess 7 fix)', () => {
+    // The bug: client commit logic used to do prevSx * node.scaleX(), but Konva
+    // already returns the absolute new scale. Repeated transforms compounded.
+    // The reducer mirrors the absolute payload — so two dispatches with scaleX=2
+    // must end at scaleX=2, not 4 or 8.
+    let state = sceneReducer(undefined, hydrateScene(makeSceneWithStroke()));
+    state = sceneReducer(state, transformSceneObjectOptimistic({
+      objectId: 'st-1', x: 0, y: 0, rotation: 0, scaleX: 2, scaleY: 2,
+    }));
+    state = sceneReducer(state, transformSceneObjectOptimistic({
+      objectId: 'st-1', x: 0, y: 0, rotation: 0, scaleX: 2, scaleY: 2,
+    }));
+    const obj = state.current?.annotations.objects?.find((o) => o.id === 'st-1');
+    if (obj?.type !== 'stroke') return;
+    expect(obj.scaleX).toBe(2);
+    expect(obj.scaleY).toBe(2);
+  });
+
+  it('falls back to previous scaleX/scaleY when payload omits them', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeSceneWithStroke()));
+    state = sceneReducer(state, transformSceneObjectOptimistic({
+      objectId: 'st-1', x: 0, y: 0, rotation: 0, scaleX: 3, scaleY: 4,
+    }));
+    // Subsequent move-only dispatch (no scale fields) — must preserve the matrix.
+    state = sceneReducer(state, transformSceneObjectOptimistic({
+      objectId: 'st-1', x: 99, y: 88, rotation: 90,
+    }));
+    const obj = state.current?.annotations.objects?.find((o) => o.id === 'st-1');
+    if (obj?.type !== 'stroke') return;
+    expect(obj.scaleX).toBe(3);
+    expect(obj.scaleY).toBe(4);
+    expect(obj.rotation).toBe(90);
+    expect(obj.x).toBe(99);
+  });
+});
+
+describe('scene slice — Sess 7 text fontSize transform (1α)', () => {
+  it('writes fontSize and rotation, mirrors fontSize to texts[]', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeSceneWithText()));
+    state = sceneReducer(state, transformSceneObjectOptimistic({
+      objectId: 'tx-1', x: 50, y: 60, rotation: 30, fontSize: 32,
+    }));
+    const obj = state.current?.annotations.objects?.find((o) => o.id === 'tx-1');
+    const txt = state.current?.annotations.texts.find((t) => t.id === 'tx-1');
+    if (obj?.type !== 'text') return;
+    expect(obj.fontSize).toBe(32);
+    expect(obj.rotation).toBe(30);
+    expect(txt?.fontSize).toBe(32);
+  });
+
+  it('preserves text content unchanged on font-size scale', () => {
+    let state = sceneReducer(undefined, hydrateScene(makeSceneWithText()));
+    state = sceneReducer(state, transformSceneObjectOptimistic({
+      objectId: 'tx-1', x: 50, y: 60, rotation: 0, fontSize: 100,
+    }));
+    const obj = state.current?.annotations.objects?.find((o) => o.id === 'tx-1');
+    if (obj?.type !== 'text') return;
+    expect(obj.text).toBe('Hi');
+  });
+});

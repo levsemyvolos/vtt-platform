@@ -236,12 +236,12 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
           showLibrary={showLibrary}
           roomId={roomId}
           saving={saving}
-          fieldLabel={t('room:token.imageLabel', 'Token Image')}
-          changeImageLabel={t('room:token.changeImage', 'Change image')}
-          uploadImageLabel={t('room:token.uploadImage', 'Upload image')}
-          pickFromLibraryLabel={t('room:token.pickFromLibrary', 'Pick from library')}
-          imagePreviewAlt={t('room:token.imagePreviewAlt', 'Token image')}
-          pickerLabel={t('room:token.useForToken', 'Use for token')}
+          fieldLabel={t('room:token.imageLabel')}
+          changeImageLabel={t('room:token.changeImage')}
+          uploadImageLabel={t('room:token.uploadImage')}
+          pickFromLibraryLabel={t('room:token.pickFromLibrary')}
+          imagePreviewAlt={t('room:token.imagePreviewAlt')}
+          pickerLabel={t('room:token.useForToken')}
           onImageUploaded={handleImageUploaded}
           onShowUploader={() => setShowUploader(true)}
           onShowLibrary={() => setShowLibrary(true)}

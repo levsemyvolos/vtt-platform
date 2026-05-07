@@ -19,6 +19,22 @@ import type {
  * from any pre-existing object with the same id (so re-drawn strokes keep their meta).
  * Extracted to keep applyDrawStroke cyclomatic complexity ≤ 10 (lint gate).
  */
+/** Carries Sess 7 transform/lock fields from an existing stroke object — exists
+ *  so buildStrokeObject's spread list stays under the cyclomatic-complexity gate.
+ *  Returns a stroke-shape partial so the spread merges into a StrokeSceneObject
+ *  without exactOptionalPropertyTypes friction. */
+type StrokeCarry = Partial<{ scaleX: number; scaleY: number; rotation: number; locked: boolean }>;
+function carryStrokeTransform(existing: SceneObject | undefined): StrokeCarry {
+  if (!existing) return {};
+  const out: StrokeCarry = {};
+  if (existing.locked !== undefined) out.locked = existing.locked;
+  if (existing.type !== 'stroke') return out;
+  if (existing.scaleX !== undefined) out.scaleX = existing.scaleX;
+  if (existing.scaleY !== undefined) out.scaleY = existing.scaleY;
+  if (existing.rotation !== undefined) out.rotation = existing.rotation;
+  return out;
+}
+
 function buildStrokeObject(
   strokeId: string,
   userId: string,
@@ -28,6 +44,9 @@ function buildStrokeObject(
   existing: SceneObject | undefined,
   fallbackZIndex: number,
 ): SceneObject {
+  // Sess 7: matrix-transform state (scaleX/scaleY/rotation) and lock are
+  // preserved via carryStrokeTransform so a draw:stroke broadcast on an
+  // already-transformed stroke does not silently nuke them.
   return {
     id: strokeId,
     type: 'stroke' as const,
@@ -40,6 +59,7 @@ function buildStrokeObject(
     strokeWidth: width,
     layer: (existing?.layer ?? 'overlay') as SceneObjectLayer,
     visibility: (existing?.visibility ?? 'all') as SceneObjectVisibility,
+    ...carryStrokeTransform(existing),
   };
 }
 
@@ -161,6 +181,62 @@ const initialState: SceneState = {
   selectedSceneObjectIds: [],
   draftPatch: null,
 };
+
+interface OptimisticTransformInput {
+  objectId: string;
+  x: number;
+  y: number;
+  rotation: number;
+  width?: number;
+  height?: number;
+  scaleX?: number;
+  scaleY?: number;
+  fontSize?: number;
+}
+
+/** Resolves the stroke-matrix scale factors using payload → previous → identity fallback. */
+function resolveStrokeScale(prev: number | undefined, next: number | undefined): number {
+  return next ?? prev ?? 1;
+}
+
+/** Builds the next SceneObject for a transform mutation. Branches by type so the parent
+ *  reducer's `.map` callback stays under the complexity gate (≤ 10). */
+function nextTransformedObject(obj: SceneObject, p: OptimisticTransformInput): SceneObject {
+  const base = { x: p.x, y: p.y, rotation: p.rotation };
+  if (obj.type === 'image' && p.width !== undefined && p.height !== undefined) {
+    return { ...obj, ...base, width: p.width, height: p.height };
+  }
+  if (obj.type === 'text' && p.fontSize !== undefined) {
+    return { ...obj, ...base, fontSize: p.fontSize };
+  }
+  if (obj.type === 'stroke') {
+    return {
+      ...obj, ...base,
+      scaleX: resolveStrokeScale(obj.scaleX, p.scaleX),
+      scaleY: resolveStrokeScale(obj.scaleY, p.scaleY),
+    };
+  }
+  return { ...obj, ...base };
+}
+
+/** Applies the optimistic transform (Sess 7) to objects[]/images[]/texts[] based on type.
+ *  Module-level helper to keep the reducer body's cyclomatic complexity ≤ 10. */
+function applyOptimisticTransform(annotations: SceneAnnotations, p: OptimisticTransformInput): void {
+  const { objectId, x, y, rotation } = p;
+  annotations.objects = (annotations.objects ?? []).map((obj): SceneObject => (
+    obj.id === objectId ? nextTransformedObject(obj, p) : obj
+  ));
+  if (p.width !== undefined && p.height !== undefined) {
+    annotations.images = annotations.images.map((img) => (
+      img.id === objectId ? { ...img, x, y, rotation, width: p.width!, height: p.height! } : img
+    ));
+  }
+  if (p.fontSize !== undefined) {
+    annotations.texts = annotations.texts.map((text) => (
+      text.id === objectId ? { ...text, x, y, fontSize: p.fontSize! } : text
+    ));
+  }
+}
 
 const sceneSlice = createSlice({
   name: 'scene',
@@ -350,29 +426,31 @@ const sceneSlice = createSlice({
       state.selectedSceneObjectIds = [];
     },
     /**
-     * Optimistic transform (reposition + resize + rotate) applied before server confirms (Sess 2).
-     * Includes x/y because Konva Transformer can reposition the Group during corner-resize and
-     * rotation, which would cause Player-side desync if only width/height/rotation were stored (Sess 2.5).
-     * Mutates BOTH objects[] AND images[] mirror so subsequent moves don't drop rotation (RED 1).
+     * Optimistic transform applied before server confirms (Sess 2, extended Sess 7).
+     * Type-specific fields (only the relevant ones are written per object type):
+     *  - image:  width/height (Sess 2 baked dimensions)
+     *  - text:   fontSize    (Sess 7, 1α — fontSize scaled, bounding box derived)
+     *  - stroke: scaleX/scaleY (Sess 7, 2β — non-destructive matrix; points[] unchanged)
+     * x/y/rotation apply to all types. Mirrors image/text changes to images[]/texts[]
+     * so subsequent mutations don't drop the transform (RED 1, Sess 2.5).
      * Idempotent: re-dispatching same values is a no-op.
      */
     transformSceneObjectOptimistic: (
       state,
-      action: PayloadAction<{ objectId: string; x: number; y: number; width: number; height: number; rotation: number }>,
+      action: PayloadAction<{
+        objectId: string;
+        x: number;
+        y: number;
+        rotation: number;
+        width?: number;
+        height?: number;
+        scaleX?: number;
+        scaleY?: number;
+        fontSize?: number;
+      }>,
     ) => {
       if (!state.current) return;
-      const { objectId, x, y, width, height, rotation } = action.payload;
-      const annotations = state.current.annotations;
-      annotations.objects = (annotations.objects ?? []).map((object) => (
-        object.id === objectId
-          ? { ...object, x, y, width, height, rotation }
-          : object
-      ));
-      annotations.images = annotations.images.map((image) => (
-        image.id === objectId
-          ? { ...image, x, y, width, height, rotation }
-          : image
-      ));
+      applyOptimisticTransform(state.current.annotations, action.payload);
     },
     /**
      * Toggles the locked flag on a scene object (Sess 3 Mini-B).

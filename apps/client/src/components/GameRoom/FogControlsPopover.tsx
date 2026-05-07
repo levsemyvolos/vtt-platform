@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, RotateCcw, Undo2 } from 'lucide-react';
+import { Eye, EyeOff, RotateCcw } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { setFogMode, setFogGmAlpha } from '../../store/canvasViewport';
-import { fogShapeAdded, fogShapeRemoved } from '../../store/scene';
-import { emitFogShapeAdd, emitFogShapeRemove } from '../../api/socket';
+import { fogShapeAdded } from '../../store/scene';
+import { emitFogShapeAdd } from '../../api/socket';
+import { recordUndo } from '../../store/undoDispatcher';
 import { Button } from '../ui';
 import { randomUUID } from '../../utils/uuid';
 import styles from './FogControlsPopover.module.css';
@@ -14,8 +15,10 @@ interface FogControlsPopoverProps {
 
 /**
  * Floating GM-only control panel for the fog tool (Ф3.3, shape-list model).
- * Lets the GM toggle hide/reveal mode, adjust GM-side opacity, undo the last
- * fog shape, and apply hide-all/reveal-all in one click.
+ * Lets the GM toggle hide/reveal mode, adjust GM-side opacity, and apply
+ * hide-all/reveal-all in one click. The fog-local "Undo" button was removed
+ * in Sess 7.5 — Ctrl+Z and the canvas-toolbar Undo button now handle that
+ * uniformly across all canvas operations (no double-stack confusion).
  */
 export default function FogControlsPopover({
   roomId,
@@ -43,6 +46,7 @@ export default function FogControlsPopover({
     const payload = { roomId, sceneId: scene.id, shape };
     dispatch(fogShapeAdded(payload));
     emitFogShapeAdd(payload);
+    recordUndo({ kind: 'fog_add', shape });
   }
 
   function handleRevealAll(): void {
@@ -60,14 +64,7 @@ export default function FogControlsPopover({
     const payload = { roomId, sceneId: scene.id, shape };
     dispatch(fogShapeAdded(payload));
     emitFogShapeAdd(payload);
-  }
-
-  function handleUndo(): void {
-    if (!scene || !shapes.length) return;
-    const last = shapes[shapes.length - 1]!;
-    const payload = { roomId, sceneId: scene.id, shapeId: last.id };
-    dispatch(fogShapeRemoved(payload));
-    emitFogShapeRemove(payload);
+    recordUndo({ kind: 'fog_add', shape });
   }
 
   return (
@@ -107,14 +104,6 @@ export default function FogControlsPopover({
       </label>
 
       <div className={styles.actionRow}>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleUndo}
-          disabled={!shapes.length}
-        >
-          <Undo2 size={14} aria-hidden /> {t('fog.undo')}
-        </Button>
         <Button variant="secondary" size="sm" onClick={handleHideAll}>
           {t('fog.hideAll')}
         </Button>

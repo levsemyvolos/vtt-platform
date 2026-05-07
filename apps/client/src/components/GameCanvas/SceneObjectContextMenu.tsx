@@ -9,6 +9,7 @@ import {
   setSceneObjectLayer,
   setSceneObjectVisibility,
   setSceneObjectZIndex,
+  transformSceneObjectOptimistic,
 } from '../../store/scene';
 import {
   emitObjectDelete,
@@ -16,11 +17,45 @@ import {
   emitObjectLock,
   emitObjectSetLayer,
   emitObjectSetVisibility,
+  emitObjectTransform,
   emitObjectZOrder,
 } from '../../api/socket';
-import type { SceneObjectLayer, SceneObjectVisibility } from '@vtt/shared';
+import type { SceneObject, SceneObjectLayer, SceneObjectVisibility } from '@vtt/shared';
 import { buildClonedObject } from '../../store/sceneObjectClone';
+import { recordUndo } from '../../store/undoDispatcher';
 import styles from './SceneObjectContextMenu.module.css';
+
+/** Whether a SceneObject has any non-identity transform applied (Sess 7).
+ *  Used to gate the "Reset transform" menu item — no point showing it on a
+ *  pristine object. */
+function hasAppliedTransform(obj: SceneObject): boolean {
+  if ((obj.rotation ?? 0) !== 0) return true;
+  if (obj.type === 'stroke') {
+    return (obj.scaleX ?? 1) !== 1 || (obj.scaleY ?? 1) !== 1;
+  }
+  return false;
+}
+
+/** Per-type fields preserved on Reset transform — image keeps width/height,
+ *  text keeps fontSize, stroke resets scaleX/scaleY back to identity.
+ *  Extracted to keep handleResetTransform within the cyclomatic gate. */
+function transformFieldsByType(obj: SceneObject): {
+  before: Partial<{ width: number; height: number; fontSize: number; scaleX: number; scaleY: number }>;
+  after: Partial<{ width: number; height: number; fontSize: number; scaleX: number; scaleY: number }>;
+} {
+  if (obj.type === 'image') {
+    const fields = { width: obj.width, height: obj.height };
+    return { before: fields, after: fields };
+  }
+  if (obj.type === 'text') {
+    const fields = { fontSize: obj.fontSize };
+    return { before: fields, after: fields };
+  }
+  return {
+    before: { scaleX: obj.scaleX ?? 1, scaleY: obj.scaleY ?? 1 },
+    after: { scaleX: 1, scaleY: 1 },
+  };
+}
 
 interface SceneObjectContextMenuProps {
   objectId: string;
@@ -67,15 +102,24 @@ export default function SceneObjectContextMenu({
     return null;
   }
 
+  function captureZOrderingSnapshot(): { id: string; zIndex: number }[] {
+    const objects = store.getState().scene.current?.annotations.objects ?? [];
+    return objects.map((o) => ({ id: o.id, zIndex: o.zIndex }));
+  }
+
   function handleFront(): void {
+    const before = captureZOrderingSnapshot();
     emitObjectZOrder({ roomId, sceneId, objectId, direction: 'front' });
     dispatch(setSceneObjectZIndex({ objectId, direction: 'front' }));
+    recordUndo({ kind: 'object_zorder', before: { ordering: before }, after: { ordering: captureZOrderingSnapshot() } });
     onClose();
   }
 
   function handleBack(): void {
+    const before = captureZOrderingSnapshot();
     emitObjectZOrder({ roomId, sceneId, objectId, direction: 'back' });
     dispatch(setSceneObjectZIndex({ objectId, direction: 'back' }));
+    recordUndo({ kind: 'object_zorder', before: { ordering: before }, after: { ordering: captureZOrderingSnapshot() } });
     onClose();
   }
 
@@ -83,6 +127,11 @@ export default function SceneObjectContextMenu({
     const next = !isLocked;
     emitObjectLock({ roomId, sceneId, objectId, locked: next });
     dispatch(lockSceneObject({ objectId, locked: next }));
+    recordUndo({
+      kind: 'object_lock',
+      before: { id: objectId, locked: !next },
+      after: { id: objectId, locked: next },
+    });
     onClose();
   }
 
@@ -102,29 +151,54 @@ export default function SceneObjectContextMenu({
     } else {
       // Play mode: emit to server. Server creates the canonical copy and
       // broadcasts object:duplicated → appendSceneObject on all clients.
+      // Undo recording happens on the broadcast handler so we have the new id.
       emitObjectDuplicate({ roomId, sceneId, objectId });
     }
     onClose();
   }
 
   function handleDelete(): void {
+    if (!obj) return onClose();
+    // Snapshot must happen BEFORE dispatch — removeSceneObject mutates state.
+    const snapshot = JSON.parse(JSON.stringify(obj)) as SceneObject;
     emitObjectDelete({ roomId, sceneId, objectId });
     dispatch(removeSceneObject(objectId));
+    recordUndo({ kind: 'object_delete', object: snapshot });
+    onClose();
+  }
+
+  /** Resets rotation (and stroke matrix scale) to identity (Sess 7).
+   *  Image/text retain their baked width/height/fontSize — only rotation is undone. */
+  function handleResetTransform(): void {
+    if (!obj) return;
+    const typeFields = transformFieldsByType(obj);
+    const before = { id: obj.id, x: obj.x, y: obj.y, rotation: obj.rotation ?? 0, ...typeFields.before };
+    const after = { id: obj.id, x: obj.x, y: obj.y, rotation: 0, ...typeFields.after };
+    dispatch(transformSceneObjectOptimistic({ objectId: obj.id, ...after }));
+    emitObjectTransform({ roomId, sceneId, objectId: obj.id, ...after });
+    recordUndo({ kind: 'object_transform', before, after });
     onClose();
   }
 
   function handleSetLayer(layer: SceneObjectLayer): void {
     if (!obj) return;
+    const previousLayer = obj.layer;
     const inEditScene = store.getState().room.editingSceneId !== null;
     dispatch(setSceneObjectLayer({ objectId, layer }));
     if (!inEditScene) {
       emitObjectSetLayer({ roomId, sceneId, objectId, layer });
     }
+    recordUndo({
+      kind: 'object_layer',
+      before: { id: objectId, layer: previousLayer },
+      after: { id: objectId, layer },
+    });
     onClose();
   }
 
   function handleToggleVisibility(): void {
     if (!obj) return;
+    const previousVisibility = obj.visibility;
     const next: SceneObjectVisibility = obj.visibility === 'gm-only' ? 'all' : 'gm-only';
     const inEditScene = store.getState().room.editingSceneId !== null;
     const myUserId = store.getState().session.currentUser?.id;
@@ -134,6 +208,11 @@ export default function SceneObjectContextMenu({
     if (!inEditScene) {
       emitObjectSetVisibility({ roomId, sceneId, objectId, visibility: next });
     }
+    recordUndo({
+      kind: 'object_visibility',
+      before: { id: objectId, visibility: previousVisibility },
+      after: { id: objectId, visibility: next },
+    });
     onClose();
   }
 
@@ -194,6 +273,15 @@ export default function SceneObjectContextMenu({
       >
         {t('sceneObjectMenu.duplicate')}
       </button>
+      {hasAppliedTransform(obj) && (
+        <button
+          className={styles.item}
+          role="menuitem"
+          onClick={handleResetTransform}
+        >
+          {t('sceneObjectMenu.resetTransform')}
+        </button>
+      )}
       <button
         className={`${styles.item} ${styles['item--danger']}`}
         role="menuitem"

@@ -24,6 +24,7 @@ import type {
   SceneObjectDuplicatePayload,
   SceneObjectSetLayerPayload,
   SceneObjectSetVisibilityPayload,
+  SceneObjectUpsertPayload,
   ModerationPayload,
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
@@ -94,9 +95,12 @@ export function getSocket(): TypedClientSocket {
       objectId: payload.objectId,
       x: payload.x,
       y: payload.y,
-      width: payload.width,
-      height: payload.height,
       rotation: payload.rotation,
+      ...(payload.width !== undefined ? { width: payload.width } : {}),
+      ...(payload.height !== undefined ? { height: payload.height } : {}),
+      ...(payload.scaleX !== undefined ? { scaleX: payload.scaleX } : {}),
+      ...(payload.scaleY !== undefined ? { scaleY: payload.scaleY } : {}),
+      ...(payload.fontSize !== undefined ? { fontSize: payload.fontSize } : {}),
     }));
   });
   socket.on('object:lock', (payload) => {
@@ -112,6 +116,24 @@ export function getSocket(): TypedClientSocket {
     }));
   });
   socket.on('object:duplicated', (payload) => {
+    store.dispatch(appendSceneObject(payload.object));
+    // Sess 7.5 — only the originating user (whose currently-selected id matches
+    // the source) should record undo for the duplicate; everyone else just sees
+    // the broadcast. Heuristic: record if I'm GM (since duplicate is GM-only).
+    const state = store.getState();
+    const myUserId = state.session.currentUser?.id;
+    const myMember = state.room.members.find((m) => m.userId === myUserId);
+    if (myMember?.role === 'GM') {
+      // Lazy import to avoid pulling the dispatcher into the socket bundle prematurely.
+      void import('../store/undoDispatcher').then(({ recordUndo }) => {
+        recordUndo({ kind: 'object_duplicate', clone: payload.object });
+      });
+    }
+  });
+  socket.on('object:upsert', (payload) => {
+    // Sess 7.5 — undo of delete (or external full-object upsert) re-adds the
+    // object with its original id. Reuses the appendSceneObject reducer which
+    // is idempotent (replaces if id exists).
     store.dispatch(appendSceneObject(payload.object));
   });
   socket.on('object:set-layer', (payload) => {
@@ -511,6 +533,13 @@ export function emitObjectSetLayer(payload: SceneObjectSetLayerPayload): void {
 export function emitObjectSetVisibility(payload: SceneObjectSetVisibilityPayload): void {
   if (isEditingScene()) return;
   getSocket().emit('object:set-visibility', payload);
+}
+
+/** Insert-or-replace a scene object by id (Sess 7.5). Used by undo to restore
+ *  deleted objects (or by future cross-client sync). GM-only — server enforces RBAC. */
+export function emitObjectUpsert(payload: SceneObjectUpsertPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('object:upsert', payload);
 }
 
 /**

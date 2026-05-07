@@ -19,6 +19,7 @@ import toastReducer from './toast';
 import canvasViewportReducer from './canvasViewport';
 import assetsReducer from './assets';
 import initiativeUiReducer from './initiativeUi';
+import undoHistoryReducer from './undoHistory';
 
 export const store = configureStore({
   reducer: {
@@ -41,6 +42,7 @@ export const store = configureStore({
     toast: toastReducer,
     canvasViewport: canvasViewportReducer,
     assets: assetsReducer,
+    undoHistory: undoHistoryReducer,
   },
 });
 

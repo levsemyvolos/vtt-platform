@@ -145,7 +145,13 @@
     "statusLabel": "Status",
     "assignedPlayerLabel": "Assigned Player",
     "noAssigned": "— not assigned —",
-    "contextMenuLabel": "Token actions"
+    "contextMenuLabel": "Token actions",
+    "imageLabel": "Token Image",
+    "imagePreviewAlt": "Token image",
+    "changeImage": "Change image",
+    "uploadImage": "Upload image",
+    "pickFromLibrary": "Pick from library",
+    "useForToken": "Use for token"
   },
   "annotation": {
     "toolbarLabel": "Annotation tools",
@@ -280,7 +286,8 @@
       "overlay": "Overlay (above tokens)"
     },
     "makeGmOnly": "Make GM-only",
-    "makeVisibleToAll": "Make visible to all"
+    "makeVisibleToAll": "Make visible to all",
+    "resetTransform": "Reset transform"
   },
   "aiGenerate": {
     "dialogLabel": "Generate Background",

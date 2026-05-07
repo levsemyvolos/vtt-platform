@@ -26,6 +26,10 @@
     "zoomOut": "Zoom out",
     "zoomFit": "Fit to window",
     "zoomReset": "Reset zoom",
+    "brushSize": "Brush size",
+    "clearStrokes": "Clear all strokes",
+    "undo": "Undo (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Y)",
     "unboundToast": "Feature in development; will be enabled in the next release"
   },
   "party": {

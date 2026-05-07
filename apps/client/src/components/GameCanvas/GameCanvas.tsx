@@ -5,6 +5,7 @@ import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { store } from '../../store';
 import { selectToken, deselectSceneObject, appendSceneObject } from '../../store/scene';
+import { performUndo, performRedo, recordUndo } from '../../store/undoDispatcher';
 import { requestAddFromToken } from '../../store/initiativeUi';
 import { emitObjectDelete, emitObjectDuplicate } from '../../api/socket';
 import { buildClonedObject } from '../../store/sceneObjectClone';
@@ -149,10 +150,20 @@ function CanvasOverlays(props: CanvasOverlaysProps): JSX.Element {
   );
 }
 
-/** Emits delete for every currently-selected object id. */
+/** Emits delete for every currently-selected object id. Sess 7.5 — snapshots
+ *  each object BEFORE emit so the global undo stack can restore them via
+ *  object:upsert on Ctrl+Z. */
 function deleteSelectedObjects(ids: string[], roomId: string, sceneId: string): void {
+  const objects = store.getState().scene.current?.annotations.objects ?? [];
+  const snapshots = ids
+    .map((id) => objects.find((o) => o.id === id))
+    .filter((o): o is import('@vtt/shared').SceneObject => Boolean(o))
+    .map((o) => JSON.parse(JSON.stringify(o)) as import('@vtt/shared').SceneObject);
   for (const id of ids) {
     emitObjectDelete({ roomId, sceneId, objectId: id });
+  }
+  for (const snap of snapshots) {
+    recordUndo({ kind: 'object_delete', object: snap });
   }
 }
 
@@ -222,7 +233,12 @@ export default function GameCanvas({
     const el = containerRef.current;
     if (!el) return;
     const update = (): void => {
-      setSize({ width: el.clientWidth, height: el.clientHeight });
+      // Clamp to ≥ 1 px — otherwise Konva tries to drawImage onto a 0×0 cached
+      // canvas during a tiny window state and throws InvalidStateError (Sess 7 fix).
+      setSize({
+        width: Math.max(1, el.clientWidth),
+        height: Math.max(1, el.clientHeight),
+      });
     };
     update();
     const ro = new ResizeObserver(update);
@@ -239,10 +255,14 @@ export default function GameCanvas({
 
   useEffect(() => {
     if (myRole !== 'GM') return;
-    function handleKeyDown(e: KeyboardEvent): void {
-      const target = e.target as HTMLElement;
-      if (isInputTarget(target)) return;
-      const ids = store.getState().scene.selectedSceneObjectIds;
+    function tryHandleUndoRedo(e: KeyboardEvent): boolean {
+      if (!(e.ctrlKey || e.metaKey)) return false;
+      const k = e.key.toLowerCase();
+      if (k === 'z') { e.preventDefault(); if (e.shiftKey) performRedo(); else performUndo(); return true; }
+      if (k === 'y') { e.preventDefault(); performRedo(); return true; }
+      return false;
+    }
+    function trySelectionShortcut(e: KeyboardEvent, ids: string[]): void {
       if (ids.length === 0) return;
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
@@ -254,6 +274,13 @@ export default function GameCanvas({
         e.preventDefault();
         duplicateSelectedObjects(ids, roomId, scene.id, dispatch);
       }
+    }
+    function handleKeyDown(e: KeyboardEvent): void {
+      const target = e.target as HTMLElement;
+      if (isInputTarget(target)) return;
+      if (tryHandleUndoRedo(e)) return;
+      const ids = store.getState().scene.selectedSceneObjectIds;
+      trySelectionShortcut(e, ids);
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);

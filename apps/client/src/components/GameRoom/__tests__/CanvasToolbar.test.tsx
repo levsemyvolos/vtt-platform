@@ -6,6 +6,8 @@ import canvasViewportReducer from '../../../store/canvasViewport';
 import toastReducer from '../../../store/toast';
 import preferencesReducer from '../../../store/preferences';
 import sceneReducer from '../../../store/scene';
+import undoHistoryReducer from '../../../store/undoHistory';
+import roomReducer from '../../../store/room';
 import CanvasToolbar from '../CanvasToolbar';
 import type { SidebarTab } from '../types';
 
@@ -18,6 +20,8 @@ function makeStore() {
       toast: toastReducer,
       preferences: preferencesReducer,
       scene: sceneReducer,
+      undoHistory: undoHistoryReducer,
+      room: roomReducer,
     },
   });
 }

@@ -14,9 +14,31 @@ import type { PrismaClient } from '@prisma/client';
 export interface TransformPayload {
   x: number;
   y: number;
-  width: number;
-  height: number;
   rotation: number;
+  /** Image-only — bounding-box dimensions. */
+  width?: number;
+  height?: number;
+  /** Stroke-only — matrix scale factors (Sess 7, β). */
+  scaleX?: number;
+  scaleY?: number;
+  /** Text-only — new font size in px (Sess 7, α). */
+  fontSize?: number;
+}
+
+/** Clamp helpers for type-specific transform fields (Sess 7). */
+const FONT_SIZE_MIN = 8;
+const FONT_SIZE_MAX = 200;
+const STROKE_SCALE_MIN = 0.1;
+const STROKE_SCALE_MAX = 10;
+
+function clampFontSize(v: number | undefined, fallback: number): number {
+  if (v === undefined || !Number.isFinite(v)) return fallback;
+  return Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, Math.round(v)));
+}
+
+function clampScale(v: number | undefined, fallback: number): number {
+  if (v === undefined || !Number.isFinite(v)) return fallback;
+  return Math.max(STROKE_SCALE_MIN, Math.min(STROKE_SCALE_MAX, v));
 }
 
 /**
@@ -112,6 +134,29 @@ export class SceneAnnotationService {
     return annotations;
   }
 
+  /**
+   * Insert-or-replace a SceneObject by id (Sess 7.5 — used for undo of delete and
+   * for restoring strokes after draw_stroke undo→redo). Mirrors to the appropriate
+   * legacy array (images[]/texts[]/strokes[]) so a normalize round-trip preserves
+   * everything.
+   */
+  async upsertObject(
+    sceneId: string,
+    role: string,
+    object: SceneObject,
+  ): Promise<SceneAnnotations> {
+    if (role !== 'GM') throw new HttpError(403, 'Only GM can upsert annotations');
+    const annotations = await this.drawService.getAnnotations(sceneId);
+    const objects = annotations.objects ?? [];
+    const idx = objects.findIndex((o) => o.id === object.id);
+    if (idx >= 0) objects[idx] = object; else objects.push(object);
+    annotations.objects = objects;
+    mirrorUpsertedObjectToLegacy(annotations, object);
+    const normalized = normalizeAnnotations(annotations);
+    await this.drawService.persist(sceneId, normalized);
+    return normalized;
+  }
+
   async moveAnnotation(
     sceneId: string,
     annotationId: string,
@@ -163,13 +208,16 @@ export class SceneAnnotationService {
   }
 
   /**
-   * Resize and/or rotate an image-overlay (Sess 2, Fix B).
+   * Resize/rotate/scale a SceneObject (Sess 2 image, extended Sess 7 to text & stroke).
    *
    * RBAC: GM-only.
-   * Validation: width/height clamped to [gridSize, gridWidth*gridSize].
-   * Rotation: normalized to [0, 360) — handles negatives from Konva.
-   * Mirrors mutation to both objects[] and images[] so subsequent mutations
-   * don't drop the transform (RED 1 fix).
+   * Type-specific behavior:
+   *  - image:  width/height clamped to [gridSize, gridWidth*gridSize] (Sess 2 baked dimensions)
+   *  - text:   fontSize clamped to [8, 200]; bounding box derived by Konva at render (1α)
+   *  - stroke: scaleX/scaleY clamped to [0.1, 10]; points[] unchanged — non-destructive matrix (2β)
+   * Rotation is normalized to [0, 360).
+   * x/y are passed through as-is (overlays may legitimately be off-screen).
+   * Mirrors image mutations to images[] (RED 1 fix from Sess 2.5).
    */
   async transformObject(
     sceneId: string,
@@ -185,41 +233,122 @@ export class SceneAnnotationService {
     });
     if (!scene) throw new HttpError(404, 'Scene not found');
 
-    const { gridSize, gridWidth, gridHeight } = scene;
-    const minSize = gridSize;
-    const maxWidth = gridWidth * gridSize;
-    const maxHeight = gridHeight * gridSize;
-
-    const newWidth = Math.max(minSize, Math.min(maxWidth, Math.round(payload.width)));
-    const newHeight = Math.max(minSize, Math.min(maxHeight, Math.round(payload.height)));
-    const newRotation = ((payload.rotation % 360) + 360) % 360;
-    // x/y are passed through as-is — no clamping (overlays may legitimately be off-screen)
-    const newX = payload.x;
-    const newY = payload.y;
-
     const annotations = await this.drawService.getAnnotations(sceneId);
+    const target = this.findTransformTarget(annotations, objectId);
+    if (!target) throw new HttpError(404, 'Annotation not found');
 
-    const objectExists = (annotations.objects ?? []).some((o) => o.id === objectId) ||
-      annotations.images.some((img) => img.id === objectId);
-    if (!objectExists) throw new HttpError(404, 'Annotation not found');
+    const newRotation = ((payload.rotation % 360) + 360) % 360;
+    const baseUpdate = { x: payload.x, y: payload.y, rotation: newRotation };
 
-    // Update objects[] entry (includes x/y so position desync is fixed on Player side)
-    annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
-      candidate.id === objectId
-        ? { ...candidate, x: newX, y: newY, width: newWidth, height: newHeight, rotation: newRotation }
-        : candidate
-    ));
-
-    // Update images[] mirror entry (RED 1: prevents rotation drop on next mutation)
-    annotations.images = annotations.images.map((image) => (
-      image.id === objectId
-        ? { ...image, x: newX, y: newY, width: newWidth, height: newHeight, rotation: newRotation }
-        : image
-    ));
+    if (target.type === 'image') {
+      this.applyImageTransform(annotations, objectId, baseUpdate, payload, scene);
+    } else if (target.type === 'text') {
+      this.applyTextTransform(annotations, objectId, baseUpdate, payload, target);
+    } else {
+      this.applyStrokeTransform(annotations, objectId, baseUpdate, payload, target);
+    }
 
     const normalized = normalizeAnnotations(annotations);
     await this.drawService.persist(sceneId, normalized);
     return normalized;
+  }
+
+  /** Locates the SceneObject by id across objects[]/images[] mirrors (Sess 7 helper). */
+  private findTransformTarget(annotations: SceneAnnotations, objectId: string): SceneObject | null {
+    const fromObjects = (annotations.objects ?? []).find((o) => o.id === objectId);
+    if (fromObjects) return fromObjects;
+    const fromImages = annotations.images.find((img) => img.id === objectId);
+    if (fromImages) {
+      // Legacy image annotation without a mirrored objects[] entry — treat as image type.
+      return {
+        id: fromImages.id,
+        type: 'image',
+        userId: fromImages.userId,
+        x: fromImages.x,
+        y: fromImages.y,
+        width: fromImages.width,
+        height: fromImages.height,
+        assetId: fromImages.assetId,
+        zIndex: 0,
+        layer: fromImages.layer ?? 'tile',
+        visibility: fromImages.visibility ?? 'all',
+      };
+    }
+    return null;
+  }
+
+  /** Image transform: bake width/height into bounding box (Sess 2). */
+  private applyImageTransform(
+    annotations: SceneAnnotations,
+    objectId: string,
+    base: { x: number; y: number; rotation: number },
+    payload: TransformPayload,
+    scene: { gridSize: number; gridWidth: number; gridHeight: number },
+  ): void {
+    const minSize = scene.gridSize;
+    const maxWidth = scene.gridWidth * scene.gridSize;
+    const maxHeight = scene.gridHeight * scene.gridSize;
+    // Sess 7: fall back to the existing image's dimensions when the payload omits
+    // width/height (e.g. rotation-only updates from "Reset transform"). Falling back
+    // to maxWidth/maxHeight here would silently resize the image to the entire grid.
+    const existing = annotations.images.find((img) => img.id === objectId);
+    const fallbackW = existing?.width ?? maxWidth;
+    const fallbackH = existing?.height ?? maxHeight;
+    const w = payload.width ?? fallbackW;
+    const h = payload.height ?? fallbackH;
+    const newWidth = Math.max(minSize, Math.min(maxWidth, Math.round(w)));
+    const newHeight = Math.max(minSize, Math.min(maxHeight, Math.round(h)));
+    annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
+      candidate.id === objectId && candidate.type === 'image'
+        ? { ...candidate, ...base, width: newWidth, height: newHeight }
+        : candidate
+    ));
+    annotations.images = annotations.images.map((image) => (
+      image.id === objectId
+        ? { ...image, ...base, width: newWidth, height: newHeight }
+        : image
+    ));
+  }
+
+  /** Text transform: scale fontSize (1α) and apply rotation (Sess 7). */
+  private applyTextTransform(
+    annotations: SceneAnnotations,
+    objectId: string,
+    base: { x: number; y: number; rotation: number },
+    payload: TransformPayload,
+    target: SceneObject,
+  ): void {
+    const fallback = target.type === 'text' ? target.fontSize : 16;
+    const fontSize = clampFontSize(payload.fontSize, fallback);
+    annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
+      candidate.id === objectId && candidate.type === 'text'
+        ? { ...candidate, ...base, fontSize }
+        : candidate
+    ));
+    annotations.texts = annotations.texts.map((text) => (
+      text.id === objectId
+        ? { ...text, x: base.x, y: base.y, fontSize }
+        : text
+    ));
+  }
+
+  /** Stroke transform: matrix scale + rotation, points[] unchanged (2β). */
+  private applyStrokeTransform(
+    annotations: SceneAnnotations,
+    objectId: string,
+    base: { x: number; y: number; rotation: number },
+    payload: TransformPayload,
+    target: SceneObject,
+  ): void {
+    const fallbackSx = target.type === 'stroke' ? (target.scaleX ?? 1) : 1;
+    const fallbackSy = target.type === 'stroke' ? (target.scaleY ?? 1) : 1;
+    const scaleX = clampScale(payload.scaleX, fallbackSx);
+    const scaleY = clampScale(payload.scaleY, fallbackSy);
+    annotations.objects = (annotations.objects ?? []).map((candidate): SceneObject => (
+      candidate.id === objectId && candidate.type === 'stroke'
+        ? { ...candidate, ...base, scaleX, scaleY }
+        : candidate
+    ));
   }
   /**
    * Toggles the locked flag on a scene object (Sess 3).
@@ -439,6 +568,52 @@ export class SceneAnnotationService {
     await this.drawService.persist(sceneId, normalized);
     return normalized;
   }
+}
+
+/** Sess 7.5 — write the upserted object's fields into the legacy mirror list
+ *  (images[]/texts[]/strokes[]) so normalizeAnnotations preserves them. Extracted
+ *  from upsertObject to keep its cyclomatic complexity ≤ 10 (lint gate). */
+function mirrorUpsertedObjectToLegacy(annotations: SceneAnnotations, object: SceneObject): void {
+  if (object.type === 'image') return mirrorImage(annotations, object);
+  if (object.type === 'text') return mirrorText(annotations, object);
+  if (object.type === 'stroke') return mirrorStroke(annotations, object);
+}
+
+function mirrorImage(annotations: SceneAnnotations, object: SceneObject & { type: 'image' }): void {
+  const imgIdx = annotations.images.findIndex((i) => i.id === object.id);
+  const entry: ImageAnnotation = {
+    id: object.id, userId: object.userId, x: object.x, y: object.y,
+    assetId: object.assetId, width: object.width, height: object.height,
+    ...(object.rotation !== undefined ? { rotation: object.rotation } : {}),
+    ...(object.locked !== undefined ? { locked: object.locked } : {}),
+    layer: object.layer, visibility: object.visibility,
+  };
+  if (imgIdx >= 0) annotations.images[imgIdx] = entry;
+  else annotations.images.push(entry);
+}
+
+function mirrorText(annotations: SceneAnnotations, object: SceneObject & { type: 'text' }): void {
+  const txtIdx = annotations.texts.findIndex((t) => t.id === object.id);
+  const entry: TextAnnotation = {
+    id: object.id, userId: object.userId, x: object.x, y: object.y,
+    text: object.text, fontSize: object.fontSize, color: object.color,
+    ...(object.locked !== undefined ? { locked: object.locked } : {}),
+    layer: object.layer, visibility: object.visibility,
+  };
+  if (txtIdx >= 0) annotations.texts[txtIdx] = entry;
+  else annotations.texts.push(entry);
+}
+
+function mirrorStroke(annotations: SceneAnnotations, object: SceneObject & { type: 'stroke' }): void {
+  const strIdx = annotations.strokes.findIndex((s) => s.strokeId === object.id);
+  const entry = {
+    strokeId: object.id, userId: object.userId, points: object.points,
+    color: object.color, width: object.strokeWidth,
+    ...(object.layer !== undefined ? { layer: object.layer } : {}),
+    ...(object.visibility !== undefined ? { visibility: object.visibility } : {}),
+  };
+  if (strIdx >= 0) annotations.strokes[strIdx] = entry;
+  else annotations.strokes.push(entry);
 }
 
 function findLegacyOwner(annotations: SceneAnnotations, annotationId: string): string | null {

@@ -200,10 +200,16 @@ export interface SceneObjectDeletePayload {
 }
 
 /**
- * Discrete transform event — fired once on transformEnd (Sess 2).
+ * Discrete transform event — fired once on transformEnd (Sess 2, extended Sess 7).
  * Not throttled (unlike object:move) because transforms are rare user gestures.
  * x/y are included because Konva Transformer can reposition the Group during
  * corner-resize and rotation, causing Player-side desync if omitted (Sess 2.5).
+ *
+ * Type-specific fields (Sess 7):
+ * - image: width/height (bounding box, baked on commit; Sess 2)
+ * - text:  fontSize (1α — fontSize is scaled, bounding box derived; Sess 7)
+ * - stroke: scaleX/scaleY (2β — non-destructive matrix transform; points[] stay
+ *           in object-local coords so future undo can revert by clearing matrix)
  */
 export interface SceneObjectTransformPayload {
   roomId: string;
@@ -211,10 +217,16 @@ export interface SceneObjectTransformPayload {
   objectId: string;
   x: number;
   y: number;
-  width: number;
-  height: number;
   /** Normalized rotation in degrees [0, 360). */
   rotation: number;
+  /** Image-only: bounding-box dimensions in px (clamped server-side to grid bounds). */
+  width?: number;
+  height?: number;
+  /** Stroke-only: matrix scale factors (1.0 = identity; clamped server-side to [0.1, 10]). */
+  scaleX?: number;
+  scaleY?: number;
+  /** Text-only: new font size in px (clamped server-side to [8, 200]). */
+  fontSize?: number;
 }
 
 export interface SceneObjectUpsertPayload {
@@ -392,6 +404,7 @@ export interface ClientToServerEvents {
   'object:duplicate': (payload: SceneObjectDuplicatePayload) => void;
   'object:set-layer': (payload: SceneObjectSetLayerPayload) => void;
   'object:set-visibility': (payload: SceneObjectSetVisibilityPayload) => void;
+  'object:upsert': (payload: SceneObjectUpsertPayload) => void;
   'scene:flush': (payload: SceneFlushPayload) => void;
   'mod:kick': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
   'mod:demote': (payload: ModerationPayload, ack: (response: Ack<{ ok: boolean }>) => void) => void;
@@ -461,6 +474,7 @@ export interface ServerToClientEvents {
   'object:duplicated': (payload: SceneObjectDuplicatedPayload) => void;
   'object:set-layer': (payload: SceneObjectSetLayerPayload) => void;
   'object:set-visibility': (payload: SceneObjectSetVisibilityPayload) => void;
+  'object:upsert': (payload: SceneObjectUpsertPayload) => void;
   'peer:mute-request': (payload: { userId: string }) => void;
   'peer:cam-off-request': (payload: { userId: string }) => void;
   'room:member-removed': (payload: { roomId: string; userId: string }) => void;

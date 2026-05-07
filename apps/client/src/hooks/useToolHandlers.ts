@@ -2,9 +2,11 @@ import { useRef } from 'react';
 import type Konva from 'konva';
 import type { Role, SceneDTO, FogShape } from '@vtt/shared';
 import type { CanvasTool, FogMode } from '../store/canvasViewport';
-import { useAppDispatch } from '../store';
+import { useAppDispatch, useAppSelector } from '../store';
 import { applyDrawStroke, fogShapeAdded } from '../store/scene';
 import { emitAnnotationPing, emitMeasure, emitDrawStroke, emitFogShapeAdd } from '../api/socket';
+import { recordUndo } from '../store/undoDispatcher';
+import { store } from '../store';
 import { getUserPingColor } from '../components/GameCanvas/layers/AnnotationLayer';
 import { randomUUID } from '../utils/uuid';
 import type { FogMarquee } from '../components/GameCanvas/layers/FogMarqueeLayer';
@@ -32,6 +34,7 @@ export function useToolHandlers(
   setFogMarquee: (m: FogMarquee | null) => void,
 ) {
   const dispatch = useAppDispatch();
+  const brushSize = useAppSelector((s) => s.canvasViewport.brushSize);
 
   const rulerStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastRulerEmitRef = useRef<number>(0);
@@ -66,7 +69,7 @@ export function useToolHandlers(
     const color = getUserPingColor(myUserId);
     dispatch(applyDrawStroke({
       roomId, sceneId: scene.id, strokeId, userId: myUserId,
-      points: [...drawPointsRef.current], color, width: 3,
+      points: [...drawPointsRef.current], color, width: brushSize,
     }));
   }
 
@@ -124,6 +127,7 @@ export function useToolHandlers(
     const payload = { roomId, sceneId: scene.id, shape };
     dispatch(fogShapeAdded(payload));
     emitFogShapeAdd(payload);
+    recordUndo({ kind: 'fog_add', shape });
   }
 
   function onStageMouseDown(e: Konva.KonvaEventObject<MouseEvent>): void {
@@ -151,21 +155,30 @@ export function useToolHandlers(
     else if (activeTool === 'fog') handleFogDragMove(stage);
   }
 
+  function commitDrawStroke(): void {
+    if (myRole !== 'GM' || !drawStrokeIdRef.current || !roomId) return;
+    const strokeId = drawStrokeIdRef.current;
+    const points = [...drawPointsRef.current];
+    if (points.length >= 4) {
+      const stroke = {
+        roomId, sceneId: scene.id, strokeId, userId: myUserId,
+        points, color: getUserPingColor(myUserId), width: brushSize,
+      };
+      emitDrawStroke(stroke);
+      const objects = store.getState().scene.current?.annotations.objects ?? [];
+      const obj = objects.find((o) => o.id === strokeId);
+      if (obj) recordUndo({ kind: 'draw_stroke', stroke, object: obj });
+    }
+    drawStrokeIdRef.current = null;
+    drawPointsRef.current = [];
+    lastDrawPtRef.current = null;
+  }
+
   function onStageMouseUp(e: Konva.KonvaEventObject<MouseEvent>): void {
     if (activeTool === 'ruler') {
       rulerStartRef.current = null;
-    } else if (activeTool === 'draw' && myRole === 'GM' && drawStrokeIdRef.current && roomId) {
-      const strokeId = drawStrokeIdRef.current;
-      const points = [...drawPointsRef.current];
-      if (points.length >= 4) {
-        emitDrawStroke({
-          roomId, sceneId: scene.id, strokeId, userId: myUserId,
-          points, color: getUserPingColor(myUserId), width: 3,
-        });
-      }
-      drawStrokeIdRef.current = null;
-      drawPointsRef.current = [];
-      lastDrawPtRef.current = null;
+    } else if (activeTool === 'draw') {
+      commitDrawStroke();
     } else if (activeTool === 'fog') {
       const stage = e.target.getStage();
       if (stage) commitFogShape(stage);

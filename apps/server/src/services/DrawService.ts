@@ -89,28 +89,64 @@ export function normalizeAnnotations(annotations: SceneAnnotations): SceneAnnota
   };
 }
 
+// Sess 7 fix: objects[] is authoritative for SceneObject state — preserve all
+// fields (incl. scaleX/scaleY/rotation/locked) when an entry already exists.
+// Legacy lists (strokes/texts/images) only seed objects[] for entries that
+// haven't been mirrored yet (e.g. very old data, or freshly added before
+// the writer pushed to objects[]).
+
 function indexStrokes(annotations: SceneAnnotations, objectsById: Map<string, SceneObject>): void {
   for (const [index, stroke] of annotations.strokes.entries()) {
     const current = objectsById.get(stroke.strokeId);
-    objectsById.set(stroke.strokeId, {
-      ...strokeToObject(stroke, index),
-      x: current?.x ?? stroke.x ?? 0,
-      y: current?.y ?? stroke.y ?? 0,
-    });
+    if (current && current.type === 'stroke') {
+      // Refresh geometry/style from legacy (in case the legacy stroke was
+      // updated independently), but keep transform/lock/layer/visibility as-is.
+      objectsById.set(stroke.strokeId, {
+        ...current,
+        points: stroke.points,
+        color: stroke.color,
+        strokeWidth: stroke.width,
+      });
+    } else {
+      objectsById.set(stroke.strokeId, strokeToObject(stroke, index));
+    }
   }
 }
 
 function indexTexts(annotations: SceneAnnotations, objectsById: Map<string, SceneObject>): void {
   for (const [index, text] of annotations.texts.entries()) {
     const current = objectsById.get(text.id);
-    objectsById.set(text.id, { ...textToObject(text, index), zIndex: current?.zIndex ?? index });
+    if (current && current.type === 'text') {
+      // Sess 7: keep rotation/locked/scale; refresh content/font/color from legacy mirror.
+      objectsById.set(text.id, {
+        ...current,
+        text: text.text,
+        fontSize: text.fontSize,
+        color: text.color,
+      });
+    } else {
+      objectsById.set(text.id, { ...textToObject(text, index), zIndex: index });
+    }
   }
 }
 
 function indexImages(annotations: SceneAnnotations, objectsById: Map<string, SceneObject>): void {
   for (const [index, image] of annotations.images.entries()) {
     const current = objectsById.get(image.id);
-    objectsById.set(image.id, { ...imageToObject(image, index), zIndex: current?.zIndex ?? index });
+    if (current && current.type === 'image') {
+      // Refresh geometry from legacy mirror; keep zIndex/layer/visibility/locked from current.
+      objectsById.set(image.id, {
+        ...current,
+        x: image.x,
+        y: image.y,
+        width: image.width,
+        height: image.height,
+        rotation: image.rotation ?? current.rotation ?? 0,
+        assetId: image.assetId,
+      });
+    } else {
+      objectsById.set(image.id, { ...imageToObject(image, index), zIndex: index });
+    }
   }
 }
 

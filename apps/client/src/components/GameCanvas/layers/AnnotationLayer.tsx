@@ -12,6 +12,7 @@ import type {
 } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import { moveSceneObjectOptimistic, selectSceneObject, transformSceneObjectOptimistic } from '../../../store/scene';
+import { recordUndo } from '../../../store/undoDispatcher';
 import { fetchAsset } from '../../../store/assets';
 import { emitObjectMove, emitObjectTransform } from '../../../api/socket';
 import { useImage } from '../useImage';
@@ -249,26 +250,61 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
   const isLocked = object.locked === true;
   const isDraggable = canEdit && !isLocked;
 
+  // Stroke uses Konva offset to pivot transforms around its visual centroid.
+  // The Group is rendered at (object.x + pivotX, object.y + pivotY); when we read
+  // node.x()/y() back after drag/transform, subtract pivot to recover object.x/y.
+  const dragPivot = object.type === 'stroke' ? computeStrokePivot(object.points) : { x: 0, y: 0 };
+
+  // Sess 7.5: capture the pre-drag position the first time broadcastMove fires
+  // for this drag gesture, so we can record an undo entry on dragEnd.
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+
   function broadcastMove(x: number, y: number, force = false): void {
     const now = Date.now();
     if (!force && now - lastMoveAt.current < OBJECT_MOVE_THROTTLE_MS) return;
     lastMoveAt.current = now;
+    if (dragStartRef.current === null) dragStartRef.current = { x: object.x, y: object.y };
     dispatch(moveSceneObjectOptimistic({ objectId: object.id, x, y }));
     emitObjectMove({ roomId, sceneId, objectId: object.id, x, y });
+    if (force) {
+      const start = dragStartRef.current;
+      dragStartRef.current = null;
+      // Skip recording when the drag effectively didn't move the object.
+      if (Math.abs(start.x - x) > 0.5 || Math.abs(start.y - y) > 0.5) {
+        recordUndo({
+          kind: 'object_move',
+          before: { id: object.id, x: start.x, y: start.y },
+          after: { id: object.id, x, y },
+        });
+      }
+    }
+  }
+
+  function readDragXY(node: Konva.Node): { x: number; y: number } {
+    // Subtract pivot for stroke (offset-shifted Group); image/text have pivot 0.
+    // Image x/y are clamped ≥ 0 to keep them on-canvas (Sess 2); stroke can go
+    // negative because the visual position is determined by points + transform.
+    const rawX = node.x() - dragPivot.x;
+    const rawY = node.y() - dragPivot.y;
+    if (object.type === 'image') {
+      return { x: Math.max(0, rawX), y: Math.max(0, rawY) };
+    }
+    return { x: rawX, y: rawY };
   }
 
   function handleDragMove(e: Konva.KonvaEventObject<DragEvent>): void {
     if (!isDraggable) return;
-    const node = e.target;
-    broadcastMove(Math.max(0, node.x()), Math.max(0, node.y()));
+    const { x, y } = readDragXY(e.target);
+    broadcastMove(x, y);
   }
 
   function handleDragEnd(e: Konva.KonvaEventObject<DragEvent>): void {
     if (!isDraggable) return;
     const node = e.target;
-    const x = Math.max(0, node.x());
-    const y = Math.max(0, node.y());
-    node.position({ x, y });
+    const { x, y } = readDragXY(node);
+    // Re-position node to match what we dispatched (add pivot back so Konva
+    // origin matches the next React render's x = object.x + pivot.x).
+    node.position({ x: x + dragPivot.x, y: y + dragPivot.y });
     broadcastMove(x, y, true);
   }
 
@@ -309,9 +345,13 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
   return (
     <Group
       {...(meta.groupId !== undefined ? { id: meta.groupId } : {})}
-      x={object.x}
-      y={object.y}
+      x={object.x + meta.offsetX}
+      y={object.y + meta.offsetY}
       rotation={meta.rotation}
+      scaleX={meta.scaleX}
+      scaleY={meta.scaleY}
+      offsetX={meta.offsetX}
+      offsetY={meta.offsetY}
       opacity={meta.opacity}
       draggable={isDraggable}
       listening={canEdit}
@@ -332,15 +372,60 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
 interface ObjectMeta {
   groupId: string | undefined;
   rotation: number;
+  /** Konva Group scaleX (Sess 7, 2β — non-1 only for stroke matrix transform). */
+  scaleX: number;
+  /** Konva Group scaleY (Sess 7, 2β — non-1 only for stroke matrix transform). */
+  scaleY: number;
+  /** Konva Group offset — sets the rotation/scale pivot at the stroke's visual
+   *  centroid so transforms don't visually teleport the stroke (Sess 7 fix). 0 for
+   *  image/text. */
+  offsetX: number;
+  offsetY: number;
   opacity: number;
   showSelection: boolean;
   showGmOnlyMarker: boolean;
 }
 
-/** Image-specific group id and rotation (other types render at the Group origin). */
-function getImageMeta(object: SceneObject): { groupId: string | undefined; rotation: number } {
-  if (object.type !== 'image') return { groupId: undefined, rotation: 0 };
-  return { groupId: object.id, rotation: object.rotation ?? 0 };
+/** Bounding-box centroid of a stroke's flat points array (Sess 7). Used as the
+ *  Konva Group's offset/pivot so rotations and scales happen around the visual
+ *  center of the stroke instead of (0,0) in scene coords. */
+function computeStrokePivot(points: number[]): { x: number; y: number } {
+  if (points.length < 2) return { x: 0, y: 0 };
+  let minX = points[0]!;
+  let maxX = points[0]!;
+  let minY = points[1]!;
+  let maxY = points[1]!;
+  for (let i = 0; i < points.length; i += 2) {
+    const x = points[i]!;
+    const y = points[i + 1]!;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+}
+
+/** Per-type Konva transform: groupId, rotation, scale, and pivot offset.
+ *  Stroke uses offset = points centroid so Transformer rotations/scales happen
+ *  around the visual center; image/text use offset (0,0) (no pivot shift). */
+function getTypeTransform(object: SceneObject): {
+  groupId: string; rotation: number; scaleX: number; scaleY: number;
+  offsetX: number; offsetY: number;
+} {
+  const groupId = object.id;
+  const rotation = object.rotation ?? 0;
+  if (object.type === 'stroke') {
+    const pivot = computeStrokePivot(object.points);
+    return {
+      groupId, rotation,
+      scaleX: object.scaleX ?? 1,
+      scaleY: object.scaleY ?? 1,
+      offsetX: pivot.x,
+      offsetY: pivot.y,
+    };
+  }
+  return { groupId, rotation, scaleX: 1, scaleY: 1, offsetX: 0, offsetY: 0 };
 }
 
 /** Computes per-render meta for ObjectNode (visibility, opacity, rotation, group id, marker flags).
@@ -354,10 +439,14 @@ function computeObjectMeta(
   const isGM = myRole === 'GM';
   const isGmOnly = object.visibility === 'gm-only';
   if (isGmOnly && !isGM) return null;
-  const { groupId, rotation } = getImageMeta(object);
+  const { groupId, rotation, scaleX, scaleY, offsetX, offsetY } = getTypeTransform(object);
   return {
     groupId,
     rotation,
+    scaleX,
+    scaleY,
+    offsetX,
+    offsetY,
     opacity: isGmOnly && isGM ? 0.6 : 1,
     showSelection: isGM && isSelected,
     showGmOnlyMarker: isGmOnly && isGM && !isSelected,
@@ -416,12 +505,14 @@ export default function AnnotationLayer({
   // Ctrl-snap ref — read by boundBoxFunc via closure (Fix D keyboard modifiers)
   const ctrlSnapRef = useRef(false);
 
-  // Transformer shown only when EXACTLY ONE image is selected, it is not locked,
+  // Transformer shown when EXACTLY ONE object is selected, it is not locked,
   // AND the selected object belongs to THIS layer (tile vs overlay).
+  // Sess 7: extended from image-only to text/stroke as well — type-specific commit
+  // logic in handleTransformEnd (image bakes w/h; text scales fontSize; stroke uses matrix).
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : undefined;
   const selectedObject = useMemo(
     () => (selectedId !== undefined
-      ? sceneObjects.find((o) => o.id === selectedId && o.type === 'image')
+      ? sceneObjects.find((o) => o.id === selectedId)
       : undefined),
     [sceneObjects, selectedId],
   );
@@ -489,56 +580,112 @@ export default function AnnotationLayer({
     };
   }, [myRole]);
 
-  // onTransformEnd handler — CRITICAL order: dispatch → scale reset → emit (Fix D RED 3)
+  // onTransformEnd handler — CRITICAL order: dispatch → scale reset → emit (Fix D RED 3).
+  // Sess 7: branch by SceneObject type — image bakes w/h; text scales fontSize; stroke
+  // bakes scaleX/scaleY into the SceneObject (matrix transform — points[] unchanged, 2β).
   function handleTransformEnd(e: Konva.KonvaEventObject<Event>): void {
-    if (!selectedObject || selectedObject.type !== 'image') return;
+    if (!selectedObject) return;
     const node = e.target as Konva.Group;
+    if (selectedObject.type === 'image') {
+      commitImageTransform(node, selectedObject);
+    } else if (selectedObject.type === 'text') {
+      commitTextTransform(node, selectedObject);
+    } else {
+      commitStrokeTransform(node, selectedObject);
+    }
+  }
+
+  /** Image transform commit — bakes scale into width/height (Sess 2). */
+  function commitImageTransform(node: Konva.Group, image: SceneObject & { type: 'image' }): void {
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
     const rawRot = node.rotation();
 
-    const baseWidth = selectedObject.width ?? gridSize;
-    const baseHeight = selectedObject.height ?? gridSize;
-
-    let newWidth = Math.max(gridSize, Math.round(baseWidth * scaleX));
-    let newHeight = Math.max(gridSize, Math.round(baseHeight * scaleY));
-
-    // Ctrl-snap: round to gridSize multiples
+    let newWidth = Math.max(gridSize, Math.round((image.width ?? gridSize) * scaleX));
+    let newHeight = Math.max(gridSize, Math.round((image.height ?? gridSize) * scaleY));
     if (ctrlSnapRef.current) {
       newWidth = Math.max(gridSize, Math.round(newWidth / gridSize) * gridSize);
       newHeight = Math.max(gridSize, Math.round(newHeight / gridSize) * gridSize);
     }
 
     const newRotation = ((rawRot % 360) + 360) % 360;
-    // Read node position AFTER transform — Konva Transformer repositions the Group
-    // during corner-resize and rotation, so x/y may differ from pre-transform values.
     const newX = node.x();
     const newY = node.y();
 
-    // Order CRITICAL (Fix D RED 3): dispatch first, then reset scale, then emit
-    dispatch(transformSceneObjectOptimistic({
-      objectId: selectedObject.id,
-      x: newX,
-      y: newY,
-      width: newWidth,
-      height: newHeight,
-      rotation: newRotation,
-    }));
-
-    // Reset Konva scale to identity AFTER dispatch so React re-render uses new width/height
+    const before = {
+      id: image.id, x: image.x, y: image.y, rotation: image.rotation ?? 0,
+      width: image.width, height: image.height,
+    };
+    const after = {
+      id: image.id, x: newX, y: newY, rotation: newRotation,
+      width: newWidth, height: newHeight,
+    };
+    dispatch(transformSceneObjectOptimistic({ objectId: image.id, ...after }));
     node.scaleX(1);
     node.scaleY(1);
+    emitObjectTransform({ roomId, sceneId, objectId: image.id, ...after });
+    recordUndo({ kind: 'object_transform', before, after });
+  }
 
-    emitObjectTransform({
-      roomId,
-      sceneId,
-      objectId: selectedObject.id,
-      x: newX,
-      y: newY,
-      width: newWidth,
-      height: newHeight,
-      rotation: newRotation,
-    });
+  /** Text transform commit — scales fontSize uniformly (Sess 7, 1α). */
+  function commitTextTransform(node: Konva.Group, text: SceneObject & { type: 'text' }): void {
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    const rawRot = node.rotation();
+    const factor = (Math.abs(scaleX) + Math.abs(scaleY)) / 2;
+    const FONT_MIN = 8;
+    const FONT_MAX = 200;
+    const newFontSize = Math.max(FONT_MIN, Math.min(FONT_MAX, Math.round(text.fontSize * factor)));
+
+    const newRotation = ((rawRot % 360) + 360) % 360;
+    const newX = node.x();
+    const newY = node.y();
+
+    const before = {
+      id: text.id, x: text.x, y: text.y, rotation: text.rotation ?? 0, fontSize: text.fontSize,
+    };
+    const after = {
+      id: text.id, x: newX, y: newY, rotation: newRotation, fontSize: newFontSize,
+    };
+    dispatch(transformSceneObjectOptimistic({ objectId: text.id, ...after }));
+    node.scaleX(1);
+    node.scaleY(1);
+    emitObjectTransform({ roomId, sceneId, objectId: text.id, ...after });
+    recordUndo({ kind: 'object_transform', before, after });
+  }
+
+  /** Stroke transform commit — bakes the new absolute scale/rotation into
+   *  SceneObject.scaleX/scaleY/rotation without modifying points[] (Sess 7, 2β —
+   *  non-destructive matrix transform).
+   *
+   *  Two subtleties:
+   *  1) Konva's Transformer mutates node.scaleX/Y to the NEW absolute values
+   *     (it accounts for the previous scale internally), so we use them directly
+   *     — multiplying by the old scaleX would compound the gesture (Sess 7 fix).
+   *  2) The Group is rendered with offset = points centroid (see getTypeTransform),
+   *     so node.x()/y() report the position of that pivot in scene coords. Subtract
+   *     the pivot to recover the stored object.x/y semantics. */
+  function commitStrokeTransform(node: Konva.Group, stroke: SceneObject & { type: 'stroke' }): void {
+    const STROKE_MIN = 0.1;
+    const STROKE_MAX = 10;
+    const newScaleX = Math.max(STROKE_MIN, Math.min(STROKE_MAX, node.scaleX()));
+    const newScaleY = Math.max(STROKE_MIN, Math.min(STROKE_MAX, node.scaleY()));
+    const newRotation = ((node.rotation() % 360) + 360) % 360;
+    const pivot = computeStrokePivot(stroke.points);
+    const newX = node.x() - pivot.x;
+    const newY = node.y() - pivot.y;
+
+    const before = {
+      id: stroke.id, x: stroke.x, y: stroke.y, rotation: stroke.rotation ?? 0,
+      scaleX: stroke.scaleX ?? 1, scaleY: stroke.scaleY ?? 1,
+    };
+    const after = {
+      id: stroke.id, x: newX, y: newY, rotation: newRotation,
+      scaleX: newScaleX, scaleY: newScaleY,
+    };
+    dispatch(transformSceneObjectOptimistic({ objectId: stroke.id, ...after }));
+    emitObjectTransform({ roomId, sceneId, objectId: stroke.id, ...after });
+    recordUndo({ kind: 'object_transform', before, after });
   }
 
   return (
@@ -560,10 +707,13 @@ export default function AnnotationLayer({
           ref={trRef}
           rotateEnabled={true}
           boundBoxFunc={(oldBox, newBox) => {
-            // Clamp to minimum 1 grid cell; apply Ctrl-snap via ref closure
+            // Image: clamp to ≥ 1 grid cell; apply Ctrl-snap via ref closure (Sess 2).
+            // Text/stroke: looser clamp (≥ 4 px) — bounding box is derived from
+            // fontSize/points, so grid-cell minimum doesn't make sense (Sess 7).
             let { width, height } = newBox;
-            const minSize = gridSize;
-            if (ctrlSnapRef.current) {
+            const isImage = selectedObject?.type === 'image';
+            const minSize = isImage ? gridSize : 4;
+            if (isImage && ctrlSnapRef.current) {
               width = Math.max(minSize, Math.round(Math.abs(width) / minSize) * minSize);
               height = Math.max(minSize, Math.round(Math.abs(height) / minSize) * minSize);
             } else {

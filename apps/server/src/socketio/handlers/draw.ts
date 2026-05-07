@@ -1,4 +1,4 @@
-import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload, SceneObjectTransformPayload, SceneObjectLockPayload, SceneObjectZOrderPayload, SceneObjectDuplicatePayload, SceneObjectSetLayerPayload, SceneObjectSetVisibilityPayload } from '@vtt/shared';
+import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload, SceneObjectTransformPayload, SceneObjectLockPayload, SceneObjectZOrderPayload, SceneObjectDuplicatePayload, SceneObjectSetLayerPayload, SceneObjectSetVisibilityPayload, SceneObjectUpsertPayload } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
 import { parseFogShapes } from '../../services/DrawService.js';
@@ -24,16 +24,42 @@ function isAddableFogShape(s: unknown): s is FogShape {
 import type { SceneAnnotationService } from '../../services/SceneAnnotationService.js';
 import type { SceneService } from '../../services/SceneService.js';
 
-/** Guards that all five numeric transform fields are finite numbers.
+/** Guards numeric transform fields (Sess 7).
+ *  Mandatory: x, y, rotation. Optional (must be finite if present): width, height, scaleX, scaleY, fontSize.
  *  Extracted from the object:transform handler to keep cyclomatic complexity ≤ 10 (lint gate). */
+function isFiniteOrAbsent(v: number | undefined): boolean {
+  return v === undefined || Number.isFinite(v);
+}
+
 function isValidTransformPayload(p: SceneObjectTransformPayload): boolean {
   return (
     Number.isFinite(p.x) &&
     Number.isFinite(p.y) &&
-    Number.isFinite(p.width) &&
-    Number.isFinite(p.height) &&
-    Number.isFinite(p.rotation)
+    Number.isFinite(p.rotation) &&
+    isFiniteOrAbsent(p.width) &&
+    isFiniteOrAbsent(p.height) &&
+    isFiniteOrAbsent(p.scaleX) &&
+    isFiniteOrAbsent(p.scaleY) &&
+    isFiniteOrAbsent(p.fontSize)
   );
+}
+
+/** Builds the TransformPayload for SceneAnnotationService by stripping undefined fields.
+ *  Extracted to keep object:transform handler complexity ≤ 10 (Sess 7 lint gate). */
+function buildTransformInput(p: SceneObjectTransformPayload): {
+  x: number; y: number; rotation: number;
+  width?: number; height?: number; scaleX?: number; scaleY?: number; fontSize?: number;
+} {
+  return {
+    x: p.x,
+    y: p.y,
+    rotation: p.rotation,
+    ...(p.width !== undefined ? { width: p.width } : {}),
+    ...(p.height !== undefined ? { height: p.height } : {}),
+    ...(p.scaleX !== undefined ? { scaleX: p.scaleX } : {}),
+    ...(p.scaleY !== undefined ? { scaleY: p.scaleY } : {}),
+    ...(p.fontSize !== undefined ? { fontSize: p.fontSize } : {}),
+  };
 }
 
 /** Builds broadcaster sinks for draw events (Ф3.4.2). */
@@ -215,6 +241,21 @@ export function registerDrawHandlers(
     }
   });
 
+  // Sess 7.5 — generic upsert. Used by undo to restore deleted objects with the
+  // same id (so initiative/asset references aren't broken). GM-only.
+  socket.on('object:upsert', async (payload: SceneObjectUpsertPayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!sceneAnnotationService) return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      if (!payload.object || typeof payload.object.id !== 'string') return;
+      await sceneAnnotationService.upsertObject(payload.sceneId, socket.data.role, payload.object);
+      io.to(payload.roomId).emit('object:upsert', payload);
+    } catch (err) {
+      console.error('[Socket] object:upsert error:', err);
+    }
+  });
+
   socket.on('object:transform', async (payload: SceneObjectTransformPayload) => {
     try {
       if (socket.data.role !== 'GM') return;
@@ -225,7 +266,7 @@ export function registerDrawHandlers(
         payload.sceneId,
         payload.objectId,
         socket.data.role,
-        { x: payload.x, y: payload.y, width: payload.width, height: payload.height, rotation: payload.rotation },
+        buildTransformInput(payload),
       );
       io.to(payload.roomId).emit('object:transform', payload);
     } catch (err) {
