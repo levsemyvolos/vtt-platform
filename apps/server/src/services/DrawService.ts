@@ -374,7 +374,7 @@ export class DrawService {
    */
   async applyBitmapPush(payload: FogBitmapPushPayload): Promise<FogBitmapUpdatePayload> {
     const consumed = new Set(payload.consumedShapeIds);
-    let bitmap: FogBitmap | null = payload.bitmap;
+    const bitmap: FogBitmap | null = payload.bitmap;
     await this.prisma.$transaction(async (tx) => {
       const scene = await tx.scene.findUnique({
         where: { id: payload.sceneId },

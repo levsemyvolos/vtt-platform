@@ -23,19 +23,29 @@ function isAddableFogShape(s: unknown): s is FogShape {
   );
 }
 
-/** Sess 11 — guards `fog:bitmap-push` payload. Validates that the bitmap blob
- *  is a data-URL string with sane dimensions and that consumedShapeIds is an
- *  array of strings. Size cap: longer side ≤ FOG_BITMAP_MAX_DIM (4096) so a
- *  malicious / buggy GM can't push a multi-megapixel JSONB blob. */
-function isValidBitmapPushPayload(p: FogBitmapPushPayload): boolean {
-  if (!p.bitmap || typeof p.bitmap !== 'object') return false;
-  const { data, w, h } = p.bitmap;
-  if (typeof data !== 'string' || !data.startsWith('data:image/')) return false;
-  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return false;
-  if (Math.max(w, h) > FOG_BITMAP_MAX_DIM) return false;
-  if (!Array.isArray(p.consumedShapeIds)) return false;
-  if (p.consumedShapeIds.some((id) => typeof id !== 'string')) return false;
+/** Sess 11 — sub-guard for the bitmap blob inside a fog:bitmap-push payload.
+ *  Extracted so isValidBitmapPushPayload stays under the lint complexity gate. */
+function isValidBitmap(b: FogBitmapPushPayload['bitmap']): boolean {
+  if (!b || typeof b !== 'object') return false;
+  if (typeof b.data !== 'string' || !b.data.startsWith('data:image/')) return false;
+  if (!Number.isFinite(b.w) || !Number.isFinite(b.h)) return false;
+  if (b.w <= 0 || b.h <= 0) return false;
+  if (Math.max(b.w, b.h) > FOG_BITMAP_MAX_DIM) return false;
   return true;
+}
+
+/** Sess 11 — sub-guard for consumedShapeIds (array of strings).
+ *  Extracted so isValidBitmapPushPayload stays under the lint complexity gate. */
+function isValidConsumedIds(ids: FogBitmapPushPayload['consumedShapeIds']): boolean {
+  if (!Array.isArray(ids)) return false;
+  return ids.every((id) => typeof id === 'string');
+}
+
+/** Sess 11 — top-level guard for `fog:bitmap-push` payload. Size cap: longer
+ *  side ≤ FOG_BITMAP_MAX_DIM (4096) so a malicious / buggy GM can't push a
+ *  multi-megapixel JSONB blob. */
+function isValidBitmapPushPayload(p: FogBitmapPushPayload): boolean {
+  return isValidBitmap(p.bitmap) && isValidConsumedIds(p.consumedShapeIds);
 }
 import type { SceneAnnotationService } from '../../services/SceneAnnotationService.js';
 import type { SceneService } from '../../services/SceneService.js';
