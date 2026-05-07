@@ -123,15 +123,32 @@ export default function SceneObjectContextMenu({
     onClose();
   }
 
+  /** Sess 10.5 — when right-clicked object is part of a multi-select, returns
+   *  ALL selected ids (including this one). Otherwise returns just this id. */
+  function bulkTargetIds(): string[] {
+    const ids = store.getState().scene.selectedSceneObjectIds;
+    return ids.length > 1 && ids.includes(objectId) ? ids : [objectId];
+  }
+
   function handleToggleLock(): void {
     const next = !isLocked;
-    emitObjectLock({ roomId, sceneId, objectId, locked: next });
-    dispatch(lockSceneObject({ objectId, locked: next }));
-    recordUndo({
-      kind: 'object_lock',
-      before: { id: objectId, locked: !next },
-      after: { id: objectId, locked: next },
-    });
+    const ids = bulkTargetIds();
+    const objs = store.getState().scene.current?.annotations.objects ?? [];
+    const before: { id: string; locked: boolean }[] = [];
+    const after: { id: string; locked: boolean }[] = [];
+    for (const id of ids) {
+      const cur = objs.find((o) => o.id === id);
+      if (!cur || (cur.locked === true) === next) continue;
+      before.push({ id, locked: cur.locked === true });
+      after.push({ id, locked: next });
+      emitObjectLock({ roomId, sceneId, objectId: id, locked: next });
+      dispatch(lockSceneObject({ objectId: id, locked: next }));
+    }
+    if (after.length === 1) {
+      recordUndo({ kind: 'object_lock', before: before[0]!, after: after[0]! });
+    } else if (after.length > 1) {
+      recordUndo({ kind: 'object_multi_lock', before, after });
+    }
     onClose();
   }
 
@@ -182,37 +199,51 @@ export default function SceneObjectContextMenu({
 
   function handleSetLayer(layer: SceneObjectLayer): void {
     if (!obj) return;
-    const previousLayer = obj.layer;
+    const ids = bulkTargetIds();
     const inEditScene = store.getState().room.editingSceneId !== null;
-    dispatch(setSceneObjectLayer({ objectId, layer }));
-    if (!inEditScene) {
-      emitObjectSetLayer({ roomId, sceneId, objectId, layer });
+    const objs = store.getState().scene.current?.annotations.objects ?? [];
+    const before: { id: string; layer: SceneObjectLayer }[] = [];
+    const after: { id: string; layer: SceneObjectLayer }[] = [];
+    for (const id of ids) {
+      const cur = objs.find((o) => o.id === id);
+      if (!cur || cur.layer === layer) continue;
+      before.push({ id, layer: cur.layer });
+      after.push({ id, layer });
+      dispatch(setSceneObjectLayer({ objectId: id, layer }));
+      if (!inEditScene) emitObjectSetLayer({ roomId, sceneId, objectId: id, layer });
     }
-    recordUndo({
-      kind: 'object_layer',
-      before: { id: objectId, layer: previousLayer },
-      after: { id: objectId, layer },
-    });
+    if (after.length === 1) {
+      recordUndo({ kind: 'object_layer', before: before[0]!, after: after[0]! });
+    } else if (after.length > 1) {
+      recordUndo({ kind: 'object_multi_layer', before, after });
+    }
     onClose();
   }
 
   function handleToggleVisibility(): void {
     if (!obj) return;
-    const previousVisibility = obj.visibility;
     const next: SceneObjectVisibility = obj.visibility === 'gm-only' ? 'all' : 'gm-only';
+    const ids = bulkTargetIds();
     const inEditScene = store.getState().room.editingSceneId !== null;
     const myUserId = store.getState().session.currentUser?.id;
     const myMember = store.getState().room.members.find((m) => m.userId === myUserId);
     const viewerIsGM = myMember?.role === 'GM';
-    dispatch(setSceneObjectVisibility({ objectId, visibility: next, viewerIsGM }));
-    if (!inEditScene) {
-      emitObjectSetVisibility({ roomId, sceneId, objectId, visibility: next });
+    const objs = store.getState().scene.current?.annotations.objects ?? [];
+    const before: { id: string; visibility: SceneObjectVisibility }[] = [];
+    const after: { id: string; visibility: SceneObjectVisibility }[] = [];
+    for (const id of ids) {
+      const cur = objs.find((o) => o.id === id);
+      if (!cur || cur.visibility === next) continue;
+      before.push({ id, visibility: cur.visibility });
+      after.push({ id, visibility: next });
+      dispatch(setSceneObjectVisibility({ objectId: id, visibility: next, viewerIsGM }));
+      if (!inEditScene) emitObjectSetVisibility({ roomId, sceneId, objectId: id, visibility: next });
     }
-    recordUndo({
-      kind: 'object_visibility',
-      before: { id: objectId, visibility: previousVisibility },
-      after: { id: objectId, visibility: next },
-    });
+    if (after.length === 1) {
+      recordUndo({ kind: 'object_visibility', before: before[0]!, after: after[0]! });
+    } else if (after.length > 1) {
+      recordUndo({ kind: 'object_multi_visibility', before, after });
+    }
     onClose();
   }
 

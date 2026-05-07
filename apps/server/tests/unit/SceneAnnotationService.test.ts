@@ -57,7 +57,10 @@ describe('SceneAnnotationService.addImage', () => {
     expect(drawSvc.persist).toHaveBeenCalledOnce();
     expect(result.images).toHaveLength(1);
     expect(result.images[0].assetId).toBe('asset-xyz');
-    expect(result.images[0].width).toBe(128);
+    // Sess 8: default size bumped from 128 → 256 (the safety-net fallback when
+    // the client doesn't send width/height — under normal flow client always does).
+    expect(result.images[0].width).toBe(256);
+    expect(result.images[0].height).toBe(256);
   });
 });
 

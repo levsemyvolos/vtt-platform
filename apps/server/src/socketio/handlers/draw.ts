@@ -1,4 +1,5 @@
-import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, SceneFlushPayload, SceneObjectTransformPayload, SceneObjectLockPayload, SceneObjectZOrderPayload, SceneObjectDuplicatePayload, SceneObjectSetLayerPayload, SceneObjectSetVisibilityPayload, SceneObjectUpsertPayload } from '@vtt/shared';
+import type { DrawStrokePayload, FogShape, FogShapeAddPayload, FogShapeRemovePayload, FogBitmapPushPayload, FogBitmapUpdatePayload, SceneFlushPayload, SceneObjectTransformPayload, SceneObjectLockPayload, SceneObjectZOrderPayload, SceneObjectDuplicatePayload, SceneObjectSetLayerPayload, SceneObjectSetVisibilityPayload, SceneObjectUpsertPayload } from '@vtt/shared';
+import { FOG_BITMAP_MAX_DIM } from '@vtt/shared';
 import type { TypedServer, TypedSocket } from '../types.js';
 import type { DrawBroadcast } from '../../services/DrawService.js';
 import { parseFogShapes } from '../../services/DrawService.js';
@@ -21,8 +22,24 @@ function isAddableFogShape(s: unknown): s is FogShape {
     hasValidDimensions(v)
   );
 }
+
+/** Sess 11 — guards `fog:bitmap-push` payload. Validates that the bitmap blob
+ *  is a data-URL string with sane dimensions and that consumedShapeIds is an
+ *  array of strings. Size cap: longer side ≤ FOG_BITMAP_MAX_DIM (4096) so a
+ *  malicious / buggy GM can't push a multi-megapixel JSONB blob. */
+function isValidBitmapPushPayload(p: FogBitmapPushPayload): boolean {
+  if (!p.bitmap || typeof p.bitmap !== 'object') return false;
+  const { data, w, h } = p.bitmap;
+  if (typeof data !== 'string' || !data.startsWith('data:image/')) return false;
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return false;
+  if (Math.max(w, h) > FOG_BITMAP_MAX_DIM) return false;
+  if (!Array.isArray(p.consumedShapeIds)) return false;
+  if (p.consumedShapeIds.some((id) => typeof id !== 'string')) return false;
+  return true;
+}
 import type { SceneAnnotationService } from '../../services/SceneAnnotationService.js';
 import type { SceneService } from '../../services/SceneService.js';
+import { parseSceneObject } from '../../lib/sceneObjectSchema.js';
 
 /** Guards numeric transform fields (Sess 7).
  *  Mandatory: x, y, rotation. Optional (must be finite if present): width, height, scaleX, scaleY, fontSize.
@@ -79,6 +96,9 @@ export function buildDrawBroadcaster(io: TypedServer): DrawBroadcast {
     },
     fogClear: (roomId: string, sceneId: string) => {
       io.to(roomId).emit('fog:clear', { roomId, sceneId });
+    },
+    fogBitmapUpdate: (roomId: string, payload: FogBitmapUpdatePayload) => {
+      io.to(roomId).emit('fog:bitmap-update', payload);
     },
   };
 }
@@ -186,6 +206,21 @@ export function registerDrawHandlers(
     }
   });
 
+  // Sess 11 — GM-driven fog compaction. Once the per-scene shape count exceeds
+  // FOG_COMPACTION_THRESHOLD, the GM client renders all shapes locally into a
+  // PNG bitmap and pushes it via this event. The server replaces the consumed
+  // shapes with the bitmap and broadcasts `fog:bitmap-update` to the room.
+  socket.on('fog:bitmap-push', async (payload: FogBitmapPushPayload) => {
+    try {
+      if (socket.data.role !== 'GM') return;
+      if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
+      if (!isValidBitmapPushPayload(payload)) return;
+      await drawService.applyBitmapPush(payload);
+    } catch (err) {
+      console.error('[Socket] fog:bitmap-push error:', err);
+    }
+  });
+
   socket.on('object:move', async (payload) => {
     try {
       if (socket.data.role !== 'GM') return;
@@ -248,9 +283,13 @@ export function registerDrawHandlers(
       if (socket.data.role !== 'GM') return;
       if (!sceneAnnotationService) return;
       if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-      if (!payload.object || typeof payload.object.id !== 'string') return;
-      await sceneAnnotationService.upsertObject(payload.sceneId, socket.data.role, payload.object);
-      io.to(payload.roomId).emit('object:upsert', payload);
+      // Sess 8.3 — full structural validation via zod schema. Rejects payloads
+      // with missing/wrong-shaped fields silently to avoid leaking internals to
+      // a potentially malicious client.
+      const parsed = parseSceneObject(payload.object);
+      if (!parsed) return;
+      await sceneAnnotationService.upsertObject(payload.sceneId, socket.data.role, parsed);
+      io.to(payload.roomId).emit('object:upsert', { ...payload, object: parsed });
     } catch (err) {
       console.error('[Socket] object:upsert error:', err);
     }

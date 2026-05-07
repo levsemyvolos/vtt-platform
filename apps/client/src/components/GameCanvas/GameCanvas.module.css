@@ -4,6 +4,18 @@
   position: relative;
 }
 
+/* Sess 8.6 — visual feedback while a file is being dragged over the canvas.
+ * Pseudo-element overlay so we don't disturb the existing children layout. */
+.gameCanvasDropping::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px dashed var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  pointer-events: none;
+  z-index: var(--z-modal);
+}
+
 .toolbar {
   position: absolute;
   top: var(--space-md);

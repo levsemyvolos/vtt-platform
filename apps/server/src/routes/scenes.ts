@@ -12,7 +12,7 @@ import type {
 } from '@vtt/shared';
 import type { Server } from 'socket.io';
 import { projectToken } from '../services/projections.js';
-import { parseFogShapes } from '../services/DrawService.js';
+import { parseFogShapes, parseFogBitmap } from '../services/DrawService.js';
 import { SceneService } from '../services/SceneService.js';
 import { SceneRepository } from '../repositories/SceneRepository.js';
 import { TokenRepository } from '../repositories/TokenRepository.js';
@@ -76,6 +76,7 @@ function toSceneDTOFromEntity(scene: {
     isActive: scene.isActive,
     isHidden: scene.isHidden,
     fogShapes: parseFogShapes(scene.fogShapes),
+    fogBitmap: parseFogBitmap(scene.fogShapes),
     backgroundFit: (scene.backgroundFit as BackgroundFit) ?? 'cover',
     backgroundOffsetX: scene.backgroundOffsetX ?? 0,
     backgroundOffsetY: scene.backgroundOffsetY ?? 0,

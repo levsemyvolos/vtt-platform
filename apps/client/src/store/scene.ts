@@ -7,6 +7,7 @@ import type {
   FogShape,
   FogShapeAddPayload,
   FogShapeRemovePayload,
+  FogBitmapUpdatePayload,
   DrawStrokePayload,
   SceneAnnotations,
   SceneObject,
@@ -331,7 +332,21 @@ const sceneSlice = createSlice({
       state.selectedTokenId = null;
     },
     clearFogMask: (state) => {
-      if (state.current) state.current.fogShapes = [];
+      // Sess 11 — clearing also drops the compacted bitmap, matching the
+      // server's clearFog semantics ("remove ALL fog").
+      if (state.current) {
+        state.current.fogShapes = [];
+        state.current.fogBitmap = null;
+      }
+    },
+    /** Sess 11 — applies a server-broadcast `fog:bitmap-update`: replaces the
+     *  scene's bitmap and removes the consumed shape ids. Shapes added during
+     *  the GM compaction window survive (their ids are not in consumedShapeIds). */
+    fogBitmapUpdated: (state, action: PayloadAction<FogBitmapUpdatePayload>) => {
+      if (!state.current || state.current.id !== action.payload.sceneId) return;
+      const consumed = new Set(action.payload.consumedShapeIds);
+      state.current.fogBitmap = action.payload.bitmap;
+      state.current.fogShapes = (state.current.fogShapes ?? []).filter((s) => !consumed.has(s.id));
     },
     moveSceneObjectOptimistic: (
       state,
@@ -635,6 +650,7 @@ export const {
   fogShapeAdded,
   fogShapeRemoved,
   fogShapesSet,
+  fogBitmapUpdated,
   selectToken,
   deselectToken,
   clearFogMask,

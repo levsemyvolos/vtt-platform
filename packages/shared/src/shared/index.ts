@@ -206,6 +206,46 @@ export interface FogShape {
 }
 
 /**
+ * Sess 11 — compacted fog mask. When the per-scene shape count exceeds
+ * FOG_COMPACTION_THRESHOLD (50), the GM client renders all shapes into a
+ * single PNG bitmap and pushes it to the server. The bitmap then becomes the
+ * base layer; subsequent fog shapes are drawn on top of it. Stored inline
+ * (data-URL string) inside the existing fogShapes JSONB column to avoid a
+ * Prisma migration.
+ *
+ * Dimensions are scene-coord pixels (gridSize * gridWidth/gridHeight) capped
+ * at FOG_BITMAP_MAX_DIM = 4096 px on the longer side. The bitmap is a 1-bit
+ * alpha mask: opaque = hidden, transparent = visible.
+ */
+export interface FogBitmap {
+  /** PNG data URL ("data:image/png;base64,…"). */
+  data: string;
+  /** Bitmap width in scene-coord pixels. */
+  w: number;
+  /** Bitmap height in scene-coord pixels. */
+  h: number;
+}
+
+/**
+ * Sess 11 — composite fog state persisted on Scene.fogShapes. New canonical
+ * shape; the server's parser auto-wraps any legacy `FogShape[]` payload as
+ * `{ shapes: […], bitmap: null }` on read so older scenes keep working
+ * without a migration.
+ */
+export interface FogState {
+  shapes: FogShape[];
+  bitmap: FogBitmap | null;
+}
+
+/** Sess 11 — once `state.shapes.length` reaches this, the GM client triggers
+ *  a compact: renders the shapes into FogBitmap, emits `fog:bitmap-push`. */
+export const FOG_COMPACTION_THRESHOLD = 50;
+
+/** Sess 11 — hard cap on the longer side of the rendered bitmap. Larger
+ *  scenes are downscaled to keep the JSONB blob bounded (~few hundred kB). */
+export const FOG_BITMAP_MAX_DIM = 4096;
+
+/**
  * Scene snapshot used by GET /rooms/:id/scenes/:sceneId and SessionResyncPayload.
  * Tokens are projected per A6 (RBAC) before being placed in this DTO.
  */
@@ -220,6 +260,11 @@ export interface SceneDTO {
   isActive: boolean;
   isHidden: boolean;
   fogShapes: FogShape[];
+  /** Sess 11 — compacted fog mask (bitmap form). Absent or null until the
+   *  per-scene shape count crosses FOG_COMPACTION_THRESHOLD; rendered
+   *  underneath any remaining post-compact shapes. Optional so existing
+   *  tests / fixtures without this field keep type-checking. */
+  fogBitmap?: FogBitmap | null;
   tokens: TokenPublicDTO[];
   /** Optional URL for the scene background bitmap (Ф2.2.5). */
   backgroundUrl?: string | null;

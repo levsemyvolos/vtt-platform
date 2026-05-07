@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import {
   MousePointer2,
+  Hand,
   MapPin,
   Ruler,
   PenTool,
+  Eraser,
   Cloud,
   Type,
   Image as ImageIcon,
@@ -22,9 +24,11 @@ interface ToolDef {
 
 const ALL_TOOLS: ToolDef[] = [
   { tool: 'select', icon: <MousePointer2 size={16} /> },
+  { tool: 'pan',    icon: <Hand size={16} /> },
   { tool: 'ping',   icon: <MapPin size={16} /> },
   { tool: 'ruler',  icon: <Ruler size={16} /> },
   { tool: 'draw',   icon: <PenTool size={16} />,   gmOnly: true },
+  { tool: 'eraser', icon: <Eraser size={16} />,    gmOnly: true },
   { tool: 'fog',    icon: <Cloud size={16} />,      gmOnly: true },
   { tool: 'text',   icon: <Type size={16} />,       gmOnly: true },
   { tool: 'image',  icon: <ImageIcon size={16} />,  gmOnly: true },
@@ -45,9 +49,11 @@ export default function ToolPicker({ myRole, hideEphemeral = false }: ToolPicker
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
   const labels: Record<CanvasTool, string> = {
     select: t('toolbar.select'),
+    pan:    t('toolbar.pan'),
     ping:   t('toolbar.ping'),
     ruler:  t('toolbar.ruler'),
     draw:   t('toolbar.draw'),
+    eraser: t('toolbar.eraser'),
     fog:    t('toolbar.fog'),
     text:   t('toolbar.text'),
     image:  t('toolbar.image'),

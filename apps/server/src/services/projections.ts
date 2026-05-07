@@ -11,7 +11,7 @@ import type {
   BackgroundFit,
 } from '@vtt/shared';
 import { AssetService } from './AssetService.js';
-import { parseAnnotations, parseFogShapes } from './DrawService.js';
+import { parseAnnotations, parseFogShapes, parseFogBitmap } from './DrawService.js';
 
 /**
  * A6 RBAC-projection of Token → TokenPublicDTO (§2.17.6).
@@ -88,6 +88,7 @@ export function projectScene(
     isActive: scene.isActive,
     isHidden: scene.isHidden,
     fogShapes: parseFogShapes(scene.fogShapes),
+    fogBitmap: parseFogBitmap(scene.fogShapes),
     backgroundUrl: scene.backgroundAssetId ? AssetService.getProxyUrl(scene.backgroundAssetId) : null,
     backgroundFit: (scene.backgroundFit as BackgroundFit) ?? 'cover',
     backgroundOffsetX: scene.backgroundOffsetX,

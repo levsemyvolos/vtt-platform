@@ -16,6 +16,7 @@ import type {
   DrawStrokePayload,
   FogShapeAddPayload,
   FogShapeRemovePayload,
+  FogBitmapPushPayload,
   SceneObjectMovePayload,
   SceneObjectDeletePayload,
   SceneObjectTransformPayload,
@@ -29,7 +30,7 @@ import type {
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject, setSceneObjectLayer, setSceneObjectVisibility } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, fogBitmapUpdated, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject, setSceneObjectLayer, setSceneObjectVisibility } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -184,6 +185,12 @@ export function getSocket(): TypedClientSocket {
   });
   socket.on('fog:clear', () => {
     store.dispatch(clearFogMask());
+  });
+  // Sess 11 — server-broadcast bitmap update after a successful GM compaction.
+  // Replaces the consumed shapes with the new compacted bitmap; survives any
+  // shapes added during the GM render window.
+  socket.on('fog:bitmap-update', (payload) => {
+    store.dispatch(fogBitmapUpdated(payload));
   });
   socket.on('annotations:updated', (payload) => {
     store.dispatch(applyAnnotationsUpdate(payload));
@@ -484,6 +491,13 @@ export function emitFogShapeRemove(payload: FogShapeRemovePayload): void {
 export function emitFogClear(roomId: string, sceneId: string): void {
   if (isEditingScene()) return;
   getSocket().emit('fog:clear', { roomId, sceneId });
+}
+
+/** Sess 11 — GM client pushes a compacted fog bitmap. The server replaces
+ *  consumed shapes with the bitmap and broadcasts `fog:bitmap-update`. */
+export function emitFogBitmapPush(payload: FogBitmapPushPayload): void {
+  if (isEditingScene()) return;
+  getSocket().emit('fog:bitmap-push', payload);
 }
 
 export function emitObjectMove(payload: SceneObjectMovePayload): void {

@@ -11,7 +11,7 @@ import {
   Eraser,
 } from 'lucide-react';
 import type { Role } from '@vtt/shared';
-import { zoomIn, zoomOut, fit, setZoom, setBrushSize, BRUSH_SIZE_BOUNDS } from '../../store/canvasViewport';
+import { zoomIn, zoomOut, fit, setZoom, setBrushSize, setStrokeColor, BRUSH_SIZE_BOUNDS } from '../../store/canvasViewport';
 import { startEditing } from '../../store/room';
 import { clearDrawStrokes } from '../../store/scene';
 import { emitDrawClear } from '../../api/socket';
@@ -40,6 +40,7 @@ export default function CanvasToolbar({
   const currentRoomId = useAppSelector((s) => s.room.currentRoom?.id ?? null);
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
   const brushSize = useAppSelector((s) => s.canvasViewport.brushSize);
+  const strokeColor = useAppSelector((s) => s.canvasViewport.strokeColor);
   const canUndo = useAppSelector((s) => s.undoHistory.past.length > 0);
   const canRedo = useAppSelector((s) => s.undoHistory.future.length > 0);
   const strokeObjects = useAppSelector((s) =>
@@ -77,6 +78,14 @@ export default function CanvasToolbar({
                 value={brushSize}
                 onChange={(e) => dispatch(setBrushSize(Number(e.target.value)))}
                 aria-label={t('toolbar.brushSize')}
+              />
+            </label>
+            <label className={styles.colorSwatch} title={t('toolbar.strokeColor')}>
+              <input
+                type="color"
+                value={strokeColor || '#7c5cff'}
+                onChange={(e) => dispatch(setStrokeColor(e.target.value))}
+                aria-label={t('toolbar.strokeColor')}
               />
             </label>
             <IconButton

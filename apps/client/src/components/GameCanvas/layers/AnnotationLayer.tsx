@@ -10,9 +10,10 @@ import type {
   SceneObject,
   TextAnnotation,
 } from '@vtt/shared';
-import { useAppDispatch, useAppSelector } from '../../../store';
+import { useAppDispatch, useAppSelector, store } from '../../../store';
 import { moveSceneObjectOptimistic, selectSceneObject, transformSceneObjectOptimistic } from '../../../store/scene';
 import { recordUndo } from '../../../store/undoDispatcher';
+import type { ObjectTransformSnapshot } from '../../../store/undoHistory';
 import { fetchAsset } from '../../../store/assets';
 import { emitObjectMove, emitObjectTransform } from '../../../api/socket';
 import { useImage } from '../useImage';
@@ -150,11 +151,14 @@ function toObjects(
  *  Extracted from ObjectNode to keep cyclomatic complexity ≤ 10 (lint gate). */
 function ObjectShape({ object, image }: { object: SceneObject; image: HTMLImageElement | null | undefined }): JSX.Element | null {
   if (object.type === 'stroke') {
+    // Sess 9.1 — hitStrokeWidth is widened to >= 12 px so thin strokes are
+    // still hoverable by the eraser tool. Visual stroke width unchanged.
     return (
       <Line
         points={object.points}
         stroke={object.color}
         strokeWidth={object.strokeWidth}
+        hitStrokeWidth={Math.max(object.strokeWidth, 12)}
         lineCap="round"
         lineJoin="round"
         tension={0.3}
@@ -253,11 +257,71 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
   // Stroke uses Konva offset to pivot transforms around its visual centroid.
   // The Group is rendered at (object.x + pivotX, object.y + pivotY); when we read
   // node.x()/y() back after drag/transform, subtract pivot to recover object.x/y.
-  const dragPivot = object.type === 'stroke' ? computeStrokePivot(object.points) : { x: 0, y: 0 };
+  // Sess 9.3 — memoized so the O(n) min/max scan over points runs only when
+  // points actually change, not on every parent re-render (selection ticks etc.).
+  const strokePoints = object.type === 'stroke' ? object.points : undefined;
+  const dragPivot = useMemo(
+    () => (strokePoints ? computeStrokePivot(strokePoints) : { x: 0, y: 0 }),
+    [strokePoints],
+  );
 
   // Sess 7.5: capture the pre-drag position the first time broadcastMove fires
   // for this drag gesture, so we can record an undo entry on dragEnd.
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  // Sess 10.3: when the dragged object is part of a multi-select, snapshot all
+  // selected objects' starting positions and apply the same delta to others.
+  const multiDragSnapshotRef = useRef<Map<string, { x: number; y: number }> | null>(null);
+
+  function captureMultiDragSnapshot(ids: string[]): void {
+    if (multiDragSnapshotRef.current !== null) return;
+    multiDragSnapshotRef.current = new Map();
+    const objs = store.getState().scene.current?.annotations.objects ?? [];
+    for (const id of ids) {
+      const o = objs.find((ob) => ob.id === id);
+      if (o && o.locked !== true) multiDragSnapshotRef.current.set(id, { x: o.x, y: o.y });
+    }
+  }
+
+  function applyMultiDragDelta(x: number, y: number): void {
+    const ids = store.getState().scene.selectedSceneObjectIds;
+    if (ids.length <= 1 || !ids.includes(object.id)) return;
+    captureMultiDragSnapshot(ids);
+    const myStart = multiDragSnapshotRef.current?.get(object.id);
+    if (!myStart || !multiDragSnapshotRef.current) return;
+    const dx = x - myStart.x;
+    const dy = y - myStart.y;
+    for (const [otherId, start] of multiDragSnapshotRef.current.entries()) {
+      if (otherId === object.id) continue;
+      const ox = start.x + dx;
+      const oy = start.y + dy;
+      dispatch(moveSceneObjectOptimistic({ objectId: otherId, x: ox, y: oy }));
+      emitObjectMove({ roomId, sceneId, objectId: otherId, x: ox, y: oy });
+    }
+  }
+
+  function recordDragUndoOnEnd(start: { x: number; y: number }, x: number, y: number): void {
+    const snap = multiDragSnapshotRef.current;
+    multiDragSnapshotRef.current = null;
+    if (snap && snap.size > 1) {
+      // Multi-move: collect before from snapshot, after from current state.
+      const before = [...snap.entries()].map(([id, p]) => ({ id, x: p.x, y: p.y }));
+      const objs = store.getState().scene.current?.annotations.objects ?? [];
+      const after = before.map(({ id }) => {
+        const o = objs.find((ob) => ob.id === id);
+        return { id, x: o?.x ?? 0, y: o?.y ?? 0 };
+      });
+      recordUndo({ kind: 'object_multi_move', before, after });
+      return;
+    }
+    // Single-move (existing): skip if the gesture didn't actually move the object.
+    if (Math.abs(start.x - x) > 0.5 || Math.abs(start.y - y) > 0.5) {
+      recordUndo({
+        kind: 'object_move',
+        before: { id: object.id, x: start.x, y: start.y },
+        after: { id: object.id, x, y },
+      });
+    }
+  }
 
   function broadcastMove(x: number, y: number, force = false): void {
     const now = Date.now();
@@ -266,17 +330,11 @@ function ObjectNode({ object, canEdit, isSelected, myRole, roomId, sceneId, onCo
     if (dragStartRef.current === null) dragStartRef.current = { x: object.x, y: object.y };
     dispatch(moveSceneObjectOptimistic({ objectId: object.id, x, y }));
     emitObjectMove({ roomId, sceneId, objectId: object.id, x, y });
+    applyMultiDragDelta(x, y);
     if (force) {
       const start = dragStartRef.current;
       dragStartRef.current = null;
-      // Skip recording when the drag effectively didn't move the object.
-      if (Math.abs(start.x - x) > 0.5 || Math.abs(start.y - y) > 0.5) {
-        recordUndo({
-          kind: 'object_move',
-          before: { id: object.id, x: start.x, y: start.y },
-          after: { id: object.id, x, y },
-        });
-      }
+      recordDragUndoOnEnd(start, x, y);
     }
   }
 
@@ -384,6 +442,27 @@ interface ObjectMeta {
   opacity: number;
   showSelection: boolean;
   showGmOnlyMarker: boolean;
+}
+
+/** Sess 10.4 fix — visual center of a rect (image/text bbox) at (x, y) sized
+ *  (w, h) and rotated by `rotationDeg` around its local origin (0, 0).
+ *  Konva applies rotation BEFORE translation, so the rect's local center
+ *  (w/2, h/2) ends up at world (x + halfW*cos − halfH*sin, y + halfW*sin + halfH*cos).
+ *  The previous Shift+rotate math used the un-rotated formula (x + w/2, y + h/2)
+ *  and was off by the rotation delta — visible as objects "drifting" during
+ *  multi-select Shift+rotate. */
+function rotatedRectCenter(
+  x: number, y: number, w: number, h: number, rotationDeg: number,
+): { x: number; y: number } {
+  const r = (rotationDeg * Math.PI) / 180;
+  const halfW = w / 2;
+  const halfH = h / 2;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  return {
+    x: x + halfW * cos - halfH * sin,
+    y: y + halfW * sin + halfH * cos,
+  };
 }
 
 /** Bounding-box centroid of a stroke's flat points array (Sess 7). Used as the
@@ -505,41 +584,45 @@ export default function AnnotationLayer({
   // Ctrl-snap ref — read by boundBoxFunc via closure (Fix D keyboard modifiers)
   const ctrlSnapRef = useRef(false);
 
-  // Transformer shown when EXACTLY ONE object is selected, it is not locked,
-  // AND the selected object belongs to THIS layer (tile vs overlay).
-  // Sess 7: extended from image-only to text/stroke as well — type-specific commit
-  // logic in handleTransformEnd (image bakes w/h; text scales fontSize; stroke uses matrix).
-  const selectedId = selectedIds.length === 1 ? selectedIds[0] : undefined;
-  const selectedObject = useMemo(
-    () => (selectedId !== undefined
-      ? sceneObjects.find((o) => o.id === selectedId)
-      : undefined),
-    [sceneObjects, selectedId],
+  // Sess 10 — Transformer attaches to ALL selected, non-locked SceneObjects in
+  // THIS layer (single OR multi). Konva renders one bounding-box around the
+  // group; per-node transform values are committed independently in
+  // handleTransformEnd (and commitMulti below).
+  const selectedObjects = useMemo(
+    () => sceneObjects.filter((o) => selectedIds.includes(o.id) && o.locked !== true),
+    [sceneObjects, selectedIds],
   );
-  // Do not show Transformer for locked objects — GM still sees selection rect.
-  const isSelectedLocked = selectedObject?.locked === true;
-  // Only render Transformer in the layer that actually contains the selected object.
-  const showTransformer = myRole === 'GM' && !!selectedObject && !isSelectedLocked;
+  const showTransformer = myRole === 'GM' && selectedObjects.length > 0;
+  // Stable string of ids in selection order — used as a dep to re-attach
+  // Transformer when the set changes (avoids re-running on every state mutation).
+  const selectedIdsKey = selectedObjects.map((o) => o.id).join(',');
 
-  // Wire Transformer to Konva node by ID (Fix D — stage.findOne lookup)
+  // Wire Transformer to all selected Konva nodes by ID.
   useEffect(() => {
     const tr = trRef.current;
     if (!tr) return;
-    if (selectedId === undefined || !showTransformer) {
+    if (!showTransformer) {
       tr.nodes([]);
       return;
     }
     const stage = tr.getStage();
-    const node = stage?.findOne(`#${selectedId}`);
-    if (node) {
-      tr.nodes([node]);
-      tr.getLayer()?.batchDraw();
-    } else {
-      tr.nodes([]);
-    }
-  }, [selectedId, showTransformer]);
+    if (!stage) { tr.nodes([]); return; }
+    const ids = selectedIdsKey ? selectedIdsKey.split(',') : [];
+    const nodes = ids
+      .map((id) => stage.findOne(`#${id}`))
+      .filter((n): n is Konva.Node => Boolean(n));
+    tr.nodes(nodes);
+    tr.getLayer()?.batchDraw();
+  }, [selectedIdsKey, showTransformer]);
 
-  // Keyboard modifiers: Shift = keepRatio + rotation snaps; Ctrl = grid-snap (Fix D)
+  // Sess 10.4 — keyboard modifiers split into β-semantics:
+  //   Shift = keepRatio + centeredScaling (single: scales around own center;
+  //           multi: per-object center-preservation handled in commit)
+  //   Alt   = rotation snaps to 15° increments (was on Shift in Sess 2)
+  //   Ctrl  = grid-snap for image bbox (unchanged)
+  // shiftHeldRef is used by the multi-commit path to know whether to apply
+  // per-object center-preservation when Konva scales the whole group.
+  const shiftHeldRef = useRef(false);
   useEffect(() => {
     if (myRole !== 'GM') return;
 
@@ -548,28 +631,36 @@ export default function AnnotationLayer({
 
     function handleKeyDown(e: KeyboardEvent): void {
       const tr = trRef.current;
-      if (!tr) return;
       if (e.key === 'Shift') {
-        tr.keepRatio(true);
+        shiftHeldRef.current = true;
+        if (tr) {
+          tr.keepRatio(true);
+          tr.centeredScaling(true);
+          tr.getLayer()?.batchDraw();
+        }
+      }
+      if (e.key === 'Alt' && tr) {
         tr.rotationSnaps(ROTATION_SNAPS);
         tr.getLayer()?.batchDraw();
       }
-      if (e.key === 'Control') {
-        ctrlSnapRef.current = true;
-      }
+      if (e.key === 'Control') ctrlSnapRef.current = true;
     }
 
     function handleKeyUp(e: KeyboardEvent): void {
       const tr = trRef.current;
-      if (!tr) return;
       if (e.key === 'Shift') {
-        tr.keepRatio(false);
+        shiftHeldRef.current = false;
+        if (tr) {
+          tr.keepRatio(false);
+          tr.centeredScaling(false);
+          tr.getLayer()?.batchDraw();
+        }
+      }
+      if (e.key === 'Alt' && tr) {
         tr.rotationSnaps([]);
         tr.getLayer()?.batchDraw();
       }
-      if (e.key === 'Control') {
-        ctrlSnapRef.current = false;
-      }
+      if (e.key === 'Control') ctrlSnapRef.current = false;
     }
 
     window.addEventListener('keydown', handleKeyDown);
@@ -580,23 +671,73 @@ export default function AnnotationLayer({
     };
   }, [myRole]);
 
-  // onTransformEnd handler — CRITICAL order: dispatch → scale reset → emit (Fix D RED 3).
-  // Sess 7: branch by SceneObject type — image bakes w/h; text scales fontSize; stroke
-  // bakes scaleX/scaleY into the SceneObject (matrix transform — points[] unchanged, 2β).
-  function handleTransformEnd(e: Konva.KonvaEventObject<Event>): void {
-    if (!selectedObject) return;
-    const node = e.target as Konva.Group;
-    if (selectedObject.type === 'image') {
-      commitImageTransform(node, selectedObject);
-    } else if (selectedObject.type === 'text') {
-      commitTextTransform(node, selectedObject);
-    } else {
-      commitStrokeTransform(node, selectedObject);
+  // Sess 10.2 fix — handleTransformEnd may fire once per Transformer gesture OR
+  // once per attached node depending on Konva's binding. Either way we want to
+  // process ALL attached nodes exactly once per gesture: the lock-ref guarantees
+  // we run only on the first fire; tr.nodes() iteration guarantees every node
+  // is committed even if no further events come.
+  const transformLockRef = useRef(false);
+
+  /** Commits a single node based on its SceneObject type. Returns the
+   *  before/after snapshot for undo, or null if the node doesn't match a
+   *  selected object (defensive — shouldn't happen normally). */
+  function commitNodeTransform(
+    node: Konva.Group,
+    shiftCenter: boolean,
+  ): { before: ObjectTransformSnapshot; after: ObjectTransformSnapshot } | null {
+    const obj = selectedObjects.find((o) => o.id === node.id());
+    if (!obj) return null;
+    if (obj.type === 'image') return commitImageTransform(node, obj, shiftCenter);
+    if (obj.type === 'text') return commitTextTransform(node, obj, shiftCenter);
+    return commitStrokeTransform(node, obj);
+  }
+
+  function pushTransformBatchUndo(batch: { before: ObjectTransformSnapshot; after: ObjectTransformSnapshot }[]): void {
+    if (batch.length === 1) {
+      recordUndo({ kind: 'object_transform', before: batch[0]!.before, after: batch[0]!.after });
+    } else if (batch.length > 1) {
+      recordUndo({
+        kind: 'object_multi_transform',
+        before: batch.map((b) => b.before),
+        after: batch.map((b) => b.after),
+      });
     }
   }
 
-  /** Image transform commit — bakes scale into width/height (Sess 2). */
-  function commitImageTransform(node: Konva.Group, image: SceneObject & { type: 'image' }): void {
+  function commitAllTransforms(): void {
+    const tr = trRef.current;
+    if (!tr) return;
+    const nodes = tr.nodes() as Konva.Group[];
+    if (nodes.length === 0) return;
+    const shiftCenter = shiftHeldRef.current && nodes.length > 1;
+    const batch: { before: ObjectTransformSnapshot; after: ObjectTransformSnapshot }[] = [];
+    for (const node of nodes) {
+      const snap = commitNodeTransform(node, shiftCenter);
+      if (snap) batch.push(snap);
+    }
+    pushTransformBatchUndo(batch);
+  }
+
+  function handleTransformEnd(): void {
+    if (transformLockRef.current) return;
+    transformLockRef.current = true;
+    try {
+      commitAllTransforms();
+    } finally {
+      // Release on next microtask so subsequent fires within the same gesture
+      // are ignored, but the next user gesture starts fresh.
+      queueMicrotask(() => { transformLockRef.current = false; });
+    }
+  }
+
+  /** Image transform commit — bakes scale into width/height (Sess 2).
+   *  Sess 10.4 β: when shiftCenter is true (multi+Shift), shifts node x/y so the
+   *  image's center stays put after the group-anchored Konva scale. */
+  function commitImageTransform(
+    node: Konva.Group,
+    image: SceneObject & { type: 'image' },
+    shiftCenter: boolean,
+  ): { before: ObjectTransformSnapshot; after: ObjectTransformSnapshot } {
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
     const rawRot = node.rotation();
@@ -607,16 +748,25 @@ export default function AnnotationLayer({
       newWidth = Math.max(gridSize, Math.round(newWidth / gridSize) * gridSize);
       newHeight = Math.max(gridSize, Math.round(newHeight / gridSize) * gridSize);
     }
-
     const newRotation = ((rawRot % 360) + 360) % 360;
-    const newX = node.x();
-    const newY = node.y();
+    let newX = node.x();
+    let newY = node.y();
+    if (shiftCenter) {
+      // Sess 10.4 fix — center math must account for rotation. The naïve
+      // (x + w/2, y + h/2) is the visual center only when rotation = 0.
+      const preCenter = rotatedRectCenter(
+        image.x, image.y, image.width ?? 0, image.height ?? 0, image.rotation ?? 0,
+      );
+      const postCenter = rotatedRectCenter(newX, newY, newWidth, newHeight, newRotation);
+      newX -= postCenter.x - preCenter.x;
+      newY -= postCenter.y - preCenter.y;
+    }
 
-    const before = {
+    const before: ObjectTransformSnapshot = {
       id: image.id, x: image.x, y: image.y, rotation: image.rotation ?? 0,
       width: image.width, height: image.height,
     };
-    const after = {
+    const after: ObjectTransformSnapshot = {
       id: image.id, x: newX, y: newY, rotation: newRotation,
       width: newWidth, height: newHeight,
     };
@@ -624,11 +774,15 @@ export default function AnnotationLayer({
     node.scaleX(1);
     node.scaleY(1);
     emitObjectTransform({ roomId, sceneId, objectId: image.id, ...after });
-    recordUndo({ kind: 'object_transform', before, after });
+    return { before, after };
   }
 
   /** Text transform commit — scales fontSize uniformly (Sess 7, 1α). */
-  function commitTextTransform(node: Konva.Group, text: SceneObject & { type: 'text' }): void {
+  function commitTextTransform(
+    node: Konva.Group,
+    text: SceneObject & { type: 'text' },
+    shiftCenter: boolean,
+  ): { before: ObjectTransformSnapshot; after: ObjectTransformSnapshot } {
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
     const rawRot = node.rotation();
@@ -636,36 +790,46 @@ export default function AnnotationLayer({
     const FONT_MIN = 8;
     const FONT_MAX = 200;
     const newFontSize = Math.max(FONT_MIN, Math.min(FONT_MAX, Math.round(text.fontSize * factor)));
-
     const newRotation = ((rawRot % 360) + 360) % 360;
-    const newX = node.x();
-    const newY = node.y();
-
-    const before = {
+    let newX = node.x();
+    let newY = node.y();
+    if (shiftCenter) {
+      // Sess 10.4 fix — text bbox via selection-box helper, then rotate the
+      // local center using rotatedRectCenter so the math is correct under
+      // arbitrary rotation (not just 0°).
+      const preBox = computeSelectionBox(text);
+      const postText = { ...text, fontSize: newFontSize };
+      const postBox = computeSelectionBox(postText);
+      const preCenter = rotatedRectCenter(
+        text.x + preBox.x, text.y + preBox.y, preBox.w, preBox.h, text.rotation ?? 0,
+      );
+      const postCenter = rotatedRectCenter(
+        newX + postBox.x, newY + postBox.y, postBox.w, postBox.h, newRotation,
+      );
+      newX -= postCenter.x - preCenter.x;
+      newY -= postCenter.y - preCenter.y;
+    }
+    const before: ObjectTransformSnapshot = {
       id: text.id, x: text.x, y: text.y, rotation: text.rotation ?? 0, fontSize: text.fontSize,
     };
-    const after = {
+    const after: ObjectTransformSnapshot = {
       id: text.id, x: newX, y: newY, rotation: newRotation, fontSize: newFontSize,
     };
     dispatch(transformSceneObjectOptimistic({ objectId: text.id, ...after }));
     node.scaleX(1);
     node.scaleY(1);
     emitObjectTransform({ roomId, sceneId, objectId: text.id, ...after });
-    recordUndo({ kind: 'object_transform', before, after });
+    return { before, after };
   }
 
   /** Stroke transform commit — bakes the new absolute scale/rotation into
-   *  SceneObject.scaleX/scaleY/rotation without modifying points[] (Sess 7, 2β —
-   *  non-destructive matrix transform).
-   *
-   *  Two subtleties:
-   *  1) Konva's Transformer mutates node.scaleX/Y to the NEW absolute values
-   *     (it accounts for the previous scale internally), so we use them directly
-   *     — multiplying by the old scaleX would compound the gesture (Sess 7 fix).
-   *  2) The Group is rendered with offset = points centroid (see getTypeTransform),
-   *     so node.x()/y() report the position of that pivot in scene coords. Subtract
-   *     the pivot to recover the stored object.x/y semantics. */
-  function commitStrokeTransform(node: Konva.Group, stroke: SceneObject & { type: 'stroke' }): void {
+   *  SceneObject.scaleX/scaleY/rotation without modifying points[] (Sess 7, 2β).
+   *  Stroke already pivots around its centroid via offset, so multi+Shift center-
+   *  preservation is automatic — no shiftCenter parameter needed. */
+  function commitStrokeTransform(
+    node: Konva.Group,
+    stroke: SceneObject & { type: 'stroke' },
+  ): { before: ObjectTransformSnapshot; after: ObjectTransformSnapshot } {
     const STROKE_MIN = 0.1;
     const STROKE_MAX = 10;
     const newScaleX = Math.max(STROKE_MIN, Math.min(STROKE_MAX, node.scaleX()));
@@ -674,18 +838,17 @@ export default function AnnotationLayer({
     const pivot = computeStrokePivot(stroke.points);
     const newX = node.x() - pivot.x;
     const newY = node.y() - pivot.y;
-
-    const before = {
+    const before: ObjectTransformSnapshot = {
       id: stroke.id, x: stroke.x, y: stroke.y, rotation: stroke.rotation ?? 0,
       scaleX: stroke.scaleX ?? 1, scaleY: stroke.scaleY ?? 1,
     };
-    const after = {
+    const after: ObjectTransformSnapshot = {
       id: stroke.id, x: newX, y: newY, rotation: newRotation,
       scaleX: newScaleX, scaleY: newScaleY,
     };
     dispatch(transformSceneObjectOptimistic({ objectId: stroke.id, ...after }));
     emitObjectTransform({ roomId, sceneId, objectId: stroke.id, ...after });
-    recordUndo({ kind: 'object_transform', before, after });
+    return { before, after };
   }
 
   return (
@@ -707,20 +870,34 @@ export default function AnnotationLayer({
           ref={trRef}
           rotateEnabled={true}
           boundBoxFunc={(oldBox, newBox) => {
-            // Image: clamp to ≥ 1 grid cell; apply Ctrl-snap via ref closure (Sess 2).
-            // Text/stroke: looser clamp (≥ 4 px) — bounding box is derived from
-            // fontSize/points, so grid-cell minimum doesn't make sense (Sess 7).
-            let { width, height } = newBox;
-            const isImage = selectedObject?.type === 'image';
-            const minSize = isImage ? gridSize : 4;
-            if (isImage && ctrlSnapRef.current) {
-              width = Math.max(minSize, Math.round(Math.abs(width) / minSize) * minSize);
-              height = Math.max(minSize, Math.round(Math.abs(height) / minSize) * minSize);
-            } else {
-              width = Math.max(minSize, Math.abs(width));
-              height = Math.max(minSize, Math.abs(height));
+            // Sess 10.7 — lock at oldBox when shrinking past minSize OR when
+            // Konva proposes a flipped box (negative width/height). Earlier code
+            // used Math.abs(width) and kept newBox.x/y, which decoupled the
+            // bounding box from the cursor and caused the object to "teleport"
+            // at ~80% shrink (the flip-inversion point). This is the standard
+            // Konva-docs recommended pattern: freeze at last valid state, the
+            // cursor visually detaches from the anchor but no jump occurs.
+            //
+            // Multi-select: only apply image-style minSize when ALL selected
+            // objects are images. Otherwise fall back to 4-px minimum so
+            // text/stroke don't fight the grid.
+            const allImages = selectedObjects.length > 0 && selectedObjects.every((o) => o.type === 'image');
+            const minSize = allImages ? gridSize : 4;
+            if (Math.abs(newBox.width) < minSize || Math.abs(newBox.height) < minSize) {
+              return oldBox;
             }
-            return { ...newBox, width, height };
+            if (newBox.width < 0 || newBox.height < 0) {
+              return oldBox;
+            }
+            // Ctrl-snap (image-only selection): round dimensions to grid.
+            if (allImages && ctrlSnapRef.current) {
+              return {
+                ...newBox,
+                width: Math.max(minSize, Math.round(newBox.width / minSize) * minSize),
+                height: Math.max(minSize, Math.round(newBox.height / minSize) * minSize),
+              };
+            }
+            return newBox;
           }}
           onTransformEnd={handleTransformEnd}
         />

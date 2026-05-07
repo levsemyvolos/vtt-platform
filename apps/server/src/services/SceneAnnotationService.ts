@@ -102,14 +102,18 @@ export class SceneAnnotationService {
     const annotations = await this.drawService.getAnnotations(sceneId);
     const layer: SceneObjectLayer = payload.layer ?? 'tile';
     const visibility: SceneObjectVisibility = 'all';
+    // Sess 8: width/height are now expected from the client (computed via the
+    // shared imageDimensions helper that loads natural size + clamps to
+    // MAX_INITIAL_DIMENSION). Defaults retained as a safety net for legacy
+    // callers; under normal flow both are always provided.
     const entry: ImageAnnotation = {
       id: randomUUID(),
       userId,
       x: payload.x,
       y: payload.y,
       assetId: payload.assetId,
-      width: payload.width ?? 128,
-      height: payload.height ?? 128,
+      width: payload.width ?? 256,
+      height: payload.height ?? 256,
       layer,
       visibility,
     };

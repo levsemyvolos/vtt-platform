@@ -8,6 +8,7 @@ import type {
   ChatMode,
   DiceMode,
   FogShape,
+  FogBitmap,
   SceneObjectLayer,
   SceneObjectVisibility,
 } from '../shared/index';
@@ -124,6 +125,31 @@ export interface FogShapeRemovePayload {
   roomId: string;
   sceneId: string;
   shapeId: string;
+}
+
+/**
+ * Sess 11 — GM-driven fog compaction. When the per-scene shape count reaches
+ * FOG_COMPACTION_THRESHOLD, the GM client renders all shapes into a bitmap
+ * locally and pushes it via this event. The server replaces the scene's
+ * compacted shapes with the bitmap (consumedShapeIds) and broadcasts
+ * `fog:bitmap-update` so other clients drop the same shapes and adopt the
+ * bitmap. Shapes whose ids are NOT in consumedShapeIds (added during the
+ * brief render window) survive and are rendered on top of the bitmap.
+ */
+export interface FogBitmapPushPayload {
+  roomId: string;
+  sceneId: string;
+  bitmap: FogBitmap;
+  consumedShapeIds: string[];
+}
+
+/** Server → all room members after a successful bitmap push. Mirrors
+ *  FogBitmapPushPayload minus `roomId` (clients already know it). */
+export interface FogBitmapUpdatePayload {
+  roomId: string;
+  sceneId: string;
+  bitmap: FogBitmap | null;
+  consumedShapeIds: string[];
 }
 
 /**
@@ -396,6 +422,7 @@ export interface ClientToServerEvents {
   'fog:shape-add': (payload: FogShapeAddPayload) => void;
   'fog:shape-remove': (payload: FogShapeRemovePayload) => void;
   'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
+  'fog:bitmap-push': (payload: FogBitmapPushPayload) => void;
   'object:move': (payload: SceneObjectMovePayload) => void;
   'object:delete': (payload: SceneObjectDeletePayload) => void;
   'object:transform': (payload: SceneObjectTransformPayload) => void;
@@ -457,6 +484,7 @@ export interface ServerToClientEvents {
   'fog:shape-add': (payload: FogShapeAddPayload) => void;
   'fog:shape-remove': (payload: FogShapeRemovePayload) => void;
   'fog:clear': (payload: { roomId: string; sceneId: string }) => void;
+  'fog:bitmap-update': (payload: FogBitmapUpdatePayload) => void;
   'audio:play': (payload: AudioPlayPayload) => void;
   'signal:offer': (payload: SignalingPayload) => void;
   'signal:answer': (payload: SignalingPayload) => void;

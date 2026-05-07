@@ -92,6 +92,32 @@ function applyObjectMove(
   emitObjectMove({ ...rs, objectId: snap.id, x: snap.x, y: snap.y });
 }
 
+/** Sess 10.2 — multi-transform: iterate parallel snapshot arrays. */
+function applyObjectMultiTransform(
+  entry: Extract<UndoEntry, { kind: 'object_multi_transform' }>,
+  direction: 'undo' | 'redo',
+  rs: RoomScene,
+): void {
+  const snaps = direction === 'undo' ? entry.before : entry.after;
+  for (const snap of snaps) {
+    store.dispatch(transformSceneObjectOptimistic({ objectId: snap.id, ...snap }));
+    emitObjectTransform({ ...rs, objectId: snap.id, ...snap });
+  }
+}
+
+/** Sess 10.3 — multi-move: iterate parallel snapshot arrays. */
+function applyObjectMultiMove(
+  entry: Extract<UndoEntry, { kind: 'object_multi_move' }>,
+  direction: 'undo' | 'redo',
+  rs: RoomScene,
+): void {
+  const snaps = direction === 'undo' ? entry.before : entry.after;
+  for (const snap of snaps) {
+    store.dispatch(moveSceneObjectOptimistic({ objectId: snap.id, x: snap.x, y: snap.y }));
+    emitObjectMove({ ...rs, objectId: snap.id, x: snap.x, y: snap.y });
+  }
+}
+
 function applyObjectAdd(
   entry: Extract<UndoEntry, { kind: 'object_add' }>,
   direction: 'undo' | 'redo',
@@ -166,6 +192,47 @@ function applyObjectVisibility(
   const viewerIsGM = myMember?.role === 'GM';
   store.dispatch(setSceneObjectVisibility({ objectId: snap.id, visibility: snap.visibility, viewerIsGM }));
   emitObjectSetVisibility({ ...rs, objectId: snap.id, visibility: snap.visibility });
+}
+
+/** Sess 10.5 — bulk lock/layer/visibility: iterate parallel snapshot arrays. */
+function applyObjectMultiLock(
+  entry: Extract<UndoEntry, { kind: 'object_multi_lock' }>,
+  direction: 'undo' | 'redo',
+  rs: RoomScene,
+): void {
+  const snaps = direction === 'undo' ? entry.before : entry.after;
+  for (const snap of snaps) {
+    store.dispatch(lockSceneObject({ objectId: snap.id, locked: snap.locked }));
+    emitObjectLock({ ...rs, objectId: snap.id, locked: snap.locked });
+  }
+}
+
+function applyObjectMultiLayer(
+  entry: Extract<UndoEntry, { kind: 'object_multi_layer' }>,
+  direction: 'undo' | 'redo',
+  rs: RoomScene,
+): void {
+  const snaps = direction === 'undo' ? entry.before : entry.after;
+  for (const snap of snaps) {
+    store.dispatch(setSceneObjectLayer({ objectId: snap.id, layer: snap.layer }));
+    emitObjectSetLayer({ ...rs, objectId: snap.id, layer: snap.layer });
+  }
+}
+
+function applyObjectMultiVisibility(
+  entry: Extract<UndoEntry, { kind: 'object_multi_visibility' }>,
+  direction: 'undo' | 'redo',
+  rs: RoomScene,
+): void {
+  const snaps = direction === 'undo' ? entry.before : entry.after;
+  const state = store.getState();
+  const myUserId = state.session.currentUser?.id;
+  const myMember = state.room.members.find((m) => m.userId === myUserId);
+  const viewerIsGM = myMember?.role === 'GM';
+  for (const snap of snaps) {
+    store.dispatch(setSceneObjectVisibility({ objectId: snap.id, visibility: snap.visibility, viewerIsGM }));
+    emitObjectSetVisibility({ ...rs, objectId: snap.id, visibility: snap.visibility });
+  }
 }
 
 function applyObjectZOrder(
@@ -292,6 +359,11 @@ type Applier = (entry: UndoEntry, direction: 'undo' | 'redo', rs: RoomScene) => 
 const APPLIERS: { [K in UndoEntry['kind']]: Applier } = {
   object_transform: (e, d, rs) => applyObjectTransform(e as Extract<UndoEntry, { kind: 'object_transform' }>, d, rs),
   object_move: (e, d, rs) => applyObjectMove(e as Extract<UndoEntry, { kind: 'object_move' }>, d, rs),
+  object_multi_transform: (e, d, rs) => applyObjectMultiTransform(e as Extract<UndoEntry, { kind: 'object_multi_transform' }>, d, rs),
+  object_multi_move: (e, d, rs) => applyObjectMultiMove(e as Extract<UndoEntry, { kind: 'object_multi_move' }>, d, rs),
+  object_multi_lock: (e, d, rs) => applyObjectMultiLock(e as Extract<UndoEntry, { kind: 'object_multi_lock' }>, d, rs),
+  object_multi_layer: (e, d, rs) => applyObjectMultiLayer(e as Extract<UndoEntry, { kind: 'object_multi_layer' }>, d, rs),
+  object_multi_visibility: (e, d, rs) => applyObjectMultiVisibility(e as Extract<UndoEntry, { kind: 'object_multi_visibility' }>, d, rs),
   object_add: (e, d, rs) => applyObjectAdd(e as Extract<UndoEntry, { kind: 'object_add' }>, d, rs),
   object_delete: (e, d, rs) => applyObjectDelete(e as Extract<UndoEntry, { kind: 'object_delete' }>, d, rs),
   object_duplicate: (e, d, rs) => applyObjectDuplicate(e as Extract<UndoEntry, { kind: 'object_duplicate' }>, d, rs),

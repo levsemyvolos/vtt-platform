@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-export type CanvasTool = 'select' | 'ping' | 'ruler' | 'draw' | 'fog' | 'text' | 'image';
+export type CanvasTool = 'select' | 'pan' | 'ping' | 'ruler' | 'draw' | 'eraser' | 'fog' | 'text' | 'image';
 
 export type FogMode = 'hide' | 'reveal';
 
@@ -13,12 +13,16 @@ interface CanvasViewportState {
   fogGmAlpha: number;
   /** Brush size for the draw tool in px (Sess 7, 4β). Persisted per-user in localStorage. */
   brushSize: number;
+  /** Stroke color for the draw tool — empty string means "auto" (per-user
+   *  hash via getUserPingColor). Sess 9.2. Persisted in localStorage. */
+  strokeColor: string;
 }
 
 const BRUSH_SIZE_MIN = 1;
 const BRUSH_SIZE_MAX = 32;
 const BRUSH_SIZE_DEFAULT = 3;
 const BRUSH_SIZE_KEY = 'vtt:brushSize';
+const STROKE_COLOR_KEY = 'vtt:strokeColor';
 
 function readPersistedBrushSize(): number {
   if (typeof window === 'undefined') return BRUSH_SIZE_DEFAULT;
@@ -38,6 +42,27 @@ function persistBrushSize(value: number): void {
   try { window.localStorage.setItem(BRUSH_SIZE_KEY, String(value)); } catch { /* ignore quota */ }
 }
 
+/** Validates that a string is a "#rrggbb" hex color (basic guard against
+ *  garbage in localStorage). Returns null on mismatch. */
+function readPersistedStrokeColor(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const raw = window.localStorage.getItem(STROKE_COLOR_KEY);
+    if (!raw) return '';
+    return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : '';
+  } catch {
+    return '';
+  }
+}
+
+function persistStrokeColor(value: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value) window.localStorage.setItem(STROKE_COLOR_KEY, value);
+    else window.localStorage.removeItem(STROKE_COLOR_KEY);
+  } catch { /* ignore quota */ }
+}
+
 const initialState: CanvasViewportState = {
   zoom: 1,
   activeTool: 'select',
@@ -45,6 +70,7 @@ const initialState: CanvasViewportState = {
   fogMode: 'hide',
   fogGmAlpha: 0.55,
   brushSize: readPersistedBrushSize(),
+  strokeColor: readPersistedStrokeColor(),
 };
 
 const ZOOM_MIN = 0.25;
@@ -95,6 +121,13 @@ const canvasViewportSlice = createSlice({
       state.brushSize = next;
       persistBrushSize(next);
     },
+    /** Sets the draw-tool stroke color (Sess 9.2). Empty string clears the
+     *  override and reverts to the per-user auto color (getUserPingColor). */
+    setStrokeColor(state, action: PayloadAction<string>) {
+      const next = action.payload === '' || /^#[0-9a-fA-F]{6}$/.test(action.payload) ? action.payload : state.strokeColor;
+      state.strokeColor = next;
+      persistStrokeColor(next);
+    },
   },
 });
 
@@ -102,6 +135,6 @@ export const BRUSH_SIZE_BOUNDS = { min: BRUSH_SIZE_MIN, max: BRUSH_SIZE_MAX, def
 
 export const {
   setZoom, zoomIn, zoomOut, center, fit, setActiveTool, setPendingImageAssetId, resetTool,
-  setFogMode, setFogGmAlpha, setBrushSize,
+  setFogMode, setFogGmAlpha, setBrushSize, setStrokeColor,
 } = canvasViewportSlice.actions;
 export default canvasViewportSlice.reducer;

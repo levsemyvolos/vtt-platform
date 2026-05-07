@@ -69,12 +69,21 @@ export interface TokenMoveSnapshot {
 export type UndoEntry =
   | { kind: 'object_transform'; before: ObjectTransformSnapshot; after: ObjectTransformSnapshot }
   | { kind: 'object_move'; before: ObjectMoveSnapshot; after: ObjectMoveSnapshot }
+  /** Sess 10.2 — multi-select transform: parallel before/after arrays so a single
+   *  Ctrl+Z reverts the whole gesture instead of N individual ones. */
+  | { kind: 'object_multi_transform'; before: ObjectTransformSnapshot[]; after: ObjectTransformSnapshot[] }
+  /** Sess 10.3 — multi-select drag-move. */
+  | { kind: 'object_multi_move'; before: ObjectMoveSnapshot[]; after: ObjectMoveSnapshot[] }
   | { kind: 'object_add'; object: SceneObject }
   | { kind: 'object_delete'; object: SceneObject }
   | { kind: 'object_duplicate'; clone: SceneObject }
   | { kind: 'object_lock'; before: ObjectLockSnapshot; after: ObjectLockSnapshot }
   | { kind: 'object_layer'; before: ObjectLayerSnapshot; after: ObjectLayerSnapshot }
   | { kind: 'object_visibility'; before: ObjectVisibilitySnapshot; after: ObjectVisibilitySnapshot }
+  /** Sess 10.5 — bulk versions: parallel before/after arrays, one Ctrl+Z reverts all. */
+  | { kind: 'object_multi_lock'; before: ObjectLockSnapshot[]; after: ObjectLockSnapshot[] }
+  | { kind: 'object_multi_layer'; before: ObjectLayerSnapshot[]; after: ObjectLayerSnapshot[] }
+  | { kind: 'object_multi_visibility'; before: ObjectVisibilitySnapshot[]; after: ObjectVisibilitySnapshot[] }
   | { kind: 'object_zorder'; before: ZOrderSnapshot; after: ZOrderSnapshot }
   | { kind: 'fog_add'; shape: FogShape }
   | { kind: 'fog_remove'; shape: FogShape }

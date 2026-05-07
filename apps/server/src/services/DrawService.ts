@@ -6,6 +6,10 @@ import type {
   FogShape,
   FogShapeAddPayload,
   FogShapeRemovePayload,
+  FogBitmap,
+  FogBitmapPushPayload,
+  FogBitmapUpdatePayload,
+  FogState,
   SceneObject,
   SceneObjectLayer,
   SceneObjectVisibility,
@@ -17,6 +21,8 @@ export interface DrawBroadcast {
   fogShapeAdd: (roomId: string, payload: FogShapeAddPayload) => void;
   fogShapeRemove: (roomId: string, payload: FogShapeRemovePayload) => void;
   fogClear: (roomId: string, sceneId: string) => void;
+  /** Sess 11 — emit `fog:bitmap-update` to the room after a bitmap push. */
+  fogBitmapUpdate: (roomId: string, payload: FogBitmapUpdatePayload) => void;
 }
 
 function isFogShape(item: unknown): item is FogShape {
@@ -35,7 +41,15 @@ function isFogShape(item: unknown): item is FogShape {
 
 /** Reads `Scene.fogShapes` JSON column into a normalized FogShape[]. */
 export function parseFogShapes(raw: unknown): FogShape[] {
-  if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw)) {
+    // Sess 11 — when the column holds the new FogState shape, the bare array
+    // form is replaced by `{ shapes, bitmap }`. Extract shapes; the caller can
+    // use parseFogState if it also needs the bitmap.
+    if (raw && typeof raw === 'object' && Array.isArray((raw as Partial<FogState>).shapes)) {
+      return parseFogShapes((raw as FogState).shapes);
+    }
+    return [];
+  }
   const out: FogShape[] = [];
   for (const item of raw) {
     if (isFogShape(item)) {
@@ -44,6 +58,49 @@ export function parseFogShapes(raw: unknown): FogShape[] {
   }
   out.sort((a, b) => a.createdAt - b.createdAt);
   return out;
+}
+
+/** Sess 11 — guard for the bitmap blob: a string `data` URL plus positive
+ *  width/height. We do NOT attempt to validate PNG bytes here; that's a
+ *  client-side concern and the server only treats the blob as opaque storage. */
+function isFogBitmap(item: unknown): item is FogBitmap {
+  if (!item || typeof item !== 'object') return false;
+  const b = item as Partial<FogBitmap>;
+  return (
+    typeof b.data === 'string' &&
+    b.data.startsWith('data:image/') &&
+    typeof b.w === 'number' && b.w > 0 &&
+    typeof b.h === 'number' && b.h > 0
+  );
+}
+
+/** Reads `Scene.fogShapes` into the canonical Sess 11 FogState. Lazily wraps
+ *  legacy `FogShape[]` payloads so older scenes keep working without a
+ *  Prisma migration. */
+export function parseFogState(raw: unknown): FogState {
+  if (Array.isArray(raw)) {
+    return { shapes: parseFogShapes(raw), bitmap: null };
+  }
+  if (raw && typeof raw === 'object') {
+    const obj = raw as Partial<FogState>;
+    const bitmap = isFogBitmap(obj.bitmap) ? obj.bitmap : null;
+    return { shapes: parseFogShapes(obj.shapes), bitmap };
+  }
+  return { shapes: [], bitmap: null };
+}
+
+/** Reads `Scene.fogShapes` and returns just the bitmap (or null). Mirrors
+ *  `parseFogShapes` for the `fogBitmap` column of SceneDTO. */
+export function parseFogBitmap(raw: unknown): FogBitmap | null {
+  return parseFogState(raw).bitmap;
+}
+
+/** Sess 11 — canonical write-form for the `Scene.fogShapes` JSONB column.
+ *  Always emits the FogState envelope (`{ shapes, bitmap }`) so all rows
+ *  written after this version use the new shape; legacy rows are auto-wrapped
+ *  on the next read via parseFogState. */
+export function serializeFogState(state: FogState): { shapes: FogShape[]; bitmap: FogBitmap | null } {
+  return { shapes: state.shapes, bitmap: state.bitmap };
 }
 
 /** Parses raw JSONB value from Prisma into SceneAnnotations (handles both structured and legacy flat-array formats). */
@@ -252,13 +309,13 @@ export class DrawService {
         where: { id: payload.sceneId },
         select: { fogShapes: true },
       });
-      const shapes = parseFogShapes(scene?.fogShapes);
-      if (shapes.some((s) => s.id === payload.shape.id)) return;
-      shapes.push(payload.shape);
+      const state = parseFogState(scene?.fogShapes);
+      if (state.shapes.some((s) => s.id === payload.shape.id)) return;
+      state.shapes.push(payload.shape);
       await tx.scene.update({
         where: { id: payload.sceneId },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
-        data: { fogShapes: shapes as any },
+        data: { fogShapes: serializeFogState(state) as any },
       });
     });
     this.broadcast.fogShapeAdd(payload.roomId, payload);
@@ -270,32 +327,76 @@ export class DrawService {
         where: { id: payload.sceneId },
         select: { fogShapes: true },
       });
-      const shapes = parseFogShapes(scene?.fogShapes).filter((s) => s.id !== payload.shapeId);
+      const state = parseFogState(scene?.fogShapes);
+      state.shapes = state.shapes.filter((s) => s.id !== payload.shapeId);
       await tx.scene.update({
         where: { id: payload.sceneId },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
-        data: { fogShapes: shapes as any },
+        data: { fogShapes: serializeFogState(state) as any },
       });
     });
     this.broadcast.fogShapeRemove(payload.roomId, payload);
   }
 
   async clearFog(roomId: string, sceneId: string): Promise<void> {
+    // Sess 11 — clearing fog also drops the bitmap (semantic match: "remove
+    // ALL fog"). Persisted as the canonical empty FogState.
     await this.prisma.scene.update({
       where: { id: sceneId },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
-      data: { fogShapes: [] as any },
+      data: { fogShapes: serializeFogState({ shapes: [], bitmap: null }) as any },
     });
     this.broadcast.fogClear(roomId, sceneId);
   }
 
-  /** Atomically replaces fog shapes without broadcasting (caller handles broadcast). */
+  /** Atomically replaces fog shapes without broadcasting (caller handles broadcast).
+   *  Sess 11 — preserves the existing bitmap (use clearFog to drop both). */
   async setFogShapes(sceneId: string, shapes: FogShape[]): Promise<void> {
+    const scene = await this.prisma.scene.findUnique({
+      where: { id: sceneId },
+      select: { fogShapes: true },
+    });
+    const state = parseFogState(scene?.fogShapes);
+    state.shapes = shapes;
     await this.prisma.scene.update({
       where: { id: sceneId },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
-      data: { fogShapes: shapes as any },
+      data: { fogShapes: serializeFogState(state) as any },
     });
+  }
+
+  /**
+   * Sess 11 — applies a GM-rendered bitmap, replacing the consumed shape ids
+   * with the bitmap as the new base layer. Shapes added during the GM render
+   * window (whose ids are NOT in `consumedShapeIds`) survive and remain on
+   * top of the bitmap. Returns the resulting FogBitmapUpdatePayload so the
+   * caller can broadcast it.
+   */
+  async applyBitmapPush(payload: FogBitmapPushPayload): Promise<FogBitmapUpdatePayload> {
+    const consumed = new Set(payload.consumedShapeIds);
+    let bitmap: FogBitmap | null = payload.bitmap;
+    await this.prisma.$transaction(async (tx) => {
+      const scene = await tx.scene.findUnique({
+        where: { id: payload.sceneId },
+        select: { fogShapes: true },
+      });
+      const state = parseFogState(scene?.fogShapes);
+      state.shapes = state.shapes.filter((s) => !consumed.has(s.id));
+      state.bitmap = bitmap;
+      await tx.scene.update({
+        where: { id: payload.sceneId },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json
+        data: { fogShapes: serializeFogState(state) as any },
+      });
+    });
+    const broadcast: FogBitmapUpdatePayload = {
+      roomId: payload.roomId,
+      sceneId: payload.sceneId,
+      bitmap,
+      consumedShapeIds: payload.consumedShapeIds,
+    };
+    this.broadcast.fogBitmapUpdate(payload.roomId, broadcast);
+    return broadcast;
   }
 
   async getAnnotations(sceneId: string): Promise<SceneAnnotations> {

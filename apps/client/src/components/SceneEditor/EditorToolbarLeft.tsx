@@ -4,6 +4,7 @@ import type { AssetDTO, ImageSceneObject, BackgroundFit } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { applyDraftSceneUpdate, clearFogMask, appendSceneObject } from '../../store/scene';
 import { emitFogClear } from '../../api/socket';
+import { resolveImageDimensions, loadImageNaturalSize as sharedLoadImageNaturalSize } from '../GameCanvas/imageDimensions';
 import ImageUpload from '../AssetUpload/ImageUpload';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
 import GenerateBackgroundModal from '../AIGenerate/GenerateBackgroundModal';
@@ -90,17 +91,8 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
     }
   }
 
-  async function loadImageNaturalSize(url: string): Promise<{ w: number; h: number } | null> {
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous';
-    const loaded = await new Promise<boolean>((resolve) => {
-      img.onload = () => resolve(true);
-      img.onerror = () => resolve(false);
-      img.src = url;
-    });
-    if (!loaded || img.naturalWidth === 0) return null;
-    return { w: img.naturalWidth, h: img.naturalHeight };
-  }
+  // Sess 8: replaced local helper with shared imageDimensions module
+  const loadImageNaturalSize = sharedLoadImageNaturalSize;
 
   async function handleFitToImage(): Promise<void> {
     if (!scene?.backgroundUrl) return;
@@ -139,17 +131,16 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
     }));
   }
 
-  // Place the asset as an overlay near the scene center so the user sees it
-  // immediately, instead of a hardcoded (64, 64) corner.
+  // Place the asset as an overlay near the scene center, preserving its natural
+  // aspect ratio (Sess 8 — was hardcoded 256×256 square).
   // Edit-mode local buffer: added object goes to local objects[] only and is
   // flushed to the server on Done via scene:flush (scene:flush handler calls
   // drawService.persist). Cancel re-fetches from server, discarding this object.
-  function handleAddToScene(asset: AssetDTO): void {
+  async function handleAddToScene(asset: AssetDTO): Promise<void> {
     if (!scene) return;
     const sceneW = (scene.gridWidth ?? 20) * (scene.gridSize ?? 50);
     const sceneH = (scene.gridHeight ?? 15) * (scene.gridSize ?? 50);
-    const w = 256;
-    const h = 256;
+    const { w, h } = await resolveImageDimensions(asset.url, scene.gridSize ?? 50);
     const x = Math.round(sceneW / 2 - w / 2);
     const y = Math.round(sceneH / 2 - h / 2);
     const peers = scene.annotations?.objects ?? [];
@@ -189,7 +180,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           tabs={['images']}
           activeBackgroundAssetId={activeBackgroundAssetId}
           onSetBackground={(a) => handleSetBackground(a)}
-          onAddToScene={(a) => handleAddToScene(a)}
+          onAddToScene={(a) => { void handleAddToScene(a); }}
         />
       </section>
 

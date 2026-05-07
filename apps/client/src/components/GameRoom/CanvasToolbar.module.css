@@ -76,3 +76,21 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+
+/* Sess 9.2 — stroke color picker (native HTML5 color input, GM-only when draw active). */
+.colorSwatch {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-xs);
+  border-radius: var(--radius-sm);
+}
+
+.colorSwatch input[type='color'] {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+}

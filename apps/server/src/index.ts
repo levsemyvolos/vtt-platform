@@ -161,6 +161,7 @@ let _drawBroadcast: ReturnType<typeof buildDrawBroadcaster> = {
   fogShapeAdd: () => {},
   fogShapeRemove: () => {},
   fogClear: () => {},
+  fogBitmapUpdate: () => {},
 };
 const drawService = new DrawService(prisma, {
   stroke: (roomId, payload) => _drawBroadcast.stroke(roomId, payload),
@@ -168,6 +169,7 @@ const drawService = new DrawService(prisma, {
   fogShapeAdd: (roomId, payload) => _drawBroadcast.fogShapeAdd(roomId, payload),
   fogShapeRemove: (roomId, payload) => _drawBroadcast.fogShapeRemove(roomId, payload),
   fogClear: (roomId, sceneId) => _drawBroadcast.fogClear(roomId, sceneId),
+  fogBitmapUpdate: (roomId, payload) => _drawBroadcast.fogBitmapUpdate(roomId, payload),
 });
 const sceneAnnotationService = new SceneAnnotationService(prisma, drawService);
 
