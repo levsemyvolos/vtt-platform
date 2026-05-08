@@ -3,6 +3,7 @@ import type { AudioTrack } from '@prisma/client';
 import {
   AUDIO_ALLOWED_MIME,
   AUDIO_MAX_BYTES,
+  type AudioLayer,
   type Role,
   type AudioFinalizeRequest,
   type AudioMime,
@@ -26,6 +27,7 @@ import { HttpError } from '../lib/errors.js';
 const MIME_EXTENSION: Record<AudioMime, string> = {
   'audio/mpeg': 'mp3',
   'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
 };
 
 function isAllowedMime(mime: string): mime is AudioMime {
@@ -36,15 +38,50 @@ function buildAudioStorageKey(roomId: string, mimeType: AudioMime): string {
   return `rooms/${roomId}/audio/${randomUUID()}.${MIME_EXTENSION[mimeType]}`;
 }
 
+/**
+ * Build a `kind: 'persistent'` or `kind: 'sfx'` play payload.
+ * SFX tracks use the sfx arm (no startedAt, no loop, no fadeMs).
+ */
+function buildPlayPayload(
+  action: 'play' | 'switch',
+  layer: AudioLayer,
+  trackId: string,
+  sceneId: string | null,
+  loop: boolean,
+  fadeMs: number,
+): AudioPlayPayload {
+  if (layer === 'sfx') {
+    return { kind: 'sfx', trackId, sceneId };
+  }
+  return { kind: 'persistent', layer, action, trackId, sceneId, loop, fadeMs, startedAt: Date.now() };
+}
+
+/**
+ * Build a `kind: 'persistent'` stop payload for music/ambient layers.
+ * SFX are fire-and-forget so a stop broadcast is meaningless; fall back to 'music'.
+ * `fadeMs` is the fade-out duration in ms (track.fadeMs or default 1500).
+ */
+function buildStopPayload(layer: AudioLayer, fadeMs: number): AudioPlayPayload {
+  const persistentLayer: Exclude<AudioLayer, 'sfx'> = layer === 'sfx' ? 'music' : layer;
+  return { kind: 'persistent', layer: persistentLayer, action: 'stop', fadeMs, startedAt: Date.now() };
+}
+
 type TrackUpdate = {
   title?: string;
   loop?: boolean;
   sceneId?: string | null;
   fadeMs?: number;
+  layer?: AudioLayer;
 };
 
 /** Sink for `audio:play` broadcasts — abstracted to keep the service WSS-agnostic. */
 export type AudioBroadcaster = (roomId: string, payload: AudioPlayPayload) => void;
+
+/** Per-room current-playing state for late-joiner resync (T1 / Task 4). */
+export interface RoomAudioState {
+  music: AudioPlayPayload | null;
+  ambient: AudioPlayPayload | null;
+}
 
 /**
  * Coordinator over `AudioTrackRepository`, `AssetRepository` and
@@ -60,6 +97,9 @@ export type AudioBroadcaster = (roomId: string, payload: AudioPlayPayload) => vo
  * before any write.
  */
 export class AudioService {
+  /** In-memory cache of the last-broadcast persistent payload per room/layer. */
+  private readonly currentByRoom = new Map<string, RoomAudioState>();
+
   constructor(
     private readonly tracks: AudioTrackRepository,
     private readonly assets: AssetRepository,
@@ -68,6 +108,51 @@ export class AudioService {
     private readonly scenes: SceneRepository,
     private readonly broadcast: AudioBroadcaster,
   ) {}
+
+  // ─── audio state cache ────────────────────────────────────────────────────
+
+  /**
+   * Broadcast a payload to the room AND update the in-memory current-state
+   * cache so late-joiners can resync on `session:resync` (Task 4).
+   * SFX payloads are forwarded but never cached — they are fire-and-forget.
+   */
+  private emit(roomId: string, payload: AudioPlayPayload): void {
+    this.broadcast(roomId, payload);
+    this.updateCurrent(roomId, payload);
+  }
+
+  private updateCurrent(roomId: string, payload: AudioPlayPayload): void {
+    if (payload.kind !== 'persistent') return; // SFX never cached
+    const entry = this.currentByRoom.get(roomId) ?? { music: null, ambient: null };
+    entry[payload.layer] = payload.action === 'stop' ? null : payload;
+    this.currentByRoom.set(roomId, entry);
+  }
+
+  /** Returns the last broadcast persistent state for music + ambient layers. */
+  getCurrentForRoom(roomId: string): RoomAudioState {
+    return this.currentByRoom.get(roomId) ?? { music: null, ambient: null };
+  }
+
+  // ─── public playback helpers (REST routes) ────────────────────────────────
+
+  /**
+   * Manually trigger playback of a track (GM REST: POST /audio/:id/play).
+   * Broadcasts `audio:play` to the room and updates the in-memory state cache.
+   */
+  async playTrack(track: AudioTrack): Promise<void> {
+    const layer = track.layer as AudioLayer;
+    const payload = buildPlayPayload('play', layer, track.id, track.sceneId, track.loop, track.fadeMs);
+    this.emit(track.roomId, payload);
+  }
+
+  /**
+   * Stop a persistent layer (GM REST: POST /audio/rooms/:roomId/stop).
+   * Uses a 1500 ms default fade-out.
+   */
+  async stopLayer(roomId: string, layer: 'music' | 'ambient'): Promise<void> {
+    const payload = buildStopPayload(layer, 1500);
+    this.emit(roomId, payload);
+  }
 
   /**
    * @throws HttpError 403 if `userId` is not the room owner; 404 if room missing.
@@ -140,6 +225,7 @@ export class AudioService {
       size: BigInt(objectSize),
       storageKey: req.storageKey,
     });
+    const layer: AudioLayer = req.layer ?? 'music';
     const track = await this.tracks.create({
       id: randomUUID(),
       roomId: req.roomId,
@@ -148,16 +234,11 @@ export class AudioService {
       title: req.title.trim().slice(0, 128),
       loop: req.loop ?? false,
       fadeMs: req.fadeMs != null ? Math.max(0, Math.min(10000, req.fadeMs)) : 1500,
+      layer,
     });
 
     if (sceneId) {
-      this.broadcast(req.roomId, {
-        action: 'play',
-        trackId: track.id,
-        sceneId,
-        loop: track.loop,
-        startedAt: Date.now(),
-      });
+      this.emit(req.roomId, buildPlayPayload('play', track.layer as AudioLayer, track.id, sceneId, track.loop, track.fadeMs));
     }
     return track;
   }
@@ -176,24 +257,23 @@ export class AudioService {
     this.updateLoop(patch, update);
     await this.updateBinding(patch, update, existing.roomId);
     this.updateFadeMs(patch, update);
+    this.updateLayer(patch, update);
 
     const track = await this.tracks.update(trackId, update);
 
-    // Broadcast only when the binding or the loop flag actually changed —
+    // Broadcast only when the binding, the loop flag, or the layer actually changed —
     // a title-only edit doesn't affect playback.
     const sceneChanged = patch.sceneId !== undefined && update.sceneId !== existing.sceneId;
     const loopChanged = update.loop !== undefined && update.loop !== existing.loop;
-    if (sceneChanged || loopChanged) {
+    const layerChanged = update.layer !== undefined && update.layer !== existing.layer;
+    if (sceneChanged || loopChanged || layerChanged) {
       if (track.sceneId) {
-        this.broadcast(track.roomId, {
-          action: 'play',
-          trackId: track.id,
-          sceneId: track.sceneId,
-          loop: track.loop,
-          startedAt: Date.now(),
-        });
+        this.emit(
+          track.roomId,
+          buildPlayPayload('play', track.layer as AudioLayer, track.id, track.sceneId, track.loop, track.fadeMs),
+        );
       } else {
-        this.broadcast(track.roomId, { action: 'stop', startedAt: Date.now() });
+        this.emit(track.roomId, buildStopPayload(track.layer as AudioLayer, track.fadeMs));
       }
     }
     return track;
@@ -211,7 +291,7 @@ export class AudioService {
       await this.storage.delete(asset.storageKey);
     }
     if (existing.sceneId) {
-      this.broadcast(existing.roomId, { action: 'stop', startedAt: Date.now() });
+      this.emit(existing.roomId, buildStopPayload(existing.layer as AudioLayer, existing.fadeMs ?? 1500));
     }
   }
 
@@ -244,26 +324,35 @@ export class AudioService {
       mimeType: asset.mimeType,
       loop: track.loop,
       fadeMs: track.fadeMs,
+      layer: track.layer as AudioLayer,
       createdAt: track.createdAt.toISOString(),
     };
   }
 
   /**
-   * Hook for scene-activation (Ф6.4): broadcast either `audio:play` for the
-   * track bound to the new scene or `audio:stop` when the scene has none.
+   * Hook for scene-activation (Ф6.4): for each persistent layer (music, ambient)
+   * broadcast `audio:play/switch` for the track bound to the new scene, or
+   * `audio:stop` when the scene has none. Always emits exactly two broadcasts
+   * (one per persistent layer) so both layers stay in sync with the new scene.
    */
   async handleSceneSwitch(roomId: string, sceneId: string): Promise<void> {
-    const track = await this.tracks.findActiveForScene(sceneId);
-    if (track) {
-      this.broadcast(roomId, {
-        action: 'switch',
-        trackId: track.id,
-        sceneId: track.sceneId,
-        loop: track.loop,
-        startedAt: Date.now(),
-      });
-    } else {
-      this.broadcast(roomId, { action: 'stop', startedAt: Date.now() });
+    const tracks = await this.tracks.findActiveTracksForScene(sceneId);
+    const byLayer = new Map<AudioLayer, AudioTrack>();
+    for (const t of tracks) {
+      const layer = t.layer as AudioLayer;
+      if (layer === 'sfx') continue; // SFX never auto-plays on scene switch
+      if (!byLayer.has(layer)) byLayer.set(layer, t);
+    }
+    for (const layer of ['music', 'ambient'] as const) {
+      const t = byLayer.get(layer);
+      if (t) {
+        this.emit(
+          roomId,
+          buildPlayPayload('switch', layer, t.id, t.sceneId, t.loop, t.fadeMs),
+        );
+      } else {
+        this.emit(roomId, buildStopPayload(layer, 1500));
+      }
     }
   }
 
@@ -339,6 +428,10 @@ export class AudioService {
       }
       update.fadeMs = patch.fadeMs;
     }
+  }
+
+  private updateLayer(patch: AudioPatchRequest, update: TrackUpdate): void {
+    if (patch.layer !== undefined) update.layer = patch.layer;
   }
 
   /**

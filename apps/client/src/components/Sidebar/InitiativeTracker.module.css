@@ -69,12 +69,12 @@
 }
 
 .entryName {
-  flex: 1;
   font-size: var(--text-sm);
   color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
 }
 
 .hpDisplay {
@@ -223,3 +223,30 @@
   text-align: center;
   padding: var(--space-lg);
 }
+
+.hpCellReadonly {
+  padding: 2px 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  min-width: 50px;
+  text-align: center;
+}
+
+.markers {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.marker {
+  padding: 1px 4px;
+  background: var(--color-warning-bg, #4a3a18);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+

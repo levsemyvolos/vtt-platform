@@ -11,8 +11,9 @@ import type { RoomRepository } from '../../repositories/RoomRepository.js';
  * Pipeline: parse (A1) → roll (crypto.randomInt) → ChatService.recordDiceRoll
  * (which decides recipients) → dispatch.
  *
- * Secret rolls (mode === 'secret') are unicast to the sender + all GMs of the
- * room. Other modes broadcast to the room.
+ * Secret rolls (payload.secret === true) are unicast to the sender + all GMs
+ * of the room. Other rolls broadcast to the room. The roll mechanic (normal /
+ * advantage / disadvantage) is orthogonal to visibility.
  */
 export function makeDiceRollHandler(
   io: TypedServer,
@@ -45,6 +46,7 @@ export function makeDiceRollHandler(
         socket.data.userId,
         payload.roomId,
         parsed.value,
+        payload.secret,
         gmUserIds,
       );
       if (delivery.mode === 'broadcast') {

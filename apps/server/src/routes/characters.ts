@@ -1,6 +1,7 @@
 import { Router, type IRouter } from 'express';
 import express from 'express';
 import type { Request, Response } from 'express';
+import type { Server } from 'socket.io';
 import type {
   CharacterCreateRequest,
   CharacterUpdateRequest,
@@ -22,6 +23,30 @@ function handleError(err: unknown, res: Response): void {
 }
 
 /**
+ * Broadcasts a character:created or character:updated event to all sockets
+ * in the room, projecting the character per-viewer (RBAC A6).
+ */
+async function broadcastCharacterUpsert(
+  io: Server,
+  roomId: string,
+  characterId: string,
+  characterService: CharacterService,
+  characterRepo: CharacterRepository,
+  event: 'character:created' | 'character:updated',
+): Promise<void> {
+  const raw = await characterRepo.findById(characterId);
+  if (!raw) return;
+  const sockets = await io.in(roomId).fetchSockets();
+  for (const s of sockets) {
+    const viewerRole = s.data.role;
+    const viewerId = s.data.userId;
+    if (!viewerRole || !viewerId) continue;
+    const projected = await characterService.projectForViewer(raw, viewerRole, viewerId);
+    s.emit(event, { roomId, character: projected });
+  }
+}
+
+/**
  * REST router for character sheets (Ф9.1 — Ф9.3).
  *
  * RBAC is enforced by CharacterService (algorithm A6). The router only
@@ -30,11 +55,14 @@ function handleError(err: unknown, res: Response): void {
  *
  * PDF upload uses `express.raw` instead of multer to avoid adding a new
  * dependency for a single endpoint. Limit: 20 MiB.
+ *
+ * `io` is optional — when null (test environment) broadcasts are skipped.
  */
 export function buildCharactersRouter(
   characterService: CharacterService,
   characterRepo: CharacterRepository,
   roomRepo: RoomRepository,
+  io: Server | null,
 ): IRouter {
   const router = Router();
 
@@ -87,6 +115,17 @@ export function buildCharactersRouter(
           req.body,
         );
         res.status(201).json(dto);
+        // Broadcast after response so the HTTP caller gets immediate feedback.
+        if (io) {
+          await broadcastCharacterUpsert(
+            io,
+            req.params.roomId,
+            dto.id,
+            characterService,
+            characterRepo,
+            'character:created',
+          );
+        }
       } catch (err) {
         handleError(err, res);
       }
@@ -141,6 +180,16 @@ export function buildCharactersRouter(
           req.body,
         );
         res.json(dto);
+        if (io) {
+          await broadcastCharacterUpsert(
+            io,
+            existing.roomId,
+            dto.id,
+            characterService,
+            characterRepo,
+            'character:updated',
+          );
+        }
       } catch (err) {
         handleError(err, res);
       }
@@ -161,8 +210,13 @@ export function buildCharactersRouter(
           req.user!.boundRoomId,
         );
         if (!role) throw new HttpError(404, 'Room not found');
-        await characterService.delete(req.params.id, req.user!.id, role);
+        const roomId = existing.roomId;
+        const characterId = req.params.id;
+        await characterService.delete(characterId, req.user!.id, role);
         res.status(204).send();
+        if (io) {
+          io.in(roomId).emit('character:deleted', { roomId, characterId });
+        }
       } catch (err) {
         handleError(err, res);
       }
@@ -196,6 +250,16 @@ export function buildCharactersRouter(
           'application/pdf',
         );
         res.json(dto);
+        if (io) {
+          await broadcastCharacterUpsert(
+            io,
+            existing.roomId,
+            dto.id,
+            characterService,
+            characterRepo,
+            'character:updated',
+          );
+        }
       } catch (err) {
         handleError(err, res);
       }

@@ -3,7 +3,6 @@ import type { ChatMessage } from '@prisma/client';
 import type {
   ChatMessageDTO,
   ChatDicePayload,
-  DiceMode,
   ChatMessageInput,
 } from '@vtt/shared';
 import { ChatMessageRepository } from '../repositories/ChatMessageRepository.js';
@@ -77,22 +76,27 @@ export class ChatService {
    * returns ChatDicePayload + delivery plan.
    *
    * Invariant (Незмінне рішення № 6 з PROJECT_BIBLE / §2.17.2):
-   *   `mode === 'secret'` ⇒ delivery is unicast to [senderId, all GMs].
+   *   `secret === true` ⇒ delivery is unicast to [senderId, all GMs].
    *   The list of GM userIds must be supplied by the caller (handler holds
    *   the room → members map). The service stays free of socket.io coupling.
+   *
+   *   The roll mechanic (normal / advantage / disadvantage) is orthogonal to
+   *   visibility — e.g. a GM may roll advantage secretly for an NPC.
    *
    * @param senderId UUID of the rolling user
    * @param roomId Room UUID
    * @param result DiceService.parseAndRoll output
+   * @param secret When true, the message is unicast to [senderId, all GMs]
    * @param gmUserIds UUIDs of all GMs in the room (typically just the owner)
    */
   async recordDiceRoll(
     senderId: string,
     roomId: string,
     result: DiceRollResult,
+    secret: boolean,
     gmUserIds: string[],
   ): Promise<{ payload: ChatDicePayload; delivery: ChatDelivery }> {
-    const isSecret = result.mode === 'secret';
+    const isSecret = secret;
 
     const created: ChatMessage = await this.messages.create({
       id: randomUUID(),
@@ -114,7 +118,7 @@ export class ChatService {
       roomId,
       userId: senderId,
       expression: result.expression,
-      mode: result.mode as DiceMode,
+      mode: result.mode,
       total: result.total,
       rolls: result.rolls,
       secret: isSecret,

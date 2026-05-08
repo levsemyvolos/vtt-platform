@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { AudioService } from '../../src/services/AudioService.js';
-import { AUDIO_MAX_BYTES } from '@vtt/shared';
+import { AUDIO_MAX_BYTES, type AudioLayer } from '@vtt/shared';
 import type { AudioPlayPayload } from '@vtt/shared';
 import type {
   FileStorageAdapter,
@@ -24,6 +24,7 @@ interface AudioRepoMocks {
   findById: MockedFunction<AudioTrackRepository['findById']>;
   listByRoom: MockedFunction<AudioTrackRepository['listByRoom']>;
   findActiveForScene: MockedFunction<AudioTrackRepository['findActiveForScene']>;
+  findActiveTracksForScene: MockedFunction<AudioTrackRepository['findActiveTracksForScene']>;
   create: MockedFunction<AudioTrackRepository['create']>;
   update: MockedFunction<AudioTrackRepository['update']>;
   deleteById: MockedFunction<AudioTrackRepository['deleteById']>;
@@ -64,6 +65,7 @@ function makeAudioRepo(): { repo: AudioTrackRepository; mocks: AudioRepoMocks } 
     findById: vi.fn(),
     listByRoom: vi.fn(),
     findActiveForScene: vi.fn(),
+    findActiveTracksForScene: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     deleteById: vi.fn().mockResolvedValue(undefined),
@@ -124,6 +126,7 @@ function fakeTrack(overrides: Partial<AudioTrack> = {}): AudioTrack {
     assetId: 'asset-1',
     loop: false,
     fadeMs: 1500,
+    layer: 'music',
     createdAt: new Date(),
     ...overrides,
   };
@@ -192,7 +195,7 @@ describe('AudioService.initUpload', () => {
   it('rejects unsupported MIME with 415', async () => {
     const { service } = buildService();
     await expect(
-      service.initUpload({ roomId: ROOM_ID, mimeType: 'audio/wav' as never, size: 1000 }),
+      service.initUpload({ roomId: ROOM_ID, mimeType: 'audio/aac' as never, size: 1000 }),
     ).rejects.toMatchObject({ status: 415 });
   });
 
@@ -273,6 +276,7 @@ describe('AudioService.finalizeUpload', () => {
     expect(track.loop).toBe(true);
     expect(events).toHaveLength(1);
     expect(events[0]!.payload).toMatchObject({
+      kind: 'persistent',
       action: 'play',
       sceneId: SCENE_ID,
       loop: true,
@@ -320,33 +324,68 @@ describe('AudioService.finalizeUpload', () => {
 describe('AudioService.handleSceneSwitch (Ф6.4)', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("emits action='switch' for the new scene's bound track", async () => {
+  it("emits 2 broadcasts: switch for music, stop for ambient (only music bound)", async () => {
     const ctx = buildService();
     const { service, audio, events } = ctx;
-    audio.mocks.findActiveForScene.mockResolvedValue(
-      fakeTrack({ id: 't1', sceneId: SCENE_ID, loop: true }),
-    );
+    audio.mocks.findActiveTracksForScene.mockResolvedValue([
+      fakeTrack({ id: 't1', sceneId: SCENE_ID, loop: true, layer: 'music', fadeMs: 1500 }),
+    ]);
 
     await service.handleSceneSwitch(ROOM_ID, SCENE_ID);
 
-    expect(events).toHaveLength(1);
+    expect(events).toHaveLength(2);
     expect(events[0]!.payload).toMatchObject({
+      kind: 'persistent',
       action: 'switch',
       trackId: 't1',
       sceneId: SCENE_ID,
       loop: true,
+      layer: 'music',
     });
+    expect(events[1]!.payload).toMatchObject({ kind: 'persistent', action: 'stop', layer: 'ambient' });
   });
 
-  it("emits action='stop' when the new scene has no bound track", async () => {
+  it("emits 2 stop broadcasts (music + ambient) when the new scene has no bound tracks", async () => {
     const ctx = buildService();
     const { service, audio, events } = ctx;
-    audio.mocks.findActiveForScene.mockResolvedValue(null);
+    audio.mocks.findActiveTracksForScene.mockResolvedValue([]);
 
     await service.handleSceneSwitch(ROOM_ID, SCENE_ID);
 
-    expect(events).toHaveLength(1);
-    expect(events[0]!.payload).toMatchObject({ action: 'stop' });
+    expect(events).toHaveLength(2);
+    expect(events[0]!.payload).toMatchObject({ kind: 'persistent', action: 'stop', layer: 'music' });
+    expect(events[1]!.payload).toMatchObject({ kind: 'persistent', action: 'stop', layer: 'ambient' });
+  });
+
+  it("emits play for music and ambient with correct fadeMs from each track", async () => {
+    const ctx = buildService();
+    const { service, audio, events } = ctx;
+    audio.mocks.findActiveTracksForScene.mockResolvedValue([
+      fakeTrack({ id: 'tm', sceneId: SCENE_ID, loop: true, layer: 'music', fadeMs: 2000 }),
+      fakeTrack({ id: 'ta', sceneId: SCENE_ID, loop: false, layer: 'ambient', fadeMs: 500 }),
+    ]);
+
+    await service.handleSceneSwitch(ROOM_ID, SCENE_ID);
+
+    expect(events).toHaveLength(2);
+    const music = events.find((e) => e.payload.kind === 'persistent' && e.payload.layer === 'music');
+    const ambient = events.find((e) => e.payload.kind === 'persistent' && e.payload.layer === 'ambient');
+    expect(music!.payload).toMatchObject({ action: 'switch', trackId: 'tm', fadeMs: 2000 });
+    expect(ambient!.payload).toMatchObject({ action: 'switch', trackId: 'ta', fadeMs: 500 });
+  });
+
+  it("ignores SFX tracks — emits 2 stop broadcasts when only sfx is bound", async () => {
+    const ctx = buildService();
+    const { service, audio, events } = ctx;
+    audio.mocks.findActiveTracksForScene.mockResolvedValue([
+      fakeTrack({ id: 'sfx1', sceneId: SCENE_ID, layer: 'sfx', fadeMs: 0 }),
+    ]);
+
+    await service.handleSceneSwitch(ROOM_ID, SCENE_ID);
+
+    expect(events).toHaveLength(2);
+    expect(events[0]!.payload).toMatchObject({ kind: 'persistent', action: 'stop', layer: 'music' });
+    expect(events[1]!.payload).toMatchObject({ kind: 'persistent', action: 'stop', layer: 'ambient' });
   });
 });
 
@@ -362,7 +401,7 @@ describe('AudioService.patchTrack', () => {
     await service.patchTrack('track-1', { sceneId: SCENE_ID });
 
     expect(events).toHaveLength(1);
-    expect(events[0]!.payload).toMatchObject({ action: 'play', sceneId: SCENE_ID });
+    expect(events[0]!.payload).toMatchObject({ kind: 'persistent', action: 'play', sceneId: SCENE_ID });
   });
 
   it("broadcasts 'stop' when sceneId is unbound (null)", async () => {
@@ -374,7 +413,7 @@ describe('AudioService.patchTrack', () => {
     await service.patchTrack('track-1', { sceneId: null });
 
     expect(events).toHaveLength(1);
-    expect(events[0]!.payload).toMatchObject({ action: 'stop' });
+    expect(events[0]!.payload).toMatchObject({ kind: 'persistent', action: 'stop' });
   });
 
   it('does NOT broadcast on title-only edits', async () => {
@@ -387,5 +426,192 @@ describe('AudioService.patchTrack', () => {
     await service.patchTrack('track-1', { title: 'new' });
 
     expect(events).toHaveLength(0);
+  });
+});
+
+describe('AudioService layer field (S8 — 3-layer architecture)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('creating a track without layer defaults to music', async () => {
+    const ctx = buildService();
+    const { service, storage, audio, asset } = ctx;
+    const storageKey = `rooms/${ROOM_ID}/audio/abc.mp3`;
+    storage.mocks.statObject.mockResolvedValue({ size: 512, contentType: 'audio/mpeg' });
+    asset.mocks.create.mockImplementation(async (data) =>
+      fakeAsset({ id: data.id as string, storageKey: data.storageKey as string }),
+    );
+    audio.mocks.create.mockImplementation(async (data) =>
+      fakeTrack({ id: data.id as string, layer: (data.layer as AudioLayer) ?? 'music' }),
+    );
+
+    const track = await service.finalizeUpload(
+      { roomId: ROOM_ID, storageKey, mimeType: 'audio/mpeg', size: 512, title: 'Bg' },
+      OWNER_ID,
+    );
+
+    expect(audio.mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ layer: 'music' }),
+    );
+    expect(track.layer).toBe('music');
+  });
+
+  it('creating a track with layer: ambient persists ambient', async () => {
+    const ctx = buildService();
+    const { service, storage, audio, asset } = ctx;
+    const storageKey = `rooms/${ROOM_ID}/audio/rain.mp3`;
+    storage.mocks.statObject.mockResolvedValue({ size: 512, contentType: 'audio/mpeg' });
+    asset.mocks.create.mockImplementation(async (data) =>
+      fakeAsset({ id: data.id as string, storageKey: data.storageKey as string }),
+    );
+    audio.mocks.create.mockImplementation(async (data) =>
+      fakeTrack({ id: data.id as string, layer: data.layer as AudioLayer }),
+    );
+
+    const track = await service.finalizeUpload(
+      {
+        roomId: ROOM_ID,
+        storageKey,
+        mimeType: 'audio/mpeg',
+        size: 512,
+        title: 'Rain',
+        layer: 'ambient',
+      },
+      OWNER_ID,
+    );
+
+    expect(audio.mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({ layer: 'ambient' }),
+    );
+    expect(track.layer).toBe('ambient');
+  });
+
+  it('patching layer from music to sfx broadcasts sfx kind payload', async () => {
+    const ctx = buildService();
+    const { service, audio, events } = ctx;
+    const before = fakeTrack({ sceneId: SCENE_ID, layer: 'music' });
+    const after = fakeTrack({ sceneId: SCENE_ID, layer: 'sfx' });
+    audio.mocks.findById.mockResolvedValue(before);
+    audio.mocks.update.mockResolvedValue(after);
+
+    await service.patchTrack('track-1', { layer: 'sfx' });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({ kind: 'sfx', trackId: 'track-1' });
+  });
+});
+
+// ── S9.1 T1: in-memory state cache + public playback helpers ────────────────
+
+describe('AudioService.getCurrentForRoom (T1 — in-memory cache)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('returns null state when no audio has been emitted yet', () => {
+    const { service } = buildService();
+    const state = service.getCurrentForRoom(ROOM_ID);
+    expect(state).toEqual({ music: null, ambient: null });
+  });
+
+  it('caches the last-broadcast persistent payload per layer', async () => {
+    const { service, audio } = buildService();
+    audio.mocks.findById.mockResolvedValue(fakeTrack({ sceneId: SCENE_ID }));
+    await service.playTrack(fakeTrack({ id: 'track-1', layer: 'music', sceneId: SCENE_ID }));
+
+    const state = service.getCurrentForRoom(ROOM_ID);
+    expect(state.music).toMatchObject({
+      kind: 'persistent',
+      layer: 'music',
+      trackId: 'track-1',
+      action: 'play',
+    });
+    expect(state.ambient).toBeNull();
+  });
+
+  it('sets layer to null on stop', async () => {
+    const { service } = buildService();
+    await service.playTrack(fakeTrack({ id: 'track-1', layer: 'music', sceneId: SCENE_ID }));
+    await service.stopLayer(ROOM_ID, 'music');
+
+    const state = service.getCurrentForRoom(ROOM_ID);
+    expect(state.music).toBeNull();
+  });
+
+  it('SFX payloads are NOT cached', () => {
+    const { service, broadcast } = buildService();
+    // Directly test by calling the private broadcast wrapper via handleSceneSwitch
+    // triggering an sfx kind is not possible via public API alone —
+    // use patchTrack to emit sfx and then inspect cache.
+    // SFX tracks: service.playTrack with sfx layer → buildPlayPayload returns sfx kind.
+    void service.playTrack(fakeTrack({ id: 'sfx-1', layer: 'sfx', sceneId: SCENE_ID }));
+    const state = service.getCurrentForRoom(ROOM_ID);
+    // sfx broadcast DID fire but cache should be untouched (both null)
+    expect(broadcast).toHaveBeenCalled();
+    expect(state.music).toBeNull();
+    expect(state.ambient).toBeNull();
+  });
+});
+
+describe('AudioService.playTrack (T2 — REST play helper)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('broadcasts audio:play for music layer and updates cache', async () => {
+    const { service, events } = buildService();
+    const track = fakeTrack({ id: 'track-m', layer: 'music', sceneId: SCENE_ID, loop: true, fadeMs: 2000 });
+
+    await service.playTrack(track);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({
+      kind: 'persistent',
+      layer: 'music',
+      action: 'play',
+      trackId: 'track-m',
+      loop: true,
+      fadeMs: 2000,
+    });
+    // Cache updated
+    expect(service.getCurrentForRoom(ROOM_ID).music).toMatchObject({ trackId: 'track-m' });
+  });
+
+  it('broadcasts sfx kind for sfx layer', async () => {
+    const { service, events } = buildService();
+    const track = fakeTrack({ id: 'sfx-t', layer: 'sfx', sceneId: null });
+
+    await service.playTrack(track);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({ kind: 'sfx', trackId: 'sfx-t' });
+  });
+});
+
+describe('AudioService.stopLayer (T2 — REST stop helper)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('broadcasts persistent stop for music layer', async () => {
+    const { service, events } = buildService();
+
+    await service.stopLayer(ROOM_ID, 'music');
+
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({
+      kind: 'persistent',
+      layer: 'music',
+      action: 'stop',
+      fadeMs: 1500,
+    });
+    expect(service.getCurrentForRoom(ROOM_ID).music).toBeNull();
+  });
+
+  it('broadcasts persistent stop for ambient layer', async () => {
+    const { service, events } = buildService();
+
+    await service.stopLayer(ROOM_ID, 'ambient');
+
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({
+      kind: 'persistent',
+      layer: 'ambient',
+      action: 'stop',
+    });
+    expect(service.getCurrentForRoom(ROOM_ID).ambient).toBeNull();
   });
 });

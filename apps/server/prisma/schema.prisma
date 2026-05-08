@@ -17,6 +17,12 @@ enum RoomStatus {
   closed
 }
 
+enum AudioLayer {
+  music
+  ambient
+  sfx
+}
+
 enum MessageMode {
   normal
   ic
@@ -35,8 +41,8 @@ model User {
   ownedRooms        Room[]
   sessions          Session[]
   characters        Character[]
-  notes             Note[]
-  handoutRecipients HandoutRecipient[]
+  journalAuthored   JournalEntry[]     @relation("JournalAuthor")
+  journalRecipients JournalRecipient[] @relation("JournalRecipient")
   assignedTokens    Token[]            @relation("TokenAssignedUser")
   sentMessages      ChatMessage[]      @relation("ChatMessageSender")
   receivedMessages  ChatMessage[]      @relation("ChatMessageRecipient")
@@ -59,8 +65,7 @@ model Room {
   owner             User               @relation(fields: [ownerId], references: [id])
   scenes            Scene[]
   messages          ChatMessage[]
-  handouts          Handout[]
-  notes             Note[]
+  journalEntries    JournalEntry[]
   audioTracks       AudioTrack[]
   characters        Character[]
   assets            Asset[]            @relation("AssetRoom")
@@ -98,12 +103,12 @@ model Asset {
   originalName String   @default("") @db.VarChar(128)
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
-  owner            User        @relation("AssetOwner", fields: [ownerId], references: [id])
-  room             Room        @relation("AssetRoom", fields: [roomId], references: [id], onDelete: Cascade)
-  sceneBackgrounds Scene[]     @relation("SceneBackground")
-  tokenImages      Token[]     @relation("TokenImage")
-  characterPdfs    Character[] @relation("CharacterPdf")
-  handoutAssets    Handout[]   @relation("HandoutAsset")
+  owner            User           @relation("AssetOwner", fields: [ownerId], references: [id])
+  room             Room           @relation("AssetRoom", fields: [roomId], references: [id], onDelete: Cascade)
+  sceneBackgrounds Scene[]        @relation("SceneBackground")
+  tokenImages      Token[]        @relation("TokenImage")
+  characterPdfs    Character[]    @relation("CharacterPdf")
+  journalEntries   JournalEntry[] @relation("JournalAsset")
   audioTracks      AudioTrack[]
 }
 
@@ -197,41 +202,16 @@ model ChatMessage {
   @@index([roomId, createdAt(sort: Desc)])
 }
 
-model Handout {
-  id        String   @id @default(uuid()) @db.Uuid
-  roomId    String   @db.Uuid
-  title     String   @db.VarChar(128)
-  body      String   @db.Text
-  assetId   String?  @db.Uuid
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-
-  room       Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  asset      Asset?             @relation("HandoutAsset", fields: [assetId], references: [id], onDelete: SetNull)
-  recipients HandoutRecipient[]
-
-  @@index([roomId])
-}
-
-model HandoutRecipient {
-  handoutId String   @db.Uuid
-  userId    String   @db.Uuid
-  grantedAt DateTime @default(now()) @db.Timestamptz(6)
-
-  handout Handout @relation(fields: [handoutId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([handoutId, userId])
-}
-
 model AudioTrack {
   id        String   @id @default(uuid()) @db.Uuid
   roomId    String   @db.Uuid
   sceneId   String?  @db.Uuid
   title     String   @db.VarChar(128)
   assetId   String   @db.Uuid
-  loop      Boolean  @default(false)
-  fadeMs    Int      @default(1500)
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  loop      Boolean    @default(false)
+  fadeMs    Int        @default(1500)
+  layer     AudioLayer @default(music)
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
 
   room    Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
   scene   Scene? @relation(fields: [sceneId], references: [id], onDelete: SetNull)
@@ -240,18 +220,39 @@ model AudioTrack {
   @@index([roomId])
 }
 
-model Note {
-  id       String   @id @default(uuid()) @db.Uuid
-  roomId   String   @db.Uuid
-  authorId String   @db.Uuid
-  title    String   @db.VarChar(128)
-  body     String   @db.Text
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+enum JournalVisibility {
+  private
+  shared
+}
 
-  room   Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+model JournalEntry {
+  id         String            @id @default(uuid()) @db.Uuid
+  roomId     String            @db.Uuid
+  authorId   String            @db.Uuid
+  title      String            @db.VarChar(128)
+  body       String            @db.Text
+  visibility JournalVisibility @default(private)
+  assetId    String?           @db.Uuid
+  createdAt  DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime          @updatedAt @db.Timestamptz(6)
+
+  room       Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author     User               @relation("JournalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  asset      Asset?             @relation("JournalAsset", fields: [assetId], references: [id], onDelete: SetNull)
+  recipients JournalRecipient[]
 
   @@index([roomId])
+}
+
+model JournalRecipient {
+  entryId   String   @db.Uuid
+  userId    String   @db.Uuid
+  grantedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user  User         @relation("JournalRecipient", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, userId])
 }
 
 model InitiativeEntry {

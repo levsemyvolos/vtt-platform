@@ -12,3 +12,9 @@ export interface InitiativeReorderRequest {
   /** Full ordered list of entry UUIDs; missing IDs are rejected by service. */
   orderedIds: string[];
 }
+
+/** PATCH /api/initiative/:id — GM-only update of name and/or initiative value. */
+export interface InitiativeUpdateRequest {
+  name?: string;
+  initiative?: number;
+}

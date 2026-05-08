@@ -6,6 +6,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Dice5,
   Undo2,
   Redo2,
   Eraser,
@@ -26,12 +27,14 @@ interface CanvasToolbarProps {
   myRole: Role;
   onOpenTab: (tab: SidebarTab) => void;
   onOpenAssistant: () => void;
+  onToggleDice: () => void;
 }
 
 export default function CanvasToolbar({
   myRole,
   onOpenTab,
   onOpenAssistant,
+  onToggleDice,
 }: CanvasToolbarProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('gameroom');
@@ -111,6 +114,16 @@ export default function CanvasToolbar({
           onClick={() => onOpenTab('audio')}
         >
           <Music size={16} />
+        </IconButton>
+
+        <IconButton
+          variant="ghost"
+          size="sm"
+          aria-label={t('toolbar.dice')}
+          title={t('toolbar.dice')}
+          onClick={onToggleDice}
+        >
+          <Dice5 size={16} />
         </IconButton>
 
         {myRole === 'GM' && (

@@ -99,6 +99,14 @@ const charactersSlice = createSlice({
     setCurrentCharacter: (state, action: PayloadAction<CharacterSheetDTO | null>) => {
       state.current = action.payload;
     },
+    upsertCharacter: (state, action: PayloadAction<CharacterSheetDTO>) => {
+      upsertItem(state, action.payload);
+      if (state.current?.id === action.payload.id) state.current = action.payload;
+    },
+    removeCharacter: (state, action: PayloadAction<string>) => {
+      state.items = state.items.filter((c) => c.id !== action.payload);
+      if (state.current?.id === action.payload) state.current = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -139,5 +147,5 @@ function upsertItem(state: CharactersState, item: CharacterSheetDTO): void {
   else state.items[idx] = item;
 }
 
-export const { clearCharacters, setCurrentCharacter } = charactersSlice.actions;
+export const { clearCharacters, setCurrentCharacter, upsertCharacter, removeCharacter } = charactersSlice.actions;
 export default charactersSlice.reducer;

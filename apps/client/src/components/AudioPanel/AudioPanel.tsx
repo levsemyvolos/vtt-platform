@@ -1,18 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Pause, Link2, Link2Off, Settings, Trash2 } from 'lucide-react';
-import type { AudioTrackDTO, Role } from '@vtt/shared';
+import type { AudioTrackDTO, Role, AudioLayer } from '@vtt/shared';
+import { ALL_AUDIO_LAYERS } from '@vtt/shared';
 import styles from './AudioPanel.module.css';
 import { useAppDispatch, useAppSelector } from '../../store';
-import {
-  bindTrackToScene,
-  loadAudioTracks,
-  patchTrackThunk,
-  removeAudioTrack,
-  setVolume,
-} from '../../store/audio';
+import { loadAudioTracks } from '../../store/audio';
 import TrackUpload from './TrackUpload';
-import { Button, IconButton } from '../ui';
+import VolumeMixer from './VolumeMixer';
+import TrackItem from './TrackItem';
 
 interface AudioPanelProps {
   roomId: string;
@@ -20,195 +15,125 @@ interface AudioPanelProps {
   myRole: Role;
 }
 
+type GroupedTracks = Record<AudioLayer, AudioTrackDTO[]>;
+
 export default function AudioPanel({ roomId, sceneId, myRole }: AudioPanelProps): JSX.Element {
   const { t } = useTranslation(['campaign', 'common']);
   const dispatch = useAppDispatch();
   const tracks = useAppSelector((s) => s.audio.tracks);
   const current = useAppSelector((s) => s.audio.current);
-  const volume = useAppSelector((s) => s.audio.volume);
 
   useEffect(() => {
     void dispatch(loadAudioTracks(roomId));
   }, [roomId, dispatch]);
 
   const isGM = myRole === 'GM';
-  const currentTrackId = current && current.action !== 'stop' ? current.trackId : null;
+
+  const grouped = useMemo<GroupedTracks>(() => {
+    const out: GroupedTracks = { music: [], ambient: [], sfx: [] };
+    for (const tr of tracks) out[tr.layer].push(tr);
+    return out;
+  }, [tracks]);
 
   return (
     <section className={styles.panel} aria-label={t('campaign:audio.panelAriaLabel')}>
       <header className={styles.header}>
         <span className={`eyebrow ${styles.eyebrow}`}>
-          {t('campaign:audio.heading')} · СЦЕНА
+          {t('campaign:audio.heading')}
         </span>
-        <label className={styles.volume}>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={volume}
-            onChange={(e) => dispatch(setVolume(Number(e.target.value)))}
-            aria-label={t('campaign:audio.volume')}
-            className={styles.slider}
-          />
-        </label>
       </header>
 
-      {isGM && <TrackUpload roomId={roomId} sceneId={sceneId} />}
+      <VolumeMixer />
 
-      {tracks.length === 0 ? (
-        <p className={styles.empty}>{t('campaign:audio.empty')}</p>
-      ) : (
-        <ul className={styles.list}>
-          {tracks.map((tr) => (
-            <TrackItem
-              key={tr.id}
-              track={tr}
-              sceneId={sceneId}
-              isGM={isGM}
-              isPlaying={tr.id === currentTrackId}
-            />
-          ))}
-        </ul>
-      )}
+      {ALL_AUDIO_LAYERS.map((layer) => (
+        <LayerSection
+          key={layer}
+          layer={layer}
+          tracks={grouped[layer]}
+          sceneId={sceneId}
+          isGM={isGM}
+          roomId={roomId}
+          currentTrackId={resolveCurrentTrackId(layer, current)}
+        />
+      ))}
     </section>
   );
 }
 
-function computeTrackBound(sceneId: string | null, trackSceneId: string | null): boolean {
-  return sceneId !== null && trackSceneId === sceneId;
+/** Derive the currently-playing trackId for a given layer (null for SFX). */
+function resolveCurrentTrackId(
+  layer: AudioLayer,
+  current: { music: import('@vtt/shared').AudioPlayPayload | null; ambient: import('@vtt/shared').AudioPlayPayload | null },
+): string | null {
+  if (layer === 'sfx') return null;
+  const p = current[layer];
+  if (!p) return null;
+  if (p.kind === 'persistent' && p.action !== 'stop') return p.trackId;
+  return null;
 }
 
-function computeBindTitle(
-  sceneId: string | null,
-  isBoundHere: boolean,
-  labels: { noScene: string; bind: string; unbind: string },
-): string {
-  if (!sceneId) return labels.noScene;
-  return isBoundHere ? labels.unbind : labels.bind;
-}
+// ── LayerSection ────────────────────────────────────────────────────────────
 
-interface TrackItemProps {
-  track: AudioTrackDTO;
+interface LayerSectionProps {
+  layer: AudioLayer;
+  tracks: AudioTrackDTO[];
   sceneId: string | null;
   isGM: boolean;
-  isPlaying: boolean;
+  roomId: string;
+  currentTrackId: string | null;
 }
 
-function TrackItem({ track, sceneId, isGM, isPlaying }: TrackItemProps): JSX.Element {
-  const { t } = useTranslation(['campaign', 'common']);
-  const dispatch = useAppDispatch();
-  const [editing, setEditing] = useState(false);
-  const [editFadeMs, setEditFadeMs] = useState(track.fadeMs);
-  const [editLoop, setEditLoop] = useState(track.loop);
-  const [busy, setBusy] = useState(false);
-
-  const isBoundHere = computeTrackBound(sceneId, track.sceneId);
-  const liClassName = isPlaying ? `${styles.item} ${styles.itemPlaying}` : styles.item;
-  const bindTitle = computeBindTitle(sceneId, isBoundHere, {
-    noScene: t('campaign:audio.noScene'),
-    bind: t('campaign:audio.bindTitle'),
-    unbind: t('campaign:audio.unbindTitle'),
-  });
-
-  function onOpenEdit(): void {
-    setEditFadeMs(track.fadeMs);
-    setEditLoop(track.loop);
-    setEditing(true);
-  }
-
-  async function onSaveEdit(): Promise<void> {
-    setBusy(true);
-    try {
-      await dispatch(
-        patchTrackThunk({ trackId: track.id, fadeMs: editFadeMs, loop: editLoop }),
-      ).unwrap();
-      setEditing(false);
-    } finally {
-      setBusy(false);
-    }
-  }
+function LayerSection({
+  layer,
+  tracks,
+  sceneId,
+  isGM,
+  roomId,
+  currentTrackId,
+}: LayerSectionProps): JSX.Element {
+  const { t } = useTranslation('campaign');
+  const [collapsed, setCollapsed] = useState(false);
+  const isSfx = layer === 'sfx';
 
   return (
-    <li className={liClassName}>
-      <span className={styles.playIcon} aria-hidden="true">
-        {isPlaying
-          ? <Pause size={14} style={{ color: 'var(--color-primary)' }} />
-          : <Play size={14} style={{ color: 'var(--color-text-muted)' }} />
-        }
-      </span>
-      <span className={styles.trackTitle}>{track.title}</span>
-      {track.loop && (
-        <span className={styles.badge}>{t('campaign:audio.loopBadge')}</span>
-      )}
+    <div className={styles.layerSection}>
+      <div className={styles.layerHeader}>
+        <button
+          type="button"
+          className={styles.layerToggle}
+          onClick={() => setCollapsed((c) => !c)}
+          aria-expanded={!collapsed}
+        >
+          <h3 className={styles.layerTitle}>{t(`audio.layer.${layer}`)}</h3>
+          <span className={styles.badge}>{tracks.length}</span>
+        </button>
+      </div>
 
-      {isGM && !editing && (
-        <div className={styles.controls}>
-          <IconButton
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              dispatch(bindTrackToScene({ trackId: track.id, sceneId: isBoundHere ? null : sceneId }))
-            }
-            disabled={!sceneId}
-            title={bindTitle}
-            aria-label={bindTitle}
-          >
-            {isBoundHere
-              ? <Link2Off size={14} style={{ color: 'var(--color-primary)' }} />
-              : <Link2 size={14} />
-            }
-          </IconButton>
-          <IconButton
-            variant="ghost"
-            size="sm"
-            onClick={onOpenEdit}
-            aria-label={t('campaign:audio.editAriaLabel', { title: track.title })}
-          >
-            <Settings size={14} />
-          </IconButton>
-          <IconButton
-            variant="ghost"
-            size="sm"
-            onClick={() => dispatch(removeAudioTrack(track.id))}
-            aria-label={t('campaign:audio.deleteAriaLabel', { title: track.title })}
-          >
-            <Trash2 size={14} style={{ color: 'var(--color-danger)' }} />
-          </IconButton>
+      {!collapsed && (
+        <div className={styles.layerBody}>
+          {isGM && (
+            <TrackUpload roomId={roomId} sceneId={sceneId} layer={layer} />
+          )}
+
+          {tracks.length === 0 ? (
+            <p className={styles.empty}>{t('audio.layer.empty')}</p>
+          ) : (
+            <ul className={styles.list}>
+              {tracks.map((tr) => (
+                <TrackItem
+                  key={tr.id}
+                  track={tr}
+                  roomId={roomId}
+                  sceneId={sceneId}
+                  isGM={isGM}
+                  isPlaying={tr.id === currentTrackId}
+                  isSfx={isSfx}
+                />
+              ))}
+            </ul>
+          )}
         </div>
       )}
-
-      {isGM && editing && (
-        <div className={styles.editRow}>
-          <label>
-            {t('campaign:audio.loopLabel')}
-            <input
-              type="checkbox"
-              checked={editLoop}
-              onChange={(e) => setEditLoop(e.target.checked)}
-            />
-          </label>
-          <label>
-            {t('campaign:audio.fadeLabel', { ms: editFadeMs })}
-            <input
-              type="range"
-              min={0}
-              max={5000}
-              step={100}
-              value={editFadeMs}
-              onChange={(e) => setEditFadeMs(Number(e.target.value))}
-              aria-label={t('campaign:audio.fadeAriaLabel')}
-              className={styles.slider}
-            />
-          </label>
-          <Button type="button" variant="secondary" size="sm" onClick={() => void onSaveEdit()} disabled={busy}>
-            {t('common:btn.save')}
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={busy}>
-            {t('common:btn.cancel')}
-          </Button>
-        </div>
-      )}
-    </li>
+    </div>
   );
 }

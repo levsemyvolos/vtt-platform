@@ -251,48 +251,69 @@ export function buildScenesRouter(
 
 // ---------- Tokens router ----------
 
-export const tokensRouter: IRouter = Router({ mergeParams: true });
+export function buildTokensRouter(
+  io?: Server<ClientToServerEvents, ServerToClientEvents>,
+): IRouter {
+  const router = Router({ mergeParams: true });
 
-// PATCH /tokens/:id — GM edits token metadata
-tokensRouter.patch(
-  '/:id',
-  jwtAuth,
-  validate(tokenUpdateSchema),
-  async (req: Request<{ id: string }, object, UpdateTokenRequest>, res: Response) => {
-    try {
-      const token = await prisma.token.findUnique({ where: { id: req.params.id } });
-      if (!token) throw new HttpError(404, 'Token not found');
-      const scene = await prisma.scene.findUnique({ where: { id: token.sceneId } });
-      if (!scene) throw new HttpError(404, 'Scene not found');
-      const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
-      if (role !== 'GM') throw new HttpError(403, 'Only GM can edit tokens');
-      const updated = await sceneService.updateToken(req.params.id, req.body, role);
-      res.json(projectToken(updated, 'GM', req.user!.id));
-    } catch (err) {
-      handleError(err, res);
-    }
-  },
-);
+  // PATCH /tokens/:id — GM edits token metadata
+  router.patch(
+    '/:id',
+    jwtAuth,
+    validate(tokenUpdateSchema),
+    async (req: Request<{ id: string }, object, UpdateTokenRequest>, res: Response) => {
+      try {
+        const token = await prisma.token.findUnique({ where: { id: req.params.id } });
+        if (!token) throw new HttpError(404, 'Token not found');
+        const scene = await prisma.scene.findUnique({ where: { id: token.sceneId } });
+        if (!scene) throw new HttpError(404, 'Scene not found');
+        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
+        if (role !== 'GM') throw new HttpError(403, 'Only GM can edit tokens');
+        const updated = await sceneService.updateToken(req.params.id, req.body, role);
 
-// DELETE /tokens/:id — GM deletes a token
-tokensRouter.delete(
-  '/:id',
-  jwtAuth,
-  async (req: Request<{ id: string }>, res: Response) => {
-    try {
-      const token = await prisma.token.findUnique({ where: { id: req.params.id } });
-      if (!token) throw new HttpError(404, 'Token not found');
-      const scene = await prisma.scene.findUnique({ where: { id: token.sceneId } });
-      if (!scene) throw new HttpError(404, 'Scene not found');
-      const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
-      if (role !== 'GM') throw new HttpError(403, 'Only GM can delete tokens');
-      await sceneService.deleteToken(req.params.id, role);
-      res.status(204).send();
-    } catch (err) {
-      handleError(err, res);
-    }
-  },
-);
+        // Broadcast per-viewer so private fields (hp, statusMarkers) are RBAC-projected.
+        if (io) {
+          const sockets = await io.in(scene.roomId).fetchSockets();
+          for (const s of sockets) {
+            const viewerRole = s.data.role;
+            const viewerId = s.data.userId;
+            if (!viewerRole || !viewerId) continue;
+            const projected = projectToken(updated, viewerRole, viewerId);
+            if (projected) {
+              s.emit('token:patched', { sceneId: updated.sceneId, token: projected });
+            }
+          }
+        }
+
+        res.json(projectToken(updated, 'GM', req.user!.id));
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  // DELETE /tokens/:id — GM deletes a token
+  router.delete(
+    '/:id',
+    jwtAuth,
+    async (req: Request<{ id: string }>, res: Response) => {
+      try {
+        const token = await prisma.token.findUnique({ where: { id: req.params.id } });
+        if (!token) throw new HttpError(404, 'Token not found');
+        const scene = await prisma.scene.findUnique({ where: { id: token.sceneId } });
+        if (!scene) throw new HttpError(404, 'Scene not found');
+        const role = await roomRepo.getRoleInRoom(scene.roomId, req.user!.id, req.user!.role, req.user!.boundRoomId);
+        if (role !== 'GM') throw new HttpError(403, 'Only GM can delete tokens');
+        await sceneService.deleteToken(req.params.id, role);
+        res.status(204).send();
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  return router;
+}
 
 // ---------- Annotation endpoints ----------
 

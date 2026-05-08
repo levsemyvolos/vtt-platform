@@ -1,43 +1,82 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import type { AudioPlayPayload, AudioTrackDTO } from '@vtt/shared';
+import type { AudioPlayPayload, AudioTrackDTO, AudioLayer, AudioMime } from '@vtt/shared';
+import { AUDIO_ALLOWED_MIME } from '@vtt/shared';
 import {
   deleteAudioTrack,
   finalizeAudioUpload,
   initAudioUpload,
   listAudioTracks,
   patchAudioTrack,
+  playAudioTrack,
+  stopAudioLayer,
   uploadBytesToGcs,
 } from '../api/audio';
 
+
+interface VolumeMixer {
+  master: number;
+  music: number;
+  ambient: number;
+  sfx: number;
+}
+
 /**
- * Per Q1 of session_chapter3_chat7_2 — fade duration is a client-side UI
- * constant, never persisted, never sent over the wire. Tweak here if the GM
- * later asks for a slower transition.
+ * Persistent payloads stored per layer for late-joiner resync.
+ * SFX is fire-and-forget — never stored here.
  */
-export const AUDIO_FADE_MS = 1500;
+interface CurrentByLayer {
+  music: AudioPlayPayload | null;
+  ambient: AudioPlayPayload | null;
+}
+
+export interface SfxEvent {
+  /** Client-side uuid for deduplication. */
+  id: string;
+  trackId: string;
+  sceneId: string | null;
+  receivedAt: number;
+}
 
 interface AudioState {
   /** All tracks of the current room (loaded once on session start). */
   tracks: AudioTrackDTO[];
   /**
-   * Last `audio:play` payload received from the server. The AudioPlayer
-   * component reacts to this slot — when `current.action ∈ {play, switch}`
-   * it (re)starts the bound `<audio>` with fade-in; on `stop` it fades out.
+   * Last `audio:play` payload received from the server, keyed by layer.
+   * SFX is fire-and-forget — it goes to `pendingSfx` instead.
    */
-  current: AudioPlayPayload | null;
-  /** Local volume in the [0..1] range — UI-only, not synced. */
-  volume: number;
+  current: CurrentByLayer;
+  /** Per-channel volume in [0..1]. */
+  volume: VolumeMixer;
+  /** Queue of SFX events waiting for the SFX pool to play them. */
+  pendingSfx: SfxEvent[];
   status: 'idle' | 'loading' | 'loaded' | 'error';
   error: string | null;
 }
 
+const SFX_QUEUE_CAP = 10;
+
 const initialState: AudioState = {
   tracks: [],
-  current: null,
-  volume: 0.6,
+  current: { music: null, ambient: null },
+  volume: { master: 0.8, music: 1.0, ambient: 1.0, sfx: 1.0 },
+  pendingSfx: [],
   status: 'idle',
   error: null,
 };
+
+/** Generate a lightweight session-unique id. Browser `crypto.randomUUID` is
+ *  required; fallback to monotonic counter to keep ids unique within session
+ *  (avoid Math.random per A1 invariant). */
+let sfxCounter = 0;
+function newSfxId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  sfxCounter += 1;
+  return `sfx-${Date.now()}-${sfxCounter}`;
+}
+
+// ── thunks ─────────────────────────────────────────────────────────────────
 
 export const loadAudioTracks = createAsyncThunk<
   AudioTrackDTO[],
@@ -56,6 +95,7 @@ interface UploadArgs {
   roomId: string;
   file: File;
   title: string;
+  layer: AudioLayer;
   sceneId?: string | null;
   loop?: boolean;
   fadeMs?: number;
@@ -74,23 +114,25 @@ export const uploadAudioTrack = createAsyncThunk<
   AudioTrackDTO,
   UploadArgs,
   { rejectValue: string }
->('audio/upload', async ({ roomId, file, title, sceneId, loop, fadeMs }, { rejectWithValue }) => {
+>('audio/upload', async ({ roomId, file, title, layer, sceneId, loop, fadeMs }, { rejectWithValue }) => {
   try {
-    if (file.type !== 'audio/mpeg' && file.type !== 'audio/ogg') {
-      return rejectWithValue('Лише MP3 (audio/mpeg) або OGG (audio/ogg)');
+    if (!AUDIO_ALLOWED_MIME.includes(file.type as AudioMime)) {
+      return rejectWithValue('Підтримуються лише MP3, OGG та WAV файли');
     }
+    const mimeType = file.type as AudioMime;
     const init = await initAudioUpload({
       roomId,
-      mimeType: file.type,
+      mimeType,
       size: file.size,
     });
     await uploadBytesToGcs(init.uploadUrl, file);
     const dto = await finalizeAudioUpload({
       roomId,
       storageKey: init.storageKey,
-      mimeType: file.type,
+      mimeType,
       size: file.size,
       title,
+      layer,
       sceneId: sceneId ?? null,
       loop: loop ?? false,
       ...(fadeMs !== undefined ? { fadeMs } : {}),
@@ -115,7 +157,7 @@ export const bindTrackToScene = createAsyncThunk<
 
 export const patchTrackThunk = createAsyncThunk<
   AudioTrackDTO,
-  { trackId: string; fadeMs?: number; loop?: boolean; title?: string },
+  { trackId: string; fadeMs?: number; loop?: boolean; title?: string; layer?: AudioLayer },
   { rejectValue: string }
 >('audio/patch', async ({ trackId, ...patch }, { rejectWithValue }) => {
   try {
@@ -150,16 +192,81 @@ export const removeAudioTrack = createAsyncThunk<
   }
 });
 
+/**
+ * Fire-and-forget: ask the server to broadcast `audio:play` for a track.
+ * No local state change — the server-side broadcast comes back via `audio:play`
+ * and is handled by `applyAudioPlay`.
+ */
+export const playTrackThunk = createAsyncThunk<void, string, { rejectValue: string }>(
+  'audio/playTrack',
+  async (trackId, { rejectWithValue }) => {
+    try {
+      await playAudioTrack(trackId);
+    } catch (err) {
+      return rejectWithValue(err instanceof Error ? err.message : 'Помилка відтворення');
+    }
+  },
+);
+
+/**
+ * Fire-and-forget: ask the server to stop a persistent layer.
+ * No local state change — the server-side broadcast comes back via `audio:play`
+ * with `action: 'stop'` and is handled by `applyAudioPlay`.
+ */
+export const stopLayerThunk = createAsyncThunk<
+  void,
+  { roomId: string; layer: 'music' | 'ambient' },
+  { rejectValue: string }
+>('audio/stopLayer', async ({ roomId, layer }, { rejectWithValue }) => {
+  try {
+    await stopAudioLayer(roomId, layer);
+  } catch (err) {
+    return rejectWithValue(err instanceof Error ? err.message : 'Помилка зупинки');
+  }
+});
+
+// ── slice ───────────────────────────────────────────────────────────────────
+
 const audioSlice = createSlice({
   name: 'audio',
   initialState,
   reducers: {
-    /** Server → client `audio:play` event sink. */
-    applyAudioPlay: (state, action: PayloadAction<AudioPlayPayload>) => {
-      state.current = action.payload;
+    /** Master volume — applies to all rendered audio before per-channel gain. */
+    setMasterVolume: (state, action: PayloadAction<number>) => {
+      state.volume.master = Math.max(0, Math.min(1, action.payload));
     },
-    setVolume: (state, action: PayloadAction<number>) => {
-      state.volume = Math.max(0, Math.min(1, action.payload));
+    /** Per-layer volume — applies to a single channel after master gain. */
+    setLayerVolume: (state, action: PayloadAction<{ layer: AudioLayer; v: number }>) => {
+      const { layer, v } = action.payload;
+      state.volume[layer] = Math.max(0, Math.min(1, v));
+    },
+    /**
+     * Server → client `audio:play` event sink.
+     *
+     * - Persistent (music/ambient): stored in `current[layer]` for late-joiner resync.
+     * - SFX: pushed to `pendingSfx` (capped at SFX_QUEUE_CAP; oldest dropped on overflow).
+     */
+    applyAudioPlay: (state, action: PayloadAction<AudioPlayPayload>) => {
+      const payload = action.payload;
+      if (payload.kind === 'persistent') {
+        state.current[payload.layer] = payload;
+      } else {
+        // kind === 'sfx'
+        const event: SfxEvent = {
+          id: newSfxId(),
+          trackId: payload.trackId,
+          sceneId: payload.sceneId,
+          receivedAt: Date.now(),
+        };
+        state.pendingSfx.push(event);
+        if (state.pendingSfx.length > SFX_QUEUE_CAP) {
+          state.pendingSfx.splice(0, state.pendingSfx.length - SFX_QUEUE_CAP);
+        }
+      }
+    },
+    /** AudioPlayer calls this once a pooled element finishes playing the SFX. */
+    consumeSfx: (state, action: PayloadAction<string>) => {
+      state.pendingSfx = state.pendingSfx.filter((e) => e.id !== action.payload);
     },
     clearAudio: () => initialState,
   },
@@ -193,5 +300,12 @@ function upsert(state: AudioState, action: PayloadAction<AudioTrackDTO>): void {
   else state.tracks[idx] = action.payload;
 }
 
-export const { applyAudioPlay, setVolume, clearAudio } = audioSlice.actions;
+export const {
+  setMasterVolume,
+  setLayerVolume,
+  applyAudioPlay,
+  consumeSfx,
+  clearAudio,
+} = audioSlice.actions;
+
 export default audioSlice.reducer;

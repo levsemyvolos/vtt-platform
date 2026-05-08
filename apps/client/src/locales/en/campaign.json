@@ -2,9 +2,6 @@
   "chat": {
     "sidebarTab": "Chat"
   },
-  "dice": {
-    "sidebarTab": "Dice"
-  },
   "initiative": {
     "sidebarTab": "Initiative",
     "roundLabel": "Round: {{round}}",
@@ -29,43 +26,74 @@
     "sourceNpc": "Custom NPC",
     "tokenPickerLabel": "Link to token",
     "tokenPickerNone": "— no token —",
-    "addToInitiative": "Add to initiative"
+    "addToInitiative": "Add to initiative",
+    "hpCurrentLabel": "Current HP",
+    "hpMaxLabel": "Max HP",
+    "hpEditLabel": "Edit HP for {{name}}",
+    "hpReadLabel": "HP for {{name}}",
+    "conditionsAriaLabel": "Active conditions",
+    "markersAriaLabel": "Active conditions",
+    "valueEditLabel": "Edit initiative value",
+    "valueLabel": "Initiative value",
+    "nameEditLabel": "Edit entry name"
   },
-  "handouts": {
-    "sidebarTab": "Handouts",
-    "heading": "Handouts",
-    "gmAriaLabel": "Handouts (GM)",
-    "playerAriaLabel": "Handouts",
-    "createBtn": "+ Create",
-    "titlePlaceholder": "Title",
-    "titleAriaLabel": "Handout title",
-    "bodyPlaceholder": "Text (Markdown)",
-    "bodyAriaLabel": "Handout body",
-    "assetIdPlaceholder": "assetId (optional)",
-    "assetIdAriaLabel": "assetId (optional)",
-    "grantedLabel": "Granted:",
-    "noneGranted": "none",
-    "revokeLabel": "Revoke from {{uid}}",
-    "grantToPlayersLegend": "Grant to Players",
-    "grantLabel": "Grant to {{name}}",
-    "grantBtn": "Grant",
-    "noPlayers": "No players without characters — ask participants to create a character.",
-    "deleteLabel": "Delete handout {{title}}",
-    "emptyPlayer": "Nothing has been granted yet.",
-    "downloadAttachment": "Download attachment"
-  },
-  "notes": {
-    "sidebarTab": "Notes",
-    "heading": "Notes",
-    "panelAriaLabel": "GM notes",
-    "createBtn": "+ Create",
-    "createAriaLabel": "Create note",
-    "untitled": "(untitled)",
-    "emptySelect": "Select or create a note.",
-    "titleLabel": "Note title",
-    "bodyLabel": "Note text (Markdown)",
-    "previewLabel": "Markdown preview",
-    "newNoteTitle": "New Note"
+  "markers": {
+    "blinded": {
+      "short": "BLI",
+      "full": "Blinded"
+    },
+    "charmed": {
+      "short": "CHA",
+      "full": "Charmed"
+    },
+    "deafened": {
+      "short": "DEA",
+      "full": "Deafened"
+    },
+    "frightened": {
+      "short": "FRI",
+      "full": "Frightened"
+    },
+    "grappled": {
+      "short": "GRA",
+      "full": "Grappled"
+    },
+    "incapacitated": {
+      "short": "INC",
+      "full": "Incapacitated"
+    },
+    "invisible": {
+      "short": "INV",
+      "full": "Invisible"
+    },
+    "paralyzed": {
+      "short": "PAR",
+      "full": "Paralyzed"
+    },
+    "petrified": {
+      "short": "PET",
+      "full": "Petrified"
+    },
+    "poisoned": {
+      "short": "POI",
+      "full": "Poisoned"
+    },
+    "prone": {
+      "short": "PRO",
+      "full": "Prone"
+    },
+    "restrained": {
+      "short": "RES",
+      "full": "Restrained"
+    },
+    "stunned": {
+      "short": "STU",
+      "full": "Stunned"
+    },
+    "unconscious": {
+      "short": "UNC",
+      "full": "Unconscious"
+    }
   },
   "character": {
     "sidebarTab": "Character",
@@ -102,7 +130,14 @@
     "spellDeleteLabel": "Delete {{name}}",
     "pdfSection": "PDF",
     "pdfTitle": "PDF sheet {{name}}",
-    "pdfUploadLabel": "Upload PDF"
+    "pdfUploadLabel": "Upload PDF",
+    "overlayTitle": "Character Sheet",
+    "closeOverlay": "Close character sheet",
+    "openSheet": "Open Sheet",
+    "noOwnCharacter": "No character yet.",
+    "createBtn": "Create character",
+    "allCharactersLabel": "All characters",
+    "invalidName": "Name must be 1–64 characters"
   },
   "audio": {
     "sidebarTab": "Music",
@@ -122,17 +157,204 @@
     "fadeLabel": "Fade {{ms}}ms",
     "fadeAriaLabel": "Fade-in/out duration",
     "loopLabel": "Loop",
+    "layerLabel": "Layer",
     "trackTitlePlaceholder": "Track title",
     "trackTitleLabel": "Audio track title",
-    "fileLabel": "Audio file (MP3 / OGG)",
+    "fileLabel": "Audio file (MP3 / OGG / WAV)",
     "bindSceneLabel": "Bind to active scene",
     "uploading": "Uploading…",
     "uploadBtn": "Upload",
-    "uploadError": "Upload error"
+    "uploadShort": "+ Upload track",
+    "uploadCancel": "Cancel",
+    "uploadError": "Upload error",
+    "layer": {
+      "music": "Music",
+      "ambient": "Ambient",
+      "sfx": "SFX",
+      "empty": "No tracks in this layer."
+    },
+    "mixer": {
+      "heading": "Volume",
+      "master": "Master",
+      "music": "Music",
+      "ambient": "Ambient",
+      "sfx": "SFX"
+    },
+    "section": {
+      "tracks": "{{count}} tracks"
+    },
+    "gestureOverlay": {
+      "label": "Click to enable audio playback"
+    },
+    "playAriaLabel": "Play {{title}}",
+    "stopAriaLabel": "Stop {{title}}"
+  },
+  "journal": {
+    "sidebarTab": "Journal",
+    "heading": "Journal",
+    "filterAll": "All",
+    "filterPrivate": "Private",
+    "filterShared": "Shared",
+    "filterAriaLabel": "Filter journal entries",
+    "newBtn": "New",
+    "empty": "No journal entries yet.",
+    "loading": "Loading…",
+    "visibilityPrivate": "Private",
+    "visibilityShared": "Shared",
+    "editor": {
+      "headingCreate": "New journal entry",
+      "headingEdit": "Edit journal entry",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Enter a title…",
+      "bodyLabel": "Body",
+      "bodyPlaceholder": "Write your notes here…",
+      "attachmentLabel": "Attachment",
+      "attachBtn": "+ Attach asset",
+      "fromLibrary": "Choose from library",
+      "uploadNew": "Upload new",
+      "useAsAttachment": "Use as attachment",
+      "changeBtn": "Change",
+      "removeBtn": "Remove",
+      "saveBtn": "Save",
+      "cancelBtn": "Cancel",
+      "deleteBtn": "Delete",
+      "deleteConfirm": "Delete this entry permanently?",
+      "shareBtn": "Share…",
+      "saving": "Saving…",
+      "deletingErrFallback": "Could not delete the entry.",
+      "stale": "This entry was removed by another user.",
+      "fileAttachment": "File attachment",
+      "openLightbox": "Open full size"
+    },
+    "share": {
+      "heading": "Share \"{{title}}\"",
+      "shareWithAll": "+ Share with all players",
+      "advancedToggle": "Choose specific players",
+      "selectedCount": "{{count}} selected",
+      "noPlayers": "No players in this room yet.",
+      "revokeBtn": "Revoke (make private)",
+      "saveBtn": "Save",
+      "cancelBtn": "Cancel"
+    },
+    "lightbox": {
+      "closeAriaLabel": "Close image preview"
+    }
   },
   "sidebar": {
     "ariaLabel": "Room sidebar",
     "aiBtn": "GM AI Assistant",
     "noActiveScene": "Scene is not active."
+  },
+  "dnd5e": {
+    "section": {
+      "abilities": "Abilities",
+      "savingThrows": "Saving Throws",
+      "skills": "Skills",
+      "passivePerception": "Passive Wisdom (Perception)",
+      "otherProficiencies": "Other Proficiencies & Languages",
+      "proficiencyBonus": "Proficiency Bonus",
+      "inspiration": "Inspiration",
+      "armorClass": "Armor Class",
+      "initiative": "Initiative",
+      "speed": "Speed",
+      "hitPoints": "Hit Points",
+      "currentHp": "Current HP",
+      "maxHp": "Max HP",
+      "tempHp": "Temp HP",
+      "hitDice": "Hit Dice",
+      "hitDiceTotal": "Total",
+      "hitDiceUsed": "Used",
+      "hitDiceType": "Die Type",
+      "attacks": "Attacks & Spellcasting",
+      "spellcasting": "Spellcasting",
+      "spellAbility": "Spell Ability",
+      "spellSaveDc": "Spell Save DC",
+      "spellAttack": "Spell Attack",
+      "spellSlots": "Spell Slots",
+      "personality": "Personality",
+      "traits": "Personality Traits",
+      "ideals": "Ideals",
+      "bonds": "Bonds",
+      "flaws": "Flaws",
+      "features": "Features & Traits",
+      "equipment": "Equipment",
+      "pdfSheet": "PDF Sheet",
+      "vitals": "Vitals",
+      "notes": "Notes"
+    },
+    "ability": {
+      "STR": {
+        "short": "STR",
+        "full": "Strength"
+      },
+      "DEX": {
+        "short": "DEX",
+        "full": "Dexterity"
+      },
+      "CON": {
+        "short": "CON",
+        "full": "Constitution"
+      },
+      "INT": {
+        "short": "INT",
+        "full": "Intelligence"
+      },
+      "WIS": {
+        "short": "WIS",
+        "full": "Wisdom"
+      },
+      "CHA": {
+        "short": "CHA",
+        "full": "Charisma"
+      }
+    },
+    "skill": {
+      "acrobatics": "Acrobatics",
+      "animalHandling": "Animal Handling",
+      "arcana": "Arcana",
+      "athletics": "Athletics",
+      "deception": "Deception",
+      "history": "History",
+      "insight": "Insight",
+      "intimidation": "Intimidation",
+      "investigation": "Investigation",
+      "medicine": "Medicine",
+      "nature": "Nature",
+      "perception": "Perception",
+      "performance": "Performance",
+      "persuasion": "Persuasion",
+      "religion": "Religion",
+      "sleightOfHand": "Sleight of Hand",
+      "stealth": "Stealth",
+      "survival": "Survival"
+    },
+    "identity": {
+      "characterName": "Character Name",
+      "className": "Class",
+      "level": "Level",
+      "race": "Race",
+      "background": "Background",
+      "alignment": "Alignment",
+      "experiencePoints": "Experience"
+    },
+    "tier": {
+      "none": "Not proficient",
+      "proficient": "Proficient",
+      "expertise": "Expertise"
+    },
+    "actions": {
+      "addAttack": "+ Add attack",
+      "removeAttack": "Remove",
+      "useOverride": "Use override",
+      "uploadPdf": "Upload PDF",
+      "viewPdf": "View uploaded PDF",
+      "uploadPdfFirst": "Upload a PDF first to view it here."
+    },
+    "system": {
+      "label": "System",
+      "fiveE": "D&D 5e",
+      "pdf": "PDF Sheet",
+      "vitals": "Vitals Only"
+    }
   }
 }

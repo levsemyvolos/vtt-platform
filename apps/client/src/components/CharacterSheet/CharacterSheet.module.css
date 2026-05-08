@@ -152,3 +152,134 @@
 .empty { color: var(--color-text-muted); font-size: var(--text-sm); text-align: center; padding: var(--space-lg); }
 
 .error { color: var(--color-danger); font-size: var(--text-xs); }
+
+/* =========================================================================
+   T3 — 3-column responsive sheet grid
+   ========================================================================= */
+
+.sheetGrid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: var(--space-md, 1rem);
+  margin-top: var(--space-md, 1rem);
+}
+
+@media (max-width: 768px) {
+  .sheetGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 1rem);
+}
+
+/* Override .section for inner dnd5e sections (different from CharacterListView .section) */
+.sheetGrid .section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-sm, 0.5rem);
+  background: var(--color-surface-1, transparent);
+}
+
+.sectionTitle {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 600;
+  margin: 0 0 var(--space-xs, 0.25rem);
+  text-transform: uppercase;
+  color: var(--color-text-muted, currentColor);
+  letter-spacing: 0.04em;
+}
+
+.combatTop {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xs, 0.25rem);
+}
+
+.passive {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-sm, 0.875rem);
+}
+
+.modBadge {
+  font-weight: 700;
+  font-size: var(--text-sm, 0.875rem);
+  min-width: 2rem;
+  text-align: center;
+}
+
+.profBonus {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-xs, 0.25rem);
+}
+
+.profBonusLabel {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text-muted, currentColor);
+}
+
+.profBonusValue {
+  font-weight: 700;
+  font-size: var(--text-md, 1rem);
+}
+
+.inspirationRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs, 0.25rem);
+  font-size: var(--text-sm, 0.875rem);
+  cursor: pointer;
+}
+
+.textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-xs, 0.25rem);
+  font-family: inherit;
+  font-size: var(--text-sm, 0.875rem);
+  resize: vertical;
+  background: var(--color-bg, transparent);
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.actions {
+  margin-top: var(--space-md, 1rem);
+  display: flex;
+  gap: var(--space-sm, 0.5rem);
+  align-items: center;
+}
+
+/* =========================================================================
+   T1 — PDF sheet view
+   ========================================================================= */
+
+.pdfFrame {
+  width: 100%;
+  min-height: 80vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg, transparent);
+}
+
+.pdfEmpty {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.pdfUploadLabel {
+  cursor: pointer;
+  color: var(--color-primary);
+  text-decoration: underline;
+  font-size: var(--text-sm, 0.875rem);
+}

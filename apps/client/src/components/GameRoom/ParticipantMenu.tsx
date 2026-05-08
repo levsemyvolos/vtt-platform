@@ -52,10 +52,10 @@ export default function ParticipantMenu({ triggerRect, target, viewerRole, roomI
       if (!tgt.closest(`.${styles.menu}`)) onClose();
     }
     window.addEventListener('keydown', onKey);
-    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('click', onMouseDown);
     return () => {
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('click', onMouseDown);
     };
   }, [onClose]);
 

@@ -1,4 +1,14 @@
 /**
+ * Spell entry shared across all character sheet formats.
+ * Originally defined in client SpellsList.tsx — moved here for server-side validation.
+ */
+export interface SpellEntry {
+  name: string;
+  level: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  description: string;
+}
+
+/**
  * Character sheet DTOs (Ф9.1 — Ф9.3).
  *
  * Discriminated union per algorithm A6 (RBAC-projection, §2.17.6):

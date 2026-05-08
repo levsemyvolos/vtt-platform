@@ -64,5 +64,10 @@
   "rooms": {
     "limitReached": "Room limit reached ({{limit}}). Delete an old room to create a new one.",
     "limitReachedShort": "Room limit reached"
+  },
+  "chat": {
+    "invalidCommand": "Invalid command. Check the syntax.",
+    "recipientNotFound": "No recipient with that name.",
+    "recipientAmbiguous": "Multiple recipients match — refine the name."
   }
 }

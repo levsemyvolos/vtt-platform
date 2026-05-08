@@ -123,6 +123,46 @@ export function buildAudioRouter(audioService: AudioService): IRouter {
     },
   );
 
+  // ----- Manually play a track (GM only) -----
+  router.post(
+    '/audio/:id/play',
+    jwtAuth,
+    requireRole('GM', 'Player'),
+    async (req: Request<{ id: string }>, res: Response) => {
+      try {
+        const track = await audioService.getById(req.params.id);
+        await audioService.assertRoomOwner(track.roomId, req.user!.id);
+        await audioService.playTrack(track);
+        res.status(204).send();
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  // ----- Stop a persistent layer (GM only) -----
+  router.post(
+    '/audio/rooms/:roomId/stop',
+    jwtAuth,
+    requireRole('GM', 'Player'),
+    async (
+      req: Request<{ roomId: string }, object, { layer: 'music' | 'ambient' }>,
+      res: Response,
+    ) => {
+      try {
+        await audioService.assertRoomOwner(req.params.roomId, req.user!.id);
+        const { layer } = req.body;
+        if (layer !== 'music' && layer !== 'ambient') {
+          throw new HttpError(400, 'layer must be music or ambient');
+        }
+        await audioService.stopLayer(req.params.roomId, layer);
+        res.status(204).send();
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
   // ----- Fresh presigned playback URL (any authenticated member) -----
   router.get(
     '/audio/:id/url',

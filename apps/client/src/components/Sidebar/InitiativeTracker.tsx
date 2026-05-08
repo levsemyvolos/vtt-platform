@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -14,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { InitiativeEntryDTO, Role } from '@vtt/shared';
+import type { InitiativeEntryDTO, Role, TokenPublicDTO, StatusMarker } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
   addEntryThunk,
@@ -23,11 +24,22 @@ import {
   reorderThunk,
 } from '../../store/initiative';
 import { loadMembers } from '../../store/members';
-import { clearPendingAdd } from '../../store/initiativeUi';
+import { clearPendingAdd, setHoveredEntry } from '../../store/initiativeUi';
 import { Button, IconButton, Avatar } from '../ui';
+import TokenEditModal from '../Token/TokenEditModal';
+import InitiativeEntryContextMenu from './InitiativeEntryContextMenu';
+import InitiativeEntryEditModal from './InitiativeEntryEditModal';
 import styles from './InitiativeTracker.module.css';
 
 const EMPTY_TOKENS: [] = [];
+
+/** Color map matching TokenLayer's STATUS_COLORS for visual consistency. */
+const STATUS_CHIP_COLORS: Record<StatusMarker, string> = {
+  blinded: '#212529', charmed: '#f783ac', deafened: '#9775fa', frightened: '#ff6b6b',
+  grappled: '#f76707', incapacitated: '#e9ecef', invisible: '#dee2e6', paralyzed: '#74c0fc',
+  petrified: '#adb5bd', poisoned: '#51cf66', prone: '#868e96',
+  restrained: '#fd7e14', stunned: '#339af0', unconscious: '#495057',
+};
 
 /**
  * Pure helper — resolves name + optional tokenId from the add-entry form state.
@@ -54,6 +66,58 @@ function resolveInitiativeEntry(
   if (!name) return null;
   return { name, ...(selectedTokenId ? { tokenId: selectedTokenId } : {}) };
 }
+
+// ---------------------------------------------------------------------------
+// EntryStatusMarkers — i18n status marker badges (read-only)
+// ---------------------------------------------------------------------------
+
+interface EntryStatusMarkersProps {
+  token: TokenPublicDTO | null;
+}
+
+function EntryStatusMarkers({ token }: EntryStatusMarkersProps): JSX.Element | null {
+  const { t } = useTranslation('campaign');
+  if (!token) return null;
+  const markers = token.statusMarkers;
+  if (!markers || markers.length === 0) return null;
+  return (
+    <span className={styles.markers} aria-label={t('initiative.markersAriaLabel', { defaultValue: 'Active conditions' })}>
+      {markers.map((m) => (
+        <span
+          key={m}
+          className={styles.marker}
+          title={t(`markers.${m}.full`)}
+          aria-label={t(`markers.${m}.full`)}
+          style={{ background: STATUS_CHIP_COLORS[m] }}
+        >
+          {t(`markers.${m}.short`)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EntryHpDisplay — read-only HP span
+// ---------------------------------------------------------------------------
+
+interface EntryHpDisplayProps {
+  token: TokenPublicDTO | null;
+}
+
+function EntryHpDisplay({ token }: EntryHpDisplayProps): JSX.Element | null {
+  if (!token) return null;
+  if (token.hp === undefined && token.maxHp === undefined) return null;
+  return (
+    <span className={styles.hpCellReadonly}>
+      {token.hp ?? '—'}/{token.maxHp ?? '—'}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 interface InitiativeTrackerProps {
   sceneId: string;
@@ -135,12 +199,6 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
     } catch (err) {
       setError(typeof err === 'string' ? err : t('errors:network.generic'));
     } finally { setBusy(false); }
-  }
-
-  async function onRemove(entryId: string): Promise<void> {
-    setError(null);
-    try { await dispatch(removeEntryThunk({ sceneId, entryId })).unwrap(); }
-    catch (err) { setError(typeof err === 'string' ? err : t('errors:network.generic')); }
   }
 
   async function onAdvance(): Promise<void> {
@@ -289,7 +347,12 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
           <SortableContext items={entries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
             <ul className={styles.list}>
               {entries.map((entry) => (
-                <SortableEntry key={entry.id} entry={entry} onRemove={(id) => void onRemove(id)} />
+                <SortableEntry
+                  key={entry.id}
+                  entry={entry}
+                  myRole={myRole}
+                  sceneId={sceneId}
+                />
               ))}
             </ul>
           </SortableContext>
@@ -297,7 +360,7 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
       ) : (
         <ul className={styles.list}>
           {entries.map((entry) => (
-            <ReadOnlyEntry key={entry.id} entry={entry} />
+            <ReadOnlyEntry key={entry.id} entry={entry} myRole={myRole} />
           ))}
         </ul>
       )}
@@ -324,46 +387,111 @@ export default function InitiativeTracker({ sceneId, myRole, roomId }: Initiativ
   );
 }
 
+// ---------------------------------------------------------------------------
+// Row components
+// ---------------------------------------------------------------------------
+
 interface RowProps {
   entry: InitiativeEntryDTO;
-  onRemove?: (id: string) => void;
+  myRole: Role;
+  sceneId?: string;
 }
 
-function SortableEntry({ entry, onRemove }: RowProps): JSX.Element {
-  const { t } = useTranslation('campaign');
+interface CtxMenu {
+  x: number;
+  y: number;
+}
+
+function SortableEntry({ entry, myRole, sceneId }: RowProps): JSX.Element {
+  const dispatch = useAppDispatch();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id });
+
+  const token = useAppSelector((s) =>
+    entry.tokenId ? (s.scene.current?.tokens.find((tk) => tk.id === entry.tokenId) ?? null) : null,
+  );
+
+  const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
+  const [editEntryOpen, setEditEntryOpen] = useState(false);
+  const [editTokenOpen, setEditTokenOpen] = useState(false);
+
+  function handleContextMenu(e: React.MouseEvent): void {
+    if (myRole !== 'GM') return;
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }
+
+  function handleRemove(): void {
+    if (!sceneId) return;
+    void dispatch(removeEntryThunk({ sceneId, entryId: entry.id }));
+  }
+
   return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
-      className={`${styles.entry}${entry.isCurrent ? ` ${styles.entryActive}` : ''}`}
-      {...attributes}
-      {...listeners}
-    >
-      <span className={styles.initiative}>{entry.initiative}</span>
-      <Avatar size="sm" name={entry.name} className={styles.entryAvatar} />
-      <span className={styles.entryName}>{entry.name}</span>
-      {onRemove && (
-        <IconButton
-          variant="ghost"
-          size="sm"
-          aria-label={t('initiative.deleteLabel', { name: entry.name })}
-          onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
-        >
-          &times;
-        </IconButton>
+    <>
+      <li
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
+        className={`${styles.entry}${entry.isCurrent ? ` ${styles.entryActive}` : ''}`}
+        onMouseEnter={() => dispatch(setHoveredEntry(entry.id))}
+        onMouseLeave={() => dispatch(setHoveredEntry(null))}
+        onContextMenu={handleContextMenu}
+        {...attributes}
+        {...listeners}
+      >
+        <span className={styles.initiative}>{entry.initiative}</span>
+        <Avatar size="sm" name={entry.name} className={styles.entryAvatar} />
+        <span className={styles.entryName}>{entry.name}</span>
+        <EntryStatusMarkers token={token} />
+        <EntryHpDisplay token={token} />
+      </li>
+      {ctxMenu && createPortal(
+        <InitiativeEntryContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          hasToken={!!token}
+          onEditEntry={() => setEditEntryOpen(true)}
+          onEditToken={() => setEditTokenOpen(true)}
+          onRemove={handleRemove}
+          onClose={() => setCtxMenu(null)}
+        />,
+        document.body,
       )}
-    </li>
+      {editEntryOpen && createPortal(
+        <InitiativeEntryEditModal
+          entry={entry}
+          onClose={() => setEditEntryOpen(false)}
+        />,
+        document.body,
+      )}
+      {editTokenOpen && entry.tokenId && createPortal(
+        <TokenEditModal
+          tokenId={entry.tokenId}
+          onClose={() => setEditTokenOpen(false)}
+        />,
+        document.body,
+      )}
+    </>
   );
 }
 
 function ReadOnlyEntry({ entry }: RowProps): JSX.Element {
+  const dispatch = useAppDispatch();
+
+  const token = useAppSelector((s) =>
+    entry.tokenId ? (s.scene.current?.tokens.find((tk) => tk.id === entry.tokenId) ?? null) : null,
+  );
+
   return (
-    <li className={`${styles.entry}${entry.isCurrent ? ` ${styles.entryActive}` : ''}`}>
+    <li
+      className={`${styles.entry}${entry.isCurrent ? ` ${styles.entryActive}` : ''}`}
+      onMouseEnter={() => dispatch(setHoveredEntry(entry.id))}
+      onMouseLeave={() => dispatch(setHoveredEntry(null))}
+    >
       <span className={styles.initiative}>{entry.initiative}</span>
       <Avatar size="sm" name={entry.name} className={styles.entryAvatar} />
       <span className={styles.entryName}>{entry.name}</span>
+      <EntryStatusMarkers token={token} />
+      <EntryHpDisplay token={token} />
     </li>
   );
 }

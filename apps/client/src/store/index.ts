@@ -7,8 +7,6 @@ import scenesReducer from './scenes';
 import chatReducer from './chat';
 import initiativeReducer from './initiative';
 import mediaReducer from './media';
-import handoutsReducer from './handouts';
-import notesReducer from './notes';
 import charactersReducer from './characters';
 import audioReducer from './audio';
 import membersReducer from './members';
@@ -19,7 +17,10 @@ import toastReducer from './toast';
 import canvasViewportReducer from './canvasViewport';
 import assetsReducer from './assets';
 import initiativeUiReducer from './initiativeUi';
+import notificationsReducer from './notifications';
+import diceAnimReducer from './diceAnim';
 import undoHistoryReducer from './undoHistory';
+import journalReducer from './journal';
 
 export const store = configureStore({
   reducer: {
@@ -31,8 +32,6 @@ export const store = configureStore({
     initiative: initiativeReducer,
     initiativeUi: initiativeUiReducer,
     media: mediaReducer,
-    handouts: handoutsReducer,
-    notes: notesReducer,
     characters: charactersReducer,
     audio: audioReducer,
     members: membersReducer,
@@ -42,7 +41,10 @@ export const store = configureStore({
     toast: toastReducer,
     canvasViewport: canvasViewportReducer,
     assets: assetsReducer,
+    notifications: notificationsReducer,
+    diceAnim: diceAnimReducer,
     undoHistory: undoHistoryReducer,
+    journal: journalReducer,
   },
 });
 

@@ -15,8 +15,11 @@
  */
 
 export const AUDIO_MAX_BYTES = 50 * 1024 * 1024; // НФВ 6.3
-export const AUDIO_ALLOWED_MIME = ['audio/mpeg', 'audio/ogg'] as const;
+export const AUDIO_ALLOWED_MIME = ['audio/mpeg', 'audio/ogg', 'audio/wav'] as const;
 export type AudioMime = (typeof AUDIO_ALLOWED_MIME)[number];
+
+export type AudioLayer = 'music' | 'ambient' | 'sfx';
+export const ALL_AUDIO_LAYERS: ReadonlyArray<AudioLayer> = ['music', 'ambient', 'sfx'];
 
 export interface AudioTrackDTO {
   id: string;
@@ -30,6 +33,8 @@ export interface AudioTrackDTO {
   loop: boolean;
   /** Crossfade duration in milliseconds (1–10000). Default 1500. */
   fadeMs: number;
+  /** Audio routing layer — server always sets this; defaults to 'music'. */
+  layer: AudioLayer;
   createdAt: string;
 }
 
@@ -64,6 +69,8 @@ export interface AudioFinalizeRequest {
   loop?: boolean;
   /** Initial crossfade duration in milliseconds (1–10000). Default 1500. */
   fadeMs?: number;
+  /** Audio routing layer (default 'music' when omitted). */
+  layer?: AudioLayer;
 }
 
 export interface AudioPatchRequest {
@@ -73,6 +80,8 @@ export interface AudioPatchRequest {
   title?: string;
   /** Crossfade duration in milliseconds (1–10000). */
   fadeMs?: number;
+  /** Reassign track to another audio routing layer. */
+  layer?: AudioLayer;
 }
 
 export interface AudioListResponse {

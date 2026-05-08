@@ -21,12 +21,31 @@ export class AudioTrackRepository {
   /**
    * @returns the most recently created track currently bound to `sceneId`,
    * or null if none. Drives Ф6.4 autoplay on scene-switch.
+   * @deprecated Use `findActiveTracksForScene` for multi-layer support (S9).
    */
   findActiveForScene(sceneId: string): Promise<AudioTrack | null> {
     return this.db.audioTrack.findFirst({
       where: { sceneId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Returns all tracks currently bound to `sceneId`, one per layer.
+   * If multiple tracks share a layer (legacy data), returns the most recently
+   * created one for that layer (first in desc-createdAt order wins).
+   */
+  async findActiveTracksForScene(sceneId: string): Promise<AudioTrack[]> {
+    const rows = await this.db.audioTrack.findMany({
+      where: { sceneId },
+      orderBy: { createdAt: 'desc' },
+    });
+    // Dedupe by layer (first wins because rows are sorted desc by createdAt)
+    const byLayer = new Map<string, AudioTrack>();
+    for (const t of rows) {
+      if (!byLayer.has(t.layer)) byLayer.set(t.layer, t);
+    }
+    return [...byLayer.values()];
   }
 
   create(data: Prisma.AudioTrackUncheckedCreateInput): Promise<AudioTrack> {

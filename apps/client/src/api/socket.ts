@@ -30,7 +30,7 @@ import type {
 } from '@vtt/shared';
 import { tokenStore } from './tokenStore';
 import { store } from '../store';
-import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, fogBitmapUpdated, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject, setSceneObjectLayer, setSceneObjectVisibility } from '../store/scene';
+import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, fogBitmapUpdated, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject, setSceneObjectLayer, setSceneObjectVisibility, upsertToken } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
 import { applyAudioPlay } from '../store/audio';
@@ -39,6 +39,11 @@ import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
 import { upsertRoomMember, removeRoomMember, removeRoom, applyRoomUpdate, startSession, clearRoom } from '../store/room';
 import { setMicEnabled, setCameraEnabled } from '../store/media';
 import { addToast } from '../store/toast';
+import { bumpTab } from '../store/notifications';
+import { upsertCharacter, removeCharacter } from '../store/characters';
+import { upsertEntry, removeEntry } from '../store/journal';
+import { playNotificationBeep } from '../utils/notificationSound';
+import { enqueueDiceAnim } from '../store/diceAnim';
 import i18n from 'i18next';
 import { peerManagerRef } from '../infrastructure/webrtc/peerManagerRef';
 
@@ -167,14 +172,63 @@ export function getSocket(): TypedClientSocket {
   socket.on('token:rollback', (payload) => {
     store.dispatch(applyTokenRollback(payload));
   });
+  // S4.2 — per-viewer token patch broadcast from PATCH /tokens/:id.
+  socket.on('token:patched', (payload) => {
+    store.dispatch(upsertToken(payload.token));
+  });
+  // Character real-time sync — broadcast from POST/PATCH/DELETE /characters.
+  socket.on('character:created', (payload) => {
+    store.dispatch(upsertCharacter(payload.character));
+  });
+  socket.on('character:updated', (payload) => {
+    store.dispatch(upsertCharacter(payload.character));
+  });
+  socket.on('character:deleted', (payload) => {
+    store.dispatch(removeCharacter(payload.characterId));
+  });
   socket.on('chat:message', (msg) => {
     store.dispatch(appendChatMessage(msg));
+    const state = store.getState();
+    const myUserId = state.session.currentUser?.id;
+    if (!myUserId) return;
+    if (msg.userId === myUserId) return; // suppress self-notification
+    if (msg.mode === 'whisper' && msg.recipientId === myUserId) {
+      const fromName = state.room.members.find((m) => m.userId === msg.userId)?.name ?? msg.userId.slice(0, 6);
+      store.dispatch(addToast('info', `Whisper from ${fromName}`));
+      playNotificationBeep(state.notifications.soundMuted);
+      if (state.notifications.activeTab !== 'chat') {
+        store.dispatch(bumpTab('chat'));
+      }
+    }
   });
   socket.on('chat:dice', (payload) => {
     store.dispatch(appendDiceRoll(payload));
+    store.dispatch(enqueueDiceAnim({
+      expression: payload.expression,
+      rolls: payload.rolls,
+    }));
   });
   socket.on('initiative:updated', (payload) => {
+    const prevState = store.getState();
+    const prevCurrentTokenId = prevState.initiative.entries.find((e) => e.isCurrent)?.tokenId ?? null;
     store.dispatch(hydrateInitiative(payload));
+    const next = store.getState();
+    const nextCurrent = next.initiative.entries.find((e) => e.isCurrent);
+    if (!nextCurrent) return;
+    if (nextCurrent.tokenId === prevCurrentTokenId) return; // turn didn't change OR no token linked
+    if (!nextCurrent.tokenId) return;
+    const myUserId = next.session.currentUser?.id;
+    if (!myUserId) return;
+    const tokens = next.scene.current?.tokens ?? [];
+    const token = tokens.find((tk) => tk.id === nextCurrent.tokenId);
+    if (!token) return;
+    if (token.assignedUserId === myUserId) {
+      store.dispatch(addToast('info', 'Your turn'));
+      playNotificationBeep(next.notifications.soundMuted);
+      if (next.notifications.activeTab !== 'initiative') {
+        store.dispatch(bumpTab('initiative'));
+      }
+    }
   });
   // Algorithm A4 trigger A вЂ” XOR fog-mask diff broadcast (В§2.17.5).
   socket.on('fog:shape-add', (payload) => {
@@ -232,7 +286,12 @@ export function getSocket(): TypedClientSocket {
     store.dispatch(upsertRoomMember(payload.member));
   });
 
-  // Wave 4.1 вЂ” room deleted by GM: remove from store; UI components react via selector.
+  // Journal real-time sync — S11 T1 wires reducers.
+  socket.on('journal:created', (payload) => { store.dispatch(upsertEntry(payload.entry)); });
+  socket.on('journal:updated', (payload) => { store.dispatch(upsertEntry(payload.entry)); });
+  socket.on('journal:deleted', (payload) => { store.dispatch(removeEntry(payload.entryId)); });
+
+  // Wave 4.1 — room deleted by GM: remove from store; UI components react via selector.
   socket.on('room:deleted', (payload) => {
     store.dispatch(removeRoom(payload.roomId));
   });

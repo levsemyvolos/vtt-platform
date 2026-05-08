@@ -44,10 +44,10 @@ export default function RoomCard({ room, myRole, currentUserId, onOpen }: RoomCa
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMenuOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [menuOpen]);

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import type {
   InitiativeAddRequest,
   InitiativeReorderRequest,
+  InitiativeUpdateRequest,
 } from '@vtt/shared';
 import type { InitiativeService } from '../services/InitiativeService.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
@@ -16,6 +17,25 @@ function handleError(err: unknown, res: Response): void {
     return;
   }
   res.status(500).json({ error: { code: 500, message: 'Internal server error' } });
+}
+
+/**
+ * Validates and normalises an `InitiativeUpdateRequest` body.
+ * Returns a clean patch object with only the defined fields.
+ * @throws HttpError 400 on invalid field values
+ */
+function validateEntryPatch(body: InitiativeUpdateRequest): { name?: string; initiative?: number } {
+  const { name, initiative } = body;
+  if (name !== undefined && (typeof name !== 'string' || name.length < 1 || name.length > 64)) {
+    throw new HttpError(400, 'name must be 1-64 characters');
+  }
+  if (initiative !== undefined && (typeof initiative !== 'number' || !Number.isInteger(initiative))) {
+    throw new HttpError(400, 'initiative must be an integer');
+  }
+  const patch: { name?: string; initiative?: number } = {};
+  if (name !== undefined) patch.name = name;
+  if (initiative !== undefined) patch.initiative = initiative;
+  return patch;
 }
 
 /**
@@ -166,6 +186,30 @@ export function buildInitiativeRouter(
           currentRound: snapshot.currentRound,
         });
         res.json(snapshot);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  router.patch(
+    '/initiative/:entryId',
+    jwtAuth,
+    async (
+      req: Request<{ entryId: string }, object, InitiativeUpdateRequest>,
+      res: Response,
+    ) => {
+      try {
+        const patch = validateEntryPatch(req.body);
+        const sceneId = await initService.getSceneIdForEntry(req.params.entryId);
+        const { roomId } = await requireGmForScene(sceneId, req.user!.id, req.user!.role, req.user!.boundRoomId);
+        const snapshot = await initService.updateEntry(req.params.entryId, patch);
+        io.to(roomId).emit('initiative:updated', {
+          sceneId,
+          entries: snapshot.entries,
+          currentRound: snapshot.currentRound,
+        });
+        res.json({ ok: true });
       } catch (err) {
         handleError(err, res);
       }

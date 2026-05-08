@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { DiceService } from '../../src/services/DiceService.js';
+import { ChatService } from '../../src/services/ChatService.js';
+import type { ChatMessageRepository } from '../../src/repositories/ChatMessageRepository.js';
 
 describe('DiceService.parse (algorithm A1 EBNF)', () => {
   const svc = new DiceService();
@@ -113,13 +115,14 @@ describe('DiceService.rollFormula (crypto.randomInt invariant)', () => {
     }
   });
 
-  it('parseAndRoll secret mode rolls but is not statistically different from normal', () => {
-    // Secret mode has same RNG behaviour; only delivery differs (handled by ChatService).
-    const r = svc.parseAndRoll('1d1000', 'secret');
+  it('parseAndRoll normal mode produces valid rolls (secret flag is orthogonal, handled by ChatService)', () => {
+    // Visibility (secret) is separate from roll mechanic — DiceService only sees the mechanic.
+    const r = svc.parseAndRoll('1d1000', 'normal');
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value.rolls[0]).toBeGreaterThanOrEqual(1);
       expect(r.value.rolls[0]).toBeLessThanOrEqual(1000);
+      expect(r.value.mode).toBe('normal');
     }
   });
 
@@ -138,5 +141,51 @@ describe('DiceService.rollFormula (crypto.randomInt invariant)', () => {
     }
     expect(seen.has(1)).toBe(true);
     expect(seen.has(2)).toBe(true);
+  });
+});
+
+describe('ChatService.recordDiceRoll — secret flag orthogonal to mechanic', () => {
+  it('advantage + secret: payload has mode=advantage, secret=true, recipients includes roller + GM', async () => {
+    const rollerId = 'user-roller';
+    const gmId = 'user-gm';
+    const roomId = 'room-xyz';
+
+    // Stub the repo — create returns a minimal ChatMessage shape
+    const fakeMessage = {
+      id: 'msg-99',
+      roomId,
+      senderId: rollerId,
+      mode: 'secret_roll',
+      body: '1d20',
+      rollPayload: null,
+      recipientId: null,
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+    const repoMock = {
+      create: vi.fn().mockResolvedValue(fakeMessage),
+    } as unknown as ChatMessageRepository;
+
+    const chatSvc = new ChatService(repoMock);
+    const diceSvc = new DiceService();
+
+    const parsed = diceSvc.parseAndRoll('1d20', 'advantage');
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const { payload, delivery } = await chatSvc.recordDiceRoll(
+      rollerId,
+      roomId,
+      parsed.value,
+      true,    // secret
+      [gmId],  // gmUserIds
+    );
+
+    expect(payload.mode).toBe('advantage');
+    expect(payload.secret).toBe(true);
+    expect(payload.recipients).toContain(rollerId);
+    expect(payload.recipients).toContain(gmId);
+    expect(delivery.mode).toBe('unicast');
+    expect(delivery.recipients).toContain(rollerId);
+    expect(delivery.recipients).toContain(gmId);
   });
 });

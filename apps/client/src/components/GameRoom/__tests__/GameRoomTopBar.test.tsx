@@ -10,6 +10,7 @@ import sceneReducer from '../../../store/scene';
 import preferencesReducer from '../../../store/preferences';
 import mediaReducer from '../../../store/media';
 import toastReducer from '../../../store/toast';
+import notificationsReducer from '../../../store/notifications';
 import GameRoomTopBar from '../GameRoomTopBar';
 import type { RoomDTO, RoomMemberDTO } from '@vtt/shared';
 
@@ -41,6 +42,7 @@ function makeStore() {
       preferences: preferencesReducer,
       media: mediaReducer,
       toast: toastReducer,
+      notifications: notificationsReducer,
     },
     preloadedState: {
       room: {

@@ -4,6 +4,12 @@ import { SceneService } from './SceneService.js';
 import { InitiativeRepository } from '../repositories/InitiativeRepository.js';
 import { projectInitiative, projectChatMessage } from './projections.js';
 import { ChatMessageRepository } from '../repositories/ChatMessageRepository.js';
+import type { RoomAudioState } from './AudioService.js';
+
+/** Minimal interface so SessionResyncService only depends on what it needs. */
+export interface AudioStateProvider {
+  getCurrentForRoom(roomId: string): RoomAudioState;
+}
 
 /**
  * Algorithm A3 (§2.17.4) — session resync after disconnect.
@@ -17,6 +23,7 @@ export class SessionResyncService {
     private readonly sceneService: SceneService,
     private readonly initiative: InitiativeRepository,
     private readonly messages: ChatMessageRepository,
+    private readonly audioState: AudioStateProvider | null = null,
   ) {}
 
   /**
@@ -62,11 +69,16 @@ export class SessionResyncService {
       })
       .map(projectChatMessage);
 
+    const currentAudio = this.audioState
+      ? this.audioState.getCurrentForRoom(roomId)
+      : { music: null, ambient: null };
+
     return {
       scene,
       messages,
       initiatives: initiativeEntries.map(projectInitiative),
       serverTime: Date.now(),
+      currentAudio,
     };
   }
 }

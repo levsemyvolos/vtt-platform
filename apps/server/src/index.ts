@@ -3,14 +3,15 @@ import { createServer } from 'http';
 import path from 'path';
 import { authRouter } from './routes/auth.js';
 import { roomsRouter, buildRoomsRouter } from './routes/rooms.js';
-import { buildScenesRouter, roomScenesSubRouter, tokensRouter } from './routes/scenes.js';
+import { buildScenesRouter, roomScenesSubRouter, buildTokensRouter } from './routes/scenes.js';
 import { buildAiRouter } from './routes/ai.js';
 import { buildAssetsRouter } from './routes/assets.js';
 import { buildTurnRouter } from './routes/turn.js';
 import { buildInitiativeRouter } from './routes/initiative.js';
-import { buildHandoutsRouter } from './routes/handouts.js';
-import { buildNotesRouter } from './routes/notes.js';
 import { buildCharactersRouter } from './routes/characters.js';
+import { buildJournalRouter } from './routes/journal.js';
+import { JournalRepository } from './repositories/JournalRepository.js';
+import { JournalService } from './services/JournalService.js';
 import { buildAudioRouter } from './routes/audio.js';
 import { buildAudioBroadcaster } from './socketio/handlers/audio.js';
 import { buildAnnotationBroadcaster } from './socketio/handlers/annotation.js';
@@ -29,8 +30,6 @@ import { DiceService } from './services/DiceService.js';
 import { ChatService } from './services/ChatService.js';
 import { SessionResyncService } from './services/SessionResyncService.js';
 import { InitiativeService } from './services/InitiativeService.js';
-import { HandoutService } from './services/HandoutService.js';
-import { NoteService } from './services/NoteService.js';
 import { CharacterService } from './services/CharacterService.js';
 import { AIService } from './services/AIService.js';
 import { AssistantService } from './services/AssistantService.js';
@@ -41,8 +40,6 @@ import { ChatMessageRepository } from './repositories/ChatMessageRepository.js';
 import { InitiativeRepository } from './repositories/InitiativeRepository.js';
 import { RoomRepository } from './repositories/RoomRepository.js';
 import { AssetRepository } from './repositories/AssetRepository.js';
-import { HandoutRepository } from './repositories/HandoutRepository.js';
-import { NoteRepository } from './repositories/NoteRepository.js';
 import { CharacterRepository } from './repositories/CharacterRepository.js';
 import { AssistantMessageRepository } from './repositories/AssistantMessageRepository.js';
 import { GeminiProvider } from './infrastructure/ai/GeminiProvider.js';
@@ -64,8 +61,7 @@ app.use('/auth', authRouter);
 // Sub-route: POST /rooms/:id/scenes — must be mounted before catch-all rooms router order is irrelevant
 app.use('/rooms/:id/scenes', roomScenesSubRouter);
 app.use('/rooms', roomsRouter);
-// scenesRouter is wired after io is built (needs io for scene:snapshot broadcast).
-app.use('/tokens', tokensRouter);
+// tokensRouter is wired after io is built below (needs io for token:patched broadcast).
 
 // ---------- Repositories (shared across verticals) ----------
 const sceneRepo = new SceneRepository(prisma);
@@ -74,8 +70,6 @@ const chatRepo = new ChatMessageRepository(prisma);
 const initiativeRepo = new InitiativeRepository(prisma);
 const roomRepo = new RoomRepository(prisma);
 const assetRepo = new AssetRepository(prisma);
-const handoutRepo = new HandoutRepository(prisma);
-const noteRepo = new NoteRepository(prisma);
 const characterRepo = new CharacterRepository(prisma);
 const audioRepo = new AudioTrackRepository(prisma);
 const assistantMsgRepo = new AssistantMessageRepository(prisma);
@@ -120,7 +114,7 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
   // eslint-disable-next-line no-console
   console.warn(
     '[server] AI/Storage wiring skipped — GCP_PROJECT_ID / GCP_SERVICE_ACCOUNT_KEY / GCS_BUCKET not set; ' +
-      'handouts.assetUrl will be undefined and character PDF upload will return 503',
+      'journal entry attachments will be undefined and character PDF upload will return 503',
   );
 }
 
@@ -135,10 +129,20 @@ app.use(buildTurnRouter(turnConfigProvider));
 const sceneService = new SceneService(sceneRepo, tokenRepo);
 const diceService = new DiceService();
 const chatService = new ChatService(chatRepo);
-const resyncService = new SessionResyncService(sceneService, initiativeRepo, chatRepo);
+
+// Deferred audio-state provider: audioService is created later (needs io).
+// SessionResyncService calls getCurrentForRoom only at request time, so the
+// closure captures the live reference correctly even though audioService is null
+// at construction time.
+let _audioStateRef: import('./services/AudioService.js').AudioService | null = null;
+const audioStateProvider: import('./services/SessionResyncService.js').AudioStateProvider = {
+  getCurrentForRoom(roomId) {
+    return _audioStateRef?.getCurrentForRoom(roomId) ?? { music: null, ambient: null };
+  },
+};
+
+const resyncService = new SessionResyncService(sceneService, initiativeRepo, chatRepo, audioStateProvider);
 const initiativeService = new InitiativeService(initiativeRepo, sceneRepo, prisma);
-const handoutService = new HandoutService(handoutRepo, fileStorage);
-const noteService = new NoteService(noteRepo);
 const characterService = new CharacterService(characterRepo, fileStorage, assetService);
 
 const jwtSecret = process.env['JWT_SECRET'];
@@ -193,14 +197,17 @@ buildRoomsRouter(io);
 
 // Wire scenes router with io so PATCH /scenes/:id can broadcast scene:snapshot.
 app.use('/scenes', buildScenesRouter(io));
+// Wire tokens router with io so PATCH /tokens/:id can broadcast token:patched.
+app.use('/tokens', buildTokensRouter(io));
 
 app.use(buildAnnotationsRouter(sceneAnnotationService, io));
 
 // ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------
 app.use(buildInitiativeRouter(initiativeService, roomRepo, io));
-app.use(buildHandoutsRouter(handoutService, handoutRepo, roomRepo));
-app.use(buildNotesRouter(noteService, roomRepo));
-app.use(buildCharactersRouter(characterService, characterRepo, roomRepo));
+const journalRepo = new JournalRepository(prisma);
+const journalService = new JournalService(journalRepo);
+app.use(buildJournalRouter(journalService, journalRepo, roomRepo, io));
+app.use(buildCharactersRouter(characterService, characterRepo, roomRepo, io));
 
 // ---------- Чат 7.2 — audio (Ф6) — needs FileStorage; mounted only when GCS is wired ----------
 let audioService: AudioService | null = null;
@@ -213,6 +220,9 @@ if (fileStorage) {
     sceneRepo,
     buildAudioBroadcaster(io),
   );
+  // Wire deferred audio-state provider so SessionResyncService can include
+  // current audio state in resync payloads (Task 4 / S9.1).
+  _audioStateRef = audioService;
   app.use(buildAudioRouter(audioService));
 } else {
   // eslint-disable-next-line no-console

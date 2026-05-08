@@ -32,8 +32,8 @@ export default function UserChip() {
       if (wrapRef.current?.contains(target) || menuRef.current?.contains(target)) return;
       setOpen(false);
     }
-    window.addEventListener('mousedown', handle);
-    return () => window.removeEventListener('mousedown', handle);
+    window.addEventListener('click', handle);
+    return () => window.removeEventListener('click', handle);
   }, [open]);
 
   useEffect(() => {

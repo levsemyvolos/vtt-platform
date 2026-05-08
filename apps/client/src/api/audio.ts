@@ -49,6 +49,20 @@ export function getAudioPlaybackUrl(trackId: string): Promise<AudioPlaybackUrlRe
   return apiFetch<AudioPlaybackUrlResponse>(`/api/audio/${trackId}/url`);
 }
 
+/** Manually play a track (GM REST: POST /audio/:id/play). */
+export function playAudioTrack(trackId: string): Promise<void> {
+  return apiFetch<void>(`/api/audio/${trackId}/play`, { method: 'POST' });
+}
+
+/** Stop a persistent layer (GM REST: POST /audio/rooms/:roomId/stop). */
+export function stopAudioLayer(roomId: string, layer: 'music' | 'ambient'): Promise<void> {
+  return apiFetch<void>(`/api/audio/rooms/${roomId}/stop`, {
+    method: 'POST',
+    body: JSON.stringify({ layer }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 /**
  * Presigned-PUT to GCS — bypasses our application server (Чат 5 sequence А.7).
  * The signed URL pins `Content-Type`; sending a different MIME makes GCS reject.

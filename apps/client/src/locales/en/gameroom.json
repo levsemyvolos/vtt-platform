@@ -10,7 +10,9 @@
     "reconnect": "Reconnect peers",
     "reconnectToast": "Re-establishing peer connections…",
     "logout": "Log out",
-    "editScene": "Edit scene"
+    "editScene": "Edit scene",
+    "muteNotifications": "Mute notification sound",
+    "unmuteNotifications": "Unmute notification sound"
   },
   "toolbar": {
     "select": "Select",
@@ -23,6 +25,7 @@
     "text": "Text",
     "image": "Image",
     "music": "Music",
+    "dice": "Dice",
     "ai": "AI Assistant",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",

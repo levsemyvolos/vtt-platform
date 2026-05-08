@@ -25,8 +25,8 @@ export default function TokenContextMenu({
     function handleClickOutside(e: MouseEvent): void {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, [onClose]);
 
   useEffect(() => {

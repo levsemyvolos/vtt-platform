@@ -128,10 +128,10 @@ export interface TurnConfigResponse {
   ttlSecondsRemaining: number;
 }
 
-// ---------- Чат 7.1 — кампанійні матеріали (Ф7 + Ф9) ----------
-export * from './handouts';
-export * from './notes';
+// ---------- Чат 7.1 — кампанійні матеріали (Ф7 + Ф9) + S10 Journal ----------
+export * from './journal';
 export * from './characters';
+export * from './character_5e';
 export * from './initiative';
 
 // ---------- Чат 7.4 — token CRUD (Ф2.5) ----------

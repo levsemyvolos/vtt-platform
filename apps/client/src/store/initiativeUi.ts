@@ -2,9 +2,13 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 interface InitiativeUiState {
   pendingAdd: { tokenId: string; name: string } | null;
+  hoveredEntryId: string | null;
 }
 
-const initialState: InitiativeUiState = { pendingAdd: null };
+const initialState: InitiativeUiState = {
+  pendingAdd: null,
+  hoveredEntryId: null,
+};
 
 const initiativeUiSlice = createSlice({
   name: 'initiativeUi',
@@ -16,8 +20,15 @@ const initiativeUiSlice = createSlice({
     clearPendingAdd(state) {
       state.pendingAdd = null;
     },
+    setHoveredEntry(state, action: PayloadAction<string | null>) {
+      state.hoveredEntryId = action.payload;
+    },
   },
 });
 
-export const { requestAddFromToken, clearPendingAdd } = initiativeUiSlice.actions;
+export const {
+  requestAddFromToken,
+  clearPendingAdd,
+  setHoveredEntry,
+} = initiativeUiSlice.actions;
 export default initiativeUiSlice.reducer;

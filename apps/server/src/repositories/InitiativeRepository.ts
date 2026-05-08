@@ -67,6 +67,10 @@ export class InitiativeRepository {
     ]);
   }
 
+  updateEntry(id: string, data: { name?: string; initiative?: number }): Promise<InitiativeEntry> {
+    return this.db.initiativeEntry.update({ where: { id }, data });
+  }
+
   async clearCurrent(sceneId: string): Promise<void> {
     await this.db.initiativeEntry.updateMany({
       where: { sceneId, isCurrent: true },

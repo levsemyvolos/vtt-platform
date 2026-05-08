@@ -31,10 +31,11 @@ function renderToolbar(
   role: 'GM' | 'Player' | 'Observer' = 'GM',
   onOpenTab: (tab: SidebarTab) => void = vi.fn(),
   onOpenAssistant: () => void = vi.fn(),
+  onToggleDice: () => void = vi.fn(),
 ) {
   return render(
     <Provider store={store}>
-      <CanvasToolbar myRole={role} onOpenTab={onOpenTab} onOpenAssistant={onOpenAssistant} />
+      <CanvasToolbar myRole={role} onOpenTab={onOpenTab} onOpenAssistant={onOpenAssistant} onToggleDice={onToggleDice} />
     </Provider>,
   );
 }

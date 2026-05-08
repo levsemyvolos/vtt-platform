@@ -1,0 +1,54 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-xl);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeBtn:hover {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-xl);
+  /* Constrain width on huge monitors so the sheet doesn't sprawl */
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}

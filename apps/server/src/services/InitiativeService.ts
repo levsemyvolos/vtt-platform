@@ -86,6 +86,30 @@ export class InitiativeService {
     return this.getSnapshot(sceneId);
   }
 
+  /**
+   * Resolves the sceneId that owns `entryId`.
+   * @throws HttpError 404 if entry does not exist
+   */
+  async getSceneIdForEntry(entryId: string): Promise<string> {
+    const entry = await this.initiativeRepo.findById(entryId);
+    if (!entry) throw new HttpError(404, 'Initiative entry not found');
+    return entry.sceneId;
+  }
+
+  /**
+   * Updates mutable fields (name, initiative) on a single entry.
+   * @throws HttpError 404 if entry not found
+   */
+  async updateEntry(
+    entryId: string,
+    patch: { name?: string; initiative?: number },
+  ): Promise<InitiativeSnapshot> {
+    const entry = await this.initiativeRepo.findById(entryId);
+    if (!entry) throw new HttpError(404, 'Initiative entry not found');
+    await this.initiativeRepo.updateEntry(entryId, patch);
+    return this.getSnapshot(entry.sceneId);
+  }
+
   async removeEntry(sceneId: string, entryId: string): Promise<InitiativeSnapshot> {
     const entry = await this.initiativeRepo.findById(entryId);
     if (!entry || entry.sceneId !== sceneId) {

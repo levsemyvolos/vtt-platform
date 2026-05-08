@@ -26,10 +26,10 @@ interface TokenLayerProps {
 }
 
 const STATUS_COLORS: Record<StatusMarker, string> = {
-  poisoned: '#51cf66', stunned: '#339af0', prone: '#868e96',
-  blinded: '#212529', charmed: '#f783ac', frightened: '#ff6b6b',
-  grappled: '#f76707', incapacitated: '#e9ecef', paralyzed: '#74c0fc',
-  petrified: '#adb5bd', restrained: '#fd7e14', unconscious: '#495057',
+  blinded: '#212529', charmed: '#f783ac', deafened: '#9775fa', frightened: '#ff6b6b',
+  grappled: '#f76707', incapacitated: '#e9ecef', invisible: '#dee2e6', paralyzed: '#74c0fc',
+  petrified: '#adb5bd', poisoned: '#51cf66', prone: '#868e96',
+  restrained: '#fd7e14', stunned: '#339af0', unconscious: '#495057',
 };
 
 /** Status marker dots rendered below the token. Extracted to keep TokenNode
@@ -47,6 +47,26 @@ function TokenMarkers({ markers, gridSize }: { markers: StatusMarker[]; gridSize
   );
 }
 
+/** Decorative highlight rect drawn when token is hovered in initiative tracker. Extracted
+ *  to keep TokenNode cyclomatic complexity ≤ 10 (lint gate). Rendered as outer ring (inset -5)
+ *  so it remains visible alongside the yellow active highlight (inset -3). */
+function HoverHighlight({ gridSize }: { gridSize: number }): JSX.Element {
+  return (
+    <Rect
+      x={-5}
+      y={-5}
+      width={gridSize + 10}
+      height={gridSize + 10}
+      fill="transparent"
+      stroke="#3b82f6"
+      strokeWidth={2}
+      cornerRadius={8}
+      opacity={0.7}
+      listening={false}
+    />
+  );
+}
+
 /** Decorative highlight rect drawn behind the active-initiative token. Extracted
  *  to keep TokenNode cyclomatic complexity ≤ 10 (lint gate). */
 function ActiveHighlight({ gridSize }: { gridSize: number }): JSX.Element {
@@ -59,6 +79,21 @@ function ActiveHighlight({ gridSize }: { gridSize: number }): JSX.Element {
       shadowBlur={12} shadowColor="#ffd43b" shadowOpacity={0.8}
       listening={false}
     />
+  );
+}
+
+/** Renders hover and active highlights conditionally. Extracted to keep TokenNode
+ *  cyclomatic complexity ≤ 10 (lint gate). */
+function TokenHighlights({
+  isHovered, isActive, isDragging, gridSize,
+}: {
+  isHovered: boolean; isActive: boolean; isDragging: boolean; gridSize: number;
+}): JSX.Element {
+  return (
+    <>
+      {isHovered && !isDragging && <HoverHighlight gridSize={gridSize} />}
+      {isActive && !isDragging && <ActiveHighlight gridSize={gridSize} />}
+    </>
   );
 }
 
@@ -87,6 +122,13 @@ export default function TokenLayer({
     return active?.tokenId ?? null;
   });
 
+  const hoveredTokenId = useAppSelector((s) => {
+    const id = s.initiativeUi.hoveredEntryId;
+    if (!id) return null;
+    const entry = s.initiative.entries.find((e) => e.id === id);
+    return entry?.tokenId ?? null;
+  });
+
   return (
     <Layer>
       {ghost && (
@@ -109,6 +151,7 @@ export default function TokenLayer({
             draggable={myRole === 'GM' || token.assignedUserId === myUserId}
             remotePreview={preview ?? null}
             isActive={activeTokenId !== null && activeTokenId === token.id}
+            isHovered={hoveredTokenId !== null && hoveredTokenId === token.id}
             onGhostMove={setGhost}
             onGhostEnd={() => setGhost(null)}
             onEditClick={onTokenSelect}
@@ -130,6 +173,8 @@ interface TokenNodeProps {
   remotePreview: { x: number; y: number } | null;
   /** True when this token is the current initiative turn's active token. */
   isActive: boolean;
+  /** True when this token is hovered in the initiative tracker. */
+  isHovered: boolean;
   onGhostMove: (pos: { x: number; y: number }) => void;
   onGhostEnd: () => void;
   onEditClick: ((id: string) => void) | undefined;
@@ -137,7 +182,7 @@ interface TokenNodeProps {
 }
 
 function TokenNode({
-  token, sceneId, roomId, gridSize, draggable, remotePreview, isActive,
+  token, sceneId, roomId, gridSize, draggable, remotePreview, isActive, isHovered,
   onGhostMove, onGhostEnd, onEditClick, onContextMenu,
 }: TokenNodeProps): JSX.Element {
   const dispatch = useAppDispatch();
@@ -222,7 +267,7 @@ function TokenNode({
       onContextMenu={handleContextMenu}
       listening={true}
     >
-      {isActive && !isDraggingLocallyRef.current && <ActiveHighlight gridSize={gridSize} />}
+      <TokenHighlights isHovered={isHovered} isActive={isActive} isDragging={isDraggingLocallyRef.current} gridSize={gridSize} />
       {image ? (
         <KonvaImage image={image} width={gridSize} height={gridSize} />
       ) : (

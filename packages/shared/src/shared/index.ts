@@ -7,15 +7,17 @@ export type BackgroundFit = 'cover' | 'contain' | 'stretch';
 
 export type ChatMode = 'normal' | 'ic' | 'ooc' | 'whisper' | 'secret_roll';
 
-export type DiceMode = 'normal' | 'advantage' | 'disadvantage' | 'secret';
+export type DiceMode = 'normal' | 'advantage' | 'disadvantage';
 
 export type StatusMarker =
-  | 'poisoned' | 'stunned' | 'prone' | 'blinded' | 'charmed' | 'frightened'
-  | 'grappled' | 'incapacitated' | 'paralyzed' | 'petrified' | 'restrained' | 'unconscious';
+  | 'blinded' | 'charmed' | 'deafened' | 'frightened' | 'grappled'
+  | 'incapacitated' | 'invisible' | 'paralyzed' | 'petrified' | 'poisoned'
+  | 'prone' | 'restrained' | 'stunned' | 'unconscious';
 
 export const ALL_STATUS_MARKERS: readonly StatusMarker[] = [
-  'poisoned', 'stunned', 'prone', 'blinded', 'charmed', 'frightened',
-  'grappled', 'incapacitated', 'paralyzed', 'petrified', 'restrained', 'unconscious',
+  'blinded', 'charmed', 'deafened', 'frightened', 'grappled',
+  'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned',
+  'prone', 'restrained', 'stunned', 'unconscious',
 ];
 
 /**

@@ -83,7 +83,6 @@ export class DiceService {
    *
    * Modes per §2.17.2:
    * - normal:        roll `count` dice, sum.
-   * - secret:        identical to normal — visibility is decided by ChatService.
    * - advantage:     roll the formula twice, take the result with the larger sum.
    * - disadvantage:  roll the formula twice, take the result with the smaller sum.
    */

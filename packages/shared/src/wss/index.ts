@@ -12,6 +12,8 @@ import type {
   SceneObjectLayer,
   SceneObjectVisibility,
 } from '../shared/index';
+import type { AudioLayer } from '../rest/audio';
+import type { JournalEntryDTO } from '../rest/journal';
 
 // ---------- C→S payloads ----------
 
@@ -53,6 +55,8 @@ export interface DiceRollInput {
   roomId: string;
   expression: string;
   mode: DiceMode;
+  /** When true, the resulting message is unicast to GMs + the roller only. */
+  secret: boolean;
   label?: string;
 }
 
@@ -108,6 +112,12 @@ export interface SessionResyncPayload {
   messages: ChatMessageDTO[];
   initiatives: InitiativeEntryDTO[];
   serverTime: number;
+  /** Current audio state per persistent layer — used by late-joining clients to
+   *  resync playback offset via `startedAt` (Task 4 / S9.1). */
+  currentAudio: {
+    music: AudioPlayPayload | null;
+    ambient: AudioPlayPayload | null;
+  };
 }
 
 /**
@@ -167,31 +177,48 @@ export interface InitiativeUpdatedPayload {
 }
 
 /**
- * Universal audio-control event (Ф6, table 2.14).
+ * Audio playback broadcast event (S8 — 3-layer architecture).
  *
- * Discriminated by `action`:
- *   - 'play'   — start the track from the beginning (track became current).
- *   - 'switch' — scene changed and the new scene's bound track must auto-start
- *                with fade-in (Ф6.4); semantically same as 'play' but lets
- *                clients distinguish a manual play from a scene-switch.
- *   - 'stop'   — stop the current track (no `trackId`/`sceneId` required).
+ * Two discriminated flows:
+ *   - `kind: 'persistent'` — music/ambient layers. Stored in client `current[layer]`.
+ *     Late-joiners resync via `startedAt`. Loop honored. SFX-style players ignore.
+ *   - `kind: 'sfx'` — fire-and-forget. No `loop`, no `startedAt`. Played once on
+ *     reception. Late-joiners miss it (industry standard, e.g. Foundry Soundboard,
+ *     Roll20 Jukebox SFX).
+ *
+ * `layer` on the `persistent` variant is narrowed to `'music' | 'ambient'` — `sfx`
+ * is fully captured by the third arm, which simplifies client switch logic.
  *
  * `startedAt` is the server's monotonic timestamp (ms since epoch) so late
- * joiners can sync playback offset on `session:resync`. Fade duration lives on
- * the client as a UI constant (see store/audio.ts) — it is never persisted
- * and never travels over the wire.
+ * joiners can sync playback offset on `session:resync`.
+ *
+ * `fadeMs` is the per-track (or server-default) fade duration in milliseconds
+ * used by the client for both fade-in on play/switch and fade-out on stop.
  */
 export type AudioPlayPayload =
   | {
+      kind: 'persistent';
+      layer: Exclude<AudioLayer, 'sfx'>;
       action: 'play' | 'switch';
       trackId: string;
       sceneId: string | null;
       loop: boolean;
+      /** Per-track fade duration in ms — drives client ramp on play/switch. */
+      fadeMs: number;
       startedAt: number;
     }
   | {
+      kind: 'persistent';
+      layer: Exclude<AudioLayer, 'sfx'>;
       action: 'stop';
+      /** Fade-out duration in ms — driven by the track's fadeMs or default 1500. */
+      fadeMs: number;
       startedAt: number;
+    }
+  | {
+      kind: 'sfx';
+      trackId: string;
+      sceneId: string | null;
     };
 
 /**
@@ -444,6 +471,18 @@ export interface MemberJoinedPayload {
   member: import('../rest/index').RoomMemberDTO;
 }
 
+// Journal WSS payloads (S10 T2).
+
+export interface JournalEventPayload {
+  roomId: string;
+  entry: JournalEntryDTO;
+}
+
+export interface JournalDeletedPayload {
+  roomId: string;
+  entryId: string;
+}
+
 export interface RoomDeletedPayload {
   roomId: string;
   reason?: string;
@@ -511,6 +550,38 @@ export interface ServerToClientEvents {
   'room:kicked': (payload: { roomId: string }) => void;
   /** Full scene snapshot broadcast — used for background/grid changes and scene:flush delivery. */
   'scene:snapshot': (payload: SceneSnapshotPayload) => void;
+  'token:patched': (payload: TokenPatchedPayload) => void;
+  'character:created': (payload: CharacterCreatedPayload) => void;
+  'character:updated': (payload: CharacterUpdatedPayload) => void;
+  'character:deleted': (payload: CharacterDeletedPayload) => void;
+  'journal:created': (payload: JournalEventPayload) => void;
+  'journal:updated': (payload: JournalEventPayload) => void;
+  'journal:deleted': (payload: JournalDeletedPayload) => void;
+}
+
+/**
+ * Per-viewer token patch broadcast (S4.2).
+ * Emitted after PATCH /tokens/:id — projected per viewer role so private fields
+ * (hp, statusMarkers) are only included for GM and token owner.
+ */
+export interface TokenPatchedPayload {
+  sceneId: string;
+  token: TokenPublicDTO;
+}
+
+export interface CharacterCreatedPayload {
+  roomId: string;
+  character: import('../rest/index').CharacterSheetDTO;
+}
+
+export interface CharacterUpdatedPayload {
+  roomId: string;
+  character: import('../rest/index').CharacterSheetDTO;
+}
+
+export interface CharacterDeletedPayload {
+  roomId: string;
+  characterId: string;
 }
 
 export interface ModerationPayload {

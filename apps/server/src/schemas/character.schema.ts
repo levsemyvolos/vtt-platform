@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { characterSheetSchema } from './character_5e.schema';
 
 /** DB: Character.name VarChar(128) */
 export const characterCreateSchema = z.object({
@@ -6,8 +7,9 @@ export const characterCreateSchema = z.object({
     .string({ required_error: 'Character name is required' })
     .trim()
     .min(1, 'Character name cannot be empty')
-    .max(100, 'Character name must be 100 characters or fewer'),
-  sheetData: z.unknown().optional(),
+    .max(64, 'Character name must be 64 characters or fewer'),
+  sheetData: z.union([characterSheetSchema, z.record(z.unknown())]).optional(),
+  // tolerates legacy/unknown shapes; structured sheets validated by characterSheetSchema
 });
 
 export const characterUpdateSchema = z.object({
@@ -15,9 +17,10 @@ export const characterUpdateSchema = z.object({
     .string()
     .trim()
     .min(1, 'Character name cannot be empty')
-    .max(100, 'Character name must be 100 characters or fewer')
+    .max(64, 'Character name must be 64 characters or fewer')
     .optional(),
-  sheetData: z.unknown().optional(),
+  sheetData: z.union([characterSheetSchema, z.record(z.unknown())]).optional(),
+  // tolerates legacy/unknown shapes; structured sheets validated by characterSheetSchema
 });
 
 export type CharacterCreateInput = z.infer<typeof characterCreateSchema>;

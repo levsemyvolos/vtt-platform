@@ -1,4 +1,4 @@
-{
+﻿{
   "topBar": {
     "breadcrumb": "Кімнати",
     "wssHealthOnline": "WSS активний",
@@ -10,7 +10,9 @@
     "reconnect": "Перепідключити peers",
     "reconnectToast": "Перепідключаємо peer-з'єднання…",
     "logout": "Вийти",
-    "editScene": "Редагувати сцену"
+    "editScene": "Редагувати сцену",
+    "muteNotifications": "Вимкнути звук сповіщень",
+    "unmuteNotifications": "Увімкнути звук сповіщень"
   },
   "toolbar": {
     "select": "Вибір",
@@ -23,6 +25,7 @@
     "text": "Текст",
     "image": "Зображення",
     "music": "Музика",
+    "dice": "Кубики",
     "ai": "AI-помічник",
     "zoomIn": "Збільшити",
     "zoomOut": "Зменшити",
@@ -105,3 +108,4 @@
     "undo": "Скасувати"
   }
 }
+

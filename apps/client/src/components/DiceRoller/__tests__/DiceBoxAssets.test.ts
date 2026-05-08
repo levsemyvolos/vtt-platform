@@ -5,7 +5,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-test('dice-box assets are present in public/ after postinstall', () => {
-  const json = resolve(__dirname, '../../../../public/assets/dice-box/themes/default/default.json');
-  expect(existsSync(json)).toBe(true);
+test('dice-box-threejs assets are present in public/ after postinstall', () => {
+  const textures = resolve(__dirname, '../../../../public/textures');
+  expect(existsSync(textures)).toBe(true);
+  const sounds = resolve(__dirname, '../../../../public/sounds');
+  expect(existsSync(sounds)).toBe(true);
 });

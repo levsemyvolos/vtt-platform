@@ -1,0 +1,85 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.chip {
+  padding: 2px var(--space-sm);
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.chipActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.chipActive:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--color-text-inverse);
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  overflow-y: auto;
+  flex: 1;
+  padding: 0;
+  margin: 0;
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--space-lg);
+}
+
+.placeholder {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}

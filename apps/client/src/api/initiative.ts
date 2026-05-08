@@ -1,6 +1,7 @@
 import type {
   InitiativeAddRequest,
   InitiativeReorderRequest,
+  InitiativeUpdateRequest,
   InitiativeUpdatedPayload,
 } from '@vtt/shared';
 import { apiFetch } from './apiFetch';
@@ -55,5 +56,16 @@ export function reorderInitiative(
 export function advanceInitiative(sceneId: string): Promise<InitiativeUpdatedPayload> {
   return apiFetch<InitiativeUpdatedPayload>(`/api/scenes/${sceneId}/initiative/advance`, {
     method: 'POST',
+  });
+}
+
+/** PATCH /api/initiative/:entryId — оновити name або initiative (RBAC: GM). */
+export function apiUpdateEntry(
+  entryId: string,
+  data: InitiativeUpdateRequest,
+): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/api/initiative/${entryId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
   });
 }

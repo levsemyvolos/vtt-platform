@@ -98,19 +98,35 @@
     "messagePlaceholder": "Message…",
     "selectRecipient": "— select recipient —",
     "modeLabel": "Chat mode",
-    "recipientLabel": "Whisper recipient"
+    "recipientLabel": "Whisper recipient",
+    "commandHint": "/roll 2d6+3 [adv|dis] [secret] · /w <name> <text> · /ooc <text> · /me <action>",
+    "searchPlaceholder": "Search chat…",
+    "searchEmpty": "Nothing found.",
+    "eyebrow": {
+      "roll": "ROLL",
+      "whisper": "WHISPER"
+    }
   },
   "dice": {
-    "formulaLabel": "Dice formula",
-    "modeLabel": "Dice mode",
+    "toolHeading": "Dice",
+    "closeLabel": "Close tool",
+    "noExpression": "Pick a die",
+    "digitGroup": "Die count",
+    "dieGroup": "Die type",
+    "secret": "Secret roll",
+    "secretToggleLabel": "Toggle secret roll",
+    "rollBtn": "Roll",
+    "rollAria": "Roll {{expression}}",
+    "modeLabel": "Roll mode",
     "modes": {
       "normal": "Normal",
       "advantage": "Advantage",
       "disadvantage": "Disadvantage",
-      "secret": "Secret (GM only)"
+      "normalShort": "Norm",
+      "advantageShort": "Adv",
+      "disadvantageShort": "Dis"
     },
-    "rollBtn": "Roll",
-    "lastRoll": "Last: {{expression}} = {{total}} ({{rolls}})"
+    "commandHint": "/roll 2d6+3 [adv|dis] [secret] · /w <name> <text> · /ooc <text> · /me <action>"
   },
   "invite": {
     "inviteBtn": "Invite Players",

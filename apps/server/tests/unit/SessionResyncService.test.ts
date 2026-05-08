@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ChatMessage, InitiativeEntry } from '@prisma/client';
 import { SessionResyncService } from '../../src/services/SessionResyncService.js';
+import type { AudioStateProvider } from '../../src/services/SessionResyncService.js';
 import type { SceneService } from '../../src/services/SceneService.js';
 import type { ChatMessageRepository } from '../../src/repositories/ChatMessageRepository.js';
 import type { InitiativeRepository } from '../../src/repositories/InitiativeRepository.js';
+import type { AudioPlayPayload } from '@vtt/shared';
 
 const sceneSnapshot = {
   id: 'scene-1',
@@ -66,7 +68,7 @@ const secretRoll: ChatMessage = {
   senderId: 'user-A',
   mode: 'secret_roll',
   body: '1d20',
-  rollPayload: { expression: '1d20', total: 17, rolls: [17], mode: 'secret' },
+  rollPayload: { expression: '1d20', total: 17, rolls: [17], mode: 'normal' },
   recipientId: null,
   createdAt: new Date('2026-04-30T10:02:00Z'),
 };
@@ -163,5 +165,44 @@ describe('SessionResyncService.buildResyncPayload (algorithm A3, §2.17.4)', () 
     await svc.buildResyncPayload('room-1', 'Player', 'user-A');
     const elapsed = performance.now() - t0;
     expect(elapsed).toBeLessThan(100);
+  });
+
+  it('includes currentAudio from the injected AudioStateProvider', async () => {
+    const musicPayload: AudioPlayPayload = {
+      kind: 'persistent',
+      layer: 'music',
+      action: 'play',
+      trackId: 'track-1',
+      sceneId: 'scene-1',
+      loop: true,
+      fadeMs: 1500,
+      startedAt: Date.now(),
+    };
+    const audioProvider: AudioStateProvider = {
+      getCurrentForRoom: vi.fn().mockReturnValue({ music: musicPayload, ambient: null }),
+    };
+
+    const svc = new SessionResyncService(
+      makeSceneService(),
+      makeInitiativeRepo(),
+      makeChatRepo(),
+      audioProvider,
+    );
+
+    const payload = await svc.buildResyncPayload('room-1', 'GM', 'user-gm');
+    expect(payload.currentAudio.music).toMatchObject({ trackId: 'track-1', layer: 'music' });
+    expect(payload.currentAudio.ambient).toBeNull();
+    expect(audioProvider.getCurrentForRoom).toHaveBeenCalledWith('room-1');
+  });
+
+  it('currentAudio defaults to nulls when no provider is given', async () => {
+    const svc = new SessionResyncService(
+      makeSceneService(),
+      makeInitiativeRepo(),
+      makeChatRepo(),
+      // no audioState argument
+    );
+    const payload = await svc.buildResyncPayload('room-1', 'Player', 'user-A');
+    expect(payload.currentAudio).toEqual({ music: null, ambient: null });
   });
 });

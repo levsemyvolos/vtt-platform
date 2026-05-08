@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AUDIO_MAX_BYTES } from '@vtt/shared';
+import { Upload } from 'lucide-react';
+import type { AudioLayer, AudioMime } from '@vtt/shared';
+import { AUDIO_MAX_BYTES, AUDIO_ALLOWED_MIME } from '@vtt/shared';
 import { useAppDispatch } from '../../store';
 import { uploadAudioTrack } from '../../store/audio';
 import styles from './AudioPanel.module.css';
@@ -8,15 +10,16 @@ import styles from './AudioPanel.module.css';
 interface TrackUploadProps {
   roomId: string;
   sceneId: string | null;
+  layer: AudioLayer;
 }
 
-export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.Element {
+export default function TrackUpload({ roomId, sceneId, layer }: TrackUploadProps): JSX.Element {
   const { t } = useTranslation(['campaign', 'errors']);
   const dispatch = useAppDispatch();
+  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loop, setLoop] = useState(false);
-  const [fadeMs, setFadeMs] = useState(1500);
   const [bindScene, setBindScene] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +31,7 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
       setError(t('errors:validation.audioFileRequired'));
       return;
     }
-    if (file.type !== 'audio/mpeg' && file.type !== 'audio/ogg') {
+    if (!AUDIO_ALLOWED_MIME.includes(file.type as AudioMime)) {
       setError(t('errors:validation.audioType'));
       return;
     }
@@ -43,19 +46,32 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
           roomId,
           file,
           title: title.trim() || file.name,
+          layer,
           sceneId: bindScene ? sceneId : null,
           loop,
-          fadeMs,
         }),
       ).unwrap();
       setTitle('');
       setFile(null);
-      setFadeMs(1500);
+      setOpen(false);
     } catch (err) {
       setError(typeof err === 'string' ? err : t('errors:network.uploadFailed'));
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className={styles.openUploadBtn}
+        onClick={() => setOpen(true)}
+      >
+        <Upload size={14} aria-hidden />
+        {t('campaign:audio.uploadShort')}
+      </button>
+    );
   }
 
   return (
@@ -69,31 +85,21 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
       />
       <input
         type="file"
-        accept="audio/mpeg,audio/ogg"
+        accept="audio/mpeg,audio/ogg,audio/wav"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         aria-label={t('campaign:audio.fileLabel')}
         required
       />
-      <label>
-        <input
-          type="checkbox"
-          checked={loop}
-          onChange={(e) => setLoop(e.target.checked)}
-        />
-        {t('campaign:audio.loopLabel')}
-      </label>
-      <label className={styles.editRow}>
-        {t('campaign:audio.fadeLabel', { ms: fadeMs })}
-        <input
-          type="range"
-          min={0}
-          max={5000}
-          step={100}
-          value={fadeMs}
-          onChange={(e) => setFadeMs(Number(e.target.value))}
-          aria-label={t('campaign:audio.fadeAriaLabel')}
-        />
-      </label>
+      {layer !== 'sfx' && (
+        <label>
+          <input
+            type="checkbox"
+            checked={loop}
+            onChange={(e) => setLoop(e.target.checked)}
+          />
+          {t('campaign:audio.loopLabel')}
+        </label>
+      )}
       <label>
         <input
           type="checkbox"
@@ -103,9 +109,19 @@ export default function TrackUpload({ roomId, sceneId }: TrackUploadProps): JSX.
         />
         {t('campaign:audio.bindSceneLabel')}
       </label>
-      <button type="submit" className={styles.btnUpload} disabled={busy}>
-        {busy ? t('campaign:audio.uploading') : t('campaign:audio.uploadBtn')}
-      </button>
+      <div className={styles.uploadActions}>
+        <button type="submit" className={styles.btnUpload} disabled={busy}>
+          {busy ? t('campaign:audio.uploading') : t('campaign:audio.uploadBtn')}
+        </button>
+        <button
+          type="button"
+          className={styles.btnCancel}
+          disabled={busy}
+          onClick={() => { setOpen(false); setError(null); }}
+        >
+          {t('campaign:audio.uploadCancel')}
+        </button>
+      </div>
       {error && <p className={styles.uploadError}>{error}</p>}
     </form>
   );

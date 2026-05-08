@@ -2,23 +2,21 @@ import { type CSSProperties, type RefObject, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   MessageSquare,
-  Dices,
   Swords,
   UserCircle,
-  FileText,
-  StickyNote,
+  BookOpen,
   Headphones,
 } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import type { SidebarTab } from '../GameRoom/types';
+import { useAppDispatch, useAppSelector } from '../../store';
+import { clearTab } from '../../store/notifications';
 import InitiativeTracker from './InitiativeTracker';
-import HandoutPanel from '../Handouts/HandoutPanel';
-import NotesPanel from '../Notes/NotesPanel';
-import CharacterSheet from '../CharacterSheet/CharacterSheet';
+import CharacterStatStrip from '../CharacterSheet/CharacterStatStrip';
 import AudioPanel from '../AudioPanel/AudioPanel';
 import AudioPlayer from '../AudioPanel/AudioPlayer';
 import ChatPanel from '../ChatPanel/ChatPanel';
-import DiceRoller from '../DiceRoller/DiceRoller';
+import JournalPanel from '../Journal/JournalPanel';
 import SidebarResizer from '../GameRoom/SidebarResizer';
 import styles from './Sidebar.module.css';
 
@@ -34,6 +32,8 @@ interface SidebarProps {
   onResizeEnd: (width: number) => void;
   collapsed?: boolean;
   style?: CSSProperties;
+  /** T2 will wire this to the StatStrip "Open Sheet" button. */
+  onOpenCharacterSheet?: (characterId: string | null) => void;
 }
 
 interface TabSpec {
@@ -53,11 +53,6 @@ function buildTabs(myRole: Role, t: (key: string) => string): TabSpec[] {
       label: t('campaign:chat.sidebarTab'),
     },
     {
-      id: 'dice',
-      icon: <Dices size={ICON_SIZE} />,
-      label: t('campaign:dice.sidebarTab'),
-    },
-    {
       id: 'initiative',
       icon: <Swords size={ICON_SIZE} />,
       label: t('campaign:initiative.sidebarTab'),
@@ -69,16 +64,10 @@ function buildTabs(myRole: Role, t: (key: string) => string): TabSpec[] {
       roleFilter: (r) => r !== 'Observer',
     },
     {
-      id: 'handouts',
-      icon: <FileText size={ICON_SIZE} />,
-      label: t('campaign:handouts.sidebarTab'),
+      id: 'journal',
+      icon: <BookOpen size={ICON_SIZE} />,
+      label: t('campaign:journal.sidebarTab'),
       roleFilter: (r) => r !== 'Observer',
-    },
-    {
-      id: 'notes',
-      icon: <StickyNote size={ICON_SIZE} />,
-      label: t('campaign:notes.sidebarTab'),
-      roleFilter: (r) => r === 'GM',
     },
     {
       id: 'audio',
@@ -95,22 +84,30 @@ interface PanelProps {
   sceneId: string | null;
   myRole: Role;
   myCharacterId: string | null;
+  myUserId: string;
+  onOpenCharacterSheet?: (characterId: string | null) => void;
 }
 
-function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId }: PanelProps): JSX.Element | null {
+function InitiativePanel({ sceneId, myRole, roomId }: { sceneId: string | null; myRole: Role; roomId: string }): JSX.Element {
   const { t } = useTranslation('campaign');
+  if (sceneId) return <InitiativeTracker sceneId={sceneId} myRole={myRole} roomId={roomId} />;
+  return <p className={styles.placeholder}>{t('sidebar.noActiveScene')}</p>;
+}
+
+function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId, myUserId, onOpenCharacterSheet }: PanelProps): JSX.Element | null {
   if (tab === 'chat') return <ChatPanel roomId={roomId} />;
-  if (tab === 'dice') return <DiceRoller roomId={roomId} />;
-  if (tab === 'initiative') {
-    return sceneId ? (
-      <InitiativeTracker sceneId={sceneId} myRole={myRole} roomId={roomId} />
-    ) : (
-      <p className={styles.placeholder}>{t('sidebar.noActiveScene')}</p>
+  if (tab === 'initiative') return <InitiativePanel sceneId={sceneId} myRole={myRole} roomId={roomId} />;
+  if (tab === 'character') {
+    return (
+      <CharacterStatStrip
+        roomId={roomId}
+        myRole={myRole}
+        myCharacterId={myCharacterId ?? null}
+        onOpenSheet={onOpenCharacterSheet ?? (() => { /* no-op */ })}
+      />
     );
   }
-  if (tab === 'character') return <CharacterSheet characterId={myCharacterId ?? null} roomId={roomId} myRole={myRole} />;
-  if (tab === 'handouts') return <HandoutPanel roomId={roomId} myRole={myRole} />;
-  if (tab === 'notes') return <NotesPanel roomId={roomId} myRole={myRole} />;
+  if (tab === 'journal') return <JournalPanel roomId={roomId} myRole={myRole} myUserId={myUserId} />;
   if (tab === 'audio') return <AudioPanel roomId={roomId} sceneId={sceneId} myRole={myRole} />;
   return null;
 }
@@ -121,6 +118,9 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
   const tab = props.activeTab ?? internalTab;
   const setTab = props.onTabChange ?? setInternalTab;
   const collapsed = props.collapsed ?? false;
+
+  const dispatch = useAppDispatch();
+  const unreadByTab = useAppSelector((s) => s.notifications.unreadByTab);
 
   const tabs = buildTabs(props.myRole, t as (key: string) => string);
 
@@ -142,12 +142,23 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
             role="tab"
             aria-selected={tab === tabSpec.id}
             className={`${styles.tabBtn}${tab === tabSpec.id ? ` ${styles.tabBtnActive}` : ''}`}
-            onClick={() => setTab(tabSpec.id)}
+            onClick={() => {
+              dispatch(clearTab(tabSpec.id));
+              setTab(tabSpec.id);
+            }}
             title={tabSpec.label}
             aria-label={tabSpec.label}
           >
             <span className={styles.tabIcon} aria-hidden>{tabSpec.icon}</span>
             <span className={styles.tabLabel}>{tabSpec.label}</span>
+            {(unreadByTab[tabSpec.id] ?? 0) > 0 ? (
+              <span
+                className={styles.tabBadge}
+                aria-label={`${unreadByTab[tabSpec.id]} unread`}
+              >
+                {(unreadByTab[tabSpec.id] ?? 0) > 9 ? '9+' : unreadByTab[tabSpec.id]}
+              </span>
+            ) : null}
           </button>
         ))}
       </nav>
@@ -160,6 +171,10 @@ export default function Sidebar(props: SidebarProps): JSX.Element {
               sceneId={props.sceneId}
               myRole={props.myRole}
               myCharacterId={props.myCharacterId}
+              myUserId={props.myUserId}
+              {...(props.onOpenCharacterSheet
+                ? { onOpenCharacterSheet: props.onOpenCharacterSheet }
+                : {})}
             />
           </div>
           <AudioPlayer />

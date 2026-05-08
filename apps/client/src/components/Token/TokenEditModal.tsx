@@ -123,7 +123,7 @@ function renderImagePicker(a: ImagePickerArgs): JSX.Element {
 
 export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps): JSX.Element | null {
   const dispatch = useAppDispatch();
-  const { t } = useTranslation(['room', 'common', 'errors']);
+  const { t } = useTranslation(['room', 'common', 'errors', 'campaign']);
   const token = useAppSelector((s) => s.scene.current?.tokens.find((tk) => tk.id === tokenId));
   const members = useAppSelector((s) => s.room.members);
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
@@ -297,8 +297,9 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
                 className={`${styles.marker}${markers.includes(m) ? ` ${styles['marker--active']}` : ''}`}
                 onClick={() => toggleMarker(m)}
                 aria-pressed={markers.includes(m)}
+                title={t(`campaign:markers.${m}.full`)}
               >
-                {m}
+                {t(`campaign:markers.${m}.full`)}
               </button>
             ))}
           </div>

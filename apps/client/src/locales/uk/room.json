@@ -99,19 +99,35 @@
     "messagePlaceholder": "Повідомлення…",
     "selectRecipient": "— оберіть отримувача —",
     "modeLabel": "Режим чату",
-    "recipientLabel": "Отримувач шепоту"
+    "recipientLabel": "Отримувач шепоту",
+    "commandHint": "/roll 2d6+3 [adv|dis] [secret] · /w <ім'я> <текст> · /ooc <текст> · /me <дія>",
+    "searchPlaceholder": "Пошук у чаті…",
+    "searchEmpty": "Нічого не знайдено.",
+    "eyebrow": {
+      "roll": "КИДОК",
+      "whisper": "ПРИВАТНО"
+    }
   },
   "dice": {
-    "formulaLabel": "Формула кидка",
-    "modeLabel": "Режим кидка",
+    "toolHeading": "Кубики",
+    "closeLabel": "Закрити інструмент",
+    "noExpression": "Оберіть кубик",
+    "digitGroup": "Кількість кубиків",
+    "dieGroup": "Тип кубика",
+    "secret": "Прихований кидок",
+    "secretToggleLabel": "Перемкнути прихований кидок",
+    "rollBtn": "Кинути",
+    "rollAria": "Кинути {{expression}}",
+    "modeLabel": "Тип кидка",
     "modes": {
       "normal": "Звичайний",
       "advantage": "Перевага",
       "disadvantage": "Недолік",
-      "secret": "Прихований (тільки ВМ)"
+      "normalShort": "Норм",
+      "advantageShort": "Адв",
+      "disadvantageShort": "Дис"
     },
-    "rollBtn": "Кинути",
-    "lastRoll": "Останній: {{expression}} = {{total}} ({{rolls}})"
+    "commandHint": "/roll 2d6+3 [adv|dis] [secret] · /w <ім'я> <текст> · /ooc <текст> · /me <дія>"
   },
   "invite": {
     "inviteBtn": "Запросити гравців",

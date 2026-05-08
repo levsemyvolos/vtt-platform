@@ -2,9 +2,6 @@
   "chat": {
     "sidebarTab": "Чат"
   },
-  "dice": {
-    "sidebarTab": "Куби"
-  },
   "initiative": {
     "sidebarTab": "Ініціатива",
     "roundLabel": "Раунд: {{round}}",
@@ -29,43 +26,74 @@
     "sourceNpc": "Власний NPC",
     "tokenPickerLabel": "Прив'язати до токена",
     "tokenPickerNone": "— без токена —",
-    "addToInitiative": "До ініціативи"
+    "addToInitiative": "До ініціативи",
+    "hpCurrentLabel": "Поточне HP",
+    "hpMaxLabel": "Максимум HP",
+    "hpEditLabel": "Редагувати HP для {{name}}",
+    "hpReadLabel": "HP для {{name}}",
+    "conditionsAriaLabel": "Активні стани",
+    "markersAriaLabel": "Активні стани",
+    "valueEditLabel": "Редагувати ініціативу",
+    "valueLabel": "Ініціатива",
+    "nameEditLabel": "Редагувати ім'я"
   },
-  "handouts": {
-    "sidebarTab": "Handouts",
-    "heading": "Handouts",
-    "gmAriaLabel": "Handouts (GM)",
-    "playerAriaLabel": "Handouts",
-    "createBtn": "+ Створити",
-    "titlePlaceholder": "Заголовок",
-    "titleAriaLabel": "Заголовок handout",
-    "bodyPlaceholder": "Текст (Markdown)",
-    "bodyAriaLabel": "Тіло handout",
-    "assetIdPlaceholder": "assetId (необов'язково)",
-    "assetIdAriaLabel": "assetId (необов'язково)",
-    "grantedLabel": "Видано:",
-    "noneGranted": "нікому",
-    "revokeLabel": "Відкликати у {{uid}}",
-    "grantToPlayersLegend": "Видати гравцям",
-    "grantLabel": "Видати {{name}}",
-    "grantBtn": "Grant",
-    "noPlayers": "Гравців без персонажів немає — попросіть учасників створити персонажа.",
-    "deleteLabel": "Видалити handout {{title}}",
-    "emptyPlayer": "Поки що нічого не видано.",
-    "downloadAttachment": "Завантажити вкладений файл"
-  },
-  "notes": {
-    "sidebarTab": "Нотатки",
-    "heading": "Нотатки",
-    "panelAriaLabel": "GM notes",
-    "createBtn": "+ Створити",
-    "createAriaLabel": "Створити нотатку",
-    "untitled": "(без назви)",
-    "emptySelect": "Оберіть або створіть нотатку.",
-    "titleLabel": "Заголовок нотатки",
-    "bodyLabel": "Текст нотатки (Markdown)",
-    "previewLabel": "Markdown preview",
-    "newNoteTitle": "Нова нотатка"
+  "markers": {
+    "blinded": {
+      "short": "СЛІ",
+      "full": "Засліплений"
+    },
+    "charmed": {
+      "short": "ЗАЧ",
+      "full": "Зачарований"
+    },
+    "deafened": {
+      "short": "ОГЛ",
+      "full": "Оглушений"
+    },
+    "frightened": {
+      "short": "ЛЯК",
+      "full": "Наляканий"
+    },
+    "grappled": {
+      "short": "СХО",
+      "full": "Схоплений"
+    },
+    "incapacitated": {
+      "short": "НЕД",
+      "full": "Недієздатний"
+    },
+    "invisible": {
+      "short": "НЕВ",
+      "full": "Невидимий"
+    },
+    "paralyzed": {
+      "short": "ПАР",
+      "full": "Паралізований"
+    },
+    "petrified": {
+      "short": "СКА",
+      "full": "Скам'янілий"
+    },
+    "poisoned": {
+      "short": "ОТР",
+      "full": "Отруєний"
+    },
+    "prone": {
+      "short": "ЗБИ",
+      "full": "Збитий з ніг"
+    },
+    "restrained": {
+      "short": "СКУ",
+      "full": "Скутий"
+    },
+    "stunned": {
+      "short": "ПРИ",
+      "full": "Приголомшений"
+    },
+    "unconscious": {
+      "short": "БЕЗ",
+      "full": "Без свідомості"
+    }
   },
   "character": {
     "sidebarTab": "Персонаж",
@@ -102,7 +130,14 @@
     "spellDeleteLabel": "Видалити {{name}}",
     "pdfSection": "PDF",
     "pdfTitle": "PDF аркуш {{name}}",
-    "pdfUploadLabel": "Завантажити PDF"
+    "pdfUploadLabel": "Завантажити PDF",
+    "overlayTitle": "Аркуш персонажа",
+    "closeOverlay": "Закрити аркуш",
+    "openSheet": "Відкрити аркуш",
+    "noOwnCharacter": "Персонажа ще немає.",
+    "createBtn": "Створити персонажа",
+    "allCharactersLabel": "Усі персонажі",
+    "invalidName": "Ім'я має бути від 1 до 64 символів"
   },
   "audio": {
     "sidebarTab": "Музика",
@@ -122,17 +157,204 @@
     "fadeLabel": "Fade {{ms}} мс",
     "fadeAriaLabel": "Тривалість fade-in/out",
     "loopLabel": "Loop",
+    "layerLabel": "Шар",
     "trackTitlePlaceholder": "Назва треку",
     "trackTitleLabel": "Назва аудіо-треку",
-    "fileLabel": "Аудіо-файл (MP3 / OGG)",
+    "fileLabel": "Аудіо-файл (MP3 / OGG / WAV)",
     "bindSceneLabel": "Прив'язати до активної сцени",
     "uploading": "Завантаження…",
     "uploadBtn": "Завантажити",
-    "uploadError": "Помилка завантаження"
+    "uploadShort": "+ Завантажити трек",
+    "uploadCancel": "Скасувати",
+    "uploadError": "Помилка завантаження",
+    "layer": {
+      "music": "Музика",
+      "ambient": "Ambient",
+      "sfx": "SFX",
+      "empty": "У цьому шарі немає треків."
+    },
+    "mixer": {
+      "heading": "Гучність",
+      "master": "Загальна",
+      "music": "Музика",
+      "ambient": "Ambient",
+      "sfx": "SFX"
+    },
+    "section": {
+      "tracks": "{{count}} треки"
+    },
+    "gestureOverlay": {
+      "label": "Натисніть, щоб увімкнути аудіо"
+    },
+    "playAriaLabel": "Відтворити {{title}}",
+    "stopAriaLabel": "Зупинити {{title}}"
+  },
+  "journal": {
+    "sidebarTab": "Журнал",
+    "heading": "Журнал",
+    "filterAll": "Усі",
+    "filterPrivate": "Приватні",
+    "filterShared": "Спільні",
+    "filterAriaLabel": "Фільтр записів журналу",
+    "newBtn": "Новий",
+    "empty": "Записів ще немає.",
+    "loading": "Завантаження…",
+    "visibilityPrivate": "Приватний",
+    "visibilityShared": "Спільний",
+    "editor": {
+      "headingCreate": "Новий запис журналу",
+      "headingEdit": "Редагувати запис журналу",
+      "titleLabel": "Заголовок",
+      "titlePlaceholder": "Введіть заголовок…",
+      "bodyLabel": "Текст",
+      "bodyPlaceholder": "Запишіть нотатки тут…",
+      "attachmentLabel": "Вкладення",
+      "attachBtn": "+ Додати вкладення",
+      "fromLibrary": "Обрати з бібліотеки",
+      "uploadNew": "Завантажити новий",
+      "useAsAttachment": "Використати як вкладення",
+      "changeBtn": "Змінити",
+      "removeBtn": "Видалити",
+      "saveBtn": "Зберегти",
+      "cancelBtn": "Скасувати",
+      "deleteBtn": "Видалити",
+      "deleteConfirm": "Видалити цей запис назавжди?",
+      "shareBtn": "Поділитися…",
+      "saving": "Збереження…",
+      "deletingErrFallback": "Не вдалося видалити запис.",
+      "stale": "Запис видалив інший користувач.",
+      "fileAttachment": "Вкладення-файл",
+      "openLightbox": "Відкрити повний розмір"
+    },
+    "share": {
+      "heading": "Поділитися \"{{title}}\"",
+      "shareWithAll": "+ Поділитися з усіма гравцями",
+      "advancedToggle": "Обрати конкретних гравців",
+      "selectedCount": "Вибрано: {{count}}",
+      "noPlayers": "У кімнаті ще немає гравців.",
+      "revokeBtn": "Скасувати (зробити приватним)",
+      "saveBtn": "Зберегти",
+      "cancelBtn": "Скасувати"
+    },
+    "lightbox": {
+      "closeAriaLabel": "Закрити попередній перегляд"
+    }
   },
   "sidebar": {
     "ariaLabel": "Room sidebar",
     "aiBtn": "GM AI Асистент",
     "noActiveScene": "Сцена не активна."
+  },
+  "dnd5e": {
+    "section": {
+      "abilities": "Характеристики",
+      "savingThrows": "Рятівні кидки",
+      "skills": "Навички",
+      "passivePerception": "Пасивна Мудрість (Уважність)",
+      "otherProficiencies": "Інші вміння та мови",
+      "proficiencyBonus": "Бонус майстерності",
+      "inspiration": "Натхнення",
+      "armorClass": "Клас обладунку",
+      "initiative": "Ініціатива",
+      "speed": "Швидкість",
+      "hitPoints": "Очки здоров'я",
+      "currentHp": "Поточне HP",
+      "maxHp": "Максимальне HP",
+      "tempHp": "Тимчасове HP",
+      "hitDice": "Кубики здоров'я",
+      "hitDiceTotal": "Усього",
+      "hitDiceUsed": "Використано",
+      "hitDiceType": "Тип кубика",
+      "attacks": "Атаки та закляття",
+      "spellcasting": "Заклинання",
+      "spellAbility": "Здібність заклинань",
+      "spellSaveDc": "СК рятівного від заклинання",
+      "spellAttack": "Атака закляття",
+      "spellSlots": "Слоти заклинань",
+      "personality": "Особистість",
+      "traits": "Риси характеру",
+      "ideals": "Ідеали",
+      "bonds": "Зв'язки",
+      "flaws": "Вади",
+      "features": "Особливості",
+      "equipment": "Спорядження",
+      "pdfSheet": "PDF-лист",
+      "vitals": "Стан персонажа",
+      "notes": "Нотатки"
+    },
+    "ability": {
+      "STR": {
+        "short": "СИЛ",
+        "full": "Сила"
+      },
+      "DEX": {
+        "short": "СПР",
+        "full": "Спритність"
+      },
+      "CON": {
+        "short": "ЗДО",
+        "full": "Здоров'я"
+      },
+      "INT": {
+        "short": "ІНТ",
+        "full": "Інтелект"
+      },
+      "WIS": {
+        "short": "МУД",
+        "full": "Мудрість"
+      },
+      "CHA": {
+        "short": "ХАР",
+        "full": "Харизма"
+      }
+    },
+    "skill": {
+      "acrobatics": "Акробатика",
+      "animalHandling": "Догляд за тваринами",
+      "arcana": "Магічні знання",
+      "athletics": "Атлетика",
+      "deception": "Облуда",
+      "history": "Історія",
+      "insight": "Інтуїція",
+      "intimidation": "Залякування",
+      "investigation": "Розслідування",
+      "medicine": "Медицина",
+      "nature": "Природознавство",
+      "perception": "Уважність",
+      "performance": "Виступ",
+      "persuasion": "Переконання",
+      "religion": "Релігія",
+      "sleightOfHand": "Спритність рук",
+      "stealth": "Скритність",
+      "survival": "Виживання"
+    },
+    "identity": {
+      "characterName": "Ім'я персонажа",
+      "className": "Клас",
+      "level": "Рівень",
+      "race": "Раса",
+      "background": "Походження",
+      "alignment": "Світогляд",
+      "experiencePoints": "Досвід"
+    },
+    "tier": {
+      "none": "Немає",
+      "proficient": "Майстерність",
+      "expertise": "Експертиза"
+    },
+    "actions": {
+      "addAttack": "+ Додати атаку",
+      "removeAttack": "Видалити",
+      "useOverride": "Використати власне значення",
+      "uploadPdf": "Завантажити PDF",
+      "viewPdf": "Переглянути PDF",
+      "uploadPdfFirst": "Завантажте PDF, щоб переглянути його тут."
+    },
+    "system": {
+      "label": "Система",
+      "fiveE": "D&D 5e",
+      "pdf": "PDF-аркуш",
+      "vitals": "Лише vitals"
+    }
   }
 }

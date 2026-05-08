@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Film, PanelRightClose, PanelRightOpen, RotateCw } from 'lucide-react';
+import { Bell, BellOff, Film, PanelRightClose, PanelRightOpen, RotateCw } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { activateScene, loadScenes } from '../../store/scenes';
 import { endSession } from '../../store/room';
 import { logout, selectIsObserver } from '../../store/session';
 import { addToast } from '../../store/toast';
+import { toggleSoundMuted } from '../../store/notifications';
 import { peerManagerRef } from '../../infrastructure/webrtc/peerManagerRef';
 import { Logo, Badge, Avatar } from '../ui';
 import ThemeToggle from '../Header/ThemeToggle';
@@ -58,6 +59,7 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
   const wssConnected = useWssConnected();
   const isObserver = useAppSelector(selectIsObserver);
   const callJoined = useAppSelector((s) => s.media.callJoined);
+  const soundMuted = useAppSelector((s) => s.notifications.soundMuted);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -73,10 +75,10 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') setMenuOpen(false);
     };
-    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('click', onMouseDown);
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('click', onMouseDown);
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [menuOpen]);
@@ -183,6 +185,15 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
             <RotateCw size={16} />
           </button>
         )}
+        <button
+          type="button"
+          className={styles.iconBtn}
+          onClick={() => dispatch(toggleSoundMuted())}
+          aria-label={t(soundMuted ? 'topBar.unmuteNotifications' : 'topBar.muteNotifications')}
+          title={t(soundMuted ? 'topBar.unmuteNotifications' : 'topBar.muteNotifications')}
+        >
+          {soundMuted ? <BellOff size={16} /> : <Bell size={16} />}
+        </button>
         <span
           className={`${styles.wssDot} ${wssConnected ? styles.wssOnline : styles.wssOffline}`}
           title={wssConnected ? t('topBar.wssHealthOnline') : t('topBar.wssHealthOffline')}
