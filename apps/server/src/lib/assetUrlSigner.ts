@@ -40,11 +40,6 @@ function base64url(buf: Buffer): string {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function fromBase64url(s: string): Buffer {
-  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
-  return Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/') + pad, 'base64');
-}
-
 export interface SignedAssetUrl {
   /** Path portion: `/api/assets/:id/file?exp=...&sig=...` */
   url: string;
@@ -71,10 +66,13 @@ export function verifyAssetUrl(assetId: string, expRaw: string | undefined, sigR
   if (!Number.isFinite(exp)) return false;
   const now = Math.floor(Date.now() / 1000);
   if (exp + CLOCK_SKEW_SECONDS < now) return false;
-  const expected = fromBase64url(computeSig(assetId, exp));
-  const provided = fromBase64url(sigRaw);
-  if (expected.length !== provided.length) return false;
-  return timingSafeEqual(expected, provided);
+  // Compare base64url strings directly — decoding first discards the last
+  // 2 padding bits, making 'A' and 'B' indistinguishable at the end of a
+  // 43-char SHA-256 digest and opening a 1-bit forgery window.
+  const expectedBuf = Buffer.from(computeSig(assetId, exp), 'utf8');
+  const providedBuf = Buffer.from(sigRaw, 'utf8');
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return timingSafeEqual(expectedBuf, providedBuf);
 }
 
 function computeSig(assetId: string, exp: number): string {
