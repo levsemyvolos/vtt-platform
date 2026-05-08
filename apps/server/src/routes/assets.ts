@@ -72,7 +72,9 @@ export function buildAssetsRouter(assetService: AssetService, db: PrismaClient):
 
       await assertAssetListAccess(db, roomId, req.user!);
 
-      const dtos = await assetService.listByRoomAndType(roomId, type);
+      const sourceParam = req.query['source'] as string | undefined;
+      const validSource = sourceParam === 'ai' || sourceParam === 'upload' ? sourceParam : undefined;
+      const dtos = await assetService.listByRoomAndType(roomId, type, validSource);
       res.json(dtos);
     } catch (err) {
       handleError(err, res);

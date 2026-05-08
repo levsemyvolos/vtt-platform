@@ -42,6 +42,10 @@ import { RoomRepository } from './repositories/RoomRepository.js';
 import { AssetRepository } from './repositories/AssetRepository.js';
 import { CharacterRepository } from './repositories/CharacterRepository.js';
 import { AssistantMessageRepository } from './repositories/AssistantMessageRepository.js';
+import { AssistantConversationRepository } from './repositories/AssistantConversationRepository.js';
+import { AssistantImageConversationRepository } from './repositories/AssistantImageConversationRepository.js';
+import { ImageAssistantService } from './services/ImageAssistantService.js';
+import { SessionContextBuilder } from './services/SessionContextBuilder.js';
 import { GeminiProvider } from './infrastructure/ai/GeminiProvider.js';
 import { DisabledAIProvider } from './infrastructure/ai/DisabledAIProvider.js';
 import { GcsFileStorageAdapter } from './infrastructure/storage/GcsFileStorageAdapter.js';
@@ -73,20 +77,45 @@ const assetRepo = new AssetRepository(prisma);
 const characterRepo = new CharacterRepository(prisma);
 const audioRepo = new AudioTrackRepository(prisma);
 const assistantMsgRepo = new AssistantMessageRepository(prisma);
+const assistantConversationRepository = new AssistantConversationRepository(prisma);
+const assistantImageConversationRepository = new AssistantImageConversationRepository(prisma);
 
 // ---------- AI + Storage wiring (vertical 3, §2.13.4) ----------
 const gcpProjectId = process.env['GCP_PROJECT_ID'];
 const gcpKeyJson = process.env['GCP_SERVICE_ACCOUNT_KEY'];
 const gcpLocation = process.env['GCP_LOCATION'] ?? 'us-central1';
+const gcpImageLocation = process.env['GCP_IMAGE_LOCATION'] ?? 'global';
+const gcpTextLocation = process.env['GCP_TEXT_LOCATION'] ?? 'global';
 const gcsBucket = process.env['GCS_BUCKET'];
+
+// Model overrides — defaults live in GeminiProvider (currently preview-tier:
+// gemini-3-flash-preview, gemini-2.5-flash-image, gemini-3.1-flash-image-preview,
+// lyria-002). Setting any of these env-vars lets ops swap to a GA model
+// without a code change — important because preview models can be deprecated
+// by Vertex on short notice. See .env.example for context.
+const textModelEnv = process.env['GEMINI_TEXT_MODEL'];
+const imageModelEnv = process.env['GEMINI_IMAGE_MODEL'];
+const nb2ModelEnv = process.env['GEMINI_NB2_MODEL'];
+const musicModelEnv = process.env['GEMINI_MUSIC_MODEL'];
 
 let fileStorage: FileStorageAdapter | null = null;
 let assetService: AssetService | null = null;
+
+let aiProviderRef: import('./infrastructure/ai/AIProvider.js').AIProvider;
 
 if (gcpProjectId && gcpKeyJson && gcsBucket) {
   const aiProvider = new GeminiProvider({
     projectId: gcpProjectId,
     location: gcpLocation,
+    textLocation: gcpTextLocation,
+    multiTurnImageLocation: gcpImageLocation,
+    // Conditional spreads avoid passing undefined into optional fields under
+    // exactOptionalPropertyTypes — when the env-var is unset, GeminiProvider
+    // falls back to its DEFAULT_* constant.
+    ...(textModelEnv ? { textModel: textModelEnv } : {}),
+    ...(imageModelEnv ? { imageModel: imageModelEnv } : {}),
+    ...(nb2ModelEnv ? { multiTurnImageModel: nb2ModelEnv } : {}),
+    ...(musicModelEnv ? { musicModel: musicModelEnv } : {}),
     serviceAccountKeyJson: gcpKeyJson,
   });
   fileStorage = new GcsFileStorageAdapter({
@@ -95,10 +124,7 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
     serviceAccountKeyJson: gcpKeyJson,
   });
   assetService = new AssetService(aiProvider, fileStorage, assetRepo, prisma);
-  const aiService = new AIService(aiProvider, assetService);
-  const assistantService = new AssistantService(aiProvider, assistantMsgRepo);
-  app.use('/ai', buildAiRouter(aiService, assistantService, roomRepo));
-  app.use('/assets', buildAssetsRouter(assetService, prisma));
+  aiProviderRef = aiProvider;
 } else {
   const aiProvider = new DisabledAIProvider();
   const localStorage = new LocalFileStorageAdapter(
@@ -106,24 +132,14 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
   );
   fileStorage = localStorage;
   assetService = new AssetService(aiProvider, fileStorage, assetRepo, prisma);
-  const aiService = new AIService(aiProvider, assetService);
-  const assistantService = new AssistantService(aiProvider, assistantMsgRepo);
   app.use('/storage/local', localStorage.buildRouter());
-  app.use('/ai', buildAiRouter(aiService, assistantService, roomRepo));
-  app.use('/assets', buildAssetsRouter(assetService, prisma));
+  aiProviderRef = aiProvider;
   // eslint-disable-next-line no-console
   console.warn(
     '[server] AI/Storage wiring skipped — GCP_PROJECT_ID / GCP_SERVICE_ACCOUNT_KEY / GCS_BUCKET not set; ' +
       'journal entry attachments will be undefined and character PDF upload will return 503',
   );
 }
-
-// ---------- WebRTC ICE config (vertical 4) ----------
-const turnConfigProvider = new TurnConfigProvider({
-  turnHost: process.env['TURN_HOST'],
-  staticAuthSecret: process.env['TURN_STATIC_AUTH_SECRET'],
-});
-app.use(buildTurnRouter(turnConfigProvider));
 
 // ---------- Services (vertical 2 + Чат 7.1) ----------
 const sceneService = new SceneService(sceneRepo, tokenRepo);
@@ -144,6 +160,35 @@ const audioStateProvider: import('./services/SessionResyncService.js').AudioStat
 const resyncService = new SessionResyncService(sceneService, initiativeRepo, chatRepo, audioStateProvider);
 const initiativeService = new InitiativeService(initiativeRepo, sceneRepo, prisma);
 const characterService = new CharacterService(characterRepo, fileStorage, assetService);
+const sessionContextBuilder = new SessionContextBuilder(
+  sceneService,
+  initiativeService,
+  characterService,
+  chatRepo,
+  roomRepo,
+);
+
+// ---------- AI route wiring (needs sessionContextBuilder, done after Services) ----------
+{
+  const aiService = new AIService(aiProviderRef, assetService!);
+  const assistantService = new AssistantService(aiProviderRef, assistantMsgRepo, assistantConversationRepository, sessionContextBuilder, assetRepo);
+  const imageAssistantService = new ImageAssistantService(
+    aiProviderRef,
+    assistantImageConversationRepository,
+    assetService!,
+    assetRepo,
+    fileStorage!,
+  );
+  app.use('/ai', buildAiRouter(aiService, assistantService, imageAssistantService, roomRepo));
+  app.use('/assets', buildAssetsRouter(assetService!, prisma));
+}
+
+// ---------- WebRTC ICE config (vertical 4) ----------
+const turnConfigProvider = new TurnConfigProvider({
+  turnHost: process.env['TURN_HOST'],
+  staticAuthSecret: process.env['TURN_STATIC_AUTH_SECRET'],
+});
+app.use(buildTurnRouter(turnConfigProvider));
 
 const jwtSecret = process.env['JWT_SECRET'];
 if (!jwtSecret) throw new Error('JWT_SECRET env var is required');

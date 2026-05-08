@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Music,
@@ -6,6 +7,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  BookOpen,
   Dice5,
   Undo2,
   Redo2,
@@ -20,6 +22,7 @@ import { useAppDispatch, useAppSelector } from '../../store';
 import { performUndo, performRedo, recordUndo } from '../../store/undoDispatcher';
 import { IconButton } from '../ui';
 import ToolPicker from '../GameCanvas/ToolPicker';
+import PlayerSRDPopover from '../PlayerSRDPopover/PlayerSRDPopover';
 import type { SidebarTab } from './types';
 import styles from './CanvasToolbar.module.css';
 
@@ -38,6 +41,7 @@ export default function CanvasToolbar({
 }: CanvasToolbarProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('gameroom');
+  const [srdOpen, setSrdOpen] = useState(false);
   const zoom = useAppSelector((s) => s.canvasViewport.zoom);
   const currentSceneId = useAppSelector((s) => s.scene.current?.id ?? null);
   const currentRoomId = useAppSelector((s) => s.room.currentRoom?.id ?? null);
@@ -138,6 +142,17 @@ export default function CanvasToolbar({
           </IconButton>
         )}
 
+        <IconButton
+          variant="ghost"
+          size="sm"
+          aria-label={t('toolbar.srd')}
+          title={t('toolbar.srd')}
+          onClick={() => setSrdOpen(true)}
+          disabled={!currentRoomId}
+        >
+          <BookOpen size={16} />
+        </IconButton>
+
         {myRole === 'GM' && (
           <>
             <span className={styles.divider} aria-hidden />
@@ -221,6 +236,10 @@ export default function CanvasToolbar({
           <Maximize2 size={14} />
         </IconButton>
       </div>
+
+      {srdOpen && currentRoomId && (
+        <PlayerSRDPopover roomId={currentRoomId} onClose={() => setSrdOpen(false)} />
+      )}
     </div>
   );
 }

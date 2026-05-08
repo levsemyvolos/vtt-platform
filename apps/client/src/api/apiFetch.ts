@@ -7,6 +7,7 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly kind?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -67,7 +68,7 @@ export async function refreshOnce(): Promise<string | null> {
 
 async function parseError(res: Response): Promise<ApiError> {
   const body = await res.json().catch(() => ({})) as {
-    error?: { message?: string };
+    error?: { message?: string; kind?: string };
     code?: string;
     issues?: unknown[];
   };
@@ -79,18 +80,18 @@ async function parseError(res: Response): Promise<ApiError> {
       // eslint-disable-next-line no-console
       console.error('[apiFetch] server 5xx detail:', body.error.message);
     }
-    return new ApiError(res.status, 'errors:server.generic');
+    return new ApiError(res.status, 'errors:server.generic', body.error?.kind);
   }
   // R2-MIN-NEW-003: 400 with Zod issues or without a specific message → generic validation key.
   if (res.status === 400) {
     if (body.code || body.issues) {
-      return new ApiError(res.status, 'errors:validation.generic');
+      return new ApiError(res.status, 'errors:validation.generic', body.error?.kind);
     }
     if (!body.error?.message) {
-      return new ApiError(res.status, 'errors:validation.generic');
+      return new ApiError(res.status, 'errors:validation.generic', body.error?.kind);
     }
   }
-  return new ApiError(res.status, body.error?.message ?? res.statusText);
+  return new ApiError(res.status, body.error?.message ?? res.statusText, body.error?.kind);
 }
 
 /**
@@ -168,4 +169,81 @@ export async function apiFetch<TRes = unknown>(
   }
   if (res.status === 204) return undefined as TRes;
   return res.json() as Promise<TRes>;
+}
+
+/**
+ * Like apiFetch but also returns response metadata (rate-limit remaining).
+ * Used by AI endpoints that surface RateLimit headers (RFC draft-7).
+ */
+export interface ApiFetchMeta {
+  rateLimitRemaining: number | null;
+}
+
+// eslint-disable-next-line complexity
+export async function apiFetchWithMeta<TRes = unknown>(
+  url: string,
+  options: RequestInit = {},
+): Promise<{ data: TRes; meta: ApiFetchMeta }> {
+  const headers = buildHeaders(options.body, options.headers);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers, signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiError(0, 'errors:network.timeout');
+    }
+    if (err instanceof TypeError) {
+      throw new ApiError(0, 'errors:network.failed');
+    }
+    throw err;
+  }
+  clearTimeout(timer);
+
+  if (res.status === 401) {
+    const newToken = await refreshOnce().catch(() => null);
+    if (!newToken) {
+      tokenStore.clear();
+      store.dispatch({ type: 'session/clearSession' });
+      throw new ApiError(401, 'Unauthorized');
+    }
+    headers['Authorization'] = `Bearer ${newToken}`;
+    const retry = await fetch(url, { ...options, headers });
+    if (!retry.ok) throw await parseError(retry);
+    const meta = parseRateLimitMeta(retry.headers);
+    if (retry.status === 204) return { data: undefined as TRes, meta };
+    return { data: (await retry.json()) as TRes, meta };
+  }
+
+  const meta = parseRateLimitMeta(res.headers);
+  if (!res.ok) {
+    const err = await parseError(res);
+    if (res.status >= 500) {
+      store.dispatch(addToast('error', err.message));
+    }
+    if (res.status === 400 && err.message === 'errors:validation.generic') {
+      store.dispatch(addToast('error', err.message));
+    }
+    throw err;
+  }
+  if (res.status === 204) return { data: undefined as TRes, meta };
+  return { data: (await res.json()) as TRes, meta };
+}
+
+function parseRateLimitMeta(headers: Headers): ApiFetchMeta {
+  // RFC draft-7 combined header: "RateLimit: limit=10, remaining=7, reset=42"
+  const combined = headers.get('RateLimit') ?? headers.get('ratelimit');
+  if (combined) {
+    const m = combined.match(/remaining=(\d+)/i);
+    if (m && m[1]) return { rateLimitRemaining: Number(m[1]) };
+  }
+  // Fallback: legacy individual header
+  const legacy = headers.get('RateLimit-Remaining') ?? headers.get('ratelimit-remaining');
+  if (legacy) {
+    const n = Number(legacy);
+    if (!Number.isNaN(n)) return { rateLimitRemaining: n };
+  }
+  return { rateLimitRemaining: null };
 }

@@ -21,6 +21,7 @@ import notificationsReducer from './notifications';
 import diceAnimReducer from './diceAnim';
 import undoHistoryReducer from './undoHistory';
 import journalReducer from './journal';
+import imageAssistantReducer from './imageAssistant';
 
 export const store = configureStore({
   reducer: {
@@ -45,6 +46,7 @@ export const store = configureStore({
     diceAnim: diceAnimReducer,
     undoHistory: undoHistoryReducer,
     journal: journalReducer,
+    imageAssistant: imageAssistantReducer,
   },
 });
 

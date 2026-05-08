@@ -17,3 +17,6 @@ apps/client/public/sounds/
 # Local development tooling
 .claude/
 scripts/
+# Local planning / research / design notes (not part of public repo)
+_chats_and_ai/
+_design_preview/

@@ -53,7 +53,13 @@
     "aiText": "AI request limit reached. Try again in a minute."
   },
   "ai": {
-    "generic": "AI request error"
+    "generic": "AI request failed",
+    "quota": "AI rate limit exceeded. Try again in a minute.",
+    "safety": "Request blocked by the safety filter. Rephrase your prompt.",
+    "invalidPrompt": "AI couldn't process the prompt. Try wording it differently.",
+    "network": "AI service is temporarily unreachable. Try again in a minute.",
+    "unknown": "Unknown AI error. Please try again.",
+    "historyFailed": "Failed to load AI history"
   },
   "invite": {
     "failed": "Failed to join the room",

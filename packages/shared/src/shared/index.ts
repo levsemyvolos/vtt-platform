@@ -45,12 +45,18 @@ export interface TokenPublicDTO {
   assignedUserId?: string | null;
 }
 
+export type AssetSourceLabel = 'upload' | 'ai_image' | 'ai_audio';
+
 export interface AssetDTO {
   id: string;
   url: string;
   type: string;
   name: string;
   roomId: string;
+  source: AssetSourceLabel;
+  aiPrompt: string | null;
+  aiModel: string | null;
+  createdAt: string;
 }
 
 // Note: HandoutDTO / CharacterSheetDTO / NoteDTO are defined in

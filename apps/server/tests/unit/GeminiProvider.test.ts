@@ -84,7 +84,7 @@ describe('GeminiProvider.generateText', () => {
 
     expect(out).toBe('Hello, traveller.');
     const callArg = genaiMocks.generateContent.mock.calls[0]?.[0] as { model?: string };
-    expect(callArg.model).toBe('gemini-2.5-flash');
+    expect(callArg.model).toBe('gemini-3-flash-preview');
   });
 
   it('maps gRPC RESOURCE_EXHAUSTED (code 8) to AIQuotaError', async () => {

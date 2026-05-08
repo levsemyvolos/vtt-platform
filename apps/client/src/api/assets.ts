@@ -34,3 +34,10 @@ export function renameAsset(assetId: string, name: string): Promise<AssetDTO> {
     body: JSON.stringify({ name }),
   });
 }
+
+/** Lists AI-generated assets only (source = AI_IMAGE | AI_AUDIO). */
+export function listAiAssets(roomId: string, type: 'image' | 'audio'): Promise<AssetDTO[]> {
+  return apiFetch<AssetDTO[]>(
+    `/api/assets?roomId=${encodeURIComponent(roomId)}&type=${type}&source=ai`,
+  );
+}

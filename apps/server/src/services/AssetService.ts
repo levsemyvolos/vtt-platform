@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { AssetDTO } from '@vtt/shared';
+import type { AssetDTO, AssetSourceLabel } from '@vtt/shared';
 import type { Asset, PrismaClient } from '@prisma/client';
 import type { AIProvider, GeneratedBinary } from '../infrastructure/ai/AIProvider.js';
 import type { FileStorageAdapter } from '../infrastructure/storage/FileStorageAdapter.js';
@@ -55,6 +55,9 @@ export class AssetService {
    * @param userId owner of the asset
    * @param roomId room scope (cascade-deleted with the room)
    * @param payload bytes + mimeType from AIProvider
+   * @param kind 'image' | 'audio'
+   * @param prompt full prompt string for provenance tracking
+   * @param aiModel model identifier (e.g. 'gemini-2.5-flash-image')
    * @returns the persisted Asset row
    */
   async storeAiAsset(
@@ -62,14 +65,13 @@ export class AssetService {
     roomId: string,
     payload: GeneratedBinary,
     kind: 'image' | 'audio',
-    promptHint?: string,
+    prompt: string,
+    aiModel: string,
   ): Promise<Asset> {
     const storageKey = buildStorageKey(roomId, kind, payload.mimeType);
-    // AI uploads have no user-supplied filename — use the prompt prefix or a
-    // timestamp so the unified Asset Library shows a meaningful label.
-    const originalName = promptHint
-      ? `AI: ${promptHint.slice(0, 40)}`
-      : `AI ${new Date().toISOString().slice(0, 19)}`;
+    const truncatedPrompt = prompt.length > 80 ? `${prompt.slice(0, 77)}...` : prompt;
+    const originalName = `AI: ${truncatedPrompt}`;
+    const source = kind === 'image' ? 'AI_IMAGE' : 'AI_AUDIO';
     const [, asset] = await Promise.all([
       this.storage.put({
         storageKey,
@@ -84,6 +86,9 @@ export class AssetService {
         size: BigInt(payload.bytes.byteLength),
         storageKey,
         originalName,
+        source,
+        aiPrompt: prompt,
+        aiModel,
       }),
     ]);
     return asset;
@@ -98,6 +103,25 @@ export class AssetService {
     return signAssetUrl(assetId).url;
   }
 
+  private toDTO(a: Asset): AssetDTO {
+    const sourceMap: Record<string, AssetSourceLabel> = {
+      UPLOAD: 'upload',
+      AI_IMAGE: 'ai_image',
+      AI_AUDIO: 'ai_audio',
+    };
+    return {
+      id: a.id,
+      url: AssetService.getProxyUrl(a.id),
+      type: a.mimeType,
+      name: a.originalName || (a.storageKey.split('/').pop() ?? a.id),
+      roomId: a.roomId,
+      source: sourceMap[a.source] ?? 'upload',
+      aiPrompt: a.aiPrompt,
+      aiModel: a.aiModel,
+      createdAt: a.createdAt.toISOString(),
+    };
+  }
+
   /**
    * Materializes an AssetDTO with a proxy URL.
    * @param assetId Asset UUID
@@ -106,13 +130,7 @@ export class AssetService {
   async getAssetDTO(assetId: string): Promise<AssetDTO> {
     const asset = await this.repo.findById(assetId);
     if (!asset) throw new HttpError(404, 'Asset not found');
-    return {
-      id: asset.id,
-      url: AssetService.getProxyUrl(asset.id),
-      type: asset.mimeType,
-      name: asset.originalName || (asset.storageKey.split('/').pop() ?? asset.id),
-      roomId: asset.roomId,
-    };
+    return this.toDTO(asset);
   }
 
   /** Pass-through to repo; used by the rename endpoint for ownership check. */
@@ -151,24 +169,23 @@ export class AssetService {
   }
 
   /**
-   * Lists assets for a room, optionally filtered by type category.
+   * Lists assets for a room, optionally filtered by type category and/or source.
    * @param roomId Room UUID
    * @param type 'image' | 'audio' | 'pdf' | 'all'
+   * @param source optional: 'ai' | 'upload' — filter by asset provenance
    * @returns AssetDTO[] with proxy URLs
    */
-  async listByRoomAndType(roomId: string, type: string): Promise<AssetDTO[]> {
+  async listByRoomAndType(
+    roomId: string,
+    type: string,
+    source?: 'ai' | 'upload',
+  ): Promise<AssetDTO[]> {
     const mimePrefix =
       type === 'image' ? 'image/' :
       type === 'audio' ? 'audio/' :
       type === 'pdf'   ? 'application/pdf' : '';
-    const assets = await this.repo.findByRoomAndType(roomId, mimePrefix);
-    return assets.map((a) => ({
-      id: a.id,
-      url: AssetService.getProxyUrl(a.id),
-      type: a.mimeType,
-      name: a.originalName || (a.storageKey.split('/').pop() ?? a.id),
-      roomId: a.roomId,
-    }));
+    const assets = await this.repo.findByRoomAndType(roomId, mimePrefix, source);
+    return assets.map((a) => this.toDTO(a));
   }
 
   /**
@@ -203,6 +220,7 @@ export class AssetService {
         size: BigInt(buffer.byteLength),
         storageKey,
         originalName: originalName.slice(0, 128),
+        source: 'UPLOAD',
       }),
     ]);
     return asset;

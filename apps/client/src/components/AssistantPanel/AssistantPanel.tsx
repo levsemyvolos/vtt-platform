@@ -5,7 +5,10 @@ import type { TabItem } from '../ui';
 import DialogList from './DialogList';
 import ConversationView from './ConversationView';
 import type { MainTab } from './ConversationView';
+import ImageThreadList from './ImageThreadList';
+import ImageThreadView from './ImageThreadView';
 import RecentGenerations from './RecentGenerations';
+import { useAppSelector } from '../../store';
 import styles from './AssistantPanel.module.css';
 
 interface AssistantPanelProps {
@@ -16,6 +19,8 @@ interface AssistantPanelProps {
 export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps): JSX.Element {
   const { t } = useTranslation('assistant');
   const [mainTab, setMainTab] = useState<MainTab>('llm');
+  const rateLimitRemaining = useAppSelector((s) => s.assistant.rateLimitRemaining);
+  const showWarning = rateLimitRemaining !== null && rateLimitRemaining <= 2;
 
   const tabs: ReadonlyArray<TabItem<MainTab>> = [
     { id: 'llm', label: t('tabs.llm') },
@@ -31,6 +36,15 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
           <span className={styles.title}>{t('header.title')}</span>
           <span className={styles.subtitle}>{t('header.subtitle')}</span>
         </div>
+        {rateLimitRemaining !== null && (
+          <span
+            className={`${styles.rateLimitBadge} ${showWarning ? styles.rateLimitWarning : ''}`}
+            title={t('header.rateLimit.tooltip')}
+            aria-label={t('header.rateLimit.aria', { remaining: rateLimitRemaining })}
+          >
+            {t('header.rateLimit.label', { remaining: rateLimitRemaining })}
+          </span>
+        )}
         <button
           type="button"
           className={styles.closeBtn}
@@ -50,9 +64,19 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
         />
       </div>
       <div className={styles.body}>
-        <DialogList roomId={roomId} />
-        <ConversationView roomId={roomId} mainTab={mainTab} />
-        <RecentGenerations roomId={roomId} />
+        {mainTab === 'image' ? (
+          <>
+            <ImageThreadList roomId={roomId} />
+            <ImageThreadView roomId={roomId} />
+            <RecentGenerations roomId={roomId} />
+          </>
+        ) : (
+          <>
+            <DialogList roomId={roomId} />
+            <ConversationView roomId={roomId} mainTab={mainTab} />
+            <RecentGenerations roomId={roomId} />
+          </>
+        )}
       </div>
     </div>
   );

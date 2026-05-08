@@ -28,7 +28,9 @@ export class AIService {
    */
   async generateImage(userId: string, req: AIImageRequest): Promise<AIImageResponse> {
     const payload = await this.provider.generateImage(req);
-    const asset = await this.assets.storeAiAsset(userId, req.roomId, payload, 'image', req.prompt);
+    const asset = await this.assets.storeAiAsset(
+      userId, req.roomId, payload, 'image', req.prompt, this.imageModelName(),
+    );
     return { previewUrl: AssetService.getProxyUrl(asset.id), assetId: asset.id };
   }
 
@@ -37,12 +39,27 @@ export class AIService {
    */
   async generateMusic(userId: string, req: AIMusicRequest): Promise<AIMusicResponse> {
     const payload = await this.provider.generateMusic(req);
-    const asset = await this.assets.storeAiAsset(userId, req.roomId, payload, 'audio', req.prompt);
+    const asset = await this.assets.storeAiAsset(
+      userId, req.roomId, payload, 'audio', req.prompt, this.musicModelName(),
+    );
     return { previewUrl: AssetService.getProxyUrl(asset.id), assetId: asset.id };
   }
 
   /** Ф8.1 — text generation (LLM assistant). */
   generateText(prompt: string): Promise<string> {
     return this.provider.generateText(prompt);
+  }
+
+  /**
+   * Hard-coded model identifiers for provenance tracking.
+   * TODO: wire these from GeminiProvider.getImageModel() / getMusicModel()
+   * once the provider exposes a model-name getter.
+   */
+  private imageModelName(): string {
+    return 'gemini-2.5-flash-image';
+  }
+
+  private musicModelName(): string {
+    return 'lyria-002';
   }
 }

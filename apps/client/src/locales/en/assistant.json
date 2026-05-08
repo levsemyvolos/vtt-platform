@@ -6,7 +6,12 @@
   },
   "header": {
     "title": "GM AI Toolkit",
-    "subtitle": "Gemini · Lyria"
+    "subtitle": "Gemini · Lyria",
+    "rateLimit": {
+      "label": "AI: {{remaining}} left",
+      "tooltip": "AI requests remaining this minute",
+      "aria": "{{remaining}} AI requests left"
+    }
   },
   "tabs": {
     "llm": "LLM Assistant",
@@ -21,19 +26,32 @@
     "free-chat": "Free"
   },
   "dialogList": {
-    "newBtn": "+ New Dialogue",
-    "listLabel": "Dialogues list"
+    "newBtn": "+ New dialog",
+    "listLabel": "Dialog list",
+    "filterLabel": "Context filter",
+    "empty": "No dialogs yet. Create the first one.",
+    "renamePrompt": "New title:",
+    "deleteConfirm": "Delete dialog \"{{title}}\"?",
+    "renameLabel": "Rename",
+    "deleteLabel": "Delete"
   },
   "conversation": {
     "empty": "Ask the GM assistant something.",
+    "noConversation": "Pick a dialog on the left or create a new one to start.",
     "historyEmpty": "No previous records in this session.",
+    "historyNoMessages": "No messages yet.",
     "roleUser": "You",
     "roleAssistant": "Assistant",
     "actions": {
       "copy": "Copy",
+      "regenerate": "Regenerate",
       "toNotes": "To Notes",
       "toChat": "To Chat (NPC)",
-      "more": "More"
+      "more": "More",
+      "edit": "Edit",
+      "saveEdit": "Save",
+      "cancelEdit": "Cancel",
+      "editLabel": "Editing message"
     },
     "chips": {
       "npcMode": "NPC Mode"
@@ -47,18 +65,83 @@
     "generateError": "Generation failed. Please try again.",
     "rateLimitError": "Rate limit exceeded. Please wait a minute.",
     "imagePreviewAlt": "Generated image",
-    "audioUnsupported": "Your browser does not support audio."
+    "audioUnsupported": "Your browser does not support audio.",
+    "useSessionContextLabel": "Use session context",
+    "contextPreviewToggle": "Show/hide context",
+    "contextPreviewLoading": "Loading context…",
+    "contextPreviewEmpty": "Context is empty — no active scene, initiative, characters, or chat in this room.",
+    "contextPreviewError": "Could not load context.",
+    "toastSavedToNotes": "Saved to notes",
+    "toastSentToChat": "Sent to chat",
+    "thinkingHighLabel": "Deeper reasoning",
+    "thinkingHighTooltip": "Gemini 3 with high thinking_level. 6× cost and slower."
+  },
+  "presets": {
+    "npc-description": [
+      { "label": "Tavern keeper", "prompt": "Describe a D&D 5e tavern keeper NPC: race, age, one interesting visual detail, manner of speaking with patrons, one secret or story they know." },
+      { "label": "Guard captain", "prompt": "Describe a D&D 5e city guard captain NPC: race, look, attitude toward adventurers, the crime they're currently investigating." },
+      { "label": "Shop merchant", "prompt": "Describe a D&D 5e shopkeeper NPC: race, what they sell, pricing policy (fair/greedy), one unusual item in their stock." },
+      { "label": "Religious zealot", "prompt": "Describe a D&D 5e cult fanatic NPC: which deity, depth of fanaticism, the trigger that would make them attack, the symbol or clothing that gives them away." },
+      { "label": "Mysterious traveler", "prompt": "Describe a D&D 5e mysterious traveler NPC: hints of past, reason for being in this tavern/city, one suspicious action that may alert the players." }
+    ],
+    "scene-description": [
+      { "label": "Forest glade", "prompt": "Describe a D&D 5e forest glade scene. Give two atmospheres: day and night. Sounds, smells, what's visible, what's hidden." },
+      { "label": "Dungeon level 3", "prompt": "Describe a D&D 5e dungeon level-3 scene. Atmosphere (humidity, light, air), traces of prior occupants, hint at the floor's main danger." },
+      { "label": "Port city", "prompt": "Describe a D&D 5e port city scene. Noise, smells, types of people in the crowd, typical crime, main landmark (lighthouse/temple/market)." },
+      { "label": "Ruined temple", "prompt": "Describe a D&D 5e ruined temple scene. Which deity was worshipped here, cause of ruin, what survived, what still works, feeling on entry." },
+      { "label": "Mountain snowstorm", "prompt": "Describe a D&D 5e mountain pass during a snowstorm. Visibility, cold effect, sounds, risks (cliff fall, frostbite), the one survival landmark." }
+    ],
+    "srd-lookup": [
+      { "label": "Grapple", "prompt": "Explain D&D 5e SRD rule: Grapple. Athletics vs Athletics/Acrobatics, what the grappled creature loses (speed=0), how to escape. No homebrew." },
+      { "label": "Cover & concealment", "prompt": "Explain D&D 5e SRD rule: cover (half/three-quarters/total) vs concealment. Effect on AC and skill checks." },
+      { "label": "Counterspell", "prompt": "Explain D&D 5e SRD rule: Counterspell. Reaction timing, level check for higher-level spells, what the caster vs target sees." },
+      { "label": "Death saves", "prompt": "Explain D&D 5e SRD rule: Death Saving Throws. Scale, critical successes/fails, effect of damage at 0 HP." },
+      { "label": "Concentration", "prompt": "Explain D&D 5e SRD rule: Concentration. What breaks it, CON-save formula, which typical spells require concentration." }
+    ],
+    "free-chat": [
+      { "label": "Side-quest", "prompt": "Give 3 side-quest ideas for a D&D 5e level 3-5 party. Format: hook (1 sentence), complication, reward." },
+      { "label": "Plot twist", "prompt": "Suggest 3 plot twists for the current D&D 5e story arc. Each must be unexpected but logical given prior events." },
+      { "label": "NPC morality", "prompt": "Help me determine an NPC's moral compass: 5 situational choices and how this NPC reacts to each. Format: situation → reaction." },
+      { "label": "City economy", "prompt": "Describe a D&D 5e fantasy city's economy: main source of income, leading guilds, typical price for bread/ale/lodging, smuggling." },
+      { "label": "Reaction to failure", "prompt": "The players failed at [action]. Give 3 GM-side complications (mild/medium/harsh) tied to that failure, no deus ex machina." }
+    ]
   },
   "recent": {
-    "heading": "Recent Generations",
-    "emptyImages": "No images yet",
-    "playerHeading": "Lyria Player",
+    "heading": "AI generations",
+    "loading": "Loading…",
+    "emptyImages": "No AI images yet",
+    "emptyAudio": "No AI music yet",
+    "playerHeading": "AI music",
     "playBtn": "Play",
     "scrubBar": "Playback progress",
-    "quotaHeading": "Quotas",
-    "quotaLlm": "LLM Tokens",
+    "copyPrompt": "Copy prompt",
+    "quotaHeading": "AI usage",
+    "quotaLlm": "LLM requests",
     "quotaImages": "Images",
-    "quotaMusic": "Music"
+    "quotaMusic": "Music",
+    "quotaTotal": "total"
+  },
+  "imageThreadList": {
+    "newBtn": "+ New scene",
+    "listLabel": "Scene list",
+    "empty": "No scenes yet. Create the first one.",
+    "renamePrompt": "New title:",
+    "deleteConfirm": "Delete scene \"{{title}}\"?",
+    "renameLabel": "Rename",
+    "deleteLabel": "Delete"
+  },
+  "imageThread": {
+    "noConversation": "Pick or create a scene on the left.",
+    "empty": "Enter a prompt below to generate the first version.",
+    "generating": "Generating…",
+    "submit": "Generate",
+    "placeholder": "Describe the scene or change (Ctrl+Enter to send)",
+    "hint": "Up to 3 reference images. NB2 ~13s.",
+    "addReference": "+ reference",
+    "uploading": "Uploading…",
+    "removeReference": "Remove reference",
+    "referenceAlt": "Reference",
+    "generatedAlt": "Generated image"
   },
   "input": {
     "placeholder": "Ask the GM assistant… (Ctrl+Enter — send)",

@@ -48,7 +48,9 @@ model User {
   receivedMessages  ChatMessage[]      @relation("ChatMessageRecipient")
   assets            Asset[]            @relation("AssetOwner")
   roomMemberships   RoomMember[]
+  assistantConversations AssistantConversation[]
   assistantMessages AssistantMessage[]
+  assistantImageConversations AssistantImageConversation[]
 }
 
 model Room {
@@ -71,6 +73,8 @@ model Room {
   assets            Asset[]            @relation("AssetRoom")
   members           RoomMember[]
   assistantMessages AssistantMessage[]
+  assistantConversations AssistantConversation[]
+  assistantImageConversations AssistantImageConversation[]
 }
 
 /// Persistent player membership — written on invite-join, used for lobby roster
@@ -89,27 +93,39 @@ model RoomMember {
   @@index([userId])
 }
 
+enum AssetSource {
+  UPLOAD
+  AI_IMAGE
+  AI_AUDIO
+}
+
 model Asset {
-  id           String   @id @default(uuid()) @db.Uuid
-  ownerId      String   @db.Uuid
-  roomId       String   @db.Uuid
-  mimeType     String   @db.VarChar(128)
+  id           String      @id @default(uuid()) @db.Uuid
+  ownerId      String      @db.Uuid
+  roomId       String      @db.Uuid
+  mimeType     String      @db.VarChar(128)
   size         BigInt
   // storageKey is the immutable GCS object path (rooms/<uuid>/<kind>/<uuid>.<ext>).
   // It MUST stay UUID-based for storage stability — rename UI mutates `originalName` only.
-  storageKey   String   @unique @db.VarChar(256)
+  storageKey   String      @unique @db.VarChar(256)
   // Display name shown in the asset library. Backfilled from storageKey suffix
   // for rows created before the rename feature; new uploads carry file.originalname.
-  originalName String   @default("") @db.VarChar(128)
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  originalName String      @default("") @db.VarChar(128)
+  source       AssetSource @default(UPLOAD)
+  aiPrompt     String?     @db.Text
+  aiModel      String?     @db.VarChar(64)
+  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
 
   owner            User           @relation("AssetOwner", fields: [ownerId], references: [id])
   room             Room           @relation("AssetRoom", fields: [roomId], references: [id], onDelete: Cascade)
-  sceneBackgrounds Scene[]        @relation("SceneBackground")
-  tokenImages      Token[]        @relation("TokenImage")
-  characterPdfs    Character[]    @relation("CharacterPdf")
-  journalEntries   JournalEntry[] @relation("JournalAsset")
-  audioTracks      AudioTrack[]
+  sceneBackgrounds   Scene[]              @relation("SceneBackground")
+  tokenImages        Token[]              @relation("TokenImage")
+  characterPdfs      Character[]          @relation("CharacterPdf")
+  journalEntries     JournalEntry[]       @relation("JournalAsset")
+  audioTracks        AudioTrack[]
+  imageTurnGenerated AssistantImageTurn[] @relation("ImageTurnGenerated")
+
+  @@index([roomId, source, createdAt])
 }
 
 model Scene {
@@ -286,16 +302,85 @@ model Session {
 /// Persistent AI assistant chat messages per room (§2.15, Ф8.1).
 /// F5-safe: history is loaded from DB on mount, not from Redux only.
 model AssistantMessage {
-  id        String   @id @default(uuid()) @db.Uuid
-  roomId    String   @db.Uuid
-  userId    String?  @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  roomId         String   @db.Uuid
+  userId         String?  @db.Uuid
+  conversationId String   @db.Uuid
   /// 'user' | 'assistant' | 'system'
-  role      String   @db.VarChar(16)
-  content   String   @db.Text
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  role           String   @db.VarChar(16)
+  /// 'npc-description' | 'scene-description' | 'srd-lookup' | 'free-chat'
+  context        String   @db.VarChar(32)
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
 
-  room Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  room         Room                  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user         User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt])
+  @@index([conversationId, createdAt])
+}
+
+/// AI assistant conversation thread per room. Replaces the implicit
+/// `${roomId}:${context}` keying with first-class persistence so that
+/// users can rename, delete, and run multiple parallel threads of the
+/// same context in the same room (Ф8.1, AI-rework Session 1.1).
+model AssistantConversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  roomId    String   @db.Uuid
+  ownerId   String   @db.Uuid
+  /// 'npc-description' | 'scene-description' | 'srd-lookup' | 'free-chat'
+  context   String   @db.VarChar(32)
+  title     String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  room     Room               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  owner    User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  messages AssistantMessage[]
+
+  @@index([roomId, updatedAt])
+  @@index([ownerId])
+}
+
+/// Multi-turn image-generation thread (Session 7.1, Nano Banana 2).
+/// Each AssistantImageTurn is a (user-prompt, assistant-image) pair, possibly
+/// including 0..3 user-uploaded reference assets that the model uses as
+/// visual context.
+model AssistantImageConversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  roomId    String   @db.Uuid
+  ownerId   String   @db.Uuid
+  title     String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  room  Room                    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  owner User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  turns AssistantImageTurn[]
+
+  @@index([roomId, updatedAt])
+  @@index([ownerId])
+}
+
+model AssistantImageTurn {
+  id                  String   @id @default(uuid()) @db.Uuid
+  conversationId      String   @db.Uuid
+  turnIndex           Int
+  userPrompt          String   @db.Text
+  /// Asset id of the model-generated image for this turn. NULL while a turn is
+  /// in flight (we always insert AFTER the upstream call completes, so this
+  /// should be NOT NULL once persisted; but the FK is nullable to allow
+  /// pruning of failed generations on retry).
+  generatedAssetId    String?  @db.Uuid
+  /// JSON array of asset UUIDs the user supplied as visual references.
+  /// 0–3 entries enforced at the service layer, not at the DB layer.
+  referenceAssetIds   String[] @default([]) @db.Uuid
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+
+  conversation AssistantImageConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  generated    Asset?                     @relation("ImageTurnGenerated", fields: [generatedAssetId], references: [id], onDelete: SetNull)
+
+  @@unique([conversationId, turnIndex])
+  @@index([conversationId, createdAt])
 }

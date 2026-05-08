@@ -27,6 +27,7 @@
     "music": "Music",
     "dice": "Dice",
     "ai": "AI Assistant",
+    "srd": "SRD lookup",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "zoomFit": "Fit to window",
@@ -106,5 +107,13 @@
     "hideAll": "Hide all",
     "revealAll": "Reveal all",
     "undo": "Undo last"
+  },
+  "srd": {
+    "title": "SRD Lookup",
+    "hint": "Ask a rule from SRD 5.1. Replies are short, no homebrew.",
+    "placeholder": "How does Counterspell work?",
+    "ask": "Ask",
+    "asking": "Asking…",
+    "close": "Close"
   }
 }

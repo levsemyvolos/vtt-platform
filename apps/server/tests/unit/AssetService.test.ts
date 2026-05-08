@@ -100,6 +100,9 @@ describe('AssetService.storeAiAsset', () => {
         size: data.size as bigint,
         storageKey: data.storageKey as string,
         originalName: (data.originalName as string | undefined) ?? '',
+        source: (data.source as string | undefined) ?? 'UPLOAD',
+        aiPrompt: (data.aiPrompt as string | undefined) ?? null,
+        aiModel: (data.aiModel as string | undefined) ?? null,
         createdAt: new Date(),
       } satisfies Asset;
     });
@@ -111,6 +114,7 @@ describe('AssetService.storeAiAsset', () => {
       { bytes: PNG_BYTES, mimeType: 'image/png' },
       'image',
       'a sleeping dragon',
+      'gemini-2.5-flash-image',
     );
 
     expect(asset.ownerId).toBe(USER_ID);
@@ -133,8 +137,8 @@ describe('AssetService.listByRoomAndType', () => {
     const { repo, mocks: repoMocks } = makeRepo();
 
     repoMocks.findByRoomAndType.mockResolvedValue([
-      { id: 'a1', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'image/png', size: BigInt(4), storageKey: 'rooms/r/image/a.png', originalName: 'cat.png', createdAt: new Date() },
-      { id: 'a2', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'audio/wav', size: BigInt(8), storageKey: 'rooms/r/audio/b.wav', originalName: 'theme.wav', createdAt: new Date() },
+      { id: 'a1', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'image/png', size: BigInt(4), storageKey: 'rooms/r/image/a.png', originalName: 'cat.png', source: 'UPLOAD', aiPrompt: null, aiModel: null, createdAt: new Date() },
+      { id: 'a2', ownerId: USER_ID, roomId: ROOM_ID, mimeType: 'audio/wav', size: BigInt(8), storageKey: 'rooms/r/audio/b.wav', originalName: 'theme.wav', source: 'UPLOAD', aiPrompt: null, aiModel: null, createdAt: new Date() },
     ]);
     storageMocks.getPresignedUrl.mockResolvedValue('https://signed.example/url');
 
@@ -149,7 +153,7 @@ describe('AssetService.listByRoomAndType', () => {
     expect(dtos[0]!.name).toBe('cat.png');
     expect(dtos[0]).not.toHaveProperty('storageKey');
     expect(storageMocks.getPresignedUrl).not.toHaveBeenCalled();
-    expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, '');
+    expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, '', undefined);
   });
 
   it('passes image/ prefix when type=image', async () => {
@@ -163,7 +167,7 @@ describe('AssetService.listByRoomAndType', () => {
     const service = new AssetService(provider, storage, repo);
     await service.listByRoomAndType(ROOM_ID, 'image');
 
-    expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, 'image/');
+    expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, 'image/', undefined);
   });
 });
 
@@ -183,6 +187,9 @@ describe('AssetService.getAssetDTO', () => {
       size: BigInt(4),
       storageKey: 'rooms/r/image/k.png',
       originalName: 'goblin-token.png',
+      source: 'UPLOAD',
+      aiPrompt: null,
+      aiModel: null,
       createdAt: new Date(),
     });
     storageMocks.getPresignedUrl.mockResolvedValue('https://signed.example/r/image/k.png?sig=...');
@@ -210,5 +217,100 @@ describe('AssetService.getAssetDTO', () => {
       status: 404,
       message: 'Asset not found',
     });
+  });
+});
+
+describe('AssetService.storeAiAsset (Session 6.3.A — provenance)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('writes source=AI_IMAGE + aiPrompt + aiModel for image kind', async () => {
+    const { provider } = makeAi();
+    const { storage, mocks: storageMocks } = makeStorage();
+    const { repo, mocks: repoMocks } = makeRepo();
+
+    storageMocks.put.mockResolvedValue('rooms/r/image/x.png');
+    repoMocks.create.mockImplementation(async (data) => ({
+      id: data.id as string,
+      ownerId: data.ownerId as string,
+      roomId: data.roomId as string,
+      mimeType: data.mimeType as string,
+      size: data.size as bigint,
+      storageKey: data.storageKey as string,
+      originalName: (data.originalName as string | undefined) ?? '',
+      source: (data.source as string | undefined) ?? 'UPLOAD',
+      aiPrompt: (data.aiPrompt as string | undefined) ?? null,
+      aiModel: (data.aiModel as string | undefined) ?? null,
+      createdAt: new Date(),
+    }));
+
+    const service = new AssetService(provider, storage, repo);
+    await service.storeAiAsset(
+      USER_ID, ROOM_ID,
+      { bytes: Buffer.from('test'), mimeType: 'image/png' },
+      'image',
+      'Опиши таверника',
+      'gemini-2.5-flash-image',
+    );
+    const createCall = (repoMocks.create as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(createCall.source).toBe('AI_IMAGE');
+    expect(createCall.aiPrompt).toBe('Опиши таверника');
+    expect(createCall.aiModel).toBe('gemini-2.5-flash-image');
+  });
+
+  it('writes source=AI_AUDIO for audio kind', async () => {
+    const { provider } = makeAi();
+    const { storage, mocks: storageMocks } = makeStorage();
+    const { repo, mocks: repoMocks } = makeRepo();
+
+    storageMocks.put.mockResolvedValue('rooms/r/audio/x.wav');
+    repoMocks.create.mockImplementation(async (data) => ({
+      id: data.id as string,
+      ownerId: data.ownerId as string,
+      roomId: data.roomId as string,
+      mimeType: data.mimeType as string,
+      size: data.size as bigint,
+      storageKey: data.storageKey as string,
+      originalName: (data.originalName as string | undefined) ?? '',
+      source: (data.source as string | undefined) ?? 'UPLOAD',
+      aiPrompt: (data.aiPrompt as string | undefined) ?? null,
+      aiModel: (data.aiModel as string | undefined) ?? null,
+      createdAt: new Date(),
+    }));
+
+    const service = new AssetService(provider, storage, repo);
+    await service.storeAiAsset(
+      USER_ID, ROOM_ID,
+      { bytes: Buffer.from('test'), mimeType: 'audio/wav' },
+      'audio',
+      'epic battle music',
+      'lyria-002',
+    );
+    const createCall = (repoMocks.create as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(createCall.source).toBe('AI_AUDIO');
+    expect(createCall.aiModel).toBe('lyria-002');
+  });
+
+  it('listByRoomAndType passes source filter through to repo', async () => {
+    const { provider } = makeAi();
+    const { storage } = makeStorage();
+    const { repo, mocks: repoMocks } = makeRepo();
+
+    repoMocks.findByRoomAndType.mockResolvedValue([]);
+
+    const service = new AssetService(provider, storage, repo);
+    await service.listByRoomAndType(ROOM_ID, 'image', 'ai');
+    expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, 'image/', 'ai');
+  });
+
+  it('listByRoomAndType without source filters by mime only', async () => {
+    const { provider } = makeAi();
+    const { storage } = makeStorage();
+    const { repo, mocks: repoMocks } = makeRepo();
+
+    repoMocks.findByRoomAndType.mockResolvedValue([]);
+
+    const service = new AssetService(provider, storage, repo);
+    await service.listByRoomAndType(ROOM_ID, 'image');
+    expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, 'image/', undefined);
   });
 });

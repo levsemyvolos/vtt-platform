@@ -123,6 +123,10 @@ describe('EditorToolbarLeft', () => {
       name: 'sprite.png',
       type: 'image',
       url: '/api/assets/asset-abc/file',
+      source: 'upload',
+      aiPrompt: null,
+      aiModel: null,
+      createdAt: new Date().toISOString(),
     };
 
     // Access handleAddToScene indirectly: AssetLibrary mocks return empty

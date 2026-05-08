@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssistantService } from '../../src/services/AssistantService.js';
 import type { AssistantMessageRepository } from '../../src/repositories/AssistantMessageRepository.js';
+import type { AssistantConversationRepository } from '../../src/repositories/AssistantConversationRepository.js';
 import type { AIProvider } from '../../src/infrastructure/ai/AIProvider.js';
 
 const ROOM_ID = '22222222-2222-2222-2222-222222222222';
@@ -14,6 +15,23 @@ const USER_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 
 function makeAiProvider(): AIProvider {
   return {} as AIProvider;
+}
+
+function makeConvRepo(): AssistantConversationRepository {
+  const conv = {
+    id: 'conv-1',
+    roomId: ROOM_ID,
+    ownerId: USER_ID,
+    context: 'free-chat',
+    title: 'Default',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  return {
+    findLatestByRoomOwnerContext: vi.fn().mockResolvedValue(null),
+    create: vi.fn().mockResolvedValue(conv),
+    touch: vi.fn().mockResolvedValue(conv),
+  } as unknown as AssistantConversationRepository;
 }
 
 function makeMsgRepo(): AssistantMessageRepository {
@@ -44,7 +62,7 @@ describe('AssistantService persistence', () => {
 
   beforeEach(() => {
     repo = makeMsgRepo();
-    service = new AssistantService(makeAiProvider(), repo);
+    service = new AssistantService(makeAiProvider(), repo, makeConvRepo());
   });
 
   it('saveMessage stores a user message and returns DTO', async () => {
@@ -56,15 +74,15 @@ describe('AssistantService persistence', () => {
     expect(dto.createdAt).toBeTruthy();
   });
 
-  it('saveMessage stores an assistant message with null userId', async () => {
-    const dto = await service.saveMessage({ roomId: ROOM_ID, role: 'assistant', content: 'Here is some lore.' }, null);
-    expect(dto.role).toBe('assistant');
-    expect(dto.userId).toBeNull();
+  it('saveMessage throws when userId is null (bridge requires non-null userId)', async () => {
+    await expect(
+      service.saveMessage({ roomId: ROOM_ID, role: 'assistant', content: 'Here is some lore.' }, null),
+    ).rejects.toThrow('saveMessage bridge requires non-null userId');
   });
 
   it('getHistory returns saved messages oldest-first', async () => {
     await service.saveMessage({ roomId: ROOM_ID, role: 'user', content: 'First' }, USER_ID);
-    await service.saveMessage({ roomId: ROOM_ID, role: 'assistant', content: 'Second' }, null);
+    await service.saveMessage({ roomId: ROOM_ID, role: 'assistant', content: 'Second' }, USER_ID);
     const history = await service.getHistory(ROOM_ID);
     expect(history.messages).toHaveLength(2);
     expect(history.messages[0]?.content).toBe('First');

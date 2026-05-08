@@ -27,15 +27,22 @@ export class AssetRepository {
   }
 
   /**
-   * Returns assets for a room, optionally filtered by MIME type prefix.
+   * Returns assets for a room, optionally filtered by MIME type prefix and/or source.
    * @param roomId Room UUID
    * @param mimePrefix e.g. 'image/' or 'audio/' — pass empty string for all
+   * @param source optional filter: 'ai' (AI_IMAGE | AI_AUDIO) or 'upload' (UPLOAD)
    */
-  findByRoomAndType(roomId: string, mimePrefix: string): Promise<import('@prisma/client').Asset[]> {
+  findByRoomAndType(
+    roomId: string,
+    mimePrefix: string,
+    source?: 'ai' | 'upload',
+  ): Promise<import('@prisma/client').Asset[]> {
+    const where: import('@prisma/client').Prisma.AssetWhereInput = { roomId };
+    if (mimePrefix) where.mimeType = { startsWith: mimePrefix };
+    if (source === 'ai') where.source = { in: ['AI_IMAGE', 'AI_AUDIO'] };
+    if (source === 'upload') where.source = 'UPLOAD';
     return this.db.asset.findMany({
-      where: mimePrefix
-        ? { roomId, mimeType: { startsWith: mimePrefix } }
-        : { roomId },
+      where,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -48,6 +55,27 @@ export class AssetRepository {
     return this.db.asset.update({
       where: { id },
       data: { originalName },
+    });
+  }
+
+  /**
+   * Counts assets in a room with a specific source, optionally since a cutoff time.
+   * Used by AI quota endpoint (Session 6.3.B).
+   */
+  countByRoomAndSource(
+    roomId: string,
+    source: 'AI_IMAGE' | 'AI_AUDIO',
+  ): Promise<number> {
+    return this.db.asset.count({ where: { roomId, source } });
+  }
+
+  countByRoomAndSourceSince(
+    roomId: string,
+    source: 'AI_IMAGE' | 'AI_AUDIO',
+    since: Date,
+  ): Promise<number> {
+    return this.db.asset.count({
+      where: { roomId, source, createdAt: { gt: since } },
     });
   }
 }
