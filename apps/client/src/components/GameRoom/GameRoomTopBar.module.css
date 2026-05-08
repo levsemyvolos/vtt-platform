@@ -5,8 +5,8 @@
   justify-content: space-between;
   height: 48px;
   padding: 0 var(--space-md);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
   flex-shrink: 0;
   gap: var(--space-md);
   position: relative;
@@ -24,7 +24,7 @@
 .right {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   flex-shrink: 0;
 }
 
@@ -35,7 +35,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  color: var(--color-primary);
+  color: var(--primary);
   flex-shrink: 0;
   transition: opacity var(--transition-fast);
 }
@@ -45,21 +45,29 @@
 }
 
 .sep {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
+  font-size: 12px;
   flex-shrink: 0;
+  opacity: 0.5;
 }
 
 .breadcrumb {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-mute);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .roomName {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -69,23 +77,32 @@
 .sceneDropdownWrap {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  gap: 4px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 2px var(--space-sm);
-  margin-left: var(--space-sm);
+  box-shadow: var(--shadow-engrave);
 }
 
 .sceneIcon {
-  color: var(--color-primary);
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.sceneLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-mute);
   flex-shrink: 0;
 }
 
 .sceneSelect {
   background: none;
   border: none;
-  color: var(--color-text-primary);
+  color: var(--ink);
   font-size: var(--text-sm);
   cursor: pointer;
   outline: none;
@@ -94,29 +111,31 @@
 
 .sceneSelect:disabled {
   cursor: default;
-  color: var(--color-text-secondary);
+  color: var(--ink-mute);
 }
 
 .wssDot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .wssOnline {
-  background: #7fb59a;
+  background: var(--primary);
 }
 
 .wssOffline {
-  background: #e05a5a;
+  background: var(--blood-hi);
 }
 
 .wssLabel {
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  letter-spacing: 0.5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-mute);
 }
 
 .avatarWrap {
@@ -134,7 +153,12 @@
 }
 
 .avatarBtn:focus-visible {
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.menuSection {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--line);
 }
 
 .dropdown {
@@ -142,11 +166,11 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 180px;
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  z-index: 100;
+  box-shadow: var(--shadow-cast);
+  z-index: var(--z-popover);
   padding: var(--space-xs) 0;
 }
 
@@ -156,7 +180,7 @@
   padding: var(--space-sm) var(--space-md);
   background: none;
   border: none;
-  color: var(--color-text-primary);
+  color: var(--ink);
   font-size: var(--text-sm);
   text-align: left;
   cursor: pointer;
@@ -164,33 +188,5 @@
 }
 
 .menuItem:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-}
-
-.menuItemDisabled {
-  color: var(--color-text-muted);
-  cursor: not-allowed;
-}
-
-.iconBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 4px 6px;
-  transition: color var(--transition-fast), background var(--transition-fast);
-}
-
-.iconBtn:hover {
-  color: var(--color-text-primary);
-  background: var(--color-surface-elevated);
-}
-
-.iconBtn[aria-pressed="true"] {
-  color: var(--color-primary);
-  background: var(--color-primary-muted);
+  background: var(--bg-2);
 }

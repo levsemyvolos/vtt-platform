@@ -1,0 +1,40 @@
+apps/client/src/components/Dashboard/RoomCard.module.css:82:  color: var(--color-error, #e53e3e);
+apps/client/src/components/GameCanvas/GameCanvas.tsx:78:  const stageBg = theme === 'dark' ? '#0f172a' : '#fafafa';
+apps/client/src/components/GameCanvas/HpBar.tsx:10:const COLOR_FULL = '#51cf66';    // --color-success light
+apps/client/src/components/GameCanvas/HpBar.tsx:11:const COLOR_HALF = '#ffd43b';    // --color-warning light
+apps/client/src/components/GameCanvas/HpBar.tsx:12:const COLOR_LOW  = '#ff6b6b';    // --color-danger light
+apps/client/src/components/GameCanvas/HpBar.tsx:13:const COLOR_TRACK = '#334155';   // --color-border-strong dark
+apps/client/src/components/GameCanvas/layers/AnnotationLayer.tsx:22:const PING_PALETTE = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
+apps/client/src/components/GameCanvas/layers/AnnotationLayer.tsx:217:          <Rect width={object.width} height={object.height} fill="#334155" stroke="#94a3b8" strokeWidth={1} />
+apps/client/src/components/GameCanvas/layers/BackgroundLayer.tsx:35:      <Rect x={0} y={0} width={totalW} height={totalH} fill="#1f1f23" />
+apps/client/src/components/GameCanvas/layers/BackgroundLayer.tsx:43:          stroke="#3a3a40"
+apps/client/src/components/GameCanvas/layers/BackgroundLayer.tsx:51:          stroke="#3a3a40"
+apps/client/src/components/GameCanvas/layers/FogMarqueeLayer.tsx:30:  const color = mode === 'hide' ? '#cc3333' : '#33cc66';
+apps/client/src/components/GameCanvas/layers/TokenLayer.tsx:24:  poisoned: '#51cf66', stunned: '#339af0', prone: '#868e96',
+apps/client/src/components/GameCanvas/layers/TokenLayer.tsx:25:  blinded: '#212529', charmed: '#f783ac', frightened: '#ff6b6b',
+apps/client/src/components/GameCanvas/layers/TokenLayer.tsx:26:  grappled: '#f76707', incapacitated: '#e9ecef', paralyzed: '#74c0fc',
+apps/client/src/components/GameCanvas/layers/TokenLayer.tsx:27:  petrified: '#adb5bd', restrained: '#fd7e14', unconscious: '#495057',
+apps/client/src/components/GameCanvas/layers/TokenLayer.tsx:57:            fill="#ffffff" opacity={0.25} cornerRadius={4} listening={false}
+apps/client/src/components/GameCanvas/layers/TokenLayer.tsx:112:  const tokenColor = token.color ?? '#7c5cff';
+apps/client/src/components/GameCanvas/layers/TokenLayer.tsx:173:        width={gridSize} align="center" fill="#f5f5f7" fontSize={11}
+apps/client/src/components/GameCanvas/TextAnnotationModal.tsx:19:  const [color, setColor] = useState('#ffffff');
+apps/client/src/components/GameCanvas/TextAnnotationModal.tsx:46:            style={{ padding: '0.4rem 0.6rem', borderRadius: '4px', border: '1px solid var(--color-border, #444)', background: 'var(--color-surface-2, #1e2535)', color: 'inherit' }}
+apps/client/src/components/GameCanvas/TextAnnotationModal.tsx:68:            style={{ padding: '0.4rem 1rem', borderRadius: '4px', border: 'none', background: 'var(--color-primary, #7c5cff)', color: '#fff', cursor: submitting ? 'default' : 'pointer', opacity: submitting ? 0.6 : 1 }}
+apps/client/src/components/GameRoom/FogControlsPopover.module.css:53:  background: var(--color-accent, #d4af37);
+apps/client/src/components/GameRoom/FogControlsPopover.module.css:54:  border-color: var(--color-accent, #d4af37);
+apps/client/src/components/GameRoom/FogControlsPopover.module.css:55:  color: var(--color-on-accent, #1a1a1a);
+apps/client/src/components/GameRoom/GameRoomTopBar.module.css:109:  background: #7fb59a;
+apps/client/src/components/GameRoom/GameRoomTopBar.module.css:113:  background: #e05a5a;
+apps/client/src/components/SceneEditor/EditorToolbarLeft.module.css:93:  color: var(--color-error, #e03131);
+apps/client/src/components/SceneEditor/EditorToolbarRight.module.css:73:  color: var(--color-error, #e03131);
+apps/client/src/components/SceneEditor/__tests__/EditorToolbarRight.test.tsx:35:      color: '#7c5cff',
+apps/client/src/components/Token/TokenEditModal.tsx:12:  '#7c5cff', '#ff6b6b', '#51cf66', '#339af0',
+apps/client/src/components/Token/TokenEditModal.tsx:13:  '#ffd43b', '#f76707', '#cc5de8', '#495057',
+apps/client/src/components/Token/TokenEditModal.tsx:32:  const [color, setColor] = useState('#7c5cff');
+apps/client/src/components/Token/TokenEditModal.tsx:46:    setColor(token.color ?? '#7c5cff');
+apps/client/src/components/Token/__tests__/TokenEditModal.test.tsx:14:  imageUrl: '', version: 1, color: '#7c5cff',
+apps/client/src/components/VideoTile/VideoTile.module.css:14:  border-color: #4ade80;
+apps/client/src/components/VideoTile/VideoTile.module.css:15:  box-shadow: 0 0 0 2px #4ade80, 0 0 12px rgba(74, 222, 128, 0.5);
+apps/client/src/components/VideoTile/VideoTile.module.css:59:.rttGood { color: #4ade80; }
+apps/client/src/components/VideoTile/VideoTile.module.css:60:.rttWarn { color: #facc15; }
+apps/client/src/components/VideoTile/VideoTile.module.css:61:.rttBad  { color: #f87171; }

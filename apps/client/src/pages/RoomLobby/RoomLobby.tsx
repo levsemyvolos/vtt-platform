@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
+import { ArrowLeft, Crown, Eye, Sword, UserRound } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -9,8 +10,14 @@ import { apiFetch } from '../../api/apiFetch';
 import { connectSocket, emitRoomJoin } from '../../api/socket';
 import SceneManager from '../../components/SceneManager/SceneManager';
 import InviteLink from '../../components/InviteLink/InviteLink';
-import { ConnectionStepper } from '../../components/Lobby';
+import { Button, StatusBadge } from '../../components/ui';
 import styles from './RoomLobby.module.css';
+
+function RoleIcon({ role }: { role: Role }): JSX.Element {
+  if (role === 'GM') return <Crown size={16} strokeWidth={1.5} className="icon-accent icon-primary" />;
+  if (role === 'Player') return <Sword size={16} strokeWidth={1.5} className="icon-accent" />;
+  return <Eye size={16} strokeWidth={1.5} className="icon-accent" />;
+}
 
 export default function RoomLobby(): JSX.Element | null {
   const dispatch = useAppDispatch();
@@ -34,6 +41,8 @@ export default function RoomLobby(): JSX.Element | null {
   const myMember = members.find((m) => m.userId === currentUser?.id);
   const isGM = myMember?.role === 'GM';
   const myRole: Role = myMember?.role ?? 'Observer';
+  const showSession = isGM || (currentRoom.status === 'active' && !isObserver);
+  const showStatusBadge = currentRoom.status !== 'lobby';
 
   const handleLeave = (): void => {
     if (isObserver) {
@@ -55,76 +64,100 @@ export default function RoomLobby(): JSX.Element | null {
     }
   };
 
-  function roleBadgeClass(role: string): string {
-    if (role === 'GM') return styles.roleGm as string;
-    if (role === 'Player') return styles.rolePlayer as string;
-    return styles.roleObserver as string;
-  }
-
   return (
     <div className={styles.lobbyPage}>
-      <div className={styles.lobby}>
-        <ConnectionStepper />
-
-        <header className={styles.lobbyHeader}>
-          <button type="button" className={styles.btnBack} onClick={handleLeave}>
-            {t('lobby.backBtn')}
-          </button>
-          <div className={styles.headerTitle}>
-            <h1>{currentRoom.name}</h1>
-            <span className={styles.roomSystem}>{currentRoom.gameSystem}</span>
-          </div>
-          <div className={styles.headerRight}>
-            <span
-              className={[
-                styles.lobbyStatus,
-                currentRoom.status === 'active' ? styles.statusActive : styles.statusIdle,
-              ].join(' ')}
-            >
+      <header className={styles.hero}>
+        <div className={styles.heroTop}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            leftIcon={<ArrowLeft size={14} strokeWidth={2} />}
+            onClick={handleLeave}
+          >
+            {t('lobby.backToDashboard')}
+          </Button>
+          {showStatusBadge && (
+            <StatusBadge tone={currentRoom.status === 'active' ? 'live' : 'danger'}>
               {t(`status.${currentRoom.status}`)}
-            </span>
+            </StatusBadge>
+          )}
+        </div>
+        <div className={styles.heroBody}>
+          <div className={styles.heroLeft}>
+            <div className="eyebrow accent">
+              {t('lobby.eyebrow', { system: currentRoom.gameSystem })}
+            </div>
+            <h1 className={styles.title}>
+              <Trans
+                i18nKey="lobby.heading"
+                ns="room"
+                values={{ name: currentRoom.name }}
+                components={{ em: <em /> }}
+              />
+            </h1>
+            <p className={styles.lede}>{t('lobby.systemLabel')}</p>
           </div>
-        </header>
 
-        {isGM && <InviteLink roomId={currentRoom.id} />}
+          {showSession && (
+            <div className={styles.heroAction}>
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                onClick={handleEnterSession}
+              >
+                {isGM ? t('lobby.startSession') : t('lobby.joinSession')}
+              </Button>
+            </div>
+          )}
+        </div>
+        <hr className="fold" />
+      </header>
 
-        <SceneManager roomId={currentRoom.id} myRole={myRole} />
-
-        <section className={styles.membersSection}>
-          <h2 className={styles.membersEyebrow}>
-            {t('lobby.membersHeading', { count: members.length })}
-          </h2>
-          <ul className={styles.memberList}>
-            {members.map((member) => (
-              <li key={member.userId} className={styles.memberCard}>
-                <span className={[styles.roleBadge, roleBadgeClass(member.role)].join(' ')}>
-                  {t(`roles.${member.role}`)}
-                </span>
-                <span className={styles.memberName}>{member.name}</span>
-                {member.characterId && (
-                  <span className={styles.characterBadge} title={t('lobby.characterAttached')}>
-                    &#9823;
+      <div className={styles.contentGrid}>
+        <div className={styles.leftStack}>
+          <section className={`glass glass-strong ${styles.membersSection}`}>
+            <div className={styles.sectionHead}>
+              <div>
+                <div className={styles.sectionEyebrow}>{t('lobby.membersEyebrow')}</div>
+                <h2 className={styles.sectionTitle}>
+                  <Trans
+                    i18nKey="lobby.membersTitle"
+                    ns="room"
+                    values={{ count: members.length }}
+                    components={{ em: <em /> }}
+                  />
+                </h2>
+              </div>
+            </div>
+            <ul className={styles.memberList}>
+              {members.map((member) => (
+                <li key={member.userId} className={styles.memberCard}>
+                  <span className={styles.roleIcon} aria-hidden="true">
+                    <RoleIcon role={member.role} />
                   </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+                  <span className={styles.memberBody}>
+                    <span className={styles.memberName}>{member.name}</span>
+                    <span className={styles.memberMeta}>
+                      {t(`roles.${member.role}`)}
+                      {member.characterId ? ` · ${t('lobby.characterAttached')}` : ''}
+                    </span>
+                  </span>
+                  <UserRound size={16} strokeWidth={1.5} className="icon-accent" aria-hidden="true" />
+                </li>
+              ))}
+            </ul>
+          </section>
 
-        {(isGM || currentRoom.status === 'active') && (
-          <div className={styles.gmControls}>
-            <button type="button" className={styles.btnStart} onClick={handleEnterSession}>
-              {isGM ? t('lobby.startSession') : t('lobby.joinSession')}
-            </button>
-          </div>
-        )}
+          {isGM && <InviteLink roomId={currentRoom.id} />}
+        </div>
 
-        {myMember && (
-          <footer className={styles.lobbyFooter}>
-            {t('lobby.yourRole')} <strong>{t(`roles.${myMember.role}`)}</strong>
-          </footer>
-        )}
+        <div className={styles.rightStack}>
+          <SceneManager roomId={currentRoom.id} myRole={myRole} />
+        </div>
       </div>
+
     </div>
   );
 }

@@ -2,9 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  background: transparent;
   overflow: hidden;
 }
 
@@ -29,57 +27,71 @@
 }
 
 .msgIc {
-  background: var(--color-surface-elevated);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
 }
 
 .msgOoc {
-  background: var(--color-primary-muted);
+  background: var(--bg-3);
+  border: 1px solid var(--line);
 }
 
 .msgWhisper {
-  background: var(--color-warning-bg);
+  background: color-mix(in srgb, var(--ember) 6%, var(--bg-2));
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--ember);
   font-style: italic;
 }
 
 .bubbleDice {
-  background: var(--color-primary-muted);
-  border-left: 2px solid var(--color-primary);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--primary);
 }
 
 .author {
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--primary);
 }
 
 .timestamp {
-  font-size: 10px;
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mute);
   margin-left: var(--space-xs);
 }
 
 .eyebrowRoll {
-  color: var(--color-primary);
+  color: var(--primary);
 }
 
 .eyebrowSecret {
   display: flex;
   align-items: center;
   gap: 3px;
-  color: var(--color-text-muted);
+  color: var(--ink-mute);
 }
 
 .mode {
+  font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--color-text-muted);
+  color: var(--ink-mute);
 }
 
 .roll {
-  color: var(--color-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
   font-weight: 500;
 }
 
 .text {
-  color: var(--color-text-primary);
+  color: var(--ink);
 }
 
 .form {
@@ -87,8 +99,8 @@
   flex-direction: column;
   gap: var(--space-xs);
   padding: var(--space-sm);
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-top: 1px solid var(--line);
+  background: var(--bg-1);
 }
 
 .formRow {
@@ -99,11 +111,12 @@
 
 .form select {
   padding: var(--space-xs);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
+  color: var(--ink);
   font-size: var(--text-xs);
+  box-shadow: var(--shadow-engrave);
 }
 
 .msgInput {
@@ -112,33 +125,38 @@
 }
 
 .hint {
-  font-size: 10px;
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink-mute);
 }
 
 .error {
   font-size: var(--text-xs);
-  color: var(--color-danger);
+  color: var(--blood-hi);
+  font-family: var(--font-mono);
 }
 
 .searchInput {
+  width: 100%;
   padding: var(--space-xs) var(--space-sm);
-  background: var(--color-surface-elevated);
+  background: var(--bg-1);
   border: 0;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
   font-size: var(--text-xs);
   outline: none;
 }
 
 .searchInput:focus {
-  background: var(--color-surface);
-  border-bottom-color: var(--color-primary);
+  background: var(--bg-2);
+  border-bottom-color: var(--primary);
 }
 
 .searchEmpty {
   padding: var(--space-sm);
+  font-family: var(--font-serif);
+  font-style: italic;
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  color: var(--ink-mute);
   text-align: center;
 }

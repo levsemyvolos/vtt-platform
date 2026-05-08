@@ -107,8 +107,13 @@ export default function FogControlsPopover({
         <Button variant="secondary" size="sm" onClick={handleHideAll}>
           {t('fog.hideAll')}
         </Button>
-        <Button variant="secondary" size="sm" onClick={handleRevealAll}>
-          <RotateCcw size={14} aria-hidden /> {t('fog.revealAll')}
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<RotateCcw size={14} aria-hidden />}
+          onClick={handleRevealAll}
+        >
+          {t('fog.revealAll')}
         </Button>
       </div>
     </div>

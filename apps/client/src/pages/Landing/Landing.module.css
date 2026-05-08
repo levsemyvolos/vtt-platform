@@ -1,29 +1,13 @@
 .page {
   min-height: 100dvh;
-  background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-surface) 100%);
+  background: transparent;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
 }
 
-/* Top radial glow */
-.page::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 800px;
-  height: 400px;
-  background: radial-gradient(
-    ellipse at center top,
-    var(--color-primary-muted) 0%,
-    transparent 70%
-  );
-  pointer-events: none;
-  z-index: 0;
-}
+/* Radial glow removed — paper + topo on body provide atmosphere */
 
 /* Controls row (top-right) */
 .topControls {
@@ -55,14 +39,17 @@
 .logoWrap {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  justify-content: center;
 }
 
-.logoText {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--color-text-primary);
+.heroTitle {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: var(--text-3xl);
+  letter-spacing: -0.005em;
+  line-height: 1;
+  color: var(--ink);
+  margin: 0;
 }
 
 .subtitle {
@@ -93,15 +80,13 @@
   width: 100%;
 }
 
+/* Layout only — visuals come from .glass.glass-faint utility */
 .featureCard {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
   padding: var(--space-xl);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
 }
 
 .featureIcon {

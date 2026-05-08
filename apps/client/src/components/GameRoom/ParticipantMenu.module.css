@@ -1,22 +1,23 @@
 .menu {
   position: fixed;
   min-width: 220px;
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-cast);
   padding: var(--space-xs) 0;
   z-index: var(--z-popover);
 }
 
 .head {
   padding: var(--space-xs) var(--space-md);
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border);
+  color: var(--ink-mute);
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -30,7 +31,7 @@
   padding: var(--space-sm) var(--space-md);
   background: none;
   border: none;
-  color: var(--color-text-primary);
+  color: var(--ink);
   font-size: var(--text-sm);
   text-align: left;
   cursor: pointer;
@@ -39,32 +40,33 @@
 }
 
 .item:hover {
-  background: var(--color-surface-hover);
+  background: var(--bg-2);
 }
 
 .mock {
-  color: var(--color-text-secondary);
+  color: var(--ink-mute);
 }
 
 .mock:hover {
-  color: var(--color-text-primary);
+  color: var(--ink);
 }
 
 .danger {
-  color: var(--color-danger);
+  color: var(--blood-hi);
 }
 
 .danger:hover {
-  background: var(--color-danger-bg, rgba(220, 70, 70, 0.1));
-  color: var(--color-danger);
+  background: color-mix(in srgb, var(--blood-hi) 10%, transparent);
+  color: var(--blood-hi);
 }
 
 .mockBadge {
+  font-family: var(--font-mono);
   font-size: 9px;
   padding: 1px 5px;
-  background: var(--color-surface);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
+  background: var(--bg-2);
+  color: var(--ink-mute);
+  border: 1px solid var(--line);
   border-radius: 999px;
   letter-spacing: 0.04em;
   text-transform: uppercase;

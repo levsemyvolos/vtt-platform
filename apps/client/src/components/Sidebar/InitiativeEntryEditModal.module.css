@@ -11,31 +11,34 @@
 }
 
 .label {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-secondary);
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--ink-mute);
 }
 
 .input {
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
+  color: var(--ink);
   font-size: var(--text-sm);
+  box-shadow: var(--shadow-engrave);
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--primary);
 }
 
 .error {
   margin: 0;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-danger);
+  color: var(--blood-hi);
 }
 
 .actions {
@@ -48,31 +51,33 @@
 .btnCancel {
   padding: var(--space-xs) var(--space-md);
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
+  color: var(--ink-mute);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .btnCancel:hover:not(:disabled) {
-  background: var(--color-surface-hover);
+  background: var(--bg-2);
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
 
 .btnSave {
   padding: var(--space-xs) var(--space-md);
-  background: var(--color-primary);
+  background: var(--primary);
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--color-text-inverse);
+  color: var(--bg-0);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: background 0.12s;
+  transition: opacity var(--transition-fast);
 }
 
 .btnSave:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  opacity: 0.85;
 }
 
 .btnSave:disabled,

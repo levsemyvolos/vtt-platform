@@ -3,9 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { MoreVertical } from 'lucide-react';
 import type { RoomDTO } from '@vtt/shared';
 import Card from '../ui/Card';
-import Button from '../ui/Button';
 import Avatar from '../ui/Avatar';
-import { gameSystemAccent } from './gameSystem';
+import { gameSystemAccent, accentVar } from './gameSystem';
 import EditRoomModal from './EditRoomModal';
 import DeleteRoomModal from './DeleteRoomModal';
 import { formatRelativeTime } from '../../utils/relativeTime';
@@ -21,9 +20,10 @@ export interface RoomCardProps {
 
 const MAX_AVATARS = 4;
 
-export default function RoomCard({ room, myRole, currentUserId, onOpen }: RoomCardProps) {
+export default function RoomCard({ room, currentUserId, onOpen }: RoomCardProps) {
   const { t, i18n } = useTranslation(['room', 'common']);
-  const accent = gameSystemAccent(room.gameSystem);
+  const accentEnum = gameSystemAccent(room.gameSystem);
+  const accent = accentVar(accentEnum);
   const visibleMembers = room.members.slice(0, MAX_AVATARS);
   const overflow = Math.max(0, room.members.length - MAX_AVATARS);
   const isOwner = room.ownerId === currentUserId;
@@ -52,7 +52,7 @@ export default function RoomCard({ room, myRole, currentUserId, onOpen }: RoomCa
     };
   }, [menuOpen]);
 
-  const eyebrowTone = room.status === 'active' ? styles.eyebrowActive : styles.eyebrowMuted;
+  const statusClass = room.status === 'active' ? styles.statusActive : styles.statusDormant;
 
   const handleMenuToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,15 +71,38 @@ export default function RoomCard({ room, myRole, currentUserId, onOpen }: RoomCa
     setDeleteOpen(true);
   };
 
+  const handleCardClick = () => {
+    onOpen(room);
+  };
+
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onOpen(room);
+    }
+  };
+
   const relTime = formatRelativeTime(room.lastActiveAt, i18n.language);
 
   return (
     <>
-      <Card accent={accent} className={styles.card} data-testid="room-card">
+      <Card
+        className={`glass glass-strong ${styles.card}`}
+        data-testid="room-card"
+        onClick={handleCardClick}
+        onKeyDown={handleCardKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label={room.name}
+      >
         <div className={styles.header}>
-          <span className={`eyebrow ${eyebrowTone}`}>
-            {room.gameSystem} · {t(`room:status.${room.status}`)}
-          </span>
+          <div className={styles.eyebrow}>
+            <div className={styles.accentBar} style={{ background: accent }} />
+            <div className={styles.system}>
+              {room.gameSystem.toUpperCase()} ·{' '}
+              <span className={statusClass}>{t(`room:status.${room.status}`)}</span>
+            </div>
+          </div>
           {isOwner && (
             <div className={styles.menuWrap} ref={menuRef}>
               <button
@@ -118,19 +141,9 @@ export default function RoomCard({ room, myRole, currentUserId, onOpen }: RoomCa
 
         <h3 className={styles.name} title={room.name}>{room.name}</h3>
 
-        <div className={styles.meta}>
-          {myRole && (
-            <span className={styles.metaRow}>
-              {t('room:dashboard.card.role', { role: t(`room:roles.${myRole}`) })}
-            </span>
-          )}
-          <span className={styles.metaRow}>
-            {t('room:dashboard.membersCount', { count: room.members.length })}
-          </span>
-          <span className={styles.metaRow}>
-            {t('room:lastActive.label', { time: relTime })}
-          </span>
-        </div>
+        <p className={styles.desc}>
+          {room.description?.trim() || t('room:dashboard.card.descFallback')}
+        </p>
 
         <div className={styles.footer}>
           <div className={styles.avatarStack} aria-hidden="true">
@@ -139,9 +152,7 @@ export default function RoomCard({ room, myRole, currentUserId, onOpen }: RoomCa
             ))}
             {overflow > 0 && <span className={styles.overflow}>+{overflow}</span>}
           </div>
-          <Button size="sm" variant="primary" onClick={() => onOpen(room)}>
-            {t('common:btn.open')}
-          </Button>
+          <span className={styles.created}>{relTime}</span>
         </div>
       </Card>
 

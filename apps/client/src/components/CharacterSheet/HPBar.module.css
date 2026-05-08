@@ -1,0 +1,27 @@
+.bar {
+  display: flex;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg-0);
+  box-shadow: var(--shadow-engrave);
+}
+
+.bar > div {
+  height: 100%;
+  transition: width 600ms cubic-bezier(.2, .7, .2, 1);
+}
+
+.full {
+  background: linear-gradient(180deg, var(--vitality-hi), var(--vitality));
+}
+
+.wound {
+  background: linear-gradient(180deg, var(--blood-hi), var(--blood));
+  box-shadow: 0 0 8px -1px color-mix(in srgb, var(--blood-hi) 50%, transparent);
+}
+
+.empty {
+  flex: 1;
+}

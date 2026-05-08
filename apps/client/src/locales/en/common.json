@@ -41,5 +41,16 @@
     "connecting": "Connecting to server…",
     "waking": "Server is waking up, hold on…",
     "retry": "Try again"
+  },
+  "theme": {
+    "label": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System"
+  },
+  "presence": {
+    "onlineN": "{{count}} online",
+    "onlineN_one": "{{count}} online",
+    "onlineN_few": "{{count}} online"
   }
 }

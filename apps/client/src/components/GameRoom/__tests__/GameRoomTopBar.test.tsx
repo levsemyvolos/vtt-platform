@@ -67,7 +67,7 @@ function makeStore() {
 }
 
 describe('GameRoomTopBar', () => {
-  it('renders breadcrumb with room name', () => {
+  it('renders room name next to logo', () => {
     const store = makeStore();
     render(
       <Provider store={store}>
@@ -76,7 +76,6 @@ describe('GameRoomTopBar', () => {
         </MemoryRouter>
       </Provider>,
     );
-    expect(screen.getByText('Кімнати')).toBeTruthy();
     expect(screen.getByText('Прокляття Страда')).toBeTruthy();
   });
 

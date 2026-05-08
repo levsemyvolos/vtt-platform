@@ -10,7 +10,7 @@ import { logout, selectIsObserver } from '../../store/session';
 import { addToast } from '../../store/toast';
 import { toggleSoundMuted } from '../../store/notifications';
 import { peerManagerRef } from '../../infrastructure/webrtc/peerManagerRef';
-import { Logo, Badge, Avatar } from '../ui';
+import { Logo, Badge, Avatar, IconButton } from '../ui';
 import ThemeToggle from '../Header/ThemeToggle';
 import LanguageSwitcher from '../Header/LanguageSwitcher';
 import { getSocket } from '../../api/socket';
@@ -133,73 +133,79 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
         >
           <Logo size={28} />
         </button>
-        <span className={styles.sep} aria-hidden>/</span>
-        <span className={styles.breadcrumb}>{t('topBar.breadcrumb')}</span>
-        <span className={styles.sep} aria-hidden>/</span>
+        <span className={styles.sep} aria-hidden>·</span>
         <span className={styles.roomName}>{currentRoom?.name ?? ''}</span>
 
         {sceneList.length > 0 && (
-          <div className={styles.sceneDropdownWrap}>
-            <Film size={14} className={styles.sceneIcon} aria-hidden />
-            <select
-              className={styles.sceneSelect}
-              value={activeScene?.id ?? ''}
-              onChange={(e) => handleSceneChange(e.target.value)}
-              aria-label={t('topBar.noScene')}
-              disabled={myRole !== 'GM'}
-            >
-              {!activeScene && (
-                <option value="" disabled>
-                  {t('topBar.noScene')}
-                </option>
-              )}
-              {sceneList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <>
+            <span className={styles.sep} aria-hidden>·</span>
+            <div className={styles.sceneDropdownWrap}>
+              <Film size={12} className={styles.sceneIcon} aria-hidden />
+              <span className={styles.sceneLabel}>SCENE</span>
+              <select
+                className={styles.sceneSelect}
+                value={activeScene?.id ?? ''}
+                onChange={(e) => handleSceneChange(e.target.value)}
+                aria-label={t('topBar.noScene')}
+                disabled={myRole !== 'GM'}
+              >
+                {!activeScene && (
+                  <option value="" disabled>
+                    {t('topBar.noScene')}
+                  </option>
+                )}
+                {sceneList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
         )}
       </div>
 
       <div className={styles.right}>
-        <button
-          type="button"
-          className={styles.iconBtn}
+        <IconButton
+          variant="ghost"
+          size="sm"
           onClick={onToggleSidebar}
-          aria-pressed={sidebarCollapsed}
           title={sidebarCollapsed ? t('topBar.showSidebar') : t('topBar.hideSidebar')}
           aria-label={sidebarCollapsed ? t('topBar.showSidebar') : t('topBar.hideSidebar')}
         >
           {sidebarCollapsed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
-        </button>
+        </IconButton>
         {callJoined && (
-          <button
-            type="button"
-            className={styles.iconBtn}
+          <IconButton
+            variant="ghost"
+            size="sm"
             onClick={handleReconnect}
             title={t('topBar.reconnect')}
             aria-label={t('topBar.reconnect')}
           >
             <RotateCw size={16} />
-          </button>
+          </IconButton>
         )}
-        <button
-          type="button"
-          className={styles.iconBtn}
+        <IconButton
+          variant="ghost"
+          size="sm"
           onClick={() => dispatch(toggleSoundMuted())}
           aria-label={t(soundMuted ? 'topBar.unmuteNotifications' : 'topBar.muteNotifications')}
           title={t(soundMuted ? 'topBar.unmuteNotifications' : 'topBar.muteNotifications')}
         >
           {soundMuted ? <BellOff size={16} /> : <Bell size={16} />}
-        </button>
+        </IconButton>
         <span
           className={`${styles.wssDot} ${wssConnected ? styles.wssOnline : styles.wssOffline}`}
           title={wssConnected ? t('topBar.wssHealthOnline') : t('topBar.wssHealthOffline')}
           aria-label={wssConnected ? t('topBar.wssHealthOnline') : t('topBar.wssHealthOffline')}
+          role="img"
         />
         <span className={styles.wssLabel} aria-hidden>WSS</span>
+        <span className={styles.sep} aria-hidden>·</span>
+        <LanguageSwitcher />
+        <ThemeToggle />
+        <span className={styles.sep} aria-hidden>·</span>
 
         <Badge variant="role">
           {tRoom(`roles.${myRole}`)}
@@ -220,12 +226,6 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
           </button>
           {menuOpen && (
             <div className={styles.dropdown} role="menu">
-              <div className={styles.menuSection}>
-                <ThemeToggle />
-              </div>
-              <div className={styles.menuSection}>
-                <LanguageSwitcher />
-              </div>
               <button
                 type="button"
                 className={styles.menuItem}

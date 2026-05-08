@@ -3,13 +3,18 @@
   flex-direction: column;
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-engrave);
 }
 
 .heading {
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-mute);
   margin-bottom: var(--space-xs);
 }
 
@@ -22,8 +27,11 @@
 }
 
 .rowLabel {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -31,12 +39,13 @@
 
 .slider {
   width: 100%;
-  accent-color: var(--color-primary);
+  accent-color: var(--primary);
 }
 
 .rowValue {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  color: var(--ink-mute);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

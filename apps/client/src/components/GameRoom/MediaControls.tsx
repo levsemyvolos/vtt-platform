@@ -3,29 +3,29 @@ import { Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { toggleCamera as toggleCameraAction, toggleMic as toggleMicAction } from '../../store/media';
 import { peerManagerRef } from '../../infrastructure/webrtc/peerManagerRef';
+import { IconButton } from '../ui';
 import styles from './MediaControls.module.css';
 
 function MicButton({ enabled }: { enabled: boolean }): JSX.Element {
   const { t } = useTranslation('gameroom');
   const dispatch = useAppDispatch();
   const label = enabled ? t('videoCall.muteMic') : t('videoCall.unmuteMic');
-  const text = enabled ? t('videoCall.micOn') : t('videoCall.micOff');
   function onClick(): void {
     peerManagerRef.current?.setMicEnabled(!enabled);
     dispatch(toggleMicAction());
   }
   return (
-    <button
-      type="button"
-      className={styles.btn}
+    <IconButton
+      variant="ghost"
+      size="sm"
       onClick={onClick}
-      aria-pressed={enabled}
+      isActive={enabled}
       aria-label={label}
       title={label}
+      className={enabled ? styles.emberActive : undefined}
     >
       {enabled ? <Mic size={14} /> : <MicOff size={14} />}
-      <span>{text}</span>
-    </button>
+    </IconButton>
   );
 }
 
@@ -34,7 +34,6 @@ function CamButton({ enabled, ceiling }: { enabled: boolean; ceiling: boolean })
   const dispatch = useAppDispatch();
   const on = enabled && !ceiling;
   const label = enabled ? t('videoCall.camOff') : t('videoCall.camOn');
-  const text = on ? t('videoCall.camOn') : t('videoCall.camOff');
   const title = ceiling ? t('videoCall.meshCeiling') : undefined;
   function onClick(): void {
     if (ceiling) return;
@@ -42,18 +41,18 @@ function CamButton({ enabled, ceiling }: { enabled: boolean; ceiling: boolean })
     dispatch(toggleCameraAction());
   }
   return (
-    <button
-      type="button"
-      className={styles.btn}
+    <IconButton
+      variant="ghost"
+      size="sm"
       onClick={onClick}
       disabled={ceiling}
-      aria-pressed={enabled}
+      isActive={on}
       aria-label={label}
-      title={title}
+      title={title ?? label}
+      className={on ? styles.emberActive : undefined}
     >
       {on ? <Video size={14} /> : <VideoOff size={14} />}
-      <span>{text}</span>
-    </button>
+    </IconButton>
   );
 }
 

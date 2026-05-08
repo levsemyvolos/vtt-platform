@@ -1,5 +1,8 @@
 {
   "dashboard": {
+    "section": "Workshop · Campaigns",
+    "title": "Your <em>rooms</em>",
+    "lede": "Each room is a separate campaign. Create, manage, join as GM or player.",
     "heading": "My Rooms",
     "subheading": "{{active}} active · {{total}} total",
     "createBtn": "Create Room",
@@ -23,8 +26,11 @@
     "search": {
       "placeholder": "search rooms…"
     },
+    "count": "{{count}} rooms",
+    "count_one": "{{count}} room",
     "card": {
-      "role": "Role: {{role}}"
+      "role": "Role: {{role}}",
+      "descFallback": "Campaign without description."
     },
     "createCard": {
       "heading": "Create a new room",
@@ -49,10 +55,18 @@
   },
   "lobby": {
     "backBtn": "← Back",
+    "backToDashboard": "Back to Dashboard",
+    "eyebrow": "{{system}} · Room Lobby",
+    "heading": "The <em>{{name}}</em>",
+    "systemLabel": "Gather the table, choose the active scene, and open the session.",
+    "membersEyebrow": "Roster",
+    "membersTitle": "Round <em>table</em> · {{count}}",
     "membersHeading": "Members · {{count}}",
     "characterAttached": "Character attached",
     "startSession": "Start Session",
     "joinSession": "Join Session",
+    "startHint": "When the table is ready, open the threshold into the active scene.",
+    "joinHint": "The session is already active. Step into the room when ready.",
     "yourRole": "Your role:",
     "exitBtn": "← Exit",
     "roleLabel": "Role:",
@@ -64,11 +78,22 @@
       "authenticating": "Authenticating",
       "loadingScene": "Loading scene",
       "openingChannel": "Opening WS channel"
+    },
+    "connection": {
+      "label": "Lobby connection status",
+      "diagnostic": "Connection",
+      "allReady": "Ready",
+      "auth": "Auth",
+      "scene": "Room",
+      "channel": "Channel"
     }
+  },
+  "sceneManager": {
+    "title": "Scene <em>altar</em>"
   },
   "scenes": {
     "heading": "Scenes",
-    "createBtn": "+ Create Scene",
+    "createBtn": "Create Scene",
     "activeBadge": "Active",
     "activateBtn": "Activate",
     "activating": "…",

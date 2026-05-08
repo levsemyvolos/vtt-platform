@@ -7,12 +7,17 @@
   cursor: col-resize;
   z-index: 20;
   background: transparent;
-  transition: background 0.15s;
+  transition: background var(--transition-fast);
   touch-action: none;
 }
 
 .resizer:hover,
 .resizer:active {
-  background: var(--color-primary);
-  opacity: 0.35;
+  background: var(--primary);
+  opacity: 0.45;
+}
+
+.resizer:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }

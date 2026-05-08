@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Phone } from 'lucide-react';
 import type { RoomMemberDTO, TurnConfigResponse } from '@vtt/shared';
+import { Button } from '../ui';
 import styles from './VideoCall.module.css';
 import { store, useAppDispatch, useAppSelector } from '../../store';
 import {
@@ -275,9 +276,9 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
         <div className={styles.joinPlaceholder}>
           <Phone size={28} aria-hidden />
           <p className={styles.joinPrompt}>{t('videoCall.joinPrompt')}</p>
-          <button type="button" className={styles.joinBtn} onClick={onJoinCall}>
+          <Button variant="primary" size="sm" onClick={onJoinCall}>
             {t('videoCall.joinBtn')}
-          </button>
+          </Button>
           {error && <p className={styles.error}>{error}</p>}
         </div>
       </section>

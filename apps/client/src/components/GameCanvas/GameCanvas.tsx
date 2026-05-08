@@ -23,7 +23,6 @@ import ImagePlacementGhost from './layers/ImagePlacementGhost';
 import { useImageToolState } from './useImageToolState';
 import { useCanvasFileDrop } from './useCanvasFileDrop';
 import { useFogCompactWorker } from '../../hooks/useFogCompactWorker';
-import AddTokenButton from './AddTokenButton';
 import TextAnnotationModal from './TextAnnotationModal';
 import ImageAnnotationPickerModal from './ImageAnnotationPickerModal';
 import TokenEditModal from '../Token/TokenEditModal';
@@ -451,9 +450,6 @@ export default function GameCanvas({
       onDragLeave={fileDrop.onDragLeave}
       onDrop={fileDrop.onDrop}
     >
-      <div className={styles.toolbar}>
-        <AddTokenButton myRole={myRole} sceneId={scene.id} />
-      </div>
       <Stage
         ref={stageRef}
         width={size.width}

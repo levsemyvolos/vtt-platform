@@ -1,23 +1,29 @@
 .ribbon {
-  position: absolute;
-  top: 12px;
-  left: 12px;
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  background: var(--color-primary);
-  color: var(--color-bg);
+  background: var(--ember);
+  color: var(--ink-inverse, #fff);
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-cast), 0 0 18px -4px color-mix(in srgb, var(--ember) 60%, transparent);
   z-index: 5;
   pointer-events: none;
 }
 
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .dot {
-  font-size: 10px;
+  font-size: 8px;
   line-height: 1;
+  animation: pulse-dot 1.4s ease-in-out infinite;
 }

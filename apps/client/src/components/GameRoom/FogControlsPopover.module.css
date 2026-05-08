@@ -8,20 +8,21 @@
   gap: var(--space-sm);
   min-width: 220px;
   padding: var(--space-md);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-cast);
   font-size: var(--text-sm);
-  color: var(--color-text-primary);
+  color: var(--ink);
 }
 
 .title {
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 600;
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--primary);
 }
 
 .modeRow {
@@ -36,9 +37,9 @@
   justify-content: center;
   gap: 6px;
   padding: 6px 10px;
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   cursor: pointer;
@@ -46,13 +47,18 @@
 }
 
 .modeBtn:hover {
-  background: var(--color-surface-hover);
+  background: var(--bg-3);
+  border-color: var(--line-strong);
 }
 
 .modeBtnActive {
-  background: var(--color-accent, #d4af37);
-  border-color: var(--color-accent, #d4af37);
-  color: var(--color-on-accent, #1a1a1a);
+  background: color-mix(in srgb, var(--ember) 15%, var(--bg-2));
+  border-color: var(--ember);
+  color: var(--ember);
+}
+
+.modeBtnActive:hover {
+  background: color-mix(in srgb, var(--ember) 22%, var(--bg-2));
 }
 
 .sliderRow {
@@ -60,12 +66,14 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--space-sm);
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
 }
 
 .sliderRow input[type="range"] {
   width: 100%;
+  accent-color: var(--primary);
 }
 
 .sliderVal {

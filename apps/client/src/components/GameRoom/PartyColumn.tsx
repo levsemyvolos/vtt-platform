@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
 import type { Role, RoomMemberDTO } from '@vtt/shared';
 import { useAppSelector } from '../../store';
-import { Avatar, Badge } from '../ui';
+import { Avatar, Badge, IconButton } from '../ui';
 import VideoCall from '../VideoCall/VideoCall';
 import MediaControls from './MediaControls';
 import ParticipantMenu, { type MenuTarget } from './ParticipantMenu';
@@ -136,15 +136,16 @@ export default function PartyColumn({ roomId, myUserId, myRole }: PartyColumnPro
                   </Badge>
                 </div>
                 {!isSelf && (
-                  <button
-                    type="button"
-                    className={styles.moreBtn}
+                  <IconButton
+                    variant="ghost"
+                    size="sm"
                     onClick={(e) => openMenu(e, m)}
                     aria-label={t('participantMenu.openMenu')}
                     title={t('participantMenu.openMenu')}
+                    className={styles.moreBtn}
                   >
                     <MoreHorizontal size={14} />
-                  </button>
+                  </IconButton>
                 )}
               </li>
             );

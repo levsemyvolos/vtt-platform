@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next';
 import styles from './Header.module.css';
 
 const LANGS = [
-  { code: 'en', flag: '🇬🇧', label: 'English' },
-  { code: 'uk', flag: '🇺🇦', label: 'Українська' },
+  { code: 'en', shortLabel: 'EN', label: 'English' },
+  { code: 'uk', shortLabel: 'UA', label: 'Українська' },
 ] as const;
 
 type LangCode = (typeof LANGS)[number]['code'];
@@ -18,7 +18,7 @@ export default function LanguageSwitcher(): JSX.Element {
 
   return (
     <div className={styles.langSwitcher} role="group" aria-label="Language">
-      {LANGS.map(({ code, flag, label }) => (
+      {LANGS.map(({ code, shortLabel, label }) => (
         <button
           key={code}
           type="button"
@@ -28,7 +28,7 @@ export default function LanguageSwitcher(): JSX.Element {
           aria-pressed={current === code}
           aria-label={label}
         >
-          {flag}
+          {shortLabel}
         </button>
       ))}
     </div>

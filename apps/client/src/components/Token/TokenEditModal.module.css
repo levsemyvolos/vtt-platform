@@ -1,7 +1,9 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: var(--color-overlay);
+  background: color-mix(in srgb, var(--bg-0) 80%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,21 +11,23 @@
 }
 
 .dialog {
-  background: var(--color-surface);
+  background: var(--bg-1);
   border-radius: var(--radius-md);
   padding: var(--space-xl);
   width: 360px;
   max-width: calc(100vw - var(--space-2xl));
   max-height: 90dvh;
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-cast);
 }
 
 .heading {
   margin: 0 0 var(--space-lg);
   font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--ink);
 }
 
 .field {
@@ -34,7 +38,8 @@
 .fieldLabel {
   display: block;
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
   margin-bottom: var(--space-xs);
 }
 
@@ -42,17 +47,18 @@
   display: block;
   width: 100%;
   padding: var(--space-sm);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
+  color: var(--ink);
   font-size: var(--text-sm);
-  transition: border-color 0.15s;
+  box-shadow: var(--shadow-engrave);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .input:focus {
-  border-color: var(--color-primary);
-  outline: 2px solid var(--color-primary);
+  border-color: var(--primary);
+  outline: 2px solid color-mix(in srgb, var(--primary) 15%, transparent);
   outline-offset: 1px;
 }
 
@@ -112,20 +118,21 @@
   border-radius: 12px;
   font-size: var(--text-xs);
   cursor: pointer;
-  background: var(--color-surface-hover);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-  transition: background 0.12s, color 0.12s;
+  background: var(--bg-2);
+  color: var(--ink-mute);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
 .marker--active {
-  background: var(--color-primary-muted);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--primary) 12%, var(--bg-2));
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
 .error {
-  color: var(--color-danger);
+  color: var(--blood-hi);
   font-size: var(--text-xs);
   margin-bottom: var(--space-sm);
 }
@@ -140,31 +147,31 @@
 .btnCancel {
   padding: var(--space-sm) var(--space-lg);
   border-radius: var(--radius-sm);
-  background: var(--color-surface-hover);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink-mute);
   cursor: pointer;
   font-size: var(--text-sm);
   transition: background 0.12s;
 }
 
 .btnCancel:hover:not(:disabled) {
-  background: var(--color-border);
+  background: var(--bg-3);
 }
 
 .btnSave {
   padding: var(--space-sm) var(--space-lg);
   border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  border: none;
-  color: var(--color-text-inverse);
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: var(--ink-inverse);
   cursor: pointer;
   font-size: var(--text-sm);
   transition: background 0.12s;
 }
 
 .btnSave:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  background: var(--primary-hi);
 }
 
 .btnSave:disabled,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lock } from 'lucide-react';
+import { Lock, X } from 'lucide-react';
 import type { DiceMode } from '@vtt/shared';
 import { emitDiceRoll } from '../../api/socket';
 import { Button, IconButton, Tabs, type TabItem } from '../ui';
@@ -64,14 +64,14 @@ export default function DiceTool({ roomId, open, onClose }: DiceToolProps): JSX.
     <div className={styles.tool} role="dialog" aria-label={t('dice.toolHeading')}>
       <header className={styles.header}>
         <span className={styles.title}>{t('dice.toolHeading')}</span>
-        <button
-          type="button"
-          className={styles.closeBtn}
+        <IconButton
+          variant="ghost"
+          size="sm"
           onClick={onClose}
           aria-label={t('dice.closeLabel')}
         >
-          ✕
-        </button>
+          <X size={14} />
+        </IconButton>
       </header>
 
       <div className={styles.row} role="group" aria-label={t('dice.digitGroup')}>

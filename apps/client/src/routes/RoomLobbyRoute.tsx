@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../store';
 import { fetchRoom } from '../store/room';
+import { AppShell } from '../components/layout/AppShell';
+import { ConnectionPill } from '../components/Lobby';
 import RoomLobby from '../pages/RoomLobby/RoomLobby';
 
 export default function RoomLobbyRoute(): JSX.Element {
@@ -45,5 +47,9 @@ export default function RoomLobbyRoute(): JSX.Element {
     }
   }, [currentRoom, roomStatus, navigate]);
 
-  return <main className="room-screen"><RoomLobby /></main>;
+  return (
+    <AppShell subBar={<ConnectionPill />}>
+      <RoomLobby />
+    </AppShell>
+  );
 }

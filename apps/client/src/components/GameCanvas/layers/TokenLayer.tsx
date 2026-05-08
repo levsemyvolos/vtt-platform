@@ -75,8 +75,8 @@ function ActiveHighlight({ gridSize }: { gridSize: number }): JSX.Element {
       x={-3} y={-3}
       width={gridSize + 6} height={gridSize + 6}
       fill="transparent"
-      stroke="#ffd43b" strokeWidth={3} cornerRadius={6}
-      shadowBlur={12} shadowColor="#ffd43b" shadowOpacity={0.8}
+      stroke="#c8421a" strokeWidth={3} cornerRadius={6}
+      shadowBlur={12} shadowColor="#c8421a" shadowOpacity={0.8}
       listening={false}
     />
   );

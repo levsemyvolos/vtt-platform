@@ -53,13 +53,13 @@
   color: var(--color-text-primary);
 }
 
-/* Active state — toolbar selection (e.g. Fog active in CanvasToolbar) */
+/* Active state — toolbar selection / currently broadcasting (ember = "attention now") */
 .active {
-  background: var(--color-primary-muted);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--ember) 14%, transparent);
+  color: var(--ember);
+  border-color: var(--ember);
 }
 .active:hover:not(:disabled) {
-  background: var(--color-primary-muted);
-  color: var(--color-primary);
+  background: color-mix(in srgb, var(--ember) 22%, transparent);
+  color: var(--ember);
 }

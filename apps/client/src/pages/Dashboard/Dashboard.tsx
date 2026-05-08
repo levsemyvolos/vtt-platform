@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { LogIn, Plus, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { RoomDTO } from '@vtt/shared';
+import Button from '../../components/ui/Button';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchRooms } from '../../store/room';
 import type { FetchRoomsOpts } from '../../store/room';
-import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Tabs, { type TabItem } from '../../components/ui/Tabs';
 import { RoomCard, CreateRoomCard, CreateRoomModal, JoinByCodeModal, SortDropdown } from '../../components/Dashboard';
@@ -64,7 +64,6 @@ export default function Dashboard() {
     [ownRooms, currentUser?.id],
   );
 
-  const activeRooms = ownRooms.filter((r) => r.status === 'active').length;
   const ownedCount = my.length;
   const limitReached = ownedCount >= ROOM_LIMIT;
 
@@ -95,61 +94,67 @@ export default function Dashboard() {
 
   return (
     <div className={styles.dashboard}>
-      <header className={styles.header}>
-        <div className={styles.titleBlock}>
-          <h1 className={styles.title}>{t('room:dashboard.heading')}</h1>
-          <p className={styles.subtitle}>
-            {t('room:dashboard.subheading', { active: activeRooms, total: ownRooms.length })}
-          </p>
-          {tab === 'my' && (
-            <p className={styles.limitCounter}>
-              {t('room:limitCounter', { used: ownedCount, limit: ROOM_LIMIT })}
-            </p>
-          )}
+      <div className={styles.pageHead}>
+        <div className={styles.pageHeadRow}>
+          <div>
+            <div className="eyebrow accent">{t('room:dashboard.section')}</div>
+            <h1 className={styles.pageTitle}>
+              <Trans i18nKey="dashboard.title" ns="room" components={{ em: <em /> }} />
+            </h1>
+            <p className={styles.pageLede}>{t('room:dashboard.lede')}</p>
+          </div>
+          <div className={styles.headerActions}>
+            <Button
+              variant="secondary"
+              leftIcon={<LogIn size={16} strokeWidth={2} />}
+              onClick={() => setJoinOpen(true)}
+            >
+              {t('room:dashboard.joinBtn')}
+            </Button>
+            <Button
+              variant="primary"
+              leftIcon={<Plus size={16} strokeWidth={2} />}
+              onClick={() => setCreateOpen(true)}
+              disabled={limitReached}
+              title={limitReached ? t('errors:rooms.limitReached', { limit: ROOM_LIMIT }) : undefined}
+            >
+              {t('room:dashboard.createBtn')}
+            </Button>
+          </div>
         </div>
-        <div className={styles.headerActions}>
-          <Button
-            variant="secondary"
-            leftIcon={<LogIn size={16} />}
-            onClick={() => setJoinOpen(true)}
-          >
-            {t('room:dashboard.joinBtn')}
-          </Button>
-          <Button
-            variant="primary"
-            leftIcon={<Plus size={16} />}
-            onClick={() => setCreateOpen(true)}
-            disabled={limitReached}
-            title={limitReached ? t('errors:rooms.limitReached', { limit: ROOM_LIMIT }) : undefined}
-          >
-            {t('room:dashboard.createBtn')}
-          </Button>
-        </div>
-      </header>
+        <hr className="fold" />
+      </div>
 
-      <div className={styles.toolbar}>
+      <div className={styles.subBar}>
         <Tabs<DashboardTab>
           variant="segmented"
           items={tabItems}
           value={tab}
           onChange={setTab}
-          ariaLabel={t('room:dashboard.heading')}
+          ariaLabel={t('room:dashboard.title')}
         />
-        <div className={styles.toolbarRight}>
-          <SortDropdown sort={sort} order={order} onSortChange={handleSortChange} />
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            leftIcon={<Search size={16} />}
-            placeholder={t('room:dashboard.search.placeholder')}
-            aria-label={t('room:dashboard.search.placeholder')}
-            className={styles.search}
-          />
+        <Input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          leftIcon={<Search size={16} />}
+          placeholder={t('room:dashboard.search.placeholder')}
+          aria-label={t('room:dashboard.search.placeholder')}
+          className={styles.search}
+        />
+        <SortDropdown sort={sort} order={order} onSortChange={handleSortChange} />
+        <div className={styles.subBarRight}>
+          {status === 'loading' && (
+            <span className={styles.loadingTag} aria-live="polite">
+              {t('common:status.loading')}
+            </span>
+          )}
+          <span className={styles.count}>
+            {t('room:dashboard.count', { count: filtered.length })}
+          </span>
         </div>
       </div>
 
-      {status === 'loading' && <p className={styles.loading}>{t('common:status.loading')}</p>}
       {error && (
         <p role="alert" className={styles.error}>
           {/^[\w]+:[\w.]+$/.test(error) ? t(error as never, error) : error}
@@ -158,6 +163,10 @@ export default function Dashboard() {
 
       {tab === 'my' ? (
         <div className={styles.grid} data-testid="rooms-grid">
+          <CreateRoomCard
+            onClick={() => setCreateOpen(true)}
+            disabled={limitReached}
+          />
           {filtered.map((room) => (
             <RoomCard
               key={room.id}
@@ -167,10 +176,6 @@ export default function Dashboard() {
               onOpen={handleOpen}
             />
           ))}
-          <CreateRoomCard
-            onClick={() => setCreateOpen(true)}
-            disabled={limitReached}
-          />
         </div>
       ) : (
         <div className={styles.grid} data-testid="rooms-grid">

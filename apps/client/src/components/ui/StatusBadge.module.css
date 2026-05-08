@@ -1,0 +1,44 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  background: var(--bg-1);
+  color: var(--ink-mute);
+  box-shadow: var(--shadow-engrave);
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.live {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.live .dot {
+  background: var(--primary);
+  box-shadow: 0 0 6px var(--primary);
+}
+
+.danger {
+  color: var(--blood-hi);
+  border-color: var(--blood-hi);
+  background: color-mix(in srgb, var(--blood) 15%, transparent);
+}
+
+.danger .dot {
+  background: var(--blood-hi);
+  box-shadow: 0 0 6px var(--blood-hi);
+}

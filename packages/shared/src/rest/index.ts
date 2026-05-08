@@ -25,6 +25,7 @@ export interface RoomMemberDTO {
 export interface RoomDTO {
   id: string;
   name: string;
+  description?: string;
   gameSystem: string;
   status: 'lobby' | 'active' | 'closed';
   ownerId: string;

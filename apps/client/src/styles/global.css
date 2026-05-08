@@ -15,12 +15,13 @@ html {
 
 body {
   background: var(--color-bg);
+  background-image: var(--paper);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: 1.5;
   min-height: 100dvh;
-  transition: background-color var(--transition-base), color var(--transition-base);
+  transition: background-color var(--transition-slow), color var(--transition-slow);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -73,15 +74,28 @@ svg {
   outline-offset: 2px;
 }
 
-/* Eyebrow — uppercase mini-label, як у legacy SVG (`УЧАСНИКИ · 5`, `D&D 5e · АКТИВНА`). */
+/* Eyebrow — mono mini-label з decorative dash */
 .eyebrow {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 10px;
   letter-spacing: var(--tracking-eyebrow);
-  color: var(--color-text-muted);
-  font-family: var(--font-letterspaced);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-mute);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
+.eyebrow::before {
+  content: '';
+  width: 18px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+.eyebrow.accent { color: var(--primary); }
+.eyebrow.accent::before { background: var(--primary); opacity: 0.7; }
 
 /* Scrollbar (Webkit) */
 ::-webkit-scrollbar {
@@ -110,3 +124,222 @@ svg {
   white-space: nowrap;
   border: 0;
 }
+
+/* === Hybrid atmospheric (Phase 0) ===================================== */
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-background);
+  background-image: var(--grain);
+  background-size: 200px 200px;
+  mix-blend-mode: var(--grain-blend);
+  opacity: var(--grain-opacity);
+}
+
+/* Display headings — Cormorant Garamond */
+h1, h2 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1.05;
+}
+h1 em, h2 em { font-style: italic; font-weight: 500; }
+
+/* Text selection */
+::selection { background: var(--selection); color: var(--bg-0); }
+
+/* Sepia/leaf-gold divider */
+hr.fold {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0.4;
+  margin: var(--space-lg) 0;
+}
+
+/* Topographic atmospheric layer (Phase 5) */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-background);
+  background-image: var(--topo-bg);
+  background-size: cover;
+  background-position: center;
+  opacity: var(--topo-opacity);
+  mix-blend-mode: var(--topo-blend);
+  transition: opacity var(--transition-slow);
+}
+
+/* Exclude atmospheric overlays from Konva canvas page */
+body[data-page="gameroom"]::before,
+body[data-page="gameroom"]::after {
+  display: none;
+}
+
+/* =========================================================================
+   ENGRAVED SURFACES — solid surface utility for GameRoom chrome
+   Use: <div class="engraved">…</div> for any chrome-level surface.
+   engraved-elevated for content cards (member rows, chat bubbles, tracks, etc.)
+   ========================================================================= */
+
+.engraved {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-engrave);
+}
+
+.engraved-elevated {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+/* =========================================================================
+   GLASS PANELS — reusable transparent surface system
+   Use:  <div class="glass glass-soft">…</div>
+   Variants control how much of the topo/paper background bleeds through.
+   Combine with utility classes elsewhere; do NOT redefine these in modules.
+   ========================================================================= */
+
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-engrave);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  transition: background var(--transition-base),
+              border-color var(--transition-base),
+              box-shadow var(--transition-base);
+}
+
+/* Tier 1 — strong: Dashboard / GameRoom — content-heavy surfaces (78% bg) */
+.glass-strong {
+  --glass-bg: color-mix(in srgb, var(--bg-1) 88%, transparent);
+  --glass-border: color-mix(in srgb, var(--line) 85%, transparent);
+  --glass-blur: 4px;
+}
+.glass-strong:hover {
+  background: color-mix(in srgb, var(--bg-1) 94%, transparent);
+  border-color: var(--line-strong);
+}
+
+/* Tier 2 — soft: optional middle tier (modals, intermediate panels — 70%) */
+.glass-soft {
+  --glass-bg: color-mix(in srgb, var(--bg-2) 72%, transparent);
+  --glass-border: color-mix(in srgb, var(--line) 70%, transparent);
+  --glass-blur: 3px;
+}
+.glass-soft:hover {
+  background: color-mix(in srgb, var(--bg-2) 82%, transparent);
+  border-color: color-mix(in srgb, var(--line-strong) 80%, transparent);
+}
+
+/* Tier 3 — faint: Landing / Auth — atmosphere-first (50% bg) */
+.glass-faint {
+  --glass-bg: color-mix(in srgb, var(--bg-2) 55%, transparent);
+  --glass-border: color-mix(in srgb, var(--line) 60%, transparent);
+  --glass-blur: 2px;
+}
+.glass-faint:hover {
+  background: color-mix(in srgb, var(--bg-2) 68%, transparent);
+  border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
+}
+
+/* =========================================================================
+   GLASS BUTTONS — pair with .btn-base for proper sizing.
+   Reuse for any interactive surface that should harmonize with glass cards.
+   ========================================================================= */
+
+.glass-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 9px 20px;
+  /* Default tier — Dashboard / content surfaces (60%) */
+  background: color-mix(in srgb, var(--bg-2) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-mono-cap);
+  text-transform: uppercase;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  box-shadow: var(--shadow-engrave);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  transition: background var(--transition-base),
+              color var(--transition-base),
+              border-color var(--transition-base),
+              transform var(--transition-base);
+}
+.glass-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-2) 70%, transparent);
+  border-color: var(--line-strong);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+.glass-btn:active:not(:disabled) { transform: translateY(0); }
+.glass-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Faint variant — Landing / Auth — atmosphere-first (30%) */
+.glass-btn-faint {
+  background: color-mix(in srgb, var(--bg-2) 30%, transparent);
+  border-color: color-mix(in srgb, var(--line) 45%, transparent);
+}
+.glass-btn-faint:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-2) 42%, transparent);
+  border-color: color-mix(in srgb, var(--line-strong) 60%, transparent);
+}
+
+.glass-btn-primary {
+  border-color: var(--primary);
+  color: var(--ink);
+  box-shadow: var(--shadow-engrave), var(--halo-aureole);
+}
+.glass-btn-primary:hover:not(:disabled) {
+  border-color: var(--primary-hi);
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-2));
+  box-shadow: var(--shadow-engrave),
+              0 0 60px -8px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.glass-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.glass-btn-ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-2) 30%, transparent);
+  border-color: color-mix(in srgb, var(--line) 45%, transparent);
+  color: var(--ink);
+}
+
+/* =========================================================================
+   ICON ACCENT — single-tone contour icons (lucide-react etc.)
+   Use as className on the icon component or its wrapper.
+   ========================================================================= */
+
+.icon-accent {
+  color: var(--ink-mute);
+  stroke: currentColor;
+  fill: none;
+  transition: color var(--transition-base);
+}
+.icon-accent.icon-strong { color: var(--ink); }
+.icon-accent.icon-primary { color: var(--primary); }
+[data-theme="dark"] .icon-accent { color: var(--steel); }
+[data-theme="dark"] .icon-accent.icon-strong { color: var(--steel-hi); }
+[data-theme="dark"] .icon-accent.icon-primary { color: var(--steel-hi); }

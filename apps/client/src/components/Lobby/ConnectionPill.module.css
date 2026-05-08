@@ -1,0 +1,84 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 36px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+}
+
+.readyLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.steps {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.done {
+  color: var(--primary);
+}
+
+.active {
+  color: var(--primary-hi);
+}
+
+.pending {
+  opacity: 0.55;
+}
+
+.error {
+  color: var(--blood-hi);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .pill {
+    width: 100%;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding-inline: var(--space-md);
+  }
+
+  .readyLabel,
+  .accent {
+    display: none;
+  }
+
+  .steps {
+    gap: var(--space-sm);
+  }
+
+  .step span {
+    display: none;
+  }
+}

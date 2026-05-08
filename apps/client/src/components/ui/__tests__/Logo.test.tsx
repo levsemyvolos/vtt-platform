@@ -5,24 +5,36 @@ import Logo from '../Logo';
 afterEach(() => cleanup());
 
 describe('Logo', () => {
-  it('renders an svg with typographic VTT path shapes', () => {
-    render(<Logo size={24} />);
-    const svg = screen.getByRole('img', { name: 'VTT Logo' });
-    expect(svg.tagName.toLowerCase()).toBe('svg');
-    // Typographic logo has path elements for V, T, T letterforms
-    expect(svg.querySelectorAll('path').length).toBeGreaterThanOrEqual(3);
+  it('renders with accessible label', () => {
+    render(<Logo size={40} />);
+    expect(screen.getByRole('img', { name: /obscure vtt/i })).toBeTruthy();
   });
 
-  it('accepts withDot prop for backwards compatibility without crashing', () => {
+  it('renders both Oracle and Counselor SVG sigils', () => {
+    const { container } = render(<Logo size={40} />);
+    const svgs = container.querySelectorAll('svg');
+    expect(svgs.length).toBe(2);
+  });
+
+  it('applies size as width+height on sigil container', () => {
+    const { container } = render(<Logo size={60} />);
+    const sigil = container.querySelector('[style]') as HTMLElement;
+    expect(sigil.style.width).toBe('60px');
+    expect(sigil.style.height).toBe('60px');
+  });
+
+  it('shows text block when withText=true (default)', () => {
+    render(<Logo />);
+    expect(screen.getByText(/Obscure/)).toBeTruthy();
+  });
+
+  it('hides text block when withText=false', () => {
+    render(<Logo withText={false} />);
+    expect(screen.queryByText(/Obscure/)).toBeNull();
+  });
+
+  it('accepts deprecated withDot prop without crashing', () => {
     const { container } = render(<Logo withDot={false} />);
-    expect(container.querySelector('svg')).not.toBeNull();
-  });
-
-  it('scales width proportionally to size prop', () => {
-    const { container } = render(<Logo size={48} />);
-    const svg = container.querySelector('svg') as SVGSVGElement;
-    // width = size * (56/24) = 48 * 56/24 = 112
-    expect(svg.getAttribute('width')).toBe('112');
-    expect(svg.getAttribute('height')).toBe('48');
+    expect(container.querySelector('[role="img"]')).not.toBeNull();
   });
 });

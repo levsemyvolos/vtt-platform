@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { KeyRound } from 'lucide-react';
 import Modal from '../common/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -46,7 +47,11 @@ export default function JoinByCodeModal({ onClose }: JoinByCodeModalProps): JSX.
   }
 
   return (
-    <Modal title={t('room:dashboard.joinModal.heading')} onClose={onClose}>
+    <Modal
+      title={t('room:dashboard.joinModal.heading')}
+      onClose={onClose}
+      icon={<KeyRound size={20} strokeWidth={1.5} className="icon-accent icon-primary" />}
+    >
       <form
         onSubmit={handleSubmit}
         aria-label={t('room:dashboard.joinModal.formLabel')}

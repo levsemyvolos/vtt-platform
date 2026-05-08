@@ -8,17 +8,18 @@
   gap: var(--space-sm);
   width: 100%;
   padding: var(--space-sm);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.12s, background 0.12s;
+  font-family: inherit;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
 .cardBtn:hover {
-  border-color: var(--color-primary);
-  background: var(--color-surface-hover);
+  border-color: var(--line-strong);
+  background: var(--bg-3);
 }
 
 .thumb {
@@ -36,8 +37,8 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-xs);
-  background: var(--color-surface-elevated);
-  color: var(--color-text-muted);
+  background: var(--bg-3);
+  color: var(--ink-mute);
   flex-shrink: 0;
 }
 
@@ -56,8 +57,10 @@
 }
 
 .title {
+  font-family: var(--font-serif);
+  font-style: italic;
   font-size: var(--text-sm);
-  color: var(--color-text-primary);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -66,10 +69,12 @@
 
 .visIcon {
   flex-shrink: 0;
-  color: var(--color-text-muted);
+  color: var(--ink-mute);
 }
 
 .date {
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mute);
 }

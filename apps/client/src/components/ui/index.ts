@@ -21,3 +21,6 @@ export type { AvatarProps, AvatarSize, AvatarStatus } from './Avatar';
 
 export { default as Logo } from './Logo';
 export type { LogoProps } from './Logo';
+
+export { default as StatusBadge } from './StatusBadge';
+export type { StatusBadgeTone } from './StatusBadge';

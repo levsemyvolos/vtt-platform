@@ -1,7 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Plus } from 'lucide-react';
 import { useAppDispatch } from '../../store';
 import { createScene, loadScenes } from '../../store/scenes';
+import Modal from '../common/Modal';
+import { Button, Input } from '../ui';
 import styles from './CreateSceneModal.module.css';
 
 interface CreateSceneModalProps {
@@ -49,84 +52,71 @@ export default function CreateSceneModal({ roomId, onClose }: CreateSceneModalPr
     }
   }
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('room:scenes.modal.dialogLabel')}
-      className={styles.backdrop}
-      tabIndex={-1}
+    <Modal
+      title={t('room:scenes.modal.heading')}
+      onClose={onClose}
+      icon={<Plus size={20} strokeWidth={1.5} className="icon-accent icon-primary" />}
     >
-      <div className={styles.dialog}>
-        <h2>{t('room:scenes.modal.heading')}</h2>
-        <form onSubmit={(e) => void onSubmit(e)} aria-label={t('room:scenes.modal.formLabel')} noValidate>
-          <div className={styles.field}>
-            <label htmlFor="scene-name">{t('room:scenes.modal.sceneName')}</label>
-            <input
-              id="scene-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={100}
-              autoFocus
-            />
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="scene-grid-width">{t('room:scenes.modal.gridWidth')}</label>
-            <input
-              id="scene-grid-width"
-              type="number"
-              min={1}
-              max={100}
-              value={gridWidth}
-              onChange={(e) => setGridWidth(Number(e.target.value))}
-            />
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="scene-grid-height">{t('room:scenes.modal.gridHeight')}</label>
-            <input
-              id="scene-grid-height"
-              type="number"
-              min={1}
-              max={100}
-              value={gridHeight}
-              onChange={(e) => setGridHeight(Number(e.target.value))}
-            />
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="scene-grid-size">{t('room:scenes.modal.gridSize')}</label>
-            <input
-              id="scene-grid-size"
-              type="number"
-              min={20}
-              max={200}
-              value={gridSize}
-              onChange={(e) => setGridSize(Number(e.target.value))}
-            />
-          </div>
+      <form onSubmit={(e) => void onSubmit(e)} aria-label={t('room:scenes.modal.formLabel')} className={styles.form} noValidate>
+        <Input
+          id="scene-name"
+          label={t('room:scenes.modal.sceneName')}
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={100}
+          autoFocus
+          fullWidth
+        />
+        <div className={styles.grid}>
+          <Input
+            id="scene-grid-width"
+            label={t('room:scenes.modal.gridWidth')}
+            type="number"
+            min={1}
+            max={100}
+            value={gridWidth}
+            onChange={(e) => setGridWidth(Number(e.target.value))}
+            fullWidth
+          />
+          <Input
+            id="scene-grid-height"
+            label={t('room:scenes.modal.gridHeight')}
+            type="number"
+            min={1}
+            max={100}
+            value={gridHeight}
+            onChange={(e) => setGridHeight(Number(e.target.value))}
+            fullWidth
+          />
+          <Input
+            id="scene-grid-size"
+            label={t('room:scenes.modal.gridSize')}
+            type="number"
+            min={20}
+            max={200}
+            value={gridSize}
+            onChange={(e) => setGridSize(Number(e.target.value))}
+            fullWidth
+          />
+        </div>
 
-          {error && (
-            <p role="alert" className={styles.error}>
-              {error}
-            </p>
-          )}
+        {error && (
+          <p role="alert" className={styles.error}>
+            {error}
+          </p>
+        )}
 
-          <div className={styles.actions}>
-            <button type="button" className={styles.btnCancel} onClick={onClose} disabled={busy}>
-              {t('common:btn.cancel')}
-            </button>
-            <button type="submit" className={styles.btnSubmit} disabled={busy}>
-              {busy ? t('common:btn.creating') : t('common:btn.create')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className={styles.actions}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
+            {t('common:btn.cancel')}
+          </Button>
+          <Button type="submit" variant="primary" isLoading={busy}>
+            {busy ? t('common:btn.creating') : t('common:btn.create')}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

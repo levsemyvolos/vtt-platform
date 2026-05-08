@@ -1,5 +1,8 @@
 {
   "dashboard": {
+    "section": "Майстерська · Кампанії",
+    "title": "Ваші <em>кімнати</em>",
+    "lede": "Кожна кімната — окрема кампанія. Створюйте, керуйте, входьте як майстер чи гравець.",
     "heading": "Мої кімнати",
     "subheading": "{{active}} активних · {{total}} всього",
     "createBtn": "Створити кімнату",
@@ -24,8 +27,12 @@
     "search": {
       "placeholder": "пошук кімнати…"
     },
+    "count": "{{count}} кімнат",
+    "count_one": "{{count}} кімната",
+    "count_few": "{{count}} кімнати",
     "card": {
-      "role": "Роль: {{role}}"
+      "role": "Роль: {{role}}",
+      "descFallback": "Кампанія без опису."
     },
     "createCard": {
       "heading": "Створити нову кімнату",
@@ -50,10 +57,18 @@
   },
   "lobby": {
     "backBtn": "← Назад",
+    "backToDashboard": "Назад до майстерні",
+    "eyebrow": "{{system}} · Лобі кімнати",
+    "heading": "Кімната <em>{{name}}</em>",
+    "systemLabel": "Зберіть стіл, оберіть активну сцену й відкрийте сесію.",
+    "membersEyebrow": "Склад",
+    "membersTitle": "Круглий <em>стіл</em> · {{count}}",
     "membersHeading": "Учасники · {{count}}",
     "characterAttached": "Персонаж прикріплено",
     "startSession": "Розпочати сесію",
     "joinSession": "Приєднатися до сесії",
+    "startHint": "Коли стіл готовий, відкрийте поріг до активної сцени.",
+    "joinHint": "Сесія вже активна. Заходьте до кімнати, коли будете готові.",
     "yourRole": "Ваша роль:",
     "exitBtn": "← Вийти",
     "roleLabel": "Роль:",
@@ -65,11 +80,22 @@
       "authenticating": "Автентифікація",
       "loadingScene": "Завантаження сцени",
       "openingChannel": "Відкриття WS-каналу"
+    },
+    "connection": {
+      "label": "Стан підключення лобі",
+      "diagnostic": "Підключення",
+      "allReady": "Готово",
+      "auth": "Auth",
+      "scene": "Кімната",
+      "channel": "Канал"
     }
+  },
+  "sceneManager": {
+    "title": "Вівтар <em>сцен</em>"
   },
   "scenes": {
     "heading": "Сцени",
-    "createBtn": "+ Створити сцену",
+    "createBtn": "Створити сцену",
     "activeBadge": "Активна",
     "activateBtn": "Активувати",
     "activating": "…",

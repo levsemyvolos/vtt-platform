@@ -1,28 +1,25 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronUp, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import { logout } from '../../../store/session';
-import Avatar from '../../ui/Avatar';
-import ThemeToggle from '../../Header/ThemeToggle';
-import LanguageSwitcher from '../../Header/LanguageSwitcher';
-import styles from './UserChip.module.css';
+import styles from './UserChipAvatar.module.css';
 
 interface MenuPos {
   left: number;
-  bottom: number;
-  width: number;
+  top: number;
+  minWidth: number;
 }
 
-export default function UserChip() {
+export default function UserChipAvatar() {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('common');
   const { currentUser } = useAppSelector((s) => s.session);
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<MenuPos | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const chipRef = useRef<HTMLButtonElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,13 +43,13 @@ export default function UserChip() {
   }, [open]);
 
   useLayoutEffect(() => {
-    if (!open || !chipRef.current) return;
+    if (!open || !btnRef.current) return;
     function updatePos(): void {
-      const rect = chipRef.current!.getBoundingClientRect();
+      const rect = btnRef.current!.getBoundingClientRect();
       setMenuPos({
-        left: rect.left,
-        bottom: window.innerHeight - rect.top + 8,
-        width: Math.max(rect.width, 220),
+        left: rect.right - 220,
+        top: rect.bottom + 8,
+        minWidth: 220,
       });
     }
     updatePos();
@@ -66,6 +63,8 @@ export default function UserChip() {
 
   if (!currentUser) return null;
 
+  const initial = currentUser.name.charAt(0).toUpperCase();
+
   const handleLogout = () => {
     setOpen(false);
     void dispatch(logout());
@@ -74,19 +73,15 @@ export default function UserChip() {
   return (
     <div className={styles.wrap} ref={wrapRef}>
       <button
-        ref={chipRef}
+        ref={btnRef}
         type="button"
-        className={styles.chip}
+        className={styles.avatar}
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
+        title={currentUser.name}
       >
-        <Avatar name={currentUser.name} size="md" status="online" />
-        <span className={styles.meta}>
-          <span className={styles.name}>{currentUser.name}</span>
-          <span className={styles.role}>{currentUser.email}</span>
-        </span>
-        <ChevronUp size={16} className={open ? styles.chevronOpen : styles.chevron} aria-hidden="true" />
+        {initial}
       </button>
 
       {open && menuPos && createPortal(
@@ -97,19 +92,13 @@ export default function UserChip() {
           style={{
             position: 'fixed',
             left: menuPos.left,
-            bottom: menuPos.bottom,
-            minWidth: menuPos.width,
+            top: menuPos.top,
+            minWidth: menuPos.minWidth,
           }}
         >
           <div className={styles.menuHead}>
             <span className={styles.menuHeadName}>{currentUser.name}</span>
             <span className={styles.menuHeadEmail}>{currentUser.email}</span>
-          </div>
-          <div className={styles.menuRow}>
-            <ThemeToggle />
-          </div>
-          <div className={styles.menuRow}>
-            <LanguageSwitcher />
           </div>
           <button
             type="button"

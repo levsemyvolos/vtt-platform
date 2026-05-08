@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark';
 
 interface PreferencesState {
   theme: ThemeMode;
@@ -11,14 +11,14 @@ function loadFromStorage(): PreferencesState {
     const raw = localStorage.getItem('preferences');
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<PreferencesState>;
-      if (parsed.theme === 'light' || parsed.theme === 'dark' || parsed.theme === 'system') {
+      if (parsed.theme === 'light' || parsed.theme === 'dark') {
         return { theme: parsed.theme };
       }
     }
   } catch {
     // corrupt storage — fall through to default
   }
-  return { theme: 'system' };
+  return { theme: 'dark' };
 }
 
 const preferencesSlice = createSlice({

@@ -3,100 +3,88 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
-  border: 1px solid transparent;
+  background: var(--bg-2);
+  color: var(--ink-mute);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  font-family: var(--font-sans);
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: var(--tracking-mono-cap);
+  text-transform: uppercase;
   cursor: pointer;
-  transition: background-color var(--transition-fast), color var(--transition-fast),
-              border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: var(--shadow-engrave);
+  transition:
+    background-color var(--transition-base),
+    color var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
   white-space: nowrap;
   user-select: none;
 }
+.btn:disabled { cursor: not-allowed; opacity: 0.5; }
 
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
+.label { display: inline-block; }
+.icon  { display: inline-flex; align-items: center; justify-content: center; }
+.fullWidth { width: 100%; }
+.loading { cursor: progress; }
 
-.label {
-  display: inline-block;
-}
+/* Sizes — heights preserved from legacy (28/36/44 px) */
+.size-sm { height: 28px; padding: 0 var(--space-md); font-size: 10px; }
+.size-md { height: 36px; padding: 0 var(--space-lg); font-size: 11px; }
+.size-lg { height: 44px; padding: 0 var(--space-xl); font-size: 12px; }
 
-.icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
+/* === Variants ======================================================= */
 
-.fullWidth {
-  width: 100%;
-}
-
-.loading {
-  cursor: progress;
-}
-
-/* Sizes */
-.size-sm {
-  height: 28px;
-  padding: 0 var(--space-md);
-  font-size: var(--text-xs);
-}
-
-.size-md {
-  height: 36px;
-  padding: 0 var(--space-lg);
-  font-size: var(--text-sm);
-}
-
-.size-lg {
-  height: 44px;
-  padding: 0 var(--space-xl);
-  font-size: var(--text-base);
-}
-
-/* Variants */
+/* primary — accent border + halo aureole, engraved chip */
 .variant-primary {
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  border-color: var(--color-primary);
+  border-color: var(--primary);
+  color: var(--ink);
+  background: var(--bg-3);
+  box-shadow: var(--shadow-engrave), var(--halo-aureole);
 }
 .variant-primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-engrave),
+              0 0 60px -8px color-mix(in srgb, var(--primary) 35%, transparent);
+  transform: translateY(-1px);
 }
 .variant-primary:active:not(:disabled) {
-  background: var(--color-primary-active);
-  border-color: var(--color-primary-active);
+  transform: translateY(0);
+  box-shadow: var(--shadow-engrave);
 }
 
+/* secondary — engraved chip, ink-mute → ink on hover */
 .variant-secondary {
-  background: transparent;
-  color: var(--color-text-primary);
-  border-color: var(--color-border-strong);
+  background: var(--bg-2);
+  color: var(--ink-mute);
+  border-color: var(--line);
 }
 .variant-secondary:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-  border-color: var(--color-text-secondary);
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--bg-3);
 }
 
+/* ghost — borderless, no shadow */
 .variant-ghost {
   background: transparent;
-  color: var(--color-text-secondary);
   border-color: transparent;
+  box-shadow: none;
 }
 .variant-ghost:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
+  background: var(--bg-2);
+  border-color: var(--line);
+  color: var(--ink);
 }
 
+/* danger — wound rule: no red fill; blood-hi border/text only on hover */
 .variant-danger {
-  background: var(--color-danger);
-  color: var(--color-text-inverse);
-  border-color: var(--color-danger);
+  background: var(--bg-2);
+  color: var(--ink-mute);
+  border-color: var(--line);
 }
 .variant-danger:hover:not(:disabled) {
-  background: var(--color-danger-hover);
-  border-color: var(--color-danger-hover);
+  border-color: var(--blood-hi);
+  color: var(--blood-hi);
+  background: color-mix(in srgb, var(--blood) 8%, var(--bg-2));
 }

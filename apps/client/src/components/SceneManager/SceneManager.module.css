@@ -1,101 +1,143 @@
 .manager {
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--space-xl);
 }
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: var(--space-sm);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
-.header h3 {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 6px;
 }
 
-.btnAdd {
-  padding: var(--space-xs) var(--space-md);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  transition: background 0.12s;
+.title {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--ink);
 }
 
-.btnAdd:hover { background: var(--color-primary-hover); }
+.title em {
+  font-style: italic;
+}
 
 .status {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  padding: var(--space-xs) 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: var(--space-sm) 0;
 }
 
 .statusError {
-  color: var(--color-danger);
+  color: var(--blood-hi);
+  display: grid;
+  gap: var(--space-sm);
 }
 
 .list {
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+  display: grid;
+  gap: var(--space-sm);
 }
 
 .item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+  background: color-mix(in srgb, var(--bg-2) 85%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
 }
 
-.itemActive {
-  border-color: var(--color-primary);
-  background: var(--color-primary-muted);
+.item:hover {
+  transform: translateY(-1px);
+  border-color: var(--line-strong);
+}
+
+.item[data-active="true"] {
+  border-color: var(--ember);
+  box-shadow:
+    0 0 0 1px var(--ember),
+    0 0 18px -2px color-mix(in srgb, var(--ember) 55%, transparent);
 }
 
 .itemEmpty {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
+  grid-template-columns: auto 1fr;
+  color: var(--ink-mute);
+  font-family: var(--font-serif);
+  font-size: 15px;
   font-style: italic;
+  min-height: 84px;
+}
+
+.sceneIcon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  color: var(--primary);
+  background: var(--bg-3);
+}
+
+.item[data-active="true"] .sceneIcon {
+  color: var(--ember-hi);
 }
 
 .sceneName {
-  flex: 1;
   font-size: var(--text-sm);
-  color: var(--color-text-primary);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .badge {
-  font-size: var(--text-xs);
-  padding: 1px var(--space-sm);
-  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 5px var(--space-sm);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
 }
 
 .badgeActive {
-  background: var(--color-success-bg);
-  color: var(--color-success);
+  color: var(--ember-hi);
 }
 
-.btnActivate {
-  padding: 2px var(--space-sm);
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  transition: background 0.12s;
-}
+@media (max-width: 768px) {
+  .manager {
+    padding: var(--space-lg);
+  }
 
-.btnActivate:hover:not(:disabled) {
-  background: var(--color-surface-hover);
+  .header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .badge {
+    grid-column: 1 / -1;
+    width: fit-content;
+  }
 }

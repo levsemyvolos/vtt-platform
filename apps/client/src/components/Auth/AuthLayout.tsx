@@ -13,13 +13,12 @@ export default function AuthLayout({ children }: AuthLayoutProps): JSX.Element {
     <div className={styles.background}>
       <div className={styles.logoCorner}>
         <Logo size={28} />
-        <span className={styles.logoText}>VTT</span>
       </div>
       <div className={styles.controls}>
         <LanguageSwitcher />
         <ThemeToggle />
       </div>
-      <div className={styles.card}>
+      <div className={`glass glass-faint ${styles.card}`}>
         {children}
       </div>
     </div>

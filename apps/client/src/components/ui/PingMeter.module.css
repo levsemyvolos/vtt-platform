@@ -1,0 +1,30 @@
+.ping {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.bars {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.bars span {
+  width: 3px;
+  background: var(--primary);
+  border-radius: 1px;
+  opacity: 0.3;
+}
+
+.bars span:nth-child(1) { height: 5px; }
+.bars span:nth-child(2) { height: 8px; }
+.bars span:nth-child(3) { height: 11px; }
+.bars span:nth-child(4) { height: 14px; }
+
+.bars span[data-on="true"] { opacity: 1; }

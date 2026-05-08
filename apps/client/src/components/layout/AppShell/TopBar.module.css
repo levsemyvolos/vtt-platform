@@ -1,0 +1,39 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xl);
+  padding: 14px var(--space-2xl);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-1);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02), 0 6px 18px -10px rgba(0, 0, 0, 0.5);
+}
+
+.brandLink {
+  text-decoration: none;
+  color: inherit;
+  display: contents;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.statusGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 10px var(--space-lg);
+    gap: var(--space-md);
+  }
+
+  .statusGroup {
+    display: none;
+  }
+}

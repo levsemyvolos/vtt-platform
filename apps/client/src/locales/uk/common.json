@@ -41,5 +41,16 @@
     "connecting": "Підключення до сервера…",
     "waking": "Сервер прокидається, ще трохи…",
     "retry": "Спробувати ще раз"
+  },
+  "theme": {
+    "label": "Тема",
+    "dark": "Темна",
+    "light": "Світла",
+    "system": "Системна"
+  },
+  "presence": {
+    "onlineN": "{{count}} онлайн",
+    "onlineN_one": "{{count}} онлайн",
+    "onlineN_few": "{{count}} онлайн"
   }
 }

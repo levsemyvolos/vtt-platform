@@ -1,9 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Typographic "VT" favicon — matches new typographic Logo (Variant A) -->
-  <!-- Background rounded rect -->
-  <rect width="32" height="32" rx="6" fill="#C8A24A"/>
-  <!-- V letterform (white) -->
-  <path d="M2 6 L5 6 L9 20 L13 6 L16 6 L11 26 L7 26 Z" fill="#1a1a1a"/>
-  <!-- T letterform (white) -->
-  <path d="M17 6 L30 6 L30 10 L25 10 L25 26 L22 26 L22 10 L17 10 Z" fill="#1a1a1a"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 26">
+  <path d="M8 1 L15 13 L8 25 L1 13 Z" fill="#d4a830"/>
+  <path d="M8 1 L8 13 L1 13 Z" fill="#f0c560"/>
 </svg>

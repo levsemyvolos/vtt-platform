@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Role } from '@vtt/shared';
+import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { hydrateScene, clearScene } from '../../store/scene';
 import { hydrateChat } from '../../store/chat';
@@ -10,6 +10,7 @@ import { connectSocket, emitRoomJoin, emitSessionResync, getSocket } from '../..
 import { addToast } from '../../store/toast';
 import { setActiveTab } from '../../store/notifications';
 import GameCanvas from '../../components/GameCanvas/GameCanvas';
+import AddTokenButton from '../../components/GameCanvas/AddTokenButton';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import AssistantPanel from '../../components/AssistantPanel/AssistantPanel';
 import CharacterSheetOverlay from '../../components/CharacterSheet/CharacterSheetOverlay';
@@ -56,10 +57,34 @@ function resolveHydrateError(err: unknown): string | null {
   return raw.startsWith('errors:') ? raw : 'errors:network.joinFailed';
 }
 
+function TurnRibbonAndAddToken({
+  scene,
+  myRole,
+}: {
+  scene: SceneDTO | null;
+  myRole: Role;
+}): JSX.Element {
+  return (
+    <div className={styles.turnRibbonStack}>
+      <TurnRibbon />
+      {scene && (
+        <div className={styles.addTokenUnderTurn}>
+          <AddTokenButton myRole={myRole} sceneId={scene.id} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GameRoom(): JSX.Element | null {
   const dispatch = useAppDispatch();
   const { t } = useTranslation(['room', 'errors', 'gameroom']);
   const { currentRoom, members } = useAppSelector((s) => s.room);
+
+  useEffect(() => {
+    document.body.dataset.page = 'gameroom';
+    return () => { delete document.body.dataset.page; };
+  }, []);
   const { currentUser } = useAppSelector((s) => s.session);
   const scene = useAppSelector((s) => s.scene.current);
   const [hydrating, setHydrating] = useState(false);
@@ -259,7 +284,7 @@ export default function GameRoom(): JSX.Element | null {
         ) : (
           <div className={styles.canvasPlaceholder}>{canvasMsg}</div>
         )}
-        <TurnRibbon />
+        <TurnRibbonAndAddToken scene={scene} myRole={myRole} />
         <DiceOverlay />
         <CanvasToolbar
           myRole={myRole}

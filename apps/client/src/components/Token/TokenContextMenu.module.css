@@ -1,12 +1,12 @@
 .menu {
   position: fixed;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   padding: var(--space-xs) 0;
-  z-index: var(--z-modal);
+  z-index: var(--z-popover);
   min-width: 160px;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-cast);
 }
 
 .item {
@@ -15,21 +15,21 @@
   padding: var(--space-sm) var(--space-lg);
   background: none;
   border: none;
-  color: var(--color-text-primary);
+  color: var(--ink);
   font-size: var(--text-sm);
   cursor: pointer;
   text-align: left;
-  transition: background 0.12s;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .item:hover {
-  background: var(--color-surface-hover);
+  background: var(--bg-2);
 }
 
 .item--danger {
-  color: var(--color-danger);
+  color: var(--blood-hi);
 }
 
 .item--danger:hover {
-  background: var(--color-danger-bg);
+  background: color-mix(in srgb, var(--blood) 10%, transparent);
 }

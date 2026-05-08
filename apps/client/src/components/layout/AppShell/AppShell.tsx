@@ -1,23 +1,23 @@
 import type { ReactNode } from 'react';
-import LeftNav from './LeftNav';
+import TopBar from './TopBar';
 import styles from './AppShell.module.css';
 
 export interface AppShellProps {
   children: ReactNode;
+  subBar?: ReactNode;
 }
 
 /**
  * Persistent shell for authenticated post-login screens (Dashboard, Settings).
  * NOT used for GameRoom / SceneEditor — those have their own full-bleed layout.
  *
- * Layout: 240 px sticky left nav + 1fr content area.
+ * Layout: sticky topbar header + scrollable main content area.
  */
-export default function AppShell({ children }: AppShellProps) {
+export default function AppShell({ children, subBar }: AppShellProps) {
   return (
     <div className={styles.shell}>
-      <aside className={styles.aside} aria-label="Головна навігація">
-        <LeftNav />
-      </aside>
+      <TopBar />
+      {subBar && <div className={styles.subBar}>{subBar}</div>}
       <main className={styles.main}>{children}</main>
     </div>
   );

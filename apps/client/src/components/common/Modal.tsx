@@ -5,6 +5,7 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   wide?: boolean;
+  icon?: ReactNode;
   children: ReactNode;
 }
 
@@ -12,7 +13,7 @@ interface ModalProps {
  * Generic modal: backdrop click + Esc to close, focus trap on open.
  * Usage: wrap any content that needs an overlay dialog.
  */
-export default function Modal({ title, onClose, wide = false, children }: ModalProps): JSX.Element {
+export default function Modal({ title, onClose, wide = false, icon, children }: ModalProps): JSX.Element {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,7 +66,10 @@ export default function Modal({ title, onClose, wide = false, children }: ModalP
         onKeyDown={handleDialogKeyDown}
       >
         <div className={styles.header}>
-          <h2 className={styles.title}>{title}</h2>
+          <div className={styles.headerLeft}>
+            {icon && <span className={styles.icon} aria-hidden>{icon}</span>}
+            <h2 className={styles.title}>{title}</h2>
+          </div>
           <button
             type="button"
             className={styles.closeBtn}

@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Link } from 'lucide-react';
 import { apiFetch } from '../../api/apiFetch';
+import { useAppDispatch } from '../../store';
+import { addToast } from '../../store/toast';
+import { Button, Tabs, type TabItem } from '../ui';
 import styles from './InviteLink.module.css';
 
 interface InviteTokens {
@@ -9,7 +12,7 @@ interface InviteTokens {
   observerToken: string;
 }
 
-type CopiedKey = 'player-code' | 'player-link' | 'observer-code' | 'observer-link' | null;
+type InviteAudience = 'player' | 'observer';
 
 interface InviteLinkProps {
   roomId: string;
@@ -17,44 +20,42 @@ interface InviteLinkProps {
 
 interface InvitePanelProps {
   tokens: InviteTokens;
-  copied: CopiedKey;
-  onCopy: (text: string, key: Exclude<CopiedKey, null>) => void;
+  onCopy: (text: string) => void;
 }
 
-function InvitePanel({ tokens, copied, onCopy }: InvitePanelProps): JSX.Element {
+const TAB_ITEMS: ReadonlyArray<TabItem<InviteAudience>> = [
+  { id: 'player', label: 'Player' },
+  { id: 'observer', label: 'Observer' },
+];
+
+function InvitePanel({ tokens, onCopy }: InvitePanelProps): JSX.Element {
   const { t } = useTranslation(['room']);
-  const [activeTab, setActiveTab] = useState<'player' | 'observer'>('player');
+  const [activeTab, setActiveTab] = useState<InviteAudience>('player');
   const isPlayer = activeTab === 'player';
   const prefix = isPlayer ? 'p_' : 'o_';
   const rawToken = isPlayer ? tokens.playerToken : tokens.observerToken;
   const activeCode = `${prefix}${rawToken}`;
   const activeLink = `${window.location.origin}/join/${activeCode}`;
-  const codeCopyKey: Exclude<CopiedKey, null> = isPlayer ? 'player-code' : 'observer-code';
-  const linkCopyKey: Exclude<CopiedKey, null> = isPlayer ? 'player-link' : 'observer-link';
-  const linkJustCopied = copied === linkCopyKey;
-  const codeJustCopied = copied === codeCopyKey;
+  const items = TAB_ITEMS.map((item) => ({
+    ...item,
+    label: t(item.id === 'player' ? 'room:invite.tabPlayer' : 'room:invite.tabObserver'),
+  }));
 
   return (
-    <div className={styles.inviteTabs}>
-      <div className={styles.tabsRow} role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={isPlayer}
-          className={[styles.tab, isPlayer ? styles.tabActive : ''].join(' ')}
-          onClick={() => setActiveTab('player')}
-        >
-          {t('room:invite.tabPlayer')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={!isPlayer}
-          className={[styles.tab, !isPlayer ? styles.tabActive : ''].join(' ')}
-          onClick={() => setActiveTab('observer')}
-        >
-          {t('room:invite.tabObserver')}
-        </button>
+    <section className={`glass glass-strong ${styles.invitePanel}`}>
+      <div className={styles.header}>
+        <div>
+          <div className={styles.eyebrow}>{t('room:invite.inviteBtn')}</div>
+          <h2 className={styles.title}>{t('room:invite.shareLinkSecondary')}</h2>
+        </div>
+        <Tabs<InviteAudience>
+          variant="segmented"
+          items={items}
+          value={activeTab}
+          onChange={setActiveTab}
+          ariaLabel={t('room:invite.inviteBtnTitle')}
+          className={styles.tabs as string}
+        />
       </div>
 
       <div className={styles.inviteRow}>
@@ -63,35 +64,36 @@ function InvitePanel({ tokens, copied, onCopy }: InvitePanelProps): JSX.Element 
           <span className={styles.codeVal}>{rawToken}</span>
         </div>
 
-        <button
+        <Button
           type="button"
-          className={styles.iconBtn}
+          variant="ghost"
+          leftIcon={<Link size={16} strokeWidth={2} />}
           title={t('room:invite.copyLink')}
           aria-label={t('room:invite.copyLink')}
-          onClick={() => onCopy(activeLink, linkCopyKey)}
+          onClick={() => onCopy(activeLink)}
         >
-          {linkJustCopied ? <Copy size={14} /> : <Link size={14} />}
-        </button>
+          {t('room:invite.copyLink')}
+        </Button>
 
-        <button
+        <Button
           type="button"
-          className={styles.btnCopy}
-          onClick={() => onCopy(activeCode, codeCopyKey)}
+          variant="secondary"
+          leftIcon={<Copy size={16} strokeWidth={2} />}
+          onClick={() => onCopy(activeCode)}
         >
-          <Copy size={14} />
-          {codeJustCopied ? t('room:invite.copied') : t('room:invite.copyCode')}
-        </button>
+          {t('room:invite.copyCode')}
+        </Button>
       </div>
-    </div>
+    </section>
   );
 }
 
 export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element | null {
+  const dispatch = useAppDispatch();
   const { t } = useTranslation(['room', 'common', 'errors']);
   const [tokens, setTokens] = useState<InviteTokens | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<CopiedKey>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -103,19 +105,18 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element | n
       .finally(() => setLoading(false));
   }, [roomId, t]);
 
-  const handleCopy = (text: string, key: Exclude<CopiedKey, null>): void => {
+  const handleCopy = (text: string): void => {
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        setCopied(key);
-        setTimeout(() => setCopied(null), 2000);
+        dispatch(addToast('success', t('room:invite.copied')));
       })
       .catch(() => setError(t('errors:network.copyFailed')));
   };
 
   if (loading) {
     return (
-      <div className={styles.inviteTabs}>
+      <div className={`glass glass-strong ${styles.invitePanel}`}>
         <span className={styles.status}>{t('common:status.loading')}</span>
       </div>
     );
@@ -123,7 +124,7 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element | n
 
   if (error) {
     return (
-      <div className={styles.inviteTabs}>
+      <div className={`glass glass-strong ${styles.invitePanel}`}>
         <p role="alert" className={styles.error}>{error}</p>
       </div>
     );
@@ -131,5 +132,5 @@ export default function InviteLink({ roomId }: InviteLinkProps): JSX.Element | n
 
   if (!tokens) return null;
 
-  return <InvitePanel tokens={tokens} copied={copied} onCopy={handleCopy} />;
+  return <InvitePanel tokens={tokens} onCopy={handleCopy} />;
 }

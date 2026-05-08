@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: var(--space-sm);
   height: 100%;
+  padding: var(--space-sm);
 }
 
 .header {
@@ -17,10 +18,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--primary);
 }
 
 .filterChips {
@@ -32,30 +34,29 @@
 .chip {
   padding: 2px var(--space-sm);
   border-radius: 999px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--line);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   white-space: nowrap;
 }
 
 .chip:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .chipActive {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-text-inverse);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--bg-0);
 }
 
 .chipActive:hover {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-  color: var(--color-text-inverse);
+  opacity: 0.85;
 }
 
 .list {
@@ -70,16 +71,20 @@
 }
 
 .empty {
-  color: var(--color-text-muted);
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--ink-mute);
   font-size: var(--text-sm);
   text-align: center;
   padding: var(--space-lg);
 }
 
 .placeholder {
+  font-family: var(--font-serif);
+  font-style: italic;
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  color: var(--ink-mute);
   text-align: center;
   padding: var(--space-sm);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--line);
 }

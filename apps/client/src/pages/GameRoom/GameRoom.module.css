@@ -6,7 +6,7 @@
     "topbar topbar  topbar"
     "party  canvas  sidebar";
   height: 100dvh;
-  background: var(--color-bg);
+  background: var(--bg-0);
   overflow: hidden;
 }
 
@@ -14,16 +14,43 @@
   grid-area: canvas;
   position: relative;
   overflow: hidden;
-  background: var(--color-canvas-bg);
+  background: var(--bg-0);
+}
+
+/* Turn ribbon + GM "+ Token" stacked under it (not overlapping the ribbon) */
+.turnRibbonStack {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.addTokenUnderTurn {
+  pointer-events: auto;
 }
 
 .canvasPlaceholder {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-sm);
   height: 100%;
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
   padding: var(--space-xl);
   text-align: center;
+}
+
+.canvasPlaceholder .eyebrow {
+  color: var(--ink-mute);
+}
+
+.canvasPlaceholder p {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--ink-mute);
+  font-size: var(--text-sm);
 }

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
+import { Edit3, Film, FolderOpen, Plus, Star } from 'lucide-react';
 import type { Role, SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { loadScenes, activateScene } from '../../store/scenes';
 import { startEditing } from '../../store/room';
+import { Button } from '../ui';
 import CreateSceneModal from './CreateSceneModal';
 import styles from './SceneManager.module.css';
 
@@ -36,17 +38,23 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
   }
 
   return (
-    <section className={styles.manager}>
+    <section className={`glass glass-strong ${styles.manager}`}>
       <div className={styles.header}>
-        <h3>{t('room:scenes.heading')}</h3>
+        <div>
+          <div className={styles.eyebrow}>{t('room:scenes.heading')}</div>
+          <h2 className={styles.title}>
+            <Trans i18nKey="sceneManager.title" ns="room" components={{ em: <em /> }} />
+          </h2>
+        </div>
         {isGM && (
-          <button
+          <Button
             type="button"
-            className={styles.btnAdd}
+            variant="primary"
+            leftIcon={<Plus size={16} strokeWidth={2} />}
             onClick={() => setShowCreate(true)}
           >
             {t('room:scenes.createBtn')}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -56,19 +64,22 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
       {status === 'error' && (
         <div className={`${styles.status} ${styles.statusError}`}>
           <p>{error?.startsWith('errors:') ? t(error as never) : error}</p>
-          <button
+          <Button
             type="button"
-            className={styles.btnAdd}
+            variant="secondary"
             onClick={() => void dispatch(loadScenes(roomId))}
           >
             {t('common:status.retry')}
-          </button>
+          </Button>
         </div>
       )}
 
       <ul className={styles.list}>
         {list.map((scene: SceneDTO) => (
-          <li key={scene.id} className={styles.item}>
+          <li key={scene.id} className={styles.item} data-active={scene.isActive}>
+            <span className={styles.sceneIcon} aria-hidden="true">
+              {scene.isActive ? <Star size={18} strokeWidth={1.5} /> : <Film size={18} strokeWidth={1.5} />}
+            </span>
             <span className={styles.sceneName}>{scene.name}</span>
             {scene.isActive && (
               <span
@@ -79,31 +90,35 @@ export default function SceneManager({ roomId, myRole }: SceneManagerProps): JSX
               </span>
             )}
             {isGM && !scene.isActive && (
-              <button
+              <Button
                 type="button"
-                className={styles.btnActivate}
+                variant="secondary"
+                size="sm"
                 disabled={activating === scene.id}
                 title={t('room:scenes.makeActive')}
                 onClick={() => void handleActivate(scene.id)}
               >
                 {activating === scene.id ? t('room:scenes.activating') : t('room:scenes.activateBtn')}
-              </button>
+              </Button>
             )}
             {isGM && (
-              <button
+              <Button
                 type="button"
-                className={styles.btnActivate}
+                variant="ghost"
+                size="sm"
+                leftIcon={<Edit3 size={14} strokeWidth={2} />}
                 title={t('room:scenes.editBtn')}
                 onClick={() => dispatch(startEditing(scene.id))}
               >
                 {t('room:scenes.editBtn')}
-              </button>
+              </Button>
             )}
           </li>
         ))}
         {list.length === 0 && status === 'idle' && (
           <li className={`${styles.item} ${styles.itemEmpty}`}>
-            {isGM ? t('room:scenes.noScenesGM') : t('room:scenes.noScenesPlayer')}
+            <FolderOpen size={28} strokeWidth={1.5} className="icon-accent" aria-hidden="true" />
+            <span>{isGM ? t('room:scenes.noScenesGM') : t('room:scenes.noScenesPlayer')}</span>
           </li>
         )}
       </ul>

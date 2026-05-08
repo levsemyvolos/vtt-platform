@@ -1,39 +1,44 @@
 .bar {
   position: absolute;
-  bottom: 8px;
+  bottom: 12px;
   left: 12px;
-  right: 12px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: 0;
-  background: transparent;
+  gap: 0;
+  padding: 4px 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: var(--shadow-engrave);
   pointer-events: none;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
   z-index: 4;
-  flex-wrap: wrap;
 }
 
 .item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 2px;
   white-space: nowrap;
 }
 
 .label {
-  font-size: 11px;
-  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  font-variant-numeric: tabular-nums;
 }
 
 .value {
-  font-size: 11px;
-  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
 .sep {
-  color: var(--color-text-muted);
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  padding: 0 6px;
   user-select: none;
 }

@@ -7,10 +7,10 @@
   align-items: center;
   gap: var(--space-sm);
   padding: 4px 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-engrave), var(--shadow-cast);
   z-index: 10;
 }
 
@@ -24,7 +24,7 @@
   display: inline-block;
   width: 1px;
   height: 20px;
-  background: var(--color-border);
+  background: var(--line);
   margin: 0 var(--space-xs);
   flex-shrink: 0;
 }
@@ -40,21 +40,21 @@
   padding: 2px var(--space-xs);
   background: none;
   border: none;
-  color: var(--color-text-secondary);
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   text-align: center;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .zoomPct:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
+  background: var(--bg-2);
+  color: var(--ink);
 }
 
-/* Sess 7 — brush-size slider, visible only when draw tool is active. */
 .brushSize {
   display: inline-flex;
   align-items: center;
@@ -65,19 +65,19 @@
 
 .brushSize input[type='range'] {
   width: 96px;
-  accent-color: var(--color-primary);
+  accent-color: var(--ember);
   cursor: pointer;
 }
 
 .brushSizeValue {
   min-width: 28px;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-text-secondary);
+  color: var(--ink-mute);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-/* Sess 9.2 — stroke color picker (native HTML5 color input, GM-only when draw active). */
 .colorSwatch {
   display: inline-flex;
   align-items: center;
@@ -89,7 +89,7 @@
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   cursor: pointer;
   background: none;
