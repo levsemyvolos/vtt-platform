@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { AIImageRequest, AIImageResponse, UpdateSceneRequest } from '@vtt/shared';
 import { apiFetch, ApiError } from '../../api/apiFetch';
 import GenerationProgress from './GenerationProgress';
+import PromptAssistModal from './PromptAssistModal';
+import paStyles from './PromptAssistModal.module.css';
 import styles from './GenerateBackgroundModal.module.css';
 
 // P2.3 — battlemap style keys mirror GeminiProvider.BATTLEMAP_STYLE_MAP (server-side).
@@ -35,6 +37,14 @@ export default function GenerateBattlemapModal({ roomId, sceneId, onClose }: Pro
   const [generating, setGenerating]   = useState(false);
   const [applying, setApplying]       = useState(false);
   const [error, setError]             = useState<string | null>(null);
+  const [assistOpen, setAssistOpen]   = useState(false);
+
+  function handleAssistApply(draft: string): void {
+    // The draft is the canonical battlemap brief — clear environment so
+    // the server doesn't double-stack details on top of it.
+    setLocation(draft);
+    setEnvironment('');
+  }
 
   async function handleGenerate(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -104,6 +114,14 @@ export default function GenerateBattlemapModal({ roomId, sceneId, onClose }: Pro
               maxLength={280}
               autoFocus
             />
+            <button
+              type="button"
+              className={paStyles.assistTrigger}
+              onClick={() => setAssistOpen(true)}
+              disabled={generating || applying}
+            >
+              {t('room:promptAssist.openBtn')}
+            </button>
             <small className={styles.fieldHint}>{t('room:aiGenerate.englishHint')}</small>
           </div>
 
@@ -158,6 +176,16 @@ export default function GenerateBattlemapModal({ roomId, sceneId, onClose }: Pro
         {error && <p role="alert" className={styles.error}>{error}</p>}
 
         <GenerationProgress active={generating} />
+
+        {assistOpen && (
+          <PromptAssistModal
+            roomId={roomId}
+            target="image"
+            i18nNamespace="room"
+            onApply={handleAssistApply}
+            onClose={() => setAssistOpen(false)}
+          />
+        )}
 
         {generated && (
           <div className={styles.preview}>

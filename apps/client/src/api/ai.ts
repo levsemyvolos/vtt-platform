@@ -1,4 +1,4 @@
-import type { AssistantTextRequest, AssistantTextResponse, AssistantStreamEvent, AssistantStreamRequest, SRDLookupRequest, SRDLookupResponse, AIQuotaResponse, AssistantImageConversationDTO, AssistantImageTurnDTO, CreateImageConversationRequest, RenameImageConversationRequest, ContinueImageConversationRequest, ContinueImageConversationResponse, ListImageConversationsResponse, ListImageTurnsResponse, AssistantConversationDTO, UpdateConversationDefaultsRequest, AssistantVariables } from '@vtt/shared';
+import type { AssistantTextRequest, AssistantTextResponse, AssistantStreamEvent, AssistantStreamRequest, SRDLookupRequest, SRDLookupResponse, AIQuotaResponse, AssistantImageConversationDTO, AssistantImageTurnDTO, CreateImageConversationRequest, RenameImageConversationRequest, ContinueImageConversationRequest, ContinueImageConversationResponse, ListImageConversationsResponse, ListImageTurnsResponse, AssistantConversationDTO, UpdateConversationDefaultsRequest, AssistantVariables, PromptAssistRequest, PromptAssistResponse } from '@vtt/shared';
 import { apiFetchWithMeta, ApiError, apiFetch } from './apiFetch';
 import { tokenStore } from './tokenStore';
 
@@ -118,6 +118,17 @@ export async function streamEditAndResend(
  */
 export function lookupSRD(req: SRDLookupRequest): Promise<SRDLookupResponse> {
   return apiFetch<SRDLookupResponse>('/api/ai/srd', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
+}
+
+/**
+ * S7.2 / P5.3 — LLM-as-prompt-generator. One-shot, GM-only.
+ * Server validates target ('image' | 'music') + length; returns `{draft}`.
+ */
+export function promptAssist(req: PromptAssistRequest): Promise<PromptAssistResponse> {
+  return apiFetch<PromptAssistResponse>('/api/ai/prompt-assist', {
     method: 'POST',
     body: JSON.stringify(req),
   });

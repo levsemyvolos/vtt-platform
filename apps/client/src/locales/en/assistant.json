@@ -238,5 +238,21 @@
     "sendBtn": "Send",
     "sending": "Sending…",
     "sendLabel": "Send"
+  },
+  "promptAssist": {
+    "openBtn": "✨ Generate prompt with AI",
+    "dialogLabel": "AI prompt assistant",
+    "heading": "Describe what you want — AI will write the prompt",
+    "hint": "Type a free-form brief in any language. The assistant returns a structured prompt you can edit before generating.",
+    "briefLabel": "Your idea",
+    "briefPlaceholderImage": "A wounded knight resting at dawn next to a campfire, dark fantasy mood",
+    "briefPlaceholderMusic": "Tense exploration music for a dripping cave, slow-building dread, no vocals",
+    "draftLabel": "Generated prompt (editable)",
+    "draftHint": "Review and tweak before applying. The structured fields below will be cleared once you Apply.",
+    "generateBtn": "Generate prompt",
+    "generating": "Generating…",
+    "regenerateBtn": "Regenerate",
+    "applyBtn": "Apply to form",
+    "errorOversize": "Brief is too long (max 1000 characters)."
   }
 }

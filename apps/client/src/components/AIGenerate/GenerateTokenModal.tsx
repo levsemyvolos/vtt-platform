@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { AIImageRequest, AIImageResponse } from '@vtt/shared';
 import { apiFetch, ApiError } from '../../api/apiFetch';
 import GenerationProgress from './GenerationProgress';
+import PromptAssistModal from './PromptAssistModal';
+import paStyles from './PromptAssistModal.module.css';
 import styles from './GenerateBackgroundModal.module.css';
 
 // P2.2 — token style keys mirror GenerateBackgroundModal / GeminiProvider.TOKEN_STYLE_MAP.
@@ -33,6 +35,7 @@ export default function GenerateTokenModal({ roomId, onGenerated, onClose }: Pro
   const [preview, setPreview]     = useState<AIImageResponse | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError]         = useState<string | null>(null);
+  const [assistOpen, setAssistOpen] = useState(false);
 
   async function handleGenerate(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -78,6 +81,14 @@ export default function GenerateTokenModal({ roomId, onGenerated, onClose }: Pro
               maxLength={280}
               autoFocus
             />
+            <button
+              type="button"
+              className={paStyles.assistTrigger}
+              onClick={() => setAssistOpen(true)}
+              disabled={generating}
+            >
+              {t('room:promptAssist.openBtn')}
+            </button>
           </div>
 
           <div className={styles.field}>
@@ -111,6 +122,16 @@ export default function GenerateTokenModal({ roomId, onGenerated, onClose }: Pro
         {error && <p role="alert" className={styles.error}>{error}</p>}
 
         <GenerationProgress active={generating} />
+
+        {assistOpen && (
+          <PromptAssistModal
+            roomId={roomId}
+            target="image"
+            i18nNamespace="room"
+            onApply={(draft) => setSubject(draft)}
+            onClose={() => setAssistOpen(false)}
+          />
+        )}
 
         {preview && (
           <div className={styles.preview}>

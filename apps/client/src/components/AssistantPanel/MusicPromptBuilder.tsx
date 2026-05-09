@@ -5,6 +5,8 @@ import type { AIMusicRequest, AIMusicResponse, MusicPresetKey } from '@vtt/share
 import { apiFetch, ApiError } from '../../api/apiFetch';
 import { mapAIErrorKindToI18n } from '../../store/assistant';
 import GenerationProgress from '../AIGenerate/GenerationProgress';
+import PromptAssistModal from '../AIGenerate/PromptAssistModal';
+import paStyles from '../AIGenerate/PromptAssistModal.module.css';
 import MusicResultActions from './MusicResultActions';
 import styles from './ConversationView.module.css';
 import bStyles from './MusicPromptBuilder.module.css';
@@ -53,6 +55,16 @@ export default function MusicPromptBuilder({ roomId, onGenerated }: Props): JSX.
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AIMusicResponse | null>(null);
+  const [assistOpen, setAssistOpen] = useState(false);
+
+  function handleAssistApply(draft: string): void {
+    // The draft already contains the full music formula (genre, mood,
+    // instrumentation, tempo, hard-constraints) — push it into Mood and
+    // clear the others so we don't double-stack overlapping signals.
+    setPresetKey('');
+    setMood(draft);
+    setInstrumentation('');
+  }
 
   function applyPreset(key: MusicPresetKey | '') {
     setPresetKey(key);
@@ -151,6 +163,15 @@ export default function MusicPromptBuilder({ roomId, onGenerated }: Props): JSX.
           />
         </div>
 
+        <button
+          type="button"
+          className={paStyles.assistTrigger}
+          onClick={() => setAssistOpen(true)}
+          disabled={generating}
+        >
+          {t('promptAssist.openBtn')}
+        </button>
+
         <small className={bStyles.hint}>{t('musicBuilder.englishHint')}</small>
 
         <button
@@ -170,6 +191,16 @@ export default function MusicPromptBuilder({ roomId, onGenerated }: Props): JSX.
         longMessage={t('musicBuilder.generatingMsg')}
         stillWorkingMessage={t('musicBuilder.stillWorking')}
       />
+
+      {assistOpen && (
+        <PromptAssistModal
+          roomId={roomId}
+          target="music"
+          i18nNamespace="assistant"
+          onApply={handleAssistApply}
+          onClose={() => setAssistOpen(false)}
+        />
+      )}
 
       {result && (
         <MusicResultActions

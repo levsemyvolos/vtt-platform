@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { AIImageRequest, AIImageResponse, UpdateSceneRequest } from '@vtt/shared';
 import { apiFetch, ApiError } from '../../api/apiFetch';
 import GenerationProgress from './GenerationProgress';
+import PromptAssistModal from './PromptAssistModal';
+import paStyles from './PromptAssistModal.module.css';
 import styles from './GenerateBackgroundModal.module.css';
 
 // P2.1 — must mirror GeminiProvider.SCENE_STYLE_MAP (server-side) for live preview.
@@ -110,6 +112,17 @@ export default function GenerateBackgroundModal({ roomId, sceneId, onClose }: Pr
   const [generating, setGenerating] = useState(false);
   const [applying, setApplying]     = useState(false);
   const [error, setError]           = useState<string | null>(null);
+  const [assistOpen, setAssistOpen] = useState(false);
+
+  function handleAssistApply(draft: string): void {
+    // Apply the generated draft as the canonical Subject and clear the
+    // optional structured fields — the draft already encodes them.
+    setSubject(draft);
+    setComposition('');
+    setLocationDetails('');
+    setLighting('');
+    setPalette('');
+  }
 
   async function handleGenerate(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -174,6 +187,14 @@ export default function GenerateBackgroundModal({ roomId, sceneId, onClose }: Pr
               maxLength={280}
               autoFocus
             />
+            <button
+              type="button"
+              className={paStyles.assistTrigger}
+              onClick={() => setAssistOpen(true)}
+              disabled={generating || applying}
+            >
+              {t('room:promptAssist.openBtn')}
+            </button>
             <small className={styles.fieldHint}>{t('room:aiGenerate.englishHint')}</small>
           </div>
 
@@ -258,6 +279,16 @@ export default function GenerateBackgroundModal({ roomId, sceneId, onClose }: Pr
         {error && <p role="alert" className={styles.error}>{error}</p>}
 
         <GenerationProgress active={generating} />
+
+        {assistOpen && (
+          <PromptAssistModal
+            roomId={roomId}
+            target="image"
+            i18nNamespace="room"
+            onApply={handleAssistApply}
+            onClose={() => setAssistOpen(false)}
+          />
+        )}
 
         {generated && (
           <div className={styles.preview}>
