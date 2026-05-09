@@ -23,11 +23,19 @@ export class DisabledAIProvider implements AIProvider {
     return Promise.reject(new AIQuotaError('AI provider is not configured'));
   }
 
+  generateToken(): Promise<GeneratedBinary> {
+    return Promise.reject(new AIQuotaError('AI provider is not configured'));
+  }
+
+  generateBattlemap(): Promise<GeneratedBinary> {
+    return Promise.reject(new AIQuotaError('AI provider is not configured'));
+  }
+
   generateImageMultiTurn(): Promise<GeneratedBinary> {
     return Promise.reject(new AIQuotaError('AI provider is not configured'));
   }
 
-  generateMusic(): Promise<GeneratedBinary> {
+  generateMusic(): Promise<GeneratedBinary & { composedPrompt: string }> {
     return Promise.reject(new AIQuotaError('AI provider is not configured'));
   }
 }

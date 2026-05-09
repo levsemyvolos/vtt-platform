@@ -25,6 +25,7 @@ interface AudioRepoMocks {
   listByRoom: MockedFunction<AudioTrackRepository['listByRoom']>;
   findActiveForScene: MockedFunction<AudioTrackRepository['findActiveForScene']>;
   findActiveTracksForScene: MockedFunction<AudioTrackRepository['findActiveTracksForScene']>;
+  findByRoomAssetSceneLayer: MockedFunction<AudioTrackRepository['findByRoomAssetSceneLayer']>;
   create: MockedFunction<AudioTrackRepository['create']>;
   update: MockedFunction<AudioTrackRepository['update']>;
   deleteById: MockedFunction<AudioTrackRepository['deleteById']>;
@@ -66,6 +67,7 @@ function makeAudioRepo(): { repo: AudioTrackRepository; mocks: AudioRepoMocks } 
     listByRoom: vi.fn(),
     findActiveForScene: vi.fn(),
     findActiveTracksForScene: vi.fn(),
+    findByRoomAssetSceneLayer: vi.fn().mockResolvedValue(null),
     create: vi.fn(),
     update: vi.fn(),
     deleteById: vi.fn().mockResolvedValue(undefined),
@@ -318,6 +320,199 @@ describe('AudioService.finalizeUpload', () => {
         OWNER_ID,
       ),
     ).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe('AudioService.createTrackFromAsset (S5.4 — AI music to track)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function aiAsset(overrides: Partial<Asset> = {}): Asset {
+    return fakeAsset({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      source: 'AI_AUDIO' as any,
+      aiPrompt: 'cave ambient',
+      aiModel: 'lyria-3-clip-preview',
+      ...overrides,
+    });
+  }
+
+  it('creates track from AI Asset and broadcasts when playImmediately=true even without scene', async () => {
+    const ctx = buildService();
+    const { service, audio, asset, events } = ctx;
+    asset.mocks.findById.mockResolvedValue(aiAsset({ id: 'a-1' }));
+    audio.mocks.create.mockImplementation(async (data) =>
+      fakeTrack({
+        id: data.id as string,
+        sceneId: (data.sceneId as string | null) ?? null,
+        title: data.title as string,
+        assetId: data.assetId as string,
+        loop: (data.loop as boolean) ?? false,
+        layer: (data.layer as 'music' | 'ambient' | 'sfx') ?? 'music',
+      }),
+    );
+
+    const track = await service.createTrackFromAsset({
+      roomId: ROOM_ID,
+      assetId: 'a-1',
+      title: 'Cave preset — May 9',
+      playImmediately: true,
+    });
+
+    expect(track.assetId).toBe('a-1');
+    expect(track.title).toBe('Cave preset — May 9');
+    expect(track.layer).toBe('music');
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({ kind: 'persistent', action: 'play', trackId: track.id });
+  });
+
+  it('does NOT broadcast when playImmediately=false and no scene binding (Save-only flow)', async () => {
+    const ctx = buildService();
+    const { service, audio, asset, events } = ctx;
+    asset.mocks.findById.mockResolvedValue(aiAsset({ id: 'a-2' }));
+    audio.mocks.create.mockImplementation(async (data) =>
+      fakeTrack({ id: data.id as string, assetId: data.assetId as string, title: data.title as string, sceneId: null }),
+    );
+
+    await service.createTrackFromAsset({ roomId: ROOM_ID, assetId: 'a-2', title: 'silent save' });
+
+    expect(events).toHaveLength(0);
+  });
+
+  it('rejects asset from another room with 403', async () => {
+    const { service, asset } = buildService();
+    asset.mocks.findById.mockResolvedValue(aiAsset({ id: 'a-3', roomId: 'OTHER-ROOM' }));
+    await expect(
+      service.createTrackFromAsset({ roomId: ROOM_ID, assetId: 'a-3', title: 't' }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('rejects non-AI asset with 400 (defence-in-depth: prevents bypassing upload validation)', async () => {
+    const { service, asset } = buildService();
+    asset.mocks.findById.mockResolvedValue(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fakeAsset({ id: 'a-4', source: 'UPLOAD' as any }),
+    );
+    await expect(
+      service.createTrackFromAsset({ roomId: ROOM_ID, assetId: 'a-4', title: 't' }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('rejects missing asset with 404', async () => {
+    const { service, asset } = buildService();
+    asset.mocks.findById.mockResolvedValue(null);
+    await expect(
+      service.createTrackFromAsset({ roomId: ROOM_ID, assetId: 'missing', title: 't' }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('rejects empty title with 400', async () => {
+    const { service, asset } = buildService();
+    asset.mocks.findById.mockResolvedValue(aiAsset({ id: 'a-5' }));
+    await expect(
+      service.createTrackFromAsset({ roomId: ROOM_ID, assetId: 'a-5', title: '   ' }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('S5.5 P5 — idempotent: returns existing track when (room, asset, scene, layer) already exists', async () => {
+    const ctx = buildService();
+    const { service, audio, asset } = ctx;
+    const existing = fakeTrack({
+      id: 't-existing',
+      assetId: 'a-dup',
+      sceneId: null,
+      layer: 'music',
+      title: 'Original Save',
+    });
+    asset.mocks.findById.mockResolvedValue(aiAsset({ id: 'a-dup' }));
+    audio.mocks.findByRoomAssetSceneLayer.mockResolvedValue(existing);
+
+    const result = await service.createTrackFromAsset({
+      roomId: ROOM_ID,
+      assetId: 'a-dup',
+      title: 'Renamed Attempt',
+    });
+
+    expect(result.id).toBe('t-existing');
+    expect(result.title).toBe('Original Save'); // existing title preserved, not overwritten
+    expect(audio.mocks.create).not.toHaveBeenCalled();
+  });
+
+  it('S5.5 P5 — idempotent path still broadcasts when playImmediately=true', async () => {
+    const ctx = buildService();
+    const { service, audio, asset, events } = ctx;
+    const existing = fakeTrack({ id: 't-existing-2', assetId: 'a-dup-2', sceneId: null, layer: 'music' });
+    asset.mocks.findById.mockResolvedValue(aiAsset({ id: 'a-dup-2' }));
+    audio.mocks.findByRoomAssetSceneLayer.mockResolvedValue(existing);
+
+    await service.createTrackFromAsset({
+      roomId: ROOM_ID,
+      assetId: 'a-dup-2',
+      title: 't',
+      playImmediately: true,
+    });
+
+    expect(audio.mocks.create).not.toHaveBeenCalled();
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({ kind: 'persistent', action: 'play', trackId: 't-existing-2' });
+  });
+});
+
+describe('AudioService.deleteTrack (S5.5 P4 — AI cascade safety)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('cascades Asset + GCS object for UPLOAD-source tracks (legacy 1:1 owns)', async () => {
+    const ctx = buildService();
+    const { service, audio, asset, storage } = ctx;
+    audio.mocks.findById.mockResolvedValue(fakeTrack({ id: 't-up', assetId: 'a-up' }));
+    asset.mocks.findById.mockResolvedValue(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fakeAsset({ id: 'a-up', source: 'UPLOAD' as any, storageKey: 'rooms/r/audio/a-up.mp3' }),
+    );
+
+    await service.deleteTrack('t-up');
+
+    expect(audio.mocks.deleteById).toHaveBeenCalledWith('t-up');
+    expect(asset.mocks.deleteById).toHaveBeenCalledWith('a-up');
+    expect(storage.mocks.delete).toHaveBeenCalledWith('rooms/r/audio/a-up.mp3');
+  });
+
+  it('preserves Asset + GCS object for AI_AUDIO-source tracks (history must stay)', async () => {
+    const ctx = buildService();
+    const { service, audio, asset, storage } = ctx;
+    audio.mocks.findById.mockResolvedValue(fakeTrack({ id: 't-ai', assetId: 'a-ai' }));
+    asset.mocks.findById.mockResolvedValue(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fakeAsset({ id: 'a-ai', source: 'AI_AUDIO' as any, storageKey: 'rooms/r/audio/a-ai.mp3' }),
+    );
+
+    await service.deleteTrack('t-ai');
+
+    expect(audio.mocks.deleteById).toHaveBeenCalledWith('t-ai');
+    expect(asset.mocks.deleteById).not.toHaveBeenCalled();
+    expect(storage.mocks.delete).not.toHaveBeenCalled();
+  });
+
+  it('rejects missing track with 404', async () => {
+    const { service, audio } = buildService();
+    audio.mocks.findById.mockResolvedValue(null);
+    await expect(service.deleteTrack('missing')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('emits stop broadcast when deleting a scene-bound track', async () => {
+    const ctx = buildService();
+    const { service, audio, asset, events } = ctx;
+    audio.mocks.findById.mockResolvedValue(
+      fakeTrack({ id: 't-bound', assetId: 'a-bound', sceneId: SCENE_ID, fadeMs: 2000 }),
+    );
+    asset.mocks.findById.mockResolvedValue(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fakeAsset({ id: 'a-bound', source: 'AI_AUDIO' as any }),
+    );
+
+    await service.deleteTrack('t-bound');
+
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({ kind: 'persistent', action: 'stop', layer: 'music', fadeMs: 2000 });
   });
 });
 

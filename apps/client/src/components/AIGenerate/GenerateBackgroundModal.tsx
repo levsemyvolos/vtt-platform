@@ -2,67 +2,148 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AIImageRequest, AIImageResponse, UpdateSceneRequest } from '@vtt/shared';
 import { apiFetch, ApiError } from '../../api/apiFetch';
+import GenerationProgress from './GenerationProgress';
 import styles from './GenerateBackgroundModal.module.css';
 
-const STYLE_PRESET_KEYS = ['realistic', 'fantasy', 'sci-fi', 'cartoon'] as const;
-type StylePreset = (typeof STYLE_PRESET_KEYS)[number];
+// P2.1 — must mirror GeminiProvider.SCENE_STYLE_MAP (server-side) for live preview.
+const STYLE_KEYS = ['fantasy', 'realistic', 'sci-fi', 'cartoon', 'dark-fantasy', 'watercolor'] as const;
+type StyleKey = (typeof STYLE_KEYS)[number];
 
-interface GenerateBackgroundModalProps {
+const SCENE_STYLE_MAP: Record<StyleKey, string> = {
+  'fantasy':      'Fantasy digital illustration, painterly',
+  'realistic':    'Photorealistic, highly detailed',
+  'sci-fi':       'Science fiction concept art, cinematic',
+  'cartoon':      'Cartoon illustration, stylized',
+  'dark-fantasy': 'Tabletop RPG dark fantasy illustration, atmospheric',
+  'watercolor':   'Watercolor painting, artistic',
+};
+
+const SCENE_CONSTRAINTS =
+  'tabletop RPG scene illustration, no text, no logos, no UI overlays, no watermarks, landscape orientation';
+
+function buildImageRequest(
+  subject: string,
+  roomId: string,
+  style: StyleKey,
+  composition: string,
+  locationDetails: string,
+  lighting: string,
+  palette: string,
+): AIImageRequest {
+  const req: AIImageRequest = { prompt: subject, roomId, style };
+  if (composition)     req.composition     = composition;
+  if (locationDetails) req.locationDetails = locationDetails;
+  if (lighting)        req.lighting        = lighting;
+  if (palette)         req.palette         = palette;
+  return req;
+}
+
+function mapGenerateError(err: unknown, rateLimitMsg: string, safetyMsg: string, fallbackMsg: string): string {
+  if (err instanceof ApiError && err.status === 429) return rateLimitMsg;
+  if (err instanceof ApiError && err.kind === 'ai_safety') return safetyMsg;
+  return err instanceof Error ? err.message : fallbackMsg;
+}
+
+function mapApplyError(err: unknown, fallback: string): string {
+  return err instanceof Error ? err.message : fallback;
+}
+
+function buildPreviewPrompt(
+  subject: string,
+  style: StyleKey,
+  composition: string,
+  locationDetails: string,
+  lighting: string,
+  palette: string,
+): string {
+  const styleDesc = SCENE_STYLE_MAP[style] ?? style;
+  const parts: string[] = [subject];
+  if (composition)     parts.push(composition);
+  if (locationDetails) parts.push(locationDetails);
+  if (lighting)        parts.push(lighting);
+  if (palette)         parts.push(palette);
+  return `${styleDesc}: ${parts.join(', ')}. ${SCENE_CONSTRAINTS}`;
+}
+
+interface PreviewProps {
+  subject: string;
+  style: StyleKey;
+  composition: string;
+  locationDetails: string;
+  lighting: string;
+  palette: string;
+  label: string;
+}
+
+function PromptPreviewBlock({ subject, style, composition, locationDetails, lighting, palette, label }: PreviewProps): JSX.Element | null {
+  const [open, setOpen] = useState(false);
+  const prompt = subject.trim()
+    ? buildPreviewPrompt(subject.trim(), style, composition, locationDetails, lighting, palette)
+    : '';
+  if (!prompt) return null;
+  return (
+    <div className={styles.promptPreview}>
+      <button type="button" className={styles.previewToggle} onClick={() => setOpen((v) => !v)}>
+        {open ? '▼' : '▶'} {label}
+      </button>
+      {open && <p className={styles.previewText}>{prompt}</p>}
+    </div>
+  );
+}
+
+interface Props {
   roomId: string;
   sceneId: string;
   onClose: () => void;
 }
 
-export default function GenerateBackgroundModal({
-  roomId,
-  sceneId,
-  onClose,
-}: GenerateBackgroundModalProps): JSX.Element {
+export default function GenerateBackgroundModal({ roomId, sceneId, onClose }: Props): JSX.Element {
   const { t } = useTranslation(['room', 'common', 'errors']);
-  const [prompt, setPrompt] = useState('');
-  const [style, setStyle] = useState<StylePreset>('fantasy');
-  const [preview, setPreview] = useState<AIImageResponse | null>(null);
+
+  const [subject, setSubject]               = useState('');
+  const [style, setStyle]                   = useState<StyleKey>('fantasy');
+  const [composition, setComposition]       = useState('');
+  const [locationDetails, setLocationDetails] = useState('');
+  const [lighting, setLighting]             = useState('');
+  const [palette, setPalette]               = useState('');
+  const [generated, setGenerated]   = useState<AIImageResponse | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [applying, setApplying]     = useState(false);
+  const [error, setError]           = useState<string | null>(null);
 
   async function handleGenerate(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!subject.trim()) return;
     setGenerating(true);
     setError(null);
-    setPreview(null);
+    setGenerated(null);
     try {
-      const body: AIImageRequest = { prompt: prompt.trim(), roomId, style };
+      const body = buildImageRequest(subject.trim(), roomId, style, composition, locationDetails, lighting, palette);
       const result = await apiFetch<AIImageResponse>('/api/ai/image', {
         method: 'POST',
         body: JSON.stringify(body),
       });
-      setPreview(result);
+      setGenerated(result);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 429) {
-        setError(t('errors:api.rateLimitExceeded'));
-      } else {
-        setError(err instanceof Error ? err.message : t('errors:network.generateFailed'));
-      }
+      setError(mapGenerateError(err, t('errors:api.rateLimitExceeded'), t('errors:ai.safety'), t('errors:network.generateFailed')));
     } finally {
       setGenerating(false);
     }
   }
 
   async function handleUseAsBackground(): Promise<void> {
-    if (!preview) return;
+    if (!generated) return;
     setApplying(true);
     setError(null);
     try {
-      const patch: UpdateSceneRequest = { backgroundAssetId: preview.assetId };
+      const patch: UpdateSceneRequest = { backgroundAssetId: generated.assetId };
       await apiFetch(`/api/scenes/${sceneId}`, {
         method: 'PATCH',
         body: JSON.stringify(patch),
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('errors:network.applyFailed'));
+      setError(mapApplyError(err, t('errors:network.applyFailed')));
     } finally {
       setApplying(false);
     }
@@ -80,54 +161,108 @@ export default function GenerateBackgroundModal({
         <h2>{t('room:aiGenerate.heading')}</h2>
 
         <form onSubmit={(e) => void handleGenerate(e)} aria-label={t('room:aiGenerate.formLabel')} noValidate>
+
+          {/* Subject (required) */}
           <div className={styles.field}>
-            <label htmlFor="ai-prompt">{t('room:aiGenerate.promptLabel')}</label>
+            <label htmlFor="ai-subject">{t('room:aiGenerate.fields.subject')}</label>
             <textarea
-              id="ai-prompt"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              id="ai-subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
               rows={3}
-              placeholder={t('room:aiGenerate.promptPlaceholder')}
-              maxLength={400}
+              placeholder={t('room:aiGenerate.fields.subjectPlaceholder')}
+              maxLength={280}
               autoFocus
             />
+            <small className={styles.fieldHint}>{t('room:aiGenerate.englishHint')}</small>
           </div>
 
+          {/* Style */}
           <div className={styles.field}>
-            <label htmlFor="ai-style">{t('room:aiGenerate.styleLabel')}</label>
-            <select
-              id="ai-style"
-              value={style}
-              onChange={(e) => setStyle(e.target.value as StylePreset)}
-            >
-              {STYLE_PRESET_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {t(`room:aiGenerate.styles.${key}`)}
-                </option>
+            <label htmlFor="ai-style">{t('room:aiGenerate.fields.style')}</label>
+            <select id="ai-style" value={style} onChange={(e) => setStyle(e.target.value as StyleKey)}>
+              {STYLE_KEYS.map((k) => (
+                <option key={k} value={k}>{t(`room:aiGenerate.styles.${k}`)}</option>
               ))}
             </select>
           </div>
+
+          {/* Composition (optional) */}
+          <div className={styles.field}>
+            <label htmlFor="ai-composition">{t('room:aiGenerate.fields.composition')}</label>
+            <select id="ai-composition" value={composition} onChange={(e) => setComposition(e.target.value)}>
+              <option value="">{t('room:aiGenerate.fields.compositionNone')}</option>
+              {(t('room:aiGenerate.compositionPresets', { returnObjects: true }) as string[]).map((label, i) => (
+                <option key={i} value={label}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Location details (optional) */}
+          <div className={styles.field}>
+            <label htmlFor="ai-location">{t('room:aiGenerate.fields.locationDetails')}</label>
+            <input
+              id="ai-location"
+              type="text"
+              maxLength={160}
+              value={locationDetails}
+              onChange={(e) => setLocationDetails(e.target.value)}
+              placeholder={t('room:aiGenerate.fields.locationDetailsPlaceholder')}
+            />
+          </div>
+
+          {/* Lighting (optional) */}
+          <div className={styles.field}>
+            <label htmlFor="ai-lighting">{t('room:aiGenerate.fields.lighting')}</label>
+            <select id="ai-lighting" value={lighting} onChange={(e) => setLighting(e.target.value)}>
+              <option value="">{t('room:aiGenerate.fields.lightingNone')}</option>
+              {(t('room:aiGenerate.lightingPresets', { returnObjects: true }) as string[]).map((label, i) => (
+                <option key={i} value={label}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Palette (optional) */}
+          <div className={styles.field}>
+            <label htmlFor="ai-palette">{t('room:aiGenerate.fields.palette')}</label>
+            <input
+              id="ai-palette"
+              type="text"
+              maxLength={120}
+              value={palette}
+              onChange={(e) => setPalette(e.target.value)}
+              placeholder={t('room:aiGenerate.fields.palettePlaceholder')}
+            />
+          </div>
+
+          <PromptPreviewBlock
+            subject={subject}
+            style={style}
+            composition={composition}
+            locationDetails={locationDetails}
+            lighting={lighting}
+            palette={palette}
+            label={t('room:aiGenerate.previewLabel')}
+          />
 
           <div className={styles.actions}>
             <button type="button" className={styles.btnCancel} onClick={onClose} disabled={generating || applying}>
               {t('common:btn.cancel')}
             </button>
-            <button type="submit" className={styles.btnSubmit} disabled={generating || !prompt.trim()}>
+            <button type="submit" className={styles.btnSubmit} disabled={generating || !subject.trim()}>
               {generating ? t('room:aiGenerate.generating') : t('room:aiGenerate.generateBtn')}
             </button>
           </div>
         </form>
 
-        {error && (
-          <p role="alert" className={styles.error}>
-            {error}
-          </p>
-        )}
+        {error && <p role="alert" className={styles.error}>{error}</p>}
 
-        {preview && (
+        <GenerationProgress active={generating} />
+
+        {generated && (
           <div className={styles.preview}>
             <img
-              src={preview.previewUrl}
+              src={generated.previewUrl}
               alt={t('room:aiGenerate.previewAlt')}
               className={styles.previewImg}
             />

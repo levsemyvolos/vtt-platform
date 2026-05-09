@@ -5,6 +5,7 @@ import type {
   AudioPatchRequest,
   AudioPlaybackUrlResponse,
   AudioTrackDTO,
+  AudioTrackFromAssetRequest,
   AudioUploadInitRequest,
   AudioUploadInitResponse,
 } from '@vtt/shared';
@@ -55,6 +56,23 @@ export function buildAudioRouter(audioService: AudioService): IRouter {
       try {
         await audioService.assertRoomOwner(req.body.roomId, req.user!.id);
         const track = await audioService.finalizeUpload(req.body, req.user!.id);
+        const dto: AudioTrackDTO = await audioService.toDTO(track);
+        res.status(201).json(dto);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  // ----- S5.4: register existing AI-audio Asset as a playable track (GM only) -----
+  router.post(
+    '/audio/from-asset',
+    jwtAuth,
+    requireRole('GM', 'Player'),
+    async (req: Request<object, object, AudioTrackFromAssetRequest>, res: Response) => {
+      try {
+        await audioService.assertRoomOwner(req.body.roomId, req.user!.id);
+        const track = await audioService.createTrackFromAsset(req.body);
         const dto: AudioTrackDTO = await audioService.toDTO(track);
         res.status(201).json(dto);
       } catch (err) {

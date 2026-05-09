@@ -1,4 +1,4 @@
-import type { AssistantTextRequest, AssistantTextResponse, AssistantStreamEvent, AssistantStreamRequest, SRDLookupRequest, SRDLookupResponse, AIQuotaResponse, AssistantImageConversationDTO, AssistantImageTurnDTO, CreateImageConversationRequest, RenameImageConversationRequest, ContinueImageConversationRequest, ContinueImageConversationResponse, ListImageConversationsResponse, ListImageTurnsResponse } from '@vtt/shared';
+import type { AssistantTextRequest, AssistantTextResponse, AssistantStreamEvent, AssistantStreamRequest, SRDLookupRequest, SRDLookupResponse, AIQuotaResponse, AssistantImageConversationDTO, AssistantImageTurnDTO, CreateImageConversationRequest, RenameImageConversationRequest, ContinueImageConversationRequest, ContinueImageConversationResponse, ListImageConversationsResponse, ListImageTurnsResponse, AssistantConversationDTO, UpdateConversationDefaultsRequest, AssistantVariables } from '@vtt/shared';
 import { apiFetchWithMeta, ApiError, apiFetch } from './apiFetch';
 import { tokenStore } from './tokenStore';
 
@@ -125,6 +125,25 @@ export function lookupSRD(req: SRDLookupRequest): Promise<SRDLookupResponse> {
 
 export function getAIQuota(roomId: string): Promise<AIQuotaResponse> {
   return apiFetch<AIQuotaResponse>(`/api/ai/quota?roomId=${encodeURIComponent(roomId)}`);
+}
+
+// ---------- Conversation defaults (Session 3.2) ----------
+
+/** GET /api/ai/conversations — used to read a conversation's persisted defaults. */
+export function getConversation(id: string): Promise<AssistantConversationDTO> {
+  return apiFetch<AssistantConversationDTO>(`/api/ai/conversations/${encodeURIComponent(id)}`);
+}
+
+/** PATCH /api/ai/conversations/:id/defaults — owner-only, full-replace semantics. */
+export function updateConversationDefaults(
+  id: string,
+  defaults: AssistantVariables,
+): Promise<AssistantConversationDTO> {
+  const body: UpdateConversationDefaultsRequest = { defaults };
+  return apiFetch<AssistantConversationDTO>(`/api/ai/conversations/${encodeURIComponent(id)}/defaults`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
 }
 
 // ---------- Image conversations (Session 7.2) ----------

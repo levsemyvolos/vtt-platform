@@ -262,6 +262,7 @@
     "placeholder": "Оберіть елемент для редагування",
     "bg": {
       "aiBtn": "Згенерувати AI",
+      "battlemapBtn": "✨ Бойова карта",
       "fitLabel": "Підгін",
       "fit": {
         "cover": "Cover",
@@ -332,23 +333,101 @@
     "makeVisibleToAll": "Видимо для всіх",
     "resetTransform": "Скинути трансформацію"
   },
+  "aiCommon": {
+    "expectationLong": "Генерую через Nano Banana 2 (~15с)…",
+    "expectationStillWorking": "Все ще працюю… Nano Banana 2 на global-регіоні може відповідати до 30 с",
+    "skeletonAlt": "Підготовка превʼю"
+  },
+  "aiToken": {
+    "dialogLabel": "Генерація токена (AI)",
+    "heading": "Згенерувати зображення токена (AI)",
+    "formLabel": "форма генерації токена",
+    "subjectLabel": "Опис персонажа *",
+    "subjectPlaceholder": "Людський воїн у важких обладунках, сивобородий, зі щитом",
+    "styleLabel": "Стиль",
+    "framingLabel": "Кадрування",
+    "framing": {
+      "full-body": "Повна фігура",
+      "half-body": "По пояс",
+      "bust": "Портрет по плечі"
+    },
+    "generateBtn": "✨ AI",
+    "generating": "Генерація…",
+    "useAsToken": "Використати як токен",
+    "previewAlt": "Згенерований токен"
+  },
   "aiGenerate": {
     "dialogLabel": "Генерація фону",
     "heading": "Згенерувати фон сцени (AI)",
-    "promptLabel": "Опис сцени",
-    "promptPlaceholder": "Підземелля з кам'яними стінами та смолоскипами...",
-    "styleLabel": "Стиль",
+    "englishHint": "Для кращих результатів вводьте англійською — кирилиця може бути заблокована фільтром безпеки.",
     "generateBtn": "Згенерувати",
     "generating": "Генерація…",
     "applyBg": "Використати як фон",
     "applying": "Застосування…",
     "previewAlt": "Згенерований фон",
     "formLabel": "форма генерації фону",
+    "previewLabel": "Зібраний промпт (попередній перегляд)",
+    "fields": {
+      "subject": "Тема сцени *",
+      "subjectPlaceholder": "Підземелля з кам'яними стінами та смолоскипами",
+      "style": "Стиль",
+      "composition": "Ракурс (необов'язково)",
+      "compositionNone": "— авто —",
+      "locationDetails": "Деталі місця (необов'язково)",
+      "locationDetailsPlaceholder": "Мохом вкриті стіни, тріснута підлога, коридор іде вліво",
+      "lighting": "Освітлення (необов'язково)",
+      "lightingNone": "— авто —",
+      "palette": "Палітра (необов'язково)",
+      "palettePlaceholder": "Теплі земляні тони, відтінки охри"
+    },
     "styles": {
-      "realistic": "Реалістичний",
-      "fantasy": "Фентезі",
-      "sci-fi": "Sci-Fi",
-      "cartoon": "Мультяшний"
-    }
+      "fantasy": "Фентезі (цифрова ілюстрація)",
+      "realistic": "Реалістичний (фотореалізм)",
+      "sci-fi": "Sci-Fi (концепт-арт)",
+      "cartoon": "Мультяшний",
+      "dark-fantasy": "Темне фентезі",
+      "watercolor": "Акварель"
+    },
+    "compositionPresets": [
+      "wide establishing shot",
+      "medium shot, eye level",
+      "bird's-eye view overhead",
+      "worm's-eye view from below",
+      "first-person perspective",
+      "isometric view"
+    ],
+    "lightingPresets": [
+      "golden hour sunlight",
+      "candlelight / torchlight",
+      "moonlight, nighttime",
+      "overcast daylight",
+      "dramatic side lighting",
+      "dimly lit dungeon"
+    ]
+  },
+  "aiBattlemap": {
+    "dialogLabel": "Генерація бойової карти (AI)",
+    "heading": "Згенерувати бойову карту (AI)",
+    "formLabel": "форма генерації бойової карти",
+    "locationLabel": "Місце / тип ділянки *",
+    "locationPlaceholder": "Кам'яна кімната підземелля з колонами та центральним вівтарем",
+    "environmentLabel": "Тип середовища (необов'язково)",
+    "environmentNone": "— авто —",
+    "styleLabel": "Стиль",
+    "generateBtn": "Згенерувати",
+    "generating": "Генерація…",
+    "useAsBg": "Використати як фон сцени",
+    "applying": "Застосування…",
+    "previewAlt": "Згенерована бойова карта",
+    "environmentPresets": [
+      "відкрите поле / луг",
+      "галявина в лісі",
+      "кімната підземелля",
+      "коридор підземелля",
+      "зал замку / інтер'єр",
+      "болото / трясовина",
+      "узбережжя / набережна",
+      "міська вулиця / урбан"
+    ]
   }
 }

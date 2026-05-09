@@ -8,6 +8,7 @@ import { resolveImageDimensions, loadImageNaturalSize as sharedLoadImageNaturalS
 import ImageUpload from '../AssetUpload/ImageUpload';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
 import GenerateBackgroundModal from '../AIGenerate/GenerateBackgroundModal';
+import GenerateBattlemapModal from '../AIGenerate/GenerateBattlemapModal';
 import AddTokenButton from '../GameCanvas/AddTokenButton';
 import styles from './EditorToolbarLeft.module.css';
 
@@ -49,6 +50,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
   const bgDefaults = getBackgroundDefaults(scene ?? null);
 
   const [aiOpen, setAiOpen] = useState(false);
+  const [battlemapOpen, setBattlemapOpen] = useState(false);
   const [gridSize, setGridSize] = useState(String(scene?.gridSize ?? 50));
   const [gridWidth, setGridWidth] = useState(String(scene?.gridWidth ?? 20));
   const [gridHeight, setGridHeight] = useState(String(scene?.gridHeight ?? 15));
@@ -174,6 +176,13 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           onClick={() => setAiOpen(true)}
         >
           {t('sceneEditor.bg.aiBtn')}
+        </button>
+        <button
+          type="button"
+          className={styles.aiBtn}
+          onClick={() => setBattlemapOpen(true)}
+        >
+          {t('sceneEditor.bg.battlemapBtn')}
         </button>
         <AssetLibrary
           roomId={roomId}
@@ -354,6 +363,13 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           roomId={roomId}
           sceneId={sceneId}
           onClose={() => setAiOpen(false)}
+        />
+      )}
+      {battlemapOpen && (
+        <GenerateBattlemapModal
+          roomId={roomId}
+          sceneId={sceneId}
+          onClose={() => setBattlemapOpen(false)}
         />
       )}
     </aside>

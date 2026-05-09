@@ -9,6 +9,7 @@ import type {
   AssistantHistoryResponse,
   AIErrorKind,
   AssistantStreamEvent,
+  AssistantVariables,
 } from '@vtt/shared';
 import { streamAssistantText, streamRegenerate, streamEditAndResend } from '../api/ai';
 import { apiFetch, ApiError } from '../api/apiFetch';
@@ -141,6 +142,29 @@ export const deleteConversation = createAsyncThunk<
     try {
       await apiFetch(`/api/ai/conversations/${id}`, { method: 'DELETE' });
       return { id };
+    } catch (err) {
+      if (err instanceof ApiError) {
+        return rejectWithValue(mapAIErrorKindToI18n(err.kind, err.status));
+      }
+      return rejectWithValue('errors:ai.unknown');
+    }
+  },
+);
+
+/** Updates per-conversation default variables (Session 3.2 / P4 backend). Owner-only. */
+export const updateConversationDefaultsAction = createAsyncThunk<
+  AssistantConversationDTO,
+  { id: string; defaults: AssistantVariables },
+  { rejectValue: string }
+>(
+  'assistant/updateConversationDefaults',
+  async ({ id, defaults }, { rejectWithValue }) => {
+    try {
+      const dto = await apiFetch<AssistantConversationDTO>(`/api/ai/conversations/${id}/defaults`, {
+        method: 'PATCH',
+        body: JSON.stringify({ defaults }),
+      });
+      return dto;
     } catch (err) {
       if (err instanceof ApiError) {
         return rejectWithValue(mapAIErrorKindToI18n(err.kind, err.status));
@@ -304,6 +328,10 @@ const assistantSlice = createSlice({
         const dto = action.payload;
         state.conversations[dto.id] = dto;
       })
+      .addCase(updateConversationDefaultsAction.fulfilled, (state, action) => {
+        const dto = action.payload;
+        state.conversations[dto.id] = dto;
+      })
       .addCase(deleteConversation.fulfilled, (state, action) => {
         const { id } = action.payload;
         delete state.conversations[id];
@@ -417,16 +445,29 @@ async function consumeStreamInto(
 // ─── Streaming thunks ───────────────────────────────────────────────────────
 
 export function sendAssistantMessage(
-  payload: { roomId: string; conversationId: string; context: AssistantContext; prompt: string; useSessionContext?: boolean; thinkingLevel?: 'low' | 'high' },
+  payload: {
+    roomId: string;
+    conversationId: string;
+    context: AssistantContext;
+    prompt: string;
+    useSessionContext?: boolean;
+    thinkingLevel?: 'low' | 'high';
+    /** Per-message variable overrides (Session 3.2 / P4). Server resolution:
+     *  request value > per-conversation default > undefined. */
+    variables?: AssistantVariables;
+  },
 ): ThunkAction<Promise<void>, { assistant: AssistantState }, unknown, UnknownAction> {
   return async (dispatch) => {
-    const { roomId, conversationId, context, prompt, useSessionContext, thinkingLevel } = payload;
+    const { roomId, conversationId, context, prompt, useSessionContext, thinkingLevel, variables } = payload;
     dispatch(streamStart({ conversationId, userContent: prompt }));
+    const baseReq = {
+      roomId, conversationId, context, userPrompt: prompt,
+      ...(useSessionContext !== undefined ? { useSessionContext } : {}),
+      ...(variables ?? {}),
+    };
     await consumeStreamInto(dispatch as Dispatch, conversationId, (signal) =>
       streamAssistantText(
-        thinkingLevel === 'high'
-          ? { roomId, conversationId, context, userPrompt: prompt, ...(useSessionContext !== undefined ? { useSessionContext } : {}), thinkingLevel: 'high' }
-          : { roomId, conversationId, context, userPrompt: prompt, ...(useSessionContext !== undefined ? { useSessionContext } : {}) },
+        thinkingLevel === 'high' ? { ...baseReq, thinkingLevel: 'high' } : baseReq,
         signal,
       ),
     );

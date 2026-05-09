@@ -58,6 +58,9 @@ export class AssetService {
    * @param kind 'image' | 'audio'
    * @param prompt full prompt string for provenance tracking
    * @param aiModel model identifier (e.g. 'gemini-2.5-flash-image')
+   * @param opts optional overrides; `displayName` replaces the default
+   *             `"AI: <prompt>"` originalName (used by music to surface a
+   *             readable mood-derived title instead of the full Lyria prompt).
    * @returns the persisted Asset row
    */
   async storeAiAsset(
@@ -67,10 +70,13 @@ export class AssetService {
     kind: 'image' | 'audio',
     prompt: string,
     aiModel: string,
+    opts?: { displayName?: string },
   ): Promise<Asset> {
     const storageKey = buildStorageKey(roomId, kind, payload.mimeType);
     const truncatedPrompt = prompt.length > 80 ? `${prompt.slice(0, 77)}...` : prompt;
-    const originalName = `AI: ${truncatedPrompt}`;
+    const originalName = opts?.displayName?.trim()
+      ? opts.displayName.trim().slice(0, 128)
+      : `AI: ${truncatedPrompt}`;
     const source = kind === 'image' ? 'AI_IMAGE' : 'AI_AUDIO';
     const [, asset] = await Promise.all([
       this.storage.put({

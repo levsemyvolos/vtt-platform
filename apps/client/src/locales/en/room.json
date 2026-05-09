@@ -260,6 +260,7 @@
     "placeholder": "Select an element to edit",
     "bg": {
       "aiBtn": "Generate AI",
+      "battlemapBtn": "✨ Battlemap",
       "fitLabel": "Fit",
       "fit": {
         "cover": "Cover",
@@ -330,23 +331,101 @@
     "makeVisibleToAll": "Make visible to all",
     "resetTransform": "Reset transform"
   },
+  "aiCommon": {
+    "expectationLong": "Generating with Nano Banana 2 (~15s)…",
+    "expectationStillWorking": "Still working… Nano Banana 2 on global region can take up to 30s",
+    "skeletonAlt": "Generating preview"
+  },
+  "aiToken": {
+    "dialogLabel": "Generate Token (AI)",
+    "heading": "Generate Token Image (AI)",
+    "formLabel": "token generation form",
+    "subjectLabel": "Character description *",
+    "subjectPlaceholder": "Human warrior in heavy armour, grey beard, holding a shield",
+    "styleLabel": "Style",
+    "framingLabel": "Framing",
+    "framing": {
+      "full-body": "Full body",
+      "half-body": "Half body (waist up)",
+      "bust": "Bust portrait (shoulders up)"
+    },
+    "generateBtn": "✨ AI",
+    "generating": "Generating…",
+    "useAsToken": "Use as token",
+    "previewAlt": "Generated token"
+  },
   "aiGenerate": {
     "dialogLabel": "Generate Background",
     "heading": "Generate Scene Background (AI)",
-    "promptLabel": "Scene Description",
-    "promptPlaceholder": "Dungeon with stone walls and torches...",
-    "styleLabel": "Style",
+    "englishHint": "Use English for best results — Cyrillic text may be blocked by the safety filter.",
     "generateBtn": "Generate",
     "generating": "Generating…",
     "applyBg": "Use as Background",
     "applying": "Applying…",
     "previewAlt": "Generated background",
     "formLabel": "background generation form",
+    "previewLabel": "Assembled prompt (preview)",
+    "fields": {
+      "subject": "Scene subject *",
+      "subjectPlaceholder": "Dungeon with stone walls and torches",
+      "style": "Style",
+      "composition": "Composition (optional)",
+      "compositionNone": "— auto —",
+      "locationDetails": "Location details (optional)",
+      "locationDetailsPlaceholder": "Moss-covered walls, cracked floor, corridor turns left",
+      "lighting": "Lighting (optional)",
+      "lightingNone": "— auto —",
+      "palette": "Colour palette (optional)",
+      "palettePlaceholder": "Warm earth tones, ochre hues"
+    },
     "styles": {
-      "realistic": "Realistic",
-      "fantasy": "Fantasy",
-      "sci-fi": "Sci-Fi",
-      "cartoon": "Cartoon"
-    }
+      "fantasy": "Fantasy (digital illustration)",
+      "realistic": "Realistic (photorealism)",
+      "sci-fi": "Sci-Fi (concept art)",
+      "cartoon": "Cartoon",
+      "dark-fantasy": "Dark Fantasy",
+      "watercolor": "Watercolour"
+    },
+    "compositionPresets": [
+      "wide establishing shot",
+      "medium shot, eye level",
+      "bird's-eye view overhead",
+      "worm's-eye view from below",
+      "first-person perspective",
+      "isometric view"
+    ],
+    "lightingPresets": [
+      "golden hour sunlight",
+      "candlelight / torchlight",
+      "moonlight, nighttime",
+      "overcast daylight",
+      "dramatic side lighting",
+      "dimly lit dungeon"
+    ]
+  },
+  "aiBattlemap": {
+    "dialogLabel": "Generate Battlemap (AI)",
+    "heading": "Generate Battlemap (AI)",
+    "formLabel": "battlemap generation form",
+    "locationLabel": "Location / area type *",
+    "locationPlaceholder": "Stone dungeon room with pillars and a central altar",
+    "environmentLabel": "Environment (optional)",
+    "environmentNone": "— auto —",
+    "styleLabel": "Style",
+    "generateBtn": "Generate",
+    "generating": "Generating…",
+    "useAsBg": "Use as Scene Background",
+    "applying": "Applying…",
+    "previewAlt": "Generated battlemap",
+    "environmentPresets": [
+      "open field / grassland",
+      "forest clearing",
+      "dungeon room",
+      "dungeon corridor",
+      "castle hall / interior",
+      "swamp / marshland",
+      "coastal / waterfront",
+      "city street / urban"
+    ]
   }
 }

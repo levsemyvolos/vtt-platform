@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/tool
 import type { AudioPlayPayload, AudioTrackDTO, AudioLayer, AudioMime } from '@vtt/shared';
 import { AUDIO_ALLOWED_MIME } from '@vtt/shared';
 import {
+  createTrackFromAsset,
   deleteAudioTrack,
   finalizeAudioUpload,
   initAudioUpload,
@@ -140,6 +141,31 @@ export const uploadAudioTrack = createAsyncThunk<
     return dto;
   } catch (err) {
     return rejectWithValue(err instanceof Error ? err.message : 'Помилка завантаження');
+  }
+});
+
+/**
+ * S5.5 P7 — register an existing AI-audio Asset as a room AudioTrack and
+ * insert it into the in-game music sidepanel. Server is idempotent on
+ * (room, asset, scene, layer) so repeated calls are safe.
+ */
+export const addTrackFromAiAsset = createAsyncThunk<
+  AudioTrackDTO,
+  { roomId: string; assetId: string; title: string; layer: AudioLayer; sceneId: string | null; loop?: boolean },
+  { rejectValue: string }
+>('audio/addFromAi', async (args, { rejectWithValue }) => {
+  try {
+    return await createTrackFromAsset({
+      roomId: args.roomId,
+      assetId: args.assetId,
+      title: args.title,
+      layer: args.layer,
+      sceneId: args.sceneId,
+      loop: args.loop ?? false,
+      playImmediately: false,
+    });
+  } catch (err) {
+    return rejectWithValue(err instanceof Error ? err.message : 'Не вдалося додати трек');
   }
 });
 
@@ -285,6 +311,7 @@ const audioSlice = createSlice({
         state.error = action.payload ?? 'Помилка завантаження';
       })
       .addCase(uploadAudioTrack.fulfilled, upsert)
+      .addCase(addTrackFromAiAsset.fulfilled, upsert)
       .addCase(bindTrackToScene.fulfilled, upsert)
       .addCase(setTrackLoop.fulfilled, upsert)
       .addCase(patchTrackThunk.fulfilled, upsert)

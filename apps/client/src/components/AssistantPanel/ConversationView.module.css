@@ -302,3 +302,96 @@
   max-height: 200px;
   overflow-y: auto;
 }
+
+/* ─── Session variables (P4 backend / S3.2) ─────────────────────────────── */
+
+.varsWrapper {
+  display: flex;
+  flex-direction: column;
+  margin: 0 var(--space-md) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.varsToggle {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+}
+
+.varsToggle:hover {
+  background: var(--color-surface-hover);
+}
+
+.varsSummary {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  margin-left: var(--space-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.varsForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-2, var(--color-surface-hover));
+}
+
+.varsField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.varsField > span {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.varsField input,
+.varsField select {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs, 4px);
+  padding: 4px 8px;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  font-family: inherit;
+}
+
+.varsField input:focus,
+.varsField select:focus {
+  outline: 2px solid var(--color-accent, var(--color-text-primary));
+  outline-offset: -1px;
+}
+
+.varsActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.varsHint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+  flex: 1;
+}

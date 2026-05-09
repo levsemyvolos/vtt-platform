@@ -1,4 +1,4 @@
-import { PrismaClient, type AudioTrack, type Prisma } from '@prisma/client';
+import { PrismaClient, type AudioTrack, type Prisma, type AudioLayer } from '@prisma/client';
 
 /**
  * Persistence-only access to the `AudioTrack` table (§2.15.2). All RBAC and
@@ -50,6 +50,25 @@ export class AudioTrackRepository {
 
   create(data: Prisma.AudioTrackUncheckedCreateInput): Promise<AudioTrack> {
     return this.db.audioTrack.create({ data });
+  }
+
+  /**
+   * S5.5 P5 — idempotency lookup for `createTrackFromAsset`.
+   * Returns the most recent track matching the (room, asset, scene, layer)
+   * tuple, or null. Used to deduplicate repeated "Save as track" clicks
+   * (race / multiple UI surfaces) so the same AI-asset doesn't appear twice
+   * in the in-game music sidepanel.
+   */
+  findByRoomAssetSceneLayer(
+    roomId: string,
+    assetId: string,
+    sceneId: string | null,
+    layer: AudioLayer,
+  ): Promise<AudioTrack | null> {
+    return this.db.audioTrack.findFirst({
+      where: { roomId, assetId, sceneId, layer },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   update(id: string, data: Prisma.AudioTrackUncheckedUpdateInput): Promise<AudioTrack> {

@@ -1,4 +1,33 @@
 {
+  "npcCard": {
+    "label": "Згенерований NPC",
+    "sections": {
+      "appearance": "Зовнішність",
+      "roleplay": "Відіграш",
+      "psychology": "Психологія",
+      "narrative": "Наратив",
+      "statblock": "Statblock"
+    },
+    "fields": {
+      "verbalMannerism": "Вербальна манера",
+      "physicalMannerism": "Фізична манера",
+      "motivation": "Мотивація",
+      "sampleDialogue": "Зразок діалогу",
+      "dominantTrait": "Домінантна риса",
+      "fatalFlaw": "Фатальний недолік",
+      "contradiction": "Контрадикція",
+      "secret": "Таємниця",
+      "plotHook": "Гачок",
+      "primaryAttack": "Основна атака",
+      "specialAbility": "Особлива здібність",
+      "assumptions": "Припущення"
+    },
+    "stats": {
+      "hp": "HP",
+      "ac": "AC",
+      "speed": "Швидкість"
+    }
+  },
   "panel": {
     "dialogLabel": "GM AI Асистент",
     "title": "GM Асистент",
@@ -76,6 +105,70 @@
     "thinkingHighLabel": "Глибше міркування",
     "thinkingHighTooltip": "Gemini 3 з посиленим reasoning. Дорожче (6×) і повільніше."
   },
+  "musicBuilder": {
+    "hint": "Генерація музики через Lyria 3 Clip (Vertex AI). Пресети автоматично застосовують правила «без вокалу / без ударного ритму».",
+    "presetLabel": "Пресет сцени",
+    "presetCustom": "— власний (заповни поля нижче) —",
+    "presets": {
+      "cave":        "Моторошна печера / Підземелля",
+      "tavern":      "Таверна / Соціальна сцена",
+      "exploration": "Дослідження / Мандри",
+      "tension":     "Напруга перед боєм",
+      "combat":      "Активний бій"
+    },
+    "moodLabel":              "Настрій",
+    "moodPlaceholder":        "напр. моторошний, клаустрофобічний, тихо-загрозливий",
+    "instrumentsLabel":       "Інструменти",
+    "instrumentsPlaceholder": "напр. низький дрон, смичкові струни, амбієнтна підкладка",
+    "englishHint":            "Використовуй англійські промпти — Lyria краще сприймає англійську.",
+    "generatingMsg":          "Генерую через Lyria 3 Clip (~10 с)…",
+    "stillWorking":           "Ще генерую… Lyria 3 Clip зазвичай відповідає менш ніж за 15 с (30-секундний MP3)."
+  },
+  "musicHistory": {
+    "heading": "Історія музики",
+    "loading": "Завантаження…",
+    "empty":   "У цій кімнаті ще немає згенерованої музики. Скористайтесь панеллю праворуч.",
+    "error":   "Не вдалося завантажити історію.",
+    "refresh": "Оновити",
+    "renameLabel": "Перейменувати",
+    "renameError": "Не вдалося перейменувати"
+  },
+  "musicResult": {
+    "groupLabel":     "Дії з музикою",
+    "customLabel":    "Власна музика",
+    "saveLabel":      "Зберегти як трек",
+    "savingLabel":    "Зберігаю…",
+    "savedLabel":     "Збережено ✓",
+    "playNowLabel":   "Грати в кімнаті",
+    "startingLabel":  "Запускаю…",
+    "regenerateLabel":"Перегенерувати",
+    "discardLabel":   "Відкинути",
+    "toastSaved":     "Збережено як музичний трек. Керування — в Audio-панелі.",
+    "toastPlaying":   "Трек збережено та відтворюється в кімнаті.",
+    "saveError":      "Не вдалося зберегти трек."
+  },
+  "variables": {
+    "title": "Параметри сесії",
+    "summaryNone": "не задано",
+    "hint": "Зміни застосуються до наступного повідомлення. «Зберегти» робить їх типовими для цієї розмови.",
+    "toastSaved": "Збережено типові параметри",
+    "toastSaveFailed": "Не вдалося зберегти",
+    "fields": {
+      "ruleset": "Система правил",
+      "rulesetUnset": "— не задано —",
+      "setting": "Сетинг",
+      "settingPlaceholder": "напр. постапокаліптична пустеля",
+      "playerLevel": "Рівень гравців",
+      "tone": "Тональність",
+      "tonePlaceholder": "напр. грімдарк, морально сіра",
+      "outputLanguage": "Мова виводу",
+      "outputLanguagePlaceholder": "напр. Ukrainian, English"
+    },
+    "actions": {
+      "save": "Зберегти як типові",
+      "saving": "Збереження…"
+    }
+  },
   "presets": {
     "npc-description": [
       { "label": "Тавернник", "prompt": "Опиши NPC-тавернника D&D 5e: раса, вік, одна цікава деталь зовнішності, манера спілкування з відвідувачами, одна таємниця або історія яку він знає." },
@@ -110,10 +203,6 @@
     "heading": "Згенеровано через AI",
     "loading": "Завантаження…",
     "emptyImages": "AI-зображень ще немає",
-    "emptyAudio": "AI-музики ще немає",
-    "playerHeading": "AI-музика",
-    "playBtn": "Відтворити",
-    "scrubBar": "Прогрес відтворення",
     "copyPrompt": "Скопіювати промпт",
     "quotaHeading": "AI-використання",
     "quotaLlm": "LLM запитів",

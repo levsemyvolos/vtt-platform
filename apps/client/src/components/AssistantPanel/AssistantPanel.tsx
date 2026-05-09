@@ -7,6 +7,8 @@ import ConversationView from './ConversationView';
 import type { MainTab } from './ConversationView';
 import ImageThreadList from './ImageThreadList';
 import ImageThreadView from './ImageThreadView';
+import MusicHistoryList from './MusicHistoryList';
+import MusicPromptBuilder from './MusicPromptBuilder';
 import RecentGenerations from './RecentGenerations';
 import { useAppSelector } from '../../store';
 import styles from './AssistantPanel.module.css';
@@ -19,6 +21,8 @@ interface AssistantPanelProps {
 export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps): JSX.Element {
   const { t } = useTranslation('assistant');
   const [mainTab, setMainTab] = useState<MainTab>('llm');
+  // Bumped on every successful music generation — drives MusicHistoryList refetch.
+  const [musicGenCount, setMusicGenCount] = useState<number>(0);
   const rateLimitRemaining = useAppSelector((s) => s.assistant.rateLimitRemaining);
   const showWarning = rateLimitRemaining !== null && rateLimitRemaining <= 2;
 
@@ -64,13 +68,21 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
         />
       </div>
       <div className={styles.body}>
-        {mainTab === 'image' ? (
+        {mainTab === 'image' && (
           <>
             <ImageThreadList roomId={roomId} />
             <ImageThreadView roomId={roomId} />
             <RecentGenerations roomId={roomId} />
           </>
-        ) : (
+        )}
+        {mainTab === 'music' && (
+          <>
+            <MusicHistoryList roomId={roomId} refreshTrigger={musicGenCount} />
+            <MusicPromptBuilder roomId={roomId} onGenerated={() => setMusicGenCount((n) => n + 1)} />
+            <RecentGenerations roomId={roomId} />
+          </>
+        )}
+        {(mainTab === 'llm' || mainTab === 'history') && (
           <>
             <DialogList roomId={roomId} />
             <ConversationView roomId={roomId} mainTab={mainTab} />

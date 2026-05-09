@@ -8,6 +8,7 @@ import { loadAudioTracks } from '../../store/audio';
 import TrackUpload from './TrackUpload';
 import VolumeMixer from './VolumeMixer';
 import TrackItem from './TrackItem';
+import AiAudioPicker from './AiAudioPicker';
 
 interface AudioPanelProps {
   roomId: string;
@@ -112,7 +113,10 @@ function LayerSection({
       {!collapsed && (
         <div className={styles.layerBody}>
           {isGM && (
-            <TrackUpload roomId={roomId} sceneId={sceneId} layer={layer} />
+            <>
+              <TrackUpload roomId={roomId} sceneId={sceneId} layer={layer} />
+              <AiAudioPicker roomId={roomId} sceneId={sceneId} layer={layer} />
+            </>
           )}
 
           {tracks.length === 0 ? (

@@ -88,6 +88,31 @@ export interface AudioListResponse {
   tracks: AudioTrackDTO[];
 }
 
+/**
+ * S5.4 — register an existing AI-generated audio Asset as a playable AudioTrack.
+ * Skips the upload-init/finalize round-trip because the Asset already lives in
+ * GCS (created by `AIService.generateMusic`). Server validates the Asset is
+ * `source='AI_AUDIO'` and belongs to `roomId`.
+ */
+export interface AudioTrackFromAssetRequest {
+  roomId: string;
+  assetId: string;
+  title: string;
+  /** Default 'music' when omitted. */
+  layer?: AudioLayer;
+  /** Default false. */
+  loop?: boolean;
+  /** Default 1500. */
+  fadeMs?: number;
+  /** Optional scene-binding; null/omitted = unbound. */
+  sceneId?: string | null;
+  /**
+   * One-click "Play now" — when true, server emits `audio:play` immediately
+   * after track creation (independent of sceneId binding).
+   */
+  playImmediately?: boolean;
+}
+
 export interface AudioPlaybackUrlResponse {
   url: string;
 }

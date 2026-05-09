@@ -8,6 +8,7 @@ import type {
   SaveAssistantMessageRequest,
   CreateAssistantConversationRequest,
   RenameAssistantConversationRequest,
+  UpdateConversationDefaultsRequest,
   AssistantStreamEvent,
   AssistantStreamRequest,
   SRDLookupRequest,
@@ -159,6 +160,38 @@ export function buildAiRouter(
     async (req: Request<object, object, AIImageRequest>, res: Response) => {
       try {
         const result = await aiService.generateImage(req.user!.id, req.body);
+        res.status(201).json(result);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  // P2.2 — Token image generation (S4.2)
+  router.post(
+    '/image/token',
+    jwtAuth,
+    aiRateLimiter,
+    roomGM,
+    async (req: Request<object, object, AIImageRequest>, res: Response) => {
+      try {
+        const result = await aiService.generateToken(req.user!.id, req.body);
+        res.status(201).json(result);
+      } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  // P2.3 — Battlemap image generation (S4.3)
+  router.post(
+    '/image/battlemap',
+    jwtAuth,
+    aiRateLimiter,
+    roomGM,
+    async (req: Request<object, object, AIImageRequest>, res: Response) => {
+      try {
+        const result = await aiService.generateBattlemap(req.user!.id, req.body);
         res.status(201).json(result);
       } catch (err) {
         handleError(err, res);
@@ -391,9 +424,10 @@ export function buildAiRouter(
             return;
           }
         }
-        const convReq: CreateAssistantConversationRequest = title !== undefined
-          ? { roomId, context, title }
-          : { roomId, context };
+        const { defaults } = req.body;
+        const convReq: CreateAssistantConversationRequest = { roomId, context };
+        if (title !== undefined) convReq.title = title;
+        if (defaults !== undefined) convReq.defaults = defaults;
         const dto = await assistantService.createConversation(convReq, req.user!.id);
         res.status(201).json(dto);
       } catch (err) {
@@ -419,6 +453,31 @@ export function buildAiRouter(
           return;
         }
         const dto = await assistantService.renameConversation(id, { title }, req.user!.id);
+        res.json(dto);
+      } catch (err) {
+        mapServiceError(err, res);
+      }
+    },
+  );
+
+  /**
+   * PATCH /ai/conversations/:id/defaults
+   * Replaces per-conversation default variables (ruleset/setting/tone/...).
+   * Body: { defaults: AssistantVariables }. Owner-only (verified in service).
+   * Phase 2a S3.1.
+   */
+  router.patch(
+    '/conversations/:id/defaults',
+    jwtAuth,
+    async (req: Request<{ id: string }, object, UpdateConversationDefaultsRequest>, res: Response) => {
+      try {
+        const { id } = req.params;
+        const body = req.body;
+        if (!body || typeof body !== 'object' || typeof body.defaults !== 'object' || body.defaults === null) {
+          res.status(400).json({ error: { code: 400, message: 'defaults object is required' } });
+          return;
+        }
+        const dto = await assistantService.updateConversationDefaults(id, body.defaults, req.user!.id);
         res.json(dto);
       } catch (err) {
         mapServiceError(err, res);

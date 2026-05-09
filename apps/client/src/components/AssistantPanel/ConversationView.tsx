@@ -2,7 +2,8 @@ import { useState, useEffect, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18next from 'i18next';
 import ReactMarkdown from 'react-markdown';
-import type { ConversationMessage, AIImageRequest, AIImageResponse, AIMusicRequest, AIMusicResponse } from '@vtt/shared';
+import type { AssistantContext, ConversationMessage, AIImageRequest, AIImageResponse, AIMusicRequest, AIMusicResponse, AssistantVariables } from '@vtt/shared';
+import NpcCard, { tryParseNpc } from './NpcCard';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { sendAssistantMessage, regenerateAssistantMessage, editLastUserMessage, mapAIErrorKindToI18n } from '../../store/assistant';
 import { apiFetch, ApiError } from '../../api/apiFetch';
@@ -10,6 +11,7 @@ import { createJournalEntry } from '../../api/journal';
 import { emitChatMessage } from '../../api/socket';
 import { addToast } from '../../store/toast';
 import PresetChips from './PresetChips';
+import ConversationVariables from './ConversationVariables';
 import styles from './ConversationView.module.css';
 
 export type MainTab = 'llm' | 'image' | 'music' | 'history';
@@ -18,12 +20,13 @@ export type MainTab = 'llm' | 'image' | 'music' | 'history';
 
 interface BubbleProps {
   msg: ConversationMessage;
+  context: AssistantContext;
   isEditing: boolean;
   editText: string;
   onEditChange: (val: string) => void;
 }
 
-function MessageBubble({ msg, isEditing, editText, onEditChange }: BubbleProps): JSX.Element {
+function MessageBubble({ msg, context, isEditing, editText, onEditChange }: BubbleProps): JSX.Element {
   const { t } = useTranslation('assistant');
   if (isEditing) {
     return (
@@ -36,7 +39,16 @@ function MessageBubble({ msg, isEditing, editText, onEditChange }: BubbleProps):
       />
     );
   }
-  if (msg.role === 'assistant') return <ReactMarkdown>{msg.content}</ReactMarkdown>;
+  if (msg.role === 'assistant') {
+    // S6.2 — render the structured NPC card when the assistant message
+    // for npc-description context parses as the documented JSON shape.
+    // Falls through to markdown for legacy markdown-mode replies.
+    if (context === 'npc-description') {
+      const npc = tryParseNpc(msg.content);
+      if (npc) return <NpcCard npc={npc} />;
+    }
+    return <ReactMarkdown>{msg.content}</ReactMarkdown>;
+  }
   return <p>{msg.content}</p>;
 }
 
@@ -156,6 +168,8 @@ function MessageActions({
 interface MessageRowProps {
   msg: ConversationMessage;
   idx: number;
+  /** Active conversation context — needed to pick NpcCard vs markdown render. */
+  context: AssistantContext;
   isEditing: boolean;
   canEdit: boolean;
   isLastMsg: boolean;
@@ -171,7 +185,7 @@ interface MessageRowProps {
 }
 
 function MessageRow({
-  msg, idx, isEditing, canEdit, isLastMsg, editText, status,
+  msg, idx, context, isEditing, canEdit, isLastMsg, editText, status,
   onStartEdit, onEditChange, onSaveEdit, onCancelEdit, onRegenerate, onToNotes, onToChat,
 }: MessageRowProps): JSX.Element {
   const { t } = useTranslation('assistant');
@@ -181,7 +195,7 @@ function MessageRow({
         {msg.role === 'user' ? t('conversation.roleUser') : t('conversation.roleAssistant')}
       </span>
       <div className={styles.messageBubble}>
-        <MessageBubble msg={msg} isEditing={isEditing} editText={editText} onEditChange={onEditChange} />
+        <MessageBubble msg={msg} context={context} isEditing={isEditing} editText={editText} onEditChange={onEditChange} />
       </div>
       <MessageActions
         msg={msg} idx={idx} isEditing={isEditing} canEdit={canEdit} isLastMsg={isLastMsg}
@@ -306,6 +320,23 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
     window.localStorage.setItem('vtt:assistant:thinkingHigh', thinkingHigh ? '1' : '0');
   }, [thinkingHigh]);
 
+  // ─── Session variables (P4 backend, S3.2 UI) ──────────────────────────────
+  const activeConv = useAppSelector(
+    (s) => activeConversationId ? s.assistant.conversations[activeConversationId] : null,
+  );
+  const [vars, setVars] = useState<AssistantVariables>({});
+  const [varsOpen, setVarsOpen] = useState<boolean>(() => {
+    const saved = window.localStorage.getItem('vtt:assistant:varsOpen');
+    return saved === '1';
+  });
+  useEffect(() => {
+    window.localStorage.setItem('vtt:assistant:varsOpen', varsOpen ? '1' : '0');
+  }, [varsOpen]);
+  // Reset form when active conversation changes — load that conv's persisted defaults.
+  useEffect(() => {
+    setVars(activeConv?.defaults ?? {});
+  }, [activeConversationId, activeConv?.defaults]);
+
   const lastUserIdx = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i]?.role === 'user') return i;
@@ -323,6 +354,7 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
       prompt: trimmed,
       useSessionContext: useSessionCtx,
       thinkingLevel: thinkingHigh ? 'high' : 'low',
+      variables: vars,
     }));
     setText('');
   }
@@ -373,6 +405,7 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
             key={idx}
             msg={msg}
             idx={idx}
+            context={activeContext}
             isEditing={editingIdx === idx}
             canEdit={msg.role === 'user' && idx === lastUserIdx && status !== 'sending' && !!activeConversationId}
             isLastMsg={idx === messages.length - 1}
@@ -405,6 +438,13 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
         onChange={setUseSessionCtx}
         thinkingHigh={thinkingHigh}
         onThinkingHighChange={setThinkingHigh}
+      />
+      <ConversationVariables
+        conversationId={activeConversationId}
+        value={vars}
+        onChange={setVars}
+        open={varsOpen}
+        onToggle={setVarsOpen}
       />
       <div className={styles.inputBar}>
         <textarea
@@ -576,6 +616,8 @@ interface ConversationViewProps {
 
 export default function ConversationView({ roomId, mainTab }: ConversationViewProps): JSX.Element {
   if (mainTab === 'llm') return <LlmPanel roomId={roomId} />;
-  if (mainTab === 'image' || mainTab === 'music') return <GeneratePanel type={mainTab} roomId={roomId} />;
+  if (mainTab === 'image') return <GeneratePanel type="image" roomId={roomId} />;
+  // Music tab is rendered directly from AssistantPanel (with sibling MusicHistoryList);
+  // ConversationView is not invoked for music. Keep history as the catch-all.
   return <HistoryPanel roomId={roomId} />;
 }

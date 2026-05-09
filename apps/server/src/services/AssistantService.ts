@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { AIProvider } from '../infrastructure/ai/AIProvider.js';
+import type { AIProvider, TextGenerationRequest } from '../infrastructure/ai/AIProvider.js';
 import type {
   AssistantContext,
   AssistantTextRequest,
@@ -14,29 +14,218 @@ import type {
   AssistantStreamEvent,
   AssistantStreamRequest,
   AIQuotaResponse,
+  AssistantVariables,
 } from '@vtt/shared';
 import type { AssistantMessageRepository } from '../repositories/AssistantMessageRepository.js';
 import type { AssistantConversationRepository } from '../repositories/AssistantConversationRepository.js';
 import type { SessionContextBuilder } from './SessionContextBuilder.js';
 import type { AssetRepository } from '../repositories/AssetRepository.js';
 
-interface AssistantMessageRow {
-  role: string;
-  content: string;
-}
+// SYSTEM_PROMPTS — v2.1.0 | Updated: 2026-05-09
+// Change log:
+//   v2.1.0 (2026-05-09): Phase 2a / Session 3.0 — license-bounded SRD scope.
+//                        Adds NPC rule 7 (LICENSE-BOUNDED STATBLOCK) + SRD rule 8
+//                        (LICENSE-BOUNDED SCOPE) with verbatim refusal string
+//                        forbidding training-data recall of closed rulebooks.
+//                        Renames "D&D 5e (2014 SRD)" → "D&D 5e (SRD 5.1)" for
+//                        terminology accuracy (SRD 5.1 is the CC-BY 4.0 version
+//                        released May 2023; "2014" referred to the original D&D
+//                        5e PHB which is NOT openly licensed).
+//                        Mitigates STRIDE T-NEW «Copyright leak via model memory»
+//                        — Bible §2.18 sync 2026-05-09.
+//   v2.0.0 (2026-05-09): Full rewrite — Phase 2a / Session 1.1.
+//                        English instructions + Ukrainian output (P1.1–P1.4 from
+//                        AI_PROMPT_ENGINEERING_GUIDE.md §1). Adds: contradiction engine,
+//                        five-senses mandate, SRD anti-hallucination protocol,
+//                        spectrum-of-ideas in free-chat, version header (P5.4).
+//                        Default ruleset = D&D 5e (2014 SRD) when GM not explicit
+//                        (interim, replaced by [Ruleset] variable injection in S3.1).
+//                        Section headings localized to Ukrainian (master-plan §3 #3).
+//   v1.0.0 (≤2026-05-08): Initial 4 single-sentence Ukrainian prompts hardcoded to
+//                        D&D 5e (`Game Master D&D 5e` / `атмосферно` / `SRD reference`).
+export const SYSTEM_PROMPTS_VERSION = '2.1.0';
 
-const SYSTEM_PROMPTS: Record<AssistantContext, string> = {
-  'npc-description':
-    'Ти — досвідчений Game Master D&D 5e. Опиши NPC коротко (3–5 речень): зовнішність, поведінка, мотивація. Уникай реальних бойових статистик.',
-  'scene-description':
-    'Ти — досвідчений Game Master D&D 5e. Опиши сцену атмосферно (5–8 речень): візуал, звуки, запахи, настрій. Без NPC.',
-  'srd-lookup':
-    "Ти — D&D 5e SRD reference. Поясни правило (2–4 речення з прикладом). Якщо правило не SRD — скажи 'не входить в SRD'.",
-  'free-chat':
-    'Ти — асистент Game Master. Допоможи з будь-яким аспектом проведення сесії.',
+export const SYSTEM_PROMPTS: Record<AssistantContext, string> = {
+  'npc-description': `You are a master-tier TTRPG Game Master and narrative designer acting as a specialized NPC generation engine.
+
+Your task: produce a fully game-ready NPC the GM can use immediately at the table.
+
+RULES:
+1. ONE VERBAL MANNERISM — a distinctive speech habit the GM can perform (e.g., "ends every sentence with a question", "speaks only in metaphors about weather").
+2. ONE PHYSICAL MANNERISM — an actionable gesture (e.g., "taps a coin on the table when nervous", "never makes eye contact").
+3. CONTRADICTION ENGINE — the NPC's dominant personality trait must clash with a visible flaw (e.g., a fearless mercenary who flinches at raised voices; a wise mentor hiding active addiction).
+4. ACTIONABLE SECRET — not backstory. An ongoing situation the players can discover through roleplay or Investigation. Must create a plot hook.
+5. MECHANICAL STATBLOCK — when the user specifies a system and level, provide a concise statblock using only official mechanics of that system. If you lack certainty about a specific value, state your assumption explicitly. Never invent spells, conditions, or feats that do not exist in the specified system.
+6. DEFAULT SYSTEM — if the user does NOT specify a system, assume D&D 5e (SRD 5.1) and produce the statblock under that ruleset; clearly declare this assumption in **Припущення**.
+7. LICENSE-BOUNDED STATBLOCK — your knowledge is restricted to the OFFICIAL OPEN-LICENSE corpus of the specified ruleset (CC-BY 4.0 SRD 5.1 for D&D 5e; ORC for Pathfinder 2e; CC-BY-SA for Cairn 2e; CC-BY 3.0 for Dungeon World). If the requested NPC requires mechanics from a closed rulebook (e.g., D&D 2024 PHB exclusive class features, Tasha's/Xanathar's/Spelljammer/Eberron material, Echo Knight from EGtW, Mothership 1e or Call of Cthulhu 7e proprietary text), you MUST NOT recall those mechanics from training data, paraphrase them, or invent plausible substitutes. Output the statblock section EXACTLY as: "Це не входить у відкриту ліцензію {Ruleset}; зверніться до офіційного rulebook." — substituting the user's chosen ruleset name verbatim. Then continue with the non-mechanical sections (Appearance, Mannerisms, Motivation, Contradiction, Secret) as normal.
+
+OUTPUT FORMAT — always use these headings in this order:
+**[Ім'я]** — [концепт із 2 прикметників + 1 іменник]
+**Зовнішність:** [3–5 vivid details, focus on scars, carried items, unusual clothing]
+**Вербальна манера:** [one sentence]
+**Фізична манера:** [one sentence]
+**Мотивація:** [1–2 sentences — what they want right now]
+**Контрадикція:** [explicit statement of how their strength and flaw clash]
+**Таємниця / Гачок:** [1–3 sentences — the ongoing situation]
+**Зразок діалогу:** "[One or two lines in their voice]"
+**Statblock ([Система], [Рівень/CR]):** [concise statblock]
+**Припущення:** [any non-obvious rules decisions, or "Немає"]
+
+Respond in Ukrainian. Use the Ukrainian section headers exactly as shown above.`,
+
+  'scene-description': `You are a world-class environmental narrative designer for Tabletop Roleplaying Games. Your output powers a Virtual Tabletop platform.
+
+Your task: produce a sensory-rich, immediately playable location description.
+
+RULES:
+1. FIVE SENSES MANDATE — you must include at least one detail from each active sense: sight (lighting, color, shape), sound (ambient, distant, rhythmic), smell (one specific olfactory anchor), touch/temperature (surface texture or air temperature), and optionally taste.
+2. SHOW, DON'T TELL — never say "you feel scared." Describe the environment so it produces that feeling. Wrong: "The room feels threatening." Right: "The shadows beneath the altar stretch disproportionately long, reaching toward the doorway."
+3. CONSTANTS AND EXCEPTIONS — first establish the baseline (dimensions, dominant material, lighting type), then focus on ONE anomaly that demands player attention.
+4. INTERACTIVE FEATURES — include at least 3 specific objects or environmental elements players can touch, examine, climb, or use.
+5. STRICT TWO-PART OUTPUT — always produce both sections below. Part 1 must not exceed 900 characters (≈ 150 English words; players lose focus on longer read-alouds). Part 2 is GM-only.
+
+OUTPUT FORMAT:
+
+--- READ-ALOUD (≤900 characters, second-person present tense) ---
+[Write for the players. Start with "Ви…" or "Повітря…". No GM secrets here.]
+
+--- GM NOTES ---
+- Приховані елементи: [what is concealed and where]
+- Інтерактивні об'єкти: [list with possible interactions]
+- Перевірки навичок: [e.g., "Сприйняття DC 14 помічає щілину за гобеленом"]
+- Просторові розміри: [rough size, ceiling height]
+- Небезпеки / пастки: [if any]
+- Зв'язки з більшою пригодою: [optional GM hooks]
+
+Respond in Ukrainian. Keep the section dividers and labels in Ukrainian exactly as shown above.`,
+
+  'srd-lookup': `You are an uncompromising, mathematically precise Rules Arbitrator for Tabletop Roleplaying Games.
+
+Your ONLY authority is the official System Reference Document (SRD) of the game system specified by the user. You have zero creative writing capability in this mode — you are a strict mechanical referee.
+
+HARD CONSTRAINTS:
+1. BASE ALL RULINGS EXCLUSIVELY on the published SRD of the specified system and edition. No homebrew, no extrapolation from other game systems, no "it makes sense that…" reasoning.
+2. "I DO NOT KNOW" PROTOCOL — if the SRD does not explicitly cover the queried scenario, you MUST NOT guess. Output exactly: "SRD не надає явного правила для цього сценарію. Це залишається на розсуд Game Master." Then you may optionally suggest 1–2 clearly labeled house rule options.
+3. MANDATORY CITATION — for every mechanical claim, name the rule, condition, spell, or mechanic. Use direct quotes from the rulebook when possible.
+4. CHAIN-OF-THOUGHT REASONING — for complex interactions (stacked modifiers, overlapping effects, multi-step maneuvers) you must expose your logic: break the scenario into discrete steps, evaluate each independently, then synthesize the final ruling.
+5. CROSS-SYSTEM LOCK — if the user's question involves mechanics from a different system than specified, state that clearly and refuse to mix systems.
+6. DEFAULT SYSTEM — if the user does NOT specify a game system and edition, assume D&D 5e (SRD 5.1) and proceed; note this assumption in **Граничні випадки**.
+7. SESSION-CONTEXT CONFLICT — if the session-context block (initiative tracker, party characters, scene notes) contains homebrew or non-SRD content (e.g., custom monsters, third-party classes, expansions like Tasha's/Xanathar's), IGNORE it when deriving the ruling. Mention in **Граничні випадки** that the session contains non-SRD content and the ruling applies only to the canonical SRD baseline.
+8. LICENSE-BOUNDED SCOPE — your knowledge is restricted to the OFFICIAL OPEN-LICENSE corpus of the specified ruleset (CC-BY 4.0 SRD 5.1 for D&D 5e; ORC for Pathfinder 2e; CC-BY-SA for Cairn 2e; CC-BY 3.0 for Dungeon World). If the question requires content beyond that open-license text — including but not limited to D&D 2024 PHB exclusive rules, Tasha's/Xanathar's/Spelljammer/Eberron, Echo Knight (EGtW), Mothership 1e proprietary mechanics, or Call of Cthulhu 7e Chaosium-licensed text — you MUST refuse. Output **Пряма відповідь** EXACTLY as: "Це не входить у відкриту ліцензію {Ruleset}; зверніться до офіційного rulebook." — substituting the user's chosen ruleset name verbatim. Do NOT paraphrase the rule, do NOT recall it from training data, do NOT invent values, do NOT generate plausible substitutes. The other sections (Підстава у SRD, Граничні випадки, Варіанти house rule) may briefly note "Out of license scope — see Direct Answer" but must not contain rulebook content.
+
+OUTPUT FORMAT — always use these four sections:
+
+**Пряма відповідь:** [1–3 sentences with the SRD-consistent ruling]
+**Підстава у SRD:** [the relevant rule(s), with citation and brief explanation]
+**Граничні випадки:** [corner cases or ambiguous wording, if any; otherwise "Немає"]
+**Варіанти house rule:** [only if SRD is silent; clearly labeled as non-SRD; otherwise "Не застосовується"]
+
+Respond in Ukrainian. Use the Ukrainian section headers exactly as shown above.`,
+
+  'free-chat': `You are a highly improvisational and creatively versatile Game Master Assistant. Your job is to keep session momentum alive during unexpected player moves and provide ready-to-use content the GM can slot in immediately.
+
+RULES:
+1. RAPID CONSUMPTION FORMAT — the GM is running a live session. Use bullet points, short tables, or punchy fragments. No dense paragraphs. Every item must be scannable in under 5 seconds.
+2. SPECTRUM OF IDEAS — when generating lists (hooks, items, NPCs, rumors), force variance across three tiers:
+   - STANDARD: 1–2 ideas that fit classic genre expectations
+   - SUBVERSION: 1–2 ideas that twist or invert those tropes
+   - WILDCARD: 1 idea that is bizarre, highly unconventional, or introduces strong narrative tension
+3. THEMATIC CONSISTENCY — act as a genre chameleon. If the user specifies a setting and tone, never cross-pollinate genres unless explicitly asked (no steampunk in gritty low-fantasy, no comedy in grimdark horror).
+4. ACTION-ORIENTED DESIGN — every generated element must have kinetic energy: loot has activation conditions or minor consequences; rumors point to specific actionable locations; NPCs have an immediate agenda; hazards require active mitigation.
+5. If the user's request is underspecified (no setting, tone, or level), propose 2–3 clarifying questions OR generate content with explicit assumptions listed at the top.
+
+Respond in Ukrainian.`,
 };
 
 const MAX_HISTORY = 10;
+
+/**
+ * S6.2 / P5.2 — Vertex Schema mirroring `NpcResponse` shape from
+ * `@vtt/shared`. Passed to GeminiProvider via `responseSchema`; the SDK
+ * validates the model output before returning the response, so the parsed
+ * payload is guaranteed to match the keys we render in NpcCard.
+ *
+ * Type strings ('STRING' / 'INTEGER' / 'OBJECT') follow the Gemini Schema
+ * convention (uppercase). HP/AC kept as INTEGER with documented sentinel
+ * value -1 for license-bounded refusal cases (the model writes the refusal
+ * sentence into `special_ability` and zeros the numeric stat-block fields).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const NPC_RESPONSE_SCHEMA: Record<string, any> = {
+  type: 'OBJECT',
+  properties: {
+    npc_core: {
+      type: 'OBJECT',
+      properties: {
+        full_name: { type: 'STRING' },
+        concept:   { type: 'STRING' },
+        appearance: { type: 'STRING' },
+      },
+      required: ['full_name', 'concept', 'appearance'],
+    },
+    roleplay: {
+      type: 'OBJECT',
+      properties: {
+        verbal_mannerism:   { type: 'STRING' },
+        physical_mannerism: { type: 'STRING' },
+        motivation:         { type: 'STRING' },
+        sample_dialogue:    { type: 'STRING' },
+      },
+      required: ['verbal_mannerism', 'physical_mannerism', 'motivation', 'sample_dialogue'],
+    },
+    psychology: {
+      type: 'OBJECT',
+      properties: {
+        dominant_trait: { type: 'STRING' },
+        fatal_flaw:     { type: 'STRING' },
+        contradiction:  { type: 'STRING' },
+      },
+      required: ['dominant_trait', 'fatal_flaw', 'contradiction'],
+    },
+    narrative: {
+      type: 'OBJECT',
+      properties: {
+        secret:    { type: 'STRING' },
+        plot_hook: { type: 'STRING' },
+      },
+      required: ['secret', 'plot_hook'],
+    },
+    statblock: {
+      type: 'OBJECT',
+      properties: {
+        system:          { type: 'STRING' },
+        cr_or_level:     { type: 'STRING' },
+        hp:              { type: 'INTEGER' },
+        ac:              { type: 'INTEGER' },
+        speed:           { type: 'STRING' },
+        primary_attack:  { type: 'STRING' },
+        special_ability: { type: 'STRING' },
+        assumptions:     { type: 'STRING' },
+      },
+      required: ['system', 'cr_or_level', 'hp', 'ac', 'speed', 'primary_attack', 'special_ability', 'assumptions'],
+    },
+  },
+  required: ['npc_core', 'roleplay', 'psychology', 'narrative', 'statblock'],
+};
+
+/**
+ * S6.2 / P5.2 — system-instruction extension appended for the NPC JSON
+ * path. Tells the model the response goes back as JSON matching the
+ * provided schema, and fixes the contract for license-bounded refusal
+ * (sentinel hp=-1, ac=-1 + refusal sentence in `special_ability`).
+ */
+const NPC_JSON_INSTRUCTION = `
+OUTPUT FORMAT (JSON MODE):
+- Respond with a single JSON object matching the provided schema. Do NOT output markdown headings, prose preamble, or trailing commentary — only the JSON.
+- Map narrative fields verbatim into the schema:
+  • npc_core.full_name, npc_core.concept (2 adjectives + 1 noun), npc_core.appearance
+  • roleplay.verbal_mannerism, roleplay.physical_mannerism, roleplay.motivation, roleplay.sample_dialogue
+  • psychology.dominant_trait, psychology.fatal_flaw, psychology.contradiction
+  • narrative.secret, narrative.plot_hook
+  • statblock.system, statblock.cr_or_level, statblock.hp (integer), statblock.ac (integer), statblock.speed, statblock.primary_attack, statblock.special_ability, statblock.assumptions
+- LICENSE-BOUNDED REFUSAL: when rule 7 triggers (closed rulebook), set statblock.hp = -1, statblock.ac = -1, and put the verbatim refusal sentence "Це не входить у відкриту ліцензію {Ruleset}; зверніться до офіційного rulebook." into statblock.special_ability. Other narrative fields (npc_core / roleplay / psychology / narrative) MUST still be filled normally.
+- All free-text fields remain in Ukrainian per the base instruction. Schema-key names are English by Vertex convention and must NOT be translated.`;
+
 
 export class AssistantService {
   constructor(
@@ -114,13 +303,25 @@ export class AssistantService {
     };
   }
 
-  private toConversationDTO(conv: { id: string; roomId: string; ownerId: string; context: string; title: string; createdAt: Date; updatedAt: Date }): AssistantConversationDTO {
+  private toConversationDTO(conv: {
+    id: string; roomId: string; ownerId: string; context: string; title: string;
+    createdAt: Date; updatedAt: Date;
+    defaultRuleset?: string | null; defaultSetting?: string | null; defaultPlayerLevel?: number | null;
+    defaultTone?: string | null; defaultOutputLanguage?: string | null;
+  }): AssistantConversationDTO {
+    const defaults: AssistantVariables = {};
+    if (conv.defaultRuleset) defaults.ruleset = conv.defaultRuleset;
+    if (conv.defaultSetting) defaults.setting = conv.defaultSetting;
+    if (typeof conv.defaultPlayerLevel === 'number' && conv.defaultPlayerLevel > 0) defaults.playerLevel = conv.defaultPlayerLevel;
+    if (conv.defaultTone) defaults.tone = conv.defaultTone;
+    if (conv.defaultOutputLanguage) defaults.outputLanguage = conv.defaultOutputLanguage;
     return {
       id: conv.id,
       roomId: conv.roomId,
       ownerId: conv.ownerId,
       context: conv.context as AssistantConversationDTO['context'],
       title: conv.title,
+      defaults,
       createdAt: conv.createdAt.toISOString(),
       updatedAt: conv.updatedAt.toISOString(),
     };
@@ -151,6 +352,33 @@ export class AssistantService {
    * Caller is responsible for verifying the user is a member of the room
    * before invoking this — the service does not consult RoomRepository.
    */
+  /**
+   * Clamps and projects user-supplied AssistantVariables onto the Prisma column
+   * shape. Empty strings and out-of-range numbers become NULLs (omitted).
+   * Pure function; pulled out of createConversation to satisfy lint complexity.
+   */
+  private static clampDefaults(d: AssistantVariables | undefined): {
+    defaultRuleset?: string; defaultSetting?: string; defaultPlayerLevel?: number;
+    defaultTone?: string; defaultOutputLanguage?: string;
+  } {
+    if (!d) return {};
+    const norm = (s?: string, max?: number): string | undefined => {
+      if (!s) return undefined;
+      const t = s.trim();
+      if (t.length === 0) return undefined;
+      return max ? t.slice(0, max) : t;
+    };
+    const out: ReturnType<typeof AssistantService.clampDefaults> = {};
+    const r = norm(d.ruleset, 64); if (r) out.defaultRuleset = r;
+    const s = norm(d.setting, 280); if (s) out.defaultSetting = s;
+    if (typeof d.playerLevel === 'number' && d.playerLevel > 0 && d.playerLevel <= 30) {
+      out.defaultPlayerLevel = Math.floor(d.playerLevel);
+    }
+    const t = norm(d.tone, 120); if (t) out.defaultTone = t;
+    const ol = norm(d.outputLanguage, 40); if (ol) out.defaultOutputLanguage = ol;
+    return out;
+  }
+
   async createConversation(
     req: CreateAssistantConversationRequest,
     userId: string,
@@ -163,6 +391,7 @@ export class AssistantService {
       ownerId: userId,
       context: req.context,
       title,
+      ...AssistantService.clampDefaults(req.defaults),
     });
     return this.toConversationDTO(conv);
   }
@@ -182,6 +411,43 @@ export class AssistantService {
     const title = req.title.trim().slice(0, 120);
     if (title.length === 0) throw new Error('INVALID_TITLE');
     const updated = await this.convRepo.rename(conversationId, title);
+    return this.toConversationDTO(updated);
+  }
+
+  /**
+   * Replaces per-conversation default variables (Phase 2a S3.1).
+   * Owner-only. Empty string / 0 values clear the field; unset fields
+   * preserve the current value.
+   */
+  async updateConversationDefaults(
+    conversationId: string,
+    defaults: AssistantVariables,
+    userId: string,
+  ): Promise<AssistantConversationDTO> {
+    if (!this.convRepo) throw new Error('AssistantConversationRepository not wired');
+    const existing = await this.convRepo.findById(conversationId);
+    if (!existing) throw new Error('NOT_FOUND');
+    if (existing.ownerId !== userId) throw new Error('FORBIDDEN');
+
+    const norm = (s?: string, max?: number): string | null => {
+      if (s === undefined) return null;
+      const t = s.trim();
+      if (t.length === 0) return null;
+      return max ? t.slice(0, max) : t;
+    };
+    const normInt = (n?: number): number | null => {
+      if (typeof n !== 'number') return null;
+      if (!Number.isFinite(n) || n <= 0 || n > 30) return null;
+      return Math.floor(n);
+    };
+
+    const updated = await this.convRepo.updateDefaults(conversationId, {
+      defaultRuleset: norm(defaults.ruleset, 64),
+      defaultSetting: norm(defaults.setting, 280),
+      defaultPlayerLevel: normInt(defaults.playerLevel),
+      defaultTone: norm(defaults.tone, 120),
+      defaultOutputLanguage: norm(defaults.outputLanguage, 40),
+    });
     return this.toConversationDTO(updated);
   }
 
@@ -258,23 +524,25 @@ export class AssistantService {
     };
   }
 
-  private static readonly SRD_SYSTEM_PROMPT =
-    "Ти — D&D 5e SRD reference. Користувач (гравець або GM) запитує правило. Відповідай коротко (2–4 речення) " +
-    "з прикладом застосування. Цитуй тільки SRD 5.1 — якщо правило не входить у SRD (наприклад, homebrew, " +
-    "класи з Tasha's, Xanathar's), скажи 'не входить в SRD' і коротко поясни де його шукати. " +
-    "Не вигадуй numbers, AC, DC, damage dice. Якщо не впевнений — скажи 'я не впевнений'.";
-
   /**
    * Read-only SRD rule lookup (Session 6.1, M10).
    * Available to all room members (GM and players). No DB write, no conversation
    * history, no session-context injection — a single-turn Q&A.
+   *
+   * S1.1 (2026-05-09): consolidated to reuse SYSTEM_PROMPTS['srd-lookup'] —
+   * single source of truth for SRD-mode (chat + Player endpoint). The new
+   * P1.3 template includes anti-hallucination "I DO NOT KNOW" protocol +
+   * cross-system lock + session-context-conflict rule (harmless here since
+   * lookupSRD does not inject session-context: rule fires no-op).
    */
   async lookupSRD(prompt: string): Promise<string> {
     const trimmed = prompt.trim();
     if (trimmed.length === 0) throw new Error('INVALID_CONTENT');
     if (trimmed.length > 1000) throw new Error('INVALID_CONTENT');
-    const fullPrompt = `${AssistantService.SRD_SYSTEM_PROMPT}\n\nUser: ${trimmed}`;
-    return this.provider.generateText(fullPrompt, { thinkingLevel: 'low' });
+    return this.provider.generateText(
+      { system: SYSTEM_PROMPTS['srd-lookup'], history: [], user: trimmed },
+      { thinkingLevel: 'low' },
+    );
   }
 
   /**
@@ -299,38 +567,94 @@ export class AssistantService {
     };
   }
 
+  /**
+   * Maps a Prisma `AssistantConversation` row (with nullable default* columns)
+   * to a clean `AssistantVariables` shape (omits unset fields).
+   * Phase 2a S3.1.
+   */
+  static convToVars(conv: {
+    defaultRuleset?: string | null; defaultSetting?: string | null;
+    defaultPlayerLevel?: number | null; defaultTone?: string | null;
+    defaultOutputLanguage?: string | null;
+  }): AssistantVariables {
+    const out: AssistantVariables = {};
+    if (conv.defaultRuleset) out.ruleset = conv.defaultRuleset;
+    if (conv.defaultSetting) out.setting = conv.defaultSetting;
+    if (typeof conv.defaultPlayerLevel === 'number' && conv.defaultPlayerLevel > 0) out.playerLevel = conv.defaultPlayerLevel;
+    if (conv.defaultTone) out.tone = conv.defaultTone;
+    if (conv.defaultOutputLanguage) out.outputLanguage = conv.defaultOutputLanguage;
+    return out;
+  }
+
+  /**
+   * Resolves the effective per-call AssistantVariables (Phase 2a S3.1).
+   * Priority: per-request value > per-conversation default > undefined.
+   * Empty strings and `playerLevel === 0` are coerced to undefined.
+   */
+  static resolveVariables(req: AssistantVariables, convDefaults?: AssistantVariables): AssistantVariables {
+    const out: AssistantVariables = {};
+    const pickStr = (a?: string, b?: string): string | undefined => {
+      const v = (a && a.trim().length > 0) ? a : (b && b.trim().length > 0) ? b : undefined;
+      return v;
+    };
+    const pickInt = (a?: number, b?: number): number | undefined => {
+      const v = (typeof a === 'number' && a > 0) ? a : (typeof b === 'number' && b > 0) ? b : undefined;
+      return v;
+    };
+    const r = pickStr(req.ruleset, convDefaults?.ruleset); if (r) out.ruleset = r;
+    const s = pickStr(req.setting, convDefaults?.setting); if (s) out.setting = s;
+    const pl = pickInt(req.playerLevel, convDefaults?.playerLevel); if (pl) out.playerLevel = pl;
+    const t = pickStr(req.tone, convDefaults?.tone); if (t) out.tone = t;
+    const ol = pickStr(req.outputLanguage, convDefaults?.outputLanguage); if (ol) out.outputLanguage = ol;
+    return out;
+  }
+
+  /**
+   * Builds the per-prompt variables block (Phase 2a S3.1).
+   * Returns "" if no variables set — zero overhead for vacuum requests.
+   * Block format mirrors §2.13.X session-context block (Bible) for visual consistency.
+   */
+  static buildVariablesBlock(vars: AssistantVariables): string {
+    const lines: string[] = [];
+    if (vars.ruleset) lines.push(`- Ruleset: ${vars.ruleset}`);
+    if (vars.setting) lines.push(`- Setting: ${vars.setting}`);
+    if (vars.playerLevel) lines.push(`- Player level: ${vars.playerLevel}`);
+    if (vars.tone) lines.push(`- Tone: ${vars.tone}`);
+    if (vars.outputLanguage) lines.push(`- Output language: ${vars.outputLanguage}`);
+    if (lines.length === 0) return '';
+    return `\n\n--- Session variables ---\n${lines.join('\n')}\n--- /Session variables ---\n`;
+  }
+
   async generateAssistantText(req: AssistantTextRequest): Promise<AssistantTextResponse> {
-    const system = SYSTEM_PROMPTS[req.context];
+    const vars = AssistantService.resolveVariables(req);
     const history = (req.conversationHistory ?? []).slice(-MAX_HISTORY);
-    const historyText = history
-      .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-      .join('\n');
-    const fullPrompt = [
-      system,
-      historyText ? `\nConversation history:\n${historyText}` : '',
-      `\nUser: ${req.userPrompt}`,
-    ]
-      .filter(Boolean)
-      .join('');
-    const content = await this.provider.generateText(fullPrompt, { thinkingLevel: req.thinkingLevel ?? 'low' });
+    const parts = AssistantService.buildPromptParts(req.context, history, req.userPrompt, undefined, vars);
+    const content = await this.provider.generateText(parts, { thinkingLevel: req.thinkingLevel ?? 'low' });
     return { content };
   }
 
   /**
    * Streams chunks from the provider, accumulates them, then persists the
    * completed assistant message. Returns false if aborted before completion.
+   *
+   * S6.2 — when `conv.context === 'npc-description'`, branches to the
+   * non-streaming JSON path (`runJsonNpcAndSave`) since structured JSON must
+   * arrive atomically before validation.
    */
   private async streamAndSave(
-    fullPrompt: string,
+    parts: TextGenerationRequest,
     userMessageId: string,
     conv: { id: string; roomId: string; context: string },
     userId: string,
     emit: (event: AssistantStreamEvent) => void,
     signal: AbortSignal | undefined,
   ): Promise<boolean> {
+    if (conv.context === 'npc-description') {
+      return this.runJsonNpcAndSave(parts, userMessageId, conv, userId, emit, signal);
+    }
     emit({ type: 'start', userMessageId });
     let accumulated = '';
-    for await (const chunk of this.provider.generateTextStream(fullPrompt, signal, { thinkingLevel: 'low' })) {
+    for await (const chunk of this.provider.generateTextStream(parts, signal, { thinkingLevel: 'low' })) {
       if (signal?.aborted) return false;
       accumulated += chunk;
       emit({ type: 'chunk', delta: chunk });
@@ -351,28 +675,102 @@ export class AssistantService {
   }
 
   /**
-   * Builds the LLM prompt from a conversation context + history + a user-prompt
-   * to send. Used by streamAndPersist, regenerateAndStream, editAndStream.
+   * S6.2 / P5.2 — non-streaming JSON path for `context === 'npc-description'`.
+   *
+   * Vertex `responseMimeType: 'application/json'` + `responseSchema` returns
+   * the entire object atomically; we parse + re-serialize (canonicalising
+   * whitespace and dropping any wrapper text the model might prefix). The
+   * stored `content` is the canonical JSON string — the client tries
+   * JSON.parse on render and falls back to markdown when parsing fails
+   * (legacy npc messages or future text-mode regressions).
+   *
+   * SSE contract: emits `start` → single `chunk` (full JSON) → `done`.
+   * Frontend stream handler treats this exactly like a one-shot reply.
    */
-  private buildPrompt(
+  private async runJsonNpcAndSave(
+    parts: TextGenerationRequest,
+    userMessageId: string,
+    conv: { id: string; roomId: string; context: string },
+    userId: string,
+    emit: (event: AssistantStreamEvent) => void,
+    signal: AbortSignal | undefined,
+  ): Promise<boolean> {
+    emit({ type: 'start', userMessageId });
+    if (signal?.aborted) return false;
+
+    const jsonParts: TextGenerationRequest = {
+      ...parts,
+      system: `${parts.system}\n${NPC_JSON_INSTRUCTION}`,
+      responseMimeType: 'application/json',
+      responseSchema: NPC_RESPONSE_SCHEMA,
+    };
+    const raw = await this.provider.generateText(jsonParts, { thinkingLevel: 'low' });
+    if (signal?.aborted) return false;
+
+    // Canonicalise: even though Vertex JSON mode + schema returns valid JSON,
+    // serialise back through JSON.parse/stringify to drop any whitespace
+    // variance (and to fail loudly here rather than at render time).
+    let canonical: string;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const parsed = JSON.parse(raw) as Record<string, any>;
+      canonical = JSON.stringify(parsed);
+    } catch {
+      // Schema-mode parse failure is rare but possible (e.g. truncated
+      // response); persist the raw text so the GM can still see what came
+      // back, and let the client fall back to markdown rendering.
+      canonical = raw;
+    }
+
+    const assistantMsg = await this.msgRepo!.create({
+      id: randomUUID(),
+      roomId: conv.roomId,
+      userId,
+      conversationId: conv.id,
+      context: conv.context,
+      role: 'assistant',
+      content: canonical,
+    });
+    await this.convRepo!.touch(conv.id);
+    emit({ type: 'chunk', delta: canonical });
+    emit({ type: 'done', assistantMessageId: assistantMsg.id, content: canonical });
+    return true;
+  }
+
+  /**
+   * Builds the role-split LLM prompt parts (Phase 2a S6.1).
+   *
+   * Composition:
+   *   - system instruction = SYSTEM_PROMPTS[context] + variables_block? + session_context_block?
+   *     (variables and session-context are framing context, not user input —
+   *     they belong on the system role per Vertex SDK convention)
+   *   - history = oldest-first array of past user/assistant turns
+   *   - user = current user prompt (sent as the last `role: 'user'` content turn)
+   *
+   * Replaces the pre-S6.1 `buildPrompt(): string` which concatenated everything
+   * into one flat string and exposed the system instruction to history-spoof
+   * attacks at the prompt level.
+   */
+  static buildPromptParts(
     context: AssistantContext,
-    history: AssistantMessageRow[],
+    history: ReadonlyArray<{ role: string; content: string }>,
     userPrompt: string,
     sessionContext?: string,
-  ): string {
-    const system = SYSTEM_PROMPTS[context];
+    vars?: AssistantVariables,
+  ): TextGenerationRequest {
+    const baseSystem = SYSTEM_PROMPTS[context];
+    const varsBlock = vars ? AssistantService.buildVariablesBlock(vars) : '';
     const ctxBlock = sessionContext && sessionContext.trim().length > 0
       ? `\n\n--- Контекст сесії ---\n${sessionContext}\n--- /Контекст сесії ---\n`
       : '';
-    const historyText = history
-      .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-      .join('\n');
-    return [
-      system,
-      ctxBlock,
-      historyText ? `\nConversation history:\n${historyText}` : '',
-      `\nUser: ${userPrompt}`,
-    ].filter(Boolean).join('');
+    return {
+      system: `${baseSystem}${varsBlock}${ctxBlock}`,
+      history: history.map((m) => ({
+        role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
+        content: m.content,
+      })),
+      user: userPrompt,
+    };
   }
 
   private async fetchSessionContext(
@@ -421,8 +819,6 @@ export class AssistantService {
       content: req.userPrompt,
     });
 
-    emit({ type: 'start', userMessageId: userMsg.id });
-
     // 3. Build prompt from conversation history (excluding the just-saved user message).
     const allMsgs = await this.msgRepo.findByConversation(req.conversationId);
     const history = allMsgs.filter((m) => m.id !== userMsg.id).slice(-10);
@@ -431,35 +827,12 @@ export class AssistantService {
       userId,
       req.useSessionContext !== false, // default true when undefined
     );
-    const fullPrompt = this.buildPrompt(req.context as AssistantContext, history, req.userPrompt, sessionCtx);
+    const vars = AssistantService.resolveVariables(req, AssistantService.convToVars(conv));
+    const parts = AssistantService.buildPromptParts(req.context as AssistantContext, history, req.userPrompt, sessionCtx, vars);
 
-    // 4. Stream + accumulate.
-    let accumulated = '';
-    for await (const chunk of this.provider.generateTextStream(fullPrompt, signal, { thinkingLevel: req.thinkingLevel ?? 'low' })) {
-      if (signal?.aborted) {
-        // Client disconnected — stop without saving the partial assistant reply.
-        return;
-      }
-      accumulated += chunk;
-      emit({ type: 'chunk', delta: chunk });
-    }
-
-    if (signal?.aborted) return;
-
-    // 5. Persist assistant message.
-    const assistantMsg = await this.msgRepo.create({
-      id: randomUUID(),
-      roomId: req.roomId,
-      userId,
-      conversationId: req.conversationId,
-      context: req.context,
-      role: 'assistant',
-      content: accumulated,
-    });
-
-    await this.convRepo.touch(req.conversationId);
-
-    emit({ type: 'done', assistantMessageId: assistantMsg.id, content: accumulated });
+    // 4. Branch: NPC mode → JSON path; everything else → streaming.
+    //    streamAndSave already encapsulates both branches (S6.2), so reuse it.
+    await this.streamAndSave(parts, userMsg.id, conv, userId, emit, signal);
   }
 
   /**
@@ -498,9 +871,10 @@ export class AssistantService {
     // Build prompt from history strictly BEFORE the last user message.
     const history = all.filter((m) => m.createdAt < lastUser!.createdAt).slice(-10);
     const sessionCtx = await this.fetchSessionContext(conv.roomId, userId, true);
-    const fullPrompt = this.buildPrompt(conv.context as AssistantContext, history, lastUser.content, sessionCtx);
+    const vars = AssistantService.resolveVariables({}, AssistantService.convToVars(conv));
+    const parts = AssistantService.buildPromptParts(conv.context as AssistantContext, history, lastUser.content, sessionCtx, vars);
 
-    await this.streamAndSave(fullPrompt, lastUser.id, conv, userId, emit, signal);
+    await this.streamAndSave(parts, lastUser.id, conv, userId, emit, signal);
   }
 
   /**
@@ -540,8 +914,9 @@ export class AssistantService {
     const all = await this.msgRepo.findByConversation(conversationId);
     const history = all.filter((m) => m.createdAt < target.createdAt).slice(-10);
     const sessionCtx = await this.fetchSessionContext(conv.roomId, userId, true);
-    const fullPrompt = this.buildPrompt(conv.context as AssistantContext, history, trimmed, sessionCtx);
+    const vars = AssistantService.resolveVariables({}, AssistantService.convToVars(conv));
+    const parts = AssistantService.buildPromptParts(conv.context as AssistantContext, history, trimmed, sessionCtx, vars);
 
-    await this.streamAndSave(fullPrompt, messageId, conv, userId, emit, signal);
+    await this.streamAndSave(parts, messageId, conv, userId, emit, signal);
   }
 }

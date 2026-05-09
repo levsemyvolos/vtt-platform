@@ -39,6 +39,27 @@ export class AssistantConversationRepository {
     return this.db.assistantConversation.update({ where: { id }, data: { title } });
   }
 
+  /**
+   * Replaces per-conversation default variables (Phase 2a S3.1).
+   * Pass `null` for any field to clear it. Pass `undefined` for any field to leave it.
+   * Caller is responsible for owner-RBAC.
+   */
+  updateDefaults(
+    id: string,
+    defaults: {
+      defaultRuleset?: string | null;
+      defaultSetting?: string | null;
+      defaultPlayerLevel?: number | null;
+      defaultTone?: string | null;
+      defaultOutputLanguage?: string | null;
+    },
+  ): Promise<AssistantConversation> {
+    return this.db.assistantConversation.update({
+      where: { id },
+      data: defaults as Prisma.AssistantConversationUpdateInput,
+    });
+  }
+
   delete(id: string): Promise<AssistantConversation> {
     return this.db.assistantConversation.delete({ where: { id } });
   }

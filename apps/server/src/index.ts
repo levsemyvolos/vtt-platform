@@ -86,6 +86,7 @@ const gcpKeyJson = process.env['GCP_SERVICE_ACCOUNT_KEY'];
 const gcpLocation = process.env['GCP_LOCATION'] ?? 'us-central1';
 const gcpImageLocation = process.env['GCP_IMAGE_LOCATION'] ?? 'global';
 const gcpTextLocation = process.env['GCP_TEXT_LOCATION'] ?? 'global';
+const gcpMusicLocation = process.env['GCP_MUSIC_LOCATION'] ?? 'global';
 const gcsBucket = process.env['GCS_BUCKET'];
 
 // Model overrides — defaults live in GeminiProvider (currently preview-tier:
@@ -108,7 +109,9 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
     projectId: gcpProjectId,
     location: gcpLocation,
     textLocation: gcpTextLocation,
+    imageLocation: gcpImageLocation,
     multiTurnImageLocation: gcpImageLocation,
+    musicLocation: gcpMusicLocation,
     // Conditional spreads avoid passing undefined into optional fields under
     // exactOptionalPropertyTypes — when the env-var is unset, GeminiProvider
     // falls back to its DEFAULT_* constant.

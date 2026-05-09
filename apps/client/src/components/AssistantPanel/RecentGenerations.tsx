@@ -11,15 +11,22 @@ interface RecentGenerationsProps {
 }
 
 const IMAGE_DISPLAY_LIMIT = 6;
-const AUDIO_DISPLAY_LIMIT = 5;
 
+/**
+ * S5.5 P2 — audio rows removed.
+ *
+ * Audio history was previously duplicated here as a "quick player" strip.
+ * The duplicate confused the model: history lived in two surfaces (this
+ * sidebar + MusicHistoryList in the assistant panel) but Save / Play /
+ * Rename actions only existed on one. Per option B from the S5.5 plan,
+ * MusicHistoryList becomes the single source of truth for audio, and
+ * this sidebar focuses on images + quota meters.
+ */
 export default function RecentGenerations({ roomId }: RecentGenerationsProps): JSX.Element {
   const { t } = useTranslation('assistant');
   const [images, setImages] = useState<AssetDTO[]>([]);
-  const [audioTracks, setAudioTracks] = useState<AssetDTO[]>([]);
   const [quota, setQuota] = useState<AIQuotaResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeAudio, setActiveAudio] = useState<AssetDTO | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,12 +34,10 @@ export default function RecentGenerations({ roomId }: RecentGenerationsProps): J
     setLoading(true);
     Promise.all([
       listAiAssets(roomId, 'image'),
-      listAiAssets(roomId, 'audio'),
       getAIQuota(roomId).catch(() => null),
     ])
-      .then(([imgs, audio, q]) => {
+      .then(([imgs, q]) => {
         setImages(imgs.slice(0, IMAGE_DISPLAY_LIMIT));
-        setAudioTracks(audio.slice(0, AUDIO_DISPLAY_LIMIT));
         setQuota(q);
       })
       .catch(() => {
@@ -76,54 +81,6 @@ export default function RecentGenerations({ roomId }: RecentGenerationsProps): J
               >
                 {copied === img.id ? '✓' : '📋'}
               </button>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className={styles.audioPlayer}>
-        <p className={styles.sectionHeading}>{t('recent.playerHeading')}</p>
-        {!loading && audioTracks.length === 0 && (
-          <p className={styles.empty}>{t('recent.emptyAudio')}</p>
-        )}
-        {audioTracks.map((track) => (
-          <div key={track.id} className={styles.audioRow}>
-            <p className={styles.audioLabel} title={track.aiPrompt ?? track.name}>
-              {track.aiPrompt
-                ? (track.aiPrompt.length > 40 ? `${track.aiPrompt.slice(0, 40)}…` : track.aiPrompt)
-                : track.name}
-            </p>
-            {activeAudio?.id === track.id ? (
-              <audio
-                controls
-                autoPlay
-                src={track.url}
-                className={styles.audioPlayerEl}
-                onEnded={() => setActiveAudio(null)}
-              />
-            ) : (
-              <div className={styles.playerControls}>
-                <button
-                  type="button"
-                  className={styles.playerBtn}
-                  aria-label={t('recent.playBtn')}
-                  onClick={() => setActiveAudio(track)}
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
-                    <polygon points="2,1 13,7 2,13" />
-                  </svg>
-                </button>
-                <div
-                  className={styles.scrubBar}
-                  role="progressbar"
-                  aria-label={t('recent.scrubBar')}
-                  aria-valuenow={0}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <div className={styles.scrubFill} style={{ width: '0%' }} />
-                </div>
-              </div>
             )}
           </div>
         ))}

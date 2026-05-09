@@ -7,6 +7,7 @@ import { upsertToken } from '../../store/scene';
 import { apiUpdateToken } from '../../api/scenes';
 import ImageUpload from '../AssetUpload/ImageUpload';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
+import GenerateTokenModal from '../AIGenerate/GenerateTokenModal';
 import styles from './TokenEditModal.module.css';
 
 const COLOR_PRESETS = [
@@ -29,20 +30,22 @@ interface TokenImageSectionProps {
   changeImageLabel: string;
   uploadImageLabel: string;
   pickFromLibraryLabel: string;
+  generateAiLabel: string;
   imagePreviewAlt: string;
   pickerLabel: string;
   onImageUploaded: (asset: AssetDTO) => void;
   onShowUploader: () => void;
   onShowLibrary: () => void;
+  onShowGenerator: () => void;
 }
 
-/** Token-image picker section (preview, uploader, library).
+/** Token-image picker section (preview, uploader, library, AI generate).
  *  Extracted from TokenEditModal to keep cyclomatic complexity ≤ 10 (lint gate). */
 function TokenImageSection(props: TokenImageSectionProps): JSX.Element {
   const { imagePreviewUrl, showUploader, showLibrary, roomId, saving,
     fieldLabel, changeImageLabel, uploadImageLabel, pickFromLibraryLabel,
-    imagePreviewAlt, pickerLabel,
-    onImageUploaded, onShowUploader, onShowLibrary } = props;
+    generateAiLabel, imagePreviewAlt, pickerLabel,
+    onImageUploaded, onShowUploader, onShowLibrary, onShowGenerator } = props;
   const showPreview = imagePreviewUrl !== null && !showUploader;
   return (
     <div className={styles.field}>
@@ -58,8 +61,8 @@ function TokenImageSection(props: TokenImageSectionProps): JSX.Element {
       ) : null}
       {renderImagePicker({
         showUploader, showLibrary, roomId, saving, imagePreviewUrl,
-        changeImageLabel, uploadImageLabel, pickFromLibraryLabel, pickerLabel,
-        onImageUploaded, onShowUploader, onShowLibrary,
+        changeImageLabel, uploadImageLabel, pickFromLibraryLabel, generateAiLabel, pickerLabel,
+        onImageUploaded, onShowUploader, onShowLibrary, onShowGenerator,
       })}
     </div>
   );
@@ -75,9 +78,11 @@ interface ImagePickerArgs {
   uploadImageLabel: string;
   pickFromLibraryLabel: string;
   pickerLabel: string;
+  generateAiLabel: string;
   onImageUploaded: (asset: AssetDTO) => void;
   onShowUploader: () => void;
   onShowLibrary: () => void;
+  onShowGenerator: () => void;
 }
 
 /** Renders the uploader, library, or picker buttons depending on UI state. */
@@ -117,6 +122,15 @@ function renderImagePicker(a: ImagePickerArgs): JSX.Element {
       >
         {a.pickFromLibraryLabel}
       </button>
+      <button
+        type="button"
+        className={styles.btnCancel}
+        style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
+        onClick={a.onShowGenerator}
+        disabled={a.saving || !a.roomId}
+      >
+        {a.generateAiLabel}
+      </button>
     </div>
   );
 }
@@ -139,6 +153,7 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [showUploader, setShowUploader] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [showTokenGenerator, setShowTokenGenerator] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -179,6 +194,12 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
     setImagePreviewUrl(asset.url);
     setShowUploader(false);
     setShowLibrary(false);
+  }
+
+  function handleTokenGenerated(assetId: string, previewUrl: string): void {
+    setImageAssetId(assetId);
+    setImagePreviewUrl(previewUrl);
+    setShowTokenGenerator(false);
   }
 
   async function handleSave(): Promise<void> {
@@ -240,12 +261,21 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
           changeImageLabel={t('room:token.changeImage')}
           uploadImageLabel={t('room:token.uploadImage')}
           pickFromLibraryLabel={t('room:token.pickFromLibrary')}
+          generateAiLabel={t('room:aiToken.generateBtn')}
           imagePreviewAlt={t('room:token.imagePreviewAlt')}
           pickerLabel={t('room:token.useForToken')}
           onImageUploaded={handleImageUploaded}
           onShowUploader={() => setShowUploader(true)}
           onShowLibrary={() => setShowLibrary(true)}
+          onShowGenerator={() => setShowTokenGenerator(true)}
         />
+        {showTokenGenerator && (
+          <GenerateTokenModal
+            roomId={roomId}
+            onGenerated={handleTokenGenerated}
+            onClose={() => setShowTokenGenerator(false)}
+          />
+        )}
 
         <div className={styles.row}>
           <label className={styles.field}>

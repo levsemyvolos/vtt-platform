@@ -91,9 +91,16 @@ export interface UpdateSceneRequest {
 }
 
 export interface AIImageRequest {
-  prompt: string;
+  prompt: string;           // subject / main description
   roomId: string;
-  style?: string;
+  style?: string;           // key into SCENE_STYLE_MAP (server-side)
+  // P2.1 structured fields — Scene Background formula (S4.1)
+  composition?: string;     // camera / composition preset
+  locationDetails?: string; // specific location descriptors
+  lighting?: string;        // lighting preset
+  palette?: string;         // colour palette
+  // P2.2 — Token framing (S4.2 UX fix)
+  tokenFraming?: 'full-body' | 'half-body' | 'bust';
 }
 
 export interface AIImageResponse {
@@ -101,10 +108,20 @@ export interface AIImageResponse {
   assetId: string;
 }
 
+// S5.1 — P3 music presets
+export type MusicPresetKey = 'cave' | 'tavern' | 'exploration' | 'tension' | 'combat';
+
 export interface AIMusicRequest {
   prompt: string;
   roomId: string;
   durationSec?: number;
+  // P3 structured builder fields (server assembles formula from these)
+  presetKey?: MusicPresetKey;
+  mood?: string;
+  instrumentation?: string;
+  tempo?: string;
+  dynamics?: string;
+  ambiance?: string;
 }
 
 export interface AIMusicResponse {

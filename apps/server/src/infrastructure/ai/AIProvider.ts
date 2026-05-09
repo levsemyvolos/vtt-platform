@@ -32,9 +32,46 @@ export interface ImageMultiTurnRequest {
   references?: ReadonlyArray<{ bytes: Buffer; mimeType: string }>;
 }
 
+/**
+ * Phase 2a S6.1 — proper role-split for text generation.
+ *
+ * The provider receives:
+ *   - `system`: the system instruction text (system role; immovable from
+ *     the model's perspective)
+ *   - `history`: oldest-first array of past user/assistant turns
+ *   - `user`: the current user prompt
+ *
+ * Implementations map this to Vertex SDK's `systemInstruction` parameter +
+ * `contents` array of {role, parts} content turns. The assistant role in
+ * Vertex is named `model`; provider implementations translate
+ * 'assistant' → 'model' at the boundary.
+ */
+export interface TextGenerationRequest {
+  /** System-instruction text (one block, may contain newlines). */
+  system: string;
+  /** Conversation history, oldest-first. */
+  history: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>;
+  /** Current user prompt — sent as the last `role: 'user'` content turn. */
+  user: string;
+  /**
+   * S6.2 / P5.2 — when 'application/json', the model is asked to return
+   * structured JSON. Used by NPC mode to populate `NpcResponse` directly.
+   * Streaming variant ignores this (JSON must come back atomically).
+   */
+  responseMimeType?: 'application/json';
+  /**
+   * S6.2 / P5.2 — Vertex SDK Schema (Type:'OBJECT' tree) describing the
+   * exact JSON shape the model must produce. Without it the model still
+   * emits JSON but with free-form keys; with it the SDK validates the
+   * response server-side before the byte stream returns.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  responseSchema?: Record<string, any>;
+}
+
 export interface AIProvider {
   /** Text generation — LLM assistant (Ф8.1). */
-  generateText(prompt: string, opts?: { thinkingLevel?: 'low' | 'high' }): Promise<string>;
+  generateText(req: TextGenerationRequest, opts?: { thinkingLevel?: 'low' | 'high' }): Promise<string>;
 
   /**
    * Streaming variant of `generateText` (Ф8.1, Session 4.1).
@@ -45,10 +82,16 @@ export interface AIProvider {
    * Errors are wrapped via the same taxonomy as `generateText`
    * (AIQuotaError / AISafetyError / AIInvalidPromptError / AINetworkError).
    */
-  generateTextStream(prompt: string, signal?: AbortSignal, opts?: { thinkingLevel?: 'low' | 'high' }): AsyncIterable<string>;
+  generateTextStream(req: TextGenerationRequest, signal?: AbortSignal, opts?: { thinkingLevel?: 'low' | 'high' }): AsyncIterable<string>;
 
   /** Image generation — scene illustration (Ф8.2). */
   generateImage(req: AIImageRequest): Promise<GeneratedBinary>;
+
+  /** P2.2 — Token image generation with character-specific constraints (S4.2). */
+  generateToken(req: AIImageRequest): Promise<GeneratedBinary>;
+
+  /** P2.3 — Battlemap image generation with orthographic top-down constraints (S4.3). */
+  generateBattlemap(req: AIImageRequest): Promise<GeneratedBinary>;
 
   /**
    * Multi-turn image generation (Session 7.1, Nano Banana 2).
@@ -65,8 +108,15 @@ export interface AIProvider {
     signal?: AbortSignal,
   ): Promise<GeneratedBinary>;
 
-  /** Music generation — ambient audio loop (Ф8.3). */
-  generateMusic(req: AIMusicRequest): Promise<GeneratedBinary>;
+  /**
+   * Music generation — ambient audio loop (Ф8.3).
+   *
+   * Returns the binary plus the `composedPrompt` actually sent to the model
+   * (assembled from preset + structured fields). Persisted as Asset.aiPrompt
+   * so the history view shows the real, full prompt rather than the empty
+   * legacy `req.prompt` field.
+   */
+  generateMusic(req: AIMusicRequest): Promise<GeneratedBinary & { composedPrompt: string }>;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { AudioTrack } from '@prisma/client';
+import type { Asset, AudioTrack } from '@prisma/client';
 import {
   AUDIO_ALLOWED_MIME,
   AUDIO_MAX_BYTES,
@@ -9,6 +9,7 @@ import {
   type AudioMime,
   type AudioPatchRequest,
   type AudioTrackDTO,
+  type AudioTrackFromAssetRequest,
   type AudioUploadInitRequest,
   type AudioUploadInitResponse,
 } from '@vtt/shared';
@@ -244,6 +245,88 @@ export class AudioService {
   }
 
   /**
+   * S5.4 — register an existing AI-generated audio Asset as a playable
+   * AudioTrack. Skips the upload-init/finalize round-trip because the Asset
+   * already lives in GCS (created by `AIService.generateMusic`).
+   *
+   * Validates: asset exists, belongs to `req.roomId`, source='AI_AUDIO',
+   * MIME is in the audio allow-list. Caller must have already passed
+   * `assertRoomOwner`.
+   *
+   * If `req.playImmediately` is true, broadcasts `audio:play` after creation
+   * even when the track has no scene binding (one-click "Play now" UX).
+   */
+  async createTrackFromAsset(req: AudioTrackFromAssetRequest): Promise<AudioTrack> {
+    const asset = await this.assets.findById(req.assetId);
+    this.validateAssetForTrack(asset, req);
+
+    const sceneId = await this.resolveSceneBinding(req.roomId, req.sceneId ?? null);
+    const layer: AudioLayer = req.layer ?? 'music';
+
+    // S5.5 P5 — idempotency: a repeated Save click (or duplicate request from
+    // a parallel UI surface) on the same (room, asset, scene, layer) tuple
+    // returns the existing row instead of creating a clone. The freshly-
+    // generated audio asset on Vertex is unique per generation, so this is a
+    // safe natural key for "user pressed Save twice."
+    const existing = await this.tracks.findByRoomAssetSceneLayer(
+      req.roomId,
+      asset!.id,
+      sceneId,
+      layer,
+    );
+    if (existing) {
+      if (req.playImmediately) {
+        this.emit(
+          req.roomId,
+          buildPlayPayload('play', layer, existing.id, sceneId, existing.loop, existing.fadeMs),
+        );
+      }
+      return existing;
+    }
+
+    const track = await this.tracks.create({
+      id: randomUUID(),
+      roomId: req.roomId,
+      sceneId,
+      assetId: asset!.id,
+      title: req.title.trim().slice(0, 128),
+      loop: req.loop ?? false,
+      fadeMs: req.fadeMs != null ? Math.max(0, Math.min(10000, req.fadeMs)) : 1500,
+      layer,
+    });
+
+    // Scene-bound creation auto-broadcasts (mirrors finalizeUpload). One-click
+    // "Play now" forces a broadcast regardless of binding.
+    if (sceneId || req.playImmediately) {
+      this.emit(
+        req.roomId,
+        buildPlayPayload('play', layer, track.id, sceneId, track.loop, track.fadeMs),
+      );
+    }
+    return track;
+  }
+
+  /** Throws HttpError on any failed precondition; narrows asset to non-null on success. */
+  private validateAssetForTrack(
+    asset: Asset | null,
+    req: AudioTrackFromAssetRequest,
+  ): asserts asset is Asset {
+    if (!asset) throw new HttpError(404, 'Asset not found');
+    if (asset.roomId !== req.roomId) {
+      throw new HttpError(403, 'Asset does not belong to this room');
+    }
+    if (asset.source !== 'AI_AUDIO') {
+      throw new HttpError(400, 'Asset is not AI-generated audio');
+    }
+    if (!isAllowedMime(asset.mimeType)) {
+      throw new HttpError(400, `Asset MIME ${asset.mimeType} is not in the audio allow-list`);
+    }
+    if (!req.title || req.title.trim().length === 0) {
+      throw new HttpError(400, 'title is required');
+    }
+  }
+
+  /**
    * Mutates a track's title/loop/scene-binding. When `sceneId` is supplied
    * (including `null` for unbind) the service emits `audio:play` so all
    * connected clients pick up the new state in realtime.
@@ -282,14 +365,19 @@ export class AudioService {
   async deleteTrack(trackId: string): Promise<void> {
     const existing = await this.tracks.findById(trackId);
     if (!existing) throw new HttpError(404, 'Track not found');
-    // Cascade: storageKey is opaque to clients per НФВ 4.5 — we look it up
-    // through the Asset row and remove the GCS object too.
     const asset = await this.assets.findById(existing.assetId);
     await this.tracks.deleteById(trackId);
-    if (asset) {
+
+    // S5.5 P4 — AI-generated assets live in the room-level AI library and may
+    // back several tracks (same Asset registered as music, ambient, or in a
+    // different scene). Deleting the track must NOT remove the Asset — that
+    // would silently wipe the AI history. Uploaded tracks keep the original
+    // 1:1 cascade since their Asset has no other purpose.
+    if (asset && asset.source !== 'AI_AUDIO') {
       await this.assets.deleteById(asset.id);
       await this.storage.delete(asset.storageKey);
     }
+
     if (existing.sceneId) {
       this.emit(existing.roomId, buildStopPayload(existing.layer as AudioLayer, existing.fadeMs ?? 1500));
     }

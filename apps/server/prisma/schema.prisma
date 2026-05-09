@@ -332,6 +332,16 @@ model AssistantConversation {
   /// 'npc-description' | 'scene-description' | 'srd-lookup' | 'free-chat'
   context   String   @db.VarChar(32)
   title     String   @db.VarChar(120)
+
+  /// Per-conversation default variables (Phase 2a S3.1, P4 backend).
+  /// When a request with empty AssistantVariables comes in, server falls back
+  /// to these. NULL means "not set" (resolution layer treats as undefined).
+  defaultRuleset        String? @db.VarChar(64)
+  defaultSetting        String? @db.VarChar(280)
+  defaultPlayerLevel    Int?
+  defaultTone           String? @db.VarChar(120)
+  defaultOutputLanguage String? @db.VarChar(40)
+
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 

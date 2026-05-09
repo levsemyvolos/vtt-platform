@@ -1,4 +1,33 @@
 {
+  "npcCard": {
+    "label": "Generated NPC",
+    "sections": {
+      "appearance": "Appearance",
+      "roleplay": "Roleplay",
+      "psychology": "Psychology",
+      "narrative": "Narrative",
+      "statblock": "Statblock"
+    },
+    "fields": {
+      "verbalMannerism": "Verbal mannerism",
+      "physicalMannerism": "Physical mannerism",
+      "motivation": "Motivation",
+      "sampleDialogue": "Sample dialogue",
+      "dominantTrait": "Dominant trait",
+      "fatalFlaw": "Fatal flaw",
+      "contradiction": "Contradiction",
+      "secret": "Secret",
+      "plotHook": "Plot hook",
+      "primaryAttack": "Primary attack",
+      "specialAbility": "Special ability",
+      "assumptions": "Assumptions"
+    },
+    "stats": {
+      "hp": "HP",
+      "ac": "AC",
+      "speed": "Speed"
+    }
+  },
   "panel": {
     "dialogLabel": "GM AI Assistant",
     "title": "GM Assistant",
@@ -76,6 +105,70 @@
     "thinkingHighLabel": "Deeper reasoning",
     "thinkingHighTooltip": "Gemini 3 with high thinking_level. 6× cost and slower."
   },
+  "musicBuilder": {
+    "hint": "Music generation via Lyria 3 Clip (Vertex AI). Presets enforce no-vocals / no-beat rules automatically.",
+    "presetLabel": "Scene preset",
+    "presetCustom": "— custom (fill fields below) —",
+    "presets": {
+      "cave":        "Creepy Cave / Dungeon",
+      "tavern":      "Tavern / Social Scene",
+      "exploration": "Exploration / Wilderness",
+      "tension":     "Tense Pre-Combat",
+      "combat":      "Active Combat"
+    },
+    "moodLabel":              "Mood",
+    "moodPlaceholder":        "e.g. eerie, claustrophobic, quietly threatening",
+    "instrumentsLabel":       "Instrumentation",
+    "instrumentsPlaceholder": "e.g. low drone, bowed strings, ambient pad",
+    "englishHint":            "Use English prompts — Lyria works best in English.",
+    "generatingMsg":          "Generating with Lyria 3 Clip (~10 s)…",
+    "stillWorking":           "Still working… Lyria 3 Clip usually returns under 15 s for a 30 s MP3 clip."
+  },
+  "musicHistory": {
+    "heading": "Music history",
+    "loading": "Loading…",
+    "empty":   "No music generated in this room yet. Use the panel on the right.",
+    "error":   "Could not load history.",
+    "refresh": "Refresh",
+    "renameLabel": "Rename",
+    "renameError": "Could not rename"
+  },
+  "musicResult": {
+    "groupLabel":     "Music actions",
+    "customLabel":    "Custom music",
+    "saveLabel":      "Save as track",
+    "savingLabel":    "Saving…",
+    "savedLabel":     "Saved ✓",
+    "playNowLabel":   "Play in room",
+    "startingLabel":  "Starting…",
+    "regenerateLabel":"Regenerate",
+    "discardLabel":   "Discard",
+    "toastSaved":     "Saved as music track. Open the Audio panel to manage it.",
+    "toastPlaying":   "Track saved and playing in the room.",
+    "saveError":      "Could not save the track."
+  },
+  "variables": {
+    "title": "Session variables",
+    "summaryNone": "not set",
+    "hint": "Changes apply to the next message. 'Save' persists them as defaults for this conversation.",
+    "toastSaved": "Defaults saved",
+    "toastSaveFailed": "Failed to save defaults",
+    "fields": {
+      "ruleset": "Ruleset",
+      "rulesetUnset": "— not set —",
+      "setting": "Setting",
+      "settingPlaceholder": "e.g. post-apocalyptic desert wasteland",
+      "playerLevel": "Player level",
+      "tone": "Tone",
+      "tonePlaceholder": "e.g. grimdark and morally gray",
+      "outputLanguage": "Output language",
+      "outputLanguagePlaceholder": "e.g. Ukrainian, English"
+    },
+    "actions": {
+      "save": "Save as defaults",
+      "saving": "Saving…"
+    }
+  },
   "presets": {
     "npc-description": [
       { "label": "Tavern keeper", "prompt": "Describe a D&D 5e tavern keeper NPC: race, age, one interesting visual detail, manner of speaking with patrons, one secret or story they know." },
@@ -110,10 +203,6 @@
     "heading": "AI generations",
     "loading": "Loading…",
     "emptyImages": "No AI images yet",
-    "emptyAudio": "No AI music yet",
-    "playerHeading": "AI music",
-    "playBtn": "Play",
-    "scrubBar": "Playback progress",
     "copyPrompt": "Copy prompt",
     "quotaHeading": "AI usage",
     "quotaLlm": "LLM requests",

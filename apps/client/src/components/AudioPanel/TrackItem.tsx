@@ -19,6 +19,7 @@ export interface TrackItemProps {
 }
 
 interface EditDraft {
+  title: string;
   fadeMs: number;
   loop: boolean;
   layer: AudioLayer;
@@ -42,13 +43,13 @@ export default function TrackItem({ track, roomId, sceneId, isGM, isPlaying, isS
   const dispatch = useAppDispatch();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<EditDraft>({
-    fadeMs: track.fadeMs, loop: track.loop, layer: track.layer,
+    title: track.title, fadeMs: track.fadeMs, loop: track.loop, layer: track.layer,
   });
 
   const liClassName = isPlaying ? `${styles.item} ${styles.itemPlaying}` : styles.item;
 
   function openEdit(): void {
-    setDraft({ fadeMs: track.fadeMs, loop: track.loop, layer: track.layer });
+    setDraft({ title: track.title, fadeMs: track.fadeMs, loop: track.loop, layer: track.layer });
     setEditing(true);
   }
 
@@ -175,9 +176,15 @@ function EditControls({ track, isSfx, draft, onDraftChange, onClose }: EditContr
   async function onSave(): Promise<void> {
     setBusy(true);
     try {
+      // Only send title if it changed and is non-empty (server caps at 128).
+      const trimmedTitle = draft.title.trim();
+      const titlePatch = trimmedTitle && trimmedTitle !== track.title
+        ? { title: trimmedTitle }
+        : {};
       await dispatch(
         patchTrackThunk({
           trackId: track.id, fadeMs: draft.fadeMs, loop: draft.loop, layer: draft.layer,
+          ...titlePatch,
         }),
       ).unwrap();
       onClose();
@@ -188,6 +195,17 @@ function EditControls({ track, isSfx, draft, onDraftChange, onClose }: EditContr
 
   return (
     <div className={styles.editRow}>
+      <label>
+        {t('campaign:audio.trackTitleLabel', { defaultValue: 'Title' })}
+        <input
+          type="text"
+          value={draft.title}
+          onChange={(e) => onDraftChange({ ...draft, title: e.target.value })}
+          maxLength={128}
+          aria-label={t('campaign:audio.trackTitleLabel')}
+          className={styles.titleInput}
+        />
+      </label>
       {!isSfx && (
         <>
           <label>

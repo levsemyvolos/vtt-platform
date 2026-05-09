@@ -313,4 +313,75 @@ describe('AssetService.storeAiAsset (Session 6.3.A — provenance)', () => {
     await service.listByRoomAndType(ROOM_ID, 'image');
     expect(repoMocks.findByRoomAndType).toHaveBeenCalledWith(ROOM_ID, 'image/', undefined);
   });
+
+  // S5.5 P1 — opts.displayName overrides "AI: <prompt>" default so music
+  // history shows a readable mood-derived title rather than the full
+  // 8-line Lyria prompt.
+  it('storeAiAsset uses opts.displayName when provided (S5.5 P1)', async () => {
+    const { provider } = makeAi();
+    const { storage, mocks: storageMocks } = makeStorage();
+    const { repo, mocks: repoMocks } = makeRepo();
+
+    storageMocks.put.mockResolvedValue('rooms/r/audio/x.mp3');
+    repoMocks.create.mockImplementation(async (data) => ({
+      id: data.id as string,
+      ownerId: data.ownerId as string,
+      roomId: data.roomId as string,
+      mimeType: data.mimeType as string,
+      size: data.size as bigint,
+      storageKey: data.storageKey as string,
+      originalName: (data.originalName as string | undefined) ?? '',
+      source: (data.source as string | undefined) ?? 'UPLOAD',
+      aiPrompt: (data.aiPrompt as string | undefined) ?? null,
+      aiModel: (data.aiModel as string | undefined) ?? null,
+      createdAt: new Date(),
+    }));
+
+    const service = new AssetService(provider, storage, repo);
+    await service.storeAiAsset(
+      USER_ID, ROOM_ID,
+      { bytes: Buffer.from('mp3'), mimeType: 'audio/mpeg' },
+      'audio',
+      'Mood: eerie...\nInstrumentation: drones...\nHard constraints: ...',
+      'lyria-3-clip-preview',
+      { displayName: 'Eerie Tense' },
+    );
+    const createCall = (repoMocks.create as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(createCall.originalName).toBe('Eerie Tense');
+    // composedPrompt still recorded under aiPrompt for provenance
+    expect(createCall.aiPrompt).toContain('Mood: eerie');
+  });
+
+  it('storeAiAsset falls back to "AI: <prompt>" when displayName is empty/missing', async () => {
+    const { provider } = makeAi();
+    const { storage, mocks: storageMocks } = makeStorage();
+    const { repo, mocks: repoMocks } = makeRepo();
+
+    storageMocks.put.mockResolvedValue('rooms/r/image/x.png');
+    repoMocks.create.mockImplementation(async (data) => ({
+      id: data.id as string,
+      ownerId: data.ownerId as string,
+      roomId: data.roomId as string,
+      mimeType: data.mimeType as string,
+      size: data.size as bigint,
+      storageKey: data.storageKey as string,
+      originalName: (data.originalName as string | undefined) ?? '',
+      source: (data.source as string | undefined) ?? 'UPLOAD',
+      aiPrompt: (data.aiPrompt as string | undefined) ?? null,
+      aiModel: (data.aiModel as string | undefined) ?? null,
+      createdAt: new Date(),
+    }));
+
+    const service = new AssetService(provider, storage, repo);
+    await service.storeAiAsset(
+      USER_ID, ROOM_ID,
+      { bytes: Buffer.from('png'), mimeType: 'image/png' },
+      'image',
+      'red dragon over a castle',
+      'gemini-3.1-flash-image-preview',
+      { displayName: '   ' }, // whitespace-only → fallback
+    );
+    const createCall = (repoMocks.create as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(createCall.originalName).toBe('AI: red dragon over a castle');
+  });
 });

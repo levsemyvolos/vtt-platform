@@ -132,8 +132,9 @@ describe('AssistantService.streamAndPersist (Session 4.1)', () => {
       generateText: vi.fn(),
       generateImage: vi.fn(),
       generateMusic: vi.fn(),
-      generateTextStream: vi.fn().mockImplementation(async function* (prompt: string) {
-        capturedPrompt = prompt;
+      generateTextStream: vi.fn().mockImplementation(async function* (req: { system: string; user: string; history: { role: string; content: string }[] }) {
+        // S6.1 role-split — flatten provider call back to a single string for substring assertions.
+        capturedPrompt = `${req.system}\n\n${req.history.map((m) => `${m.role}: ${m.content}`).join('\n')}\n\nUser: ${req.user}`;
         yield 'ok';
       }),
     } as unknown as AIProvider;
@@ -157,8 +158,9 @@ describe('AssistantService.streamAndPersist (Session 4.1)', () => {
       generateText: vi.fn(),
       generateImage: vi.fn(),
       generateMusic: vi.fn(),
-      generateTextStream: vi.fn().mockImplementation(async function* (prompt: string) {
-        capturedPrompt = prompt;
+      generateTextStream: vi.fn().mockImplementation(async function* (req: { system: string; user: string; history: { role: string; content: string }[] }) {
+        // S6.1 role-split — flatten provider call back to a single string for substring assertions.
+        capturedPrompt = `${req.system}\n\n${req.history.map((m) => `${m.role}: ${m.content}`).join('\n')}\n\nUser: ${req.user}`;
         yield 'ok';
       }),
     } as unknown as AIProvider;

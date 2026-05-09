@@ -1,0 +1,120 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-engrave);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: var(--space-sm);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
+.concept {
+  margin: 0;
+  font-style: italic;
+  color: var(--ink-mute);
+  font-size: var(--text-sm);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.field {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.fieldLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+}
+
+.fieldValue {
+  color: var(--ink);
+}
+
+.italic {
+  font-style: italic;
+}
+
+.muted {
+  color: var(--ink-mute);
+  font-size: var(--text-xs);
+}
+
+.statRow {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-xs) 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 60px;
+}
+
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+}
+
+.statValue {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--ember);
+}
+
+.refusal {
+  margin: 0;
+  padding: var(--space-sm);
+  background: color-mix(in srgb, var(--blood-hi) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--blood-hi) 30%, var(--line));
+  border-radius: var(--radius-sm);
+  color: var(--blood-hi);
+  font-size: var(--text-sm);
+  font-style: italic;
+}

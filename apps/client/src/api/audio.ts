@@ -4,6 +4,7 @@ import type {
   AudioPatchRequest,
   AudioPlaybackUrlResponse,
   AudioTrackDTO,
+  AudioTrackFromAssetRequest,
   AudioUploadInitRequest,
   AudioUploadInitResponse,
 } from '@vtt/shared';
@@ -26,6 +27,16 @@ export function finalizeAudioUpload(
   req: AudioFinalizeRequest,
 ): Promise<AudioTrackDTO> {
   return apiFetch<AudioTrackDTO>('/api/audio', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
+}
+
+/** S5.5 P7 — register an existing AI-audio Asset as a playable AudioTrack. */
+export function createTrackFromAsset(
+  req: AudioTrackFromAssetRequest,
+): Promise<AudioTrackDTO> {
+  return apiFetch<AudioTrackDTO>('/api/audio/from-asset', {
     method: 'POST',
     body: JSON.stringify(req),
   });

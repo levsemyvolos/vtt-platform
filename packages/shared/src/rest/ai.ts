@@ -1,11 +1,85 @@
 export type AssistantContext = 'npc-description' | 'scene-description' | 'srd-lookup' | 'free-chat';
 
+// ---------- P5.2 / S6.2 — JSON-structured NPC output ----------
+
+/**
+ * Shape returned by the assistant when `context === 'npc-description'`.
+ * Mirrors AI_PROMPT_ENGINEERING_GUIDE.md §5.2 schema. Stored in
+ * `ConversationMessage.content` as a JSON string; client parses on render
+ * and falls back to markdown if parsing fails.
+ */
+export interface NpcResponse {
+  npc_core: {
+    full_name: string;
+    /** Concept = "2 adjectives + 1 noun" (e.g. "world-weary stoic guardian"). */
+    concept: string;
+    appearance: string;
+  };
+  roleplay: {
+    verbal_mannerism: string;
+    physical_mannerism: string;
+    motivation: string;
+    sample_dialogue: string;
+  };
+  psychology: {
+    dominant_trait: string;
+    fatal_flaw: string;
+    /** Explicit clash between strength and flaw. */
+    contradiction: string;
+  };
+  narrative: {
+    secret: string;
+    plot_hook: string;
+  };
+  statblock: {
+    /** Ruleset name as declared/assumed by the assistant. */
+    system: string;
+    /** "CR 1/2", "Level 5", or refusal sentinel for closed-license rulebooks. */
+    cr_or_level: string;
+    /** Hit points; -1 sentinel when license-bounded refusal applies. */
+    hp: number;
+    /** Armour class; -1 sentinel when license-bounded refusal applies. */
+    ac: number;
+    speed: string;
+    primary_attack: string;
+    special_ability: string;
+    assumptions: string;
+  };
+}
+
 export interface ConversationMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
-export interface AssistantTextRequest {
+/**
+ * Per-message and per-conversation prompt variables (Session 3.1, P4 backend).
+ *
+ * Resolution priority: per-request value > per-conversation default >
+ * SYSTEM_PROMPTS-baked default (Ukrainian language, D&D 5e ruleset for NPC/SRD).
+ *
+ * All fields optional. Empty string treated as "not set". `playerLevel === 0`
+ * also treated as "not set" (resolveVariables coerces). When all fields
+ * resolve to undefined, no `--- Session variables ---` block is injected.
+ *
+ * Source: AI_PROMPT_ENGINEERING_GUIDE.md §4.1.
+ */
+export interface AssistantVariables {
+  /** TTRPG ruleset name e.g. "D&D 5e (2014 SRD)", "Pathfinder 2e", "Shadowdark", "Custom". Max 64 chars. */
+  ruleset?: string;
+  /** World/setting flavor e.g. "post-apocalyptic desert wasteland". Max 280 chars. */
+  setting?: string;
+  /** Party level for stat-block scaling. Integer 1..30. */
+  playerLevel?: number;
+  /** Tonal direction e.g. "grimdark and morally gray". Max 120 chars. */
+  tone?: string;
+  /** Output language name e.g. "Ukrainian", "English". Max 40 chars. NOTE in S3.1 the
+   *  `Respond in Ukrainian` directive baked into SYSTEM_PROMPTS still wins; this field
+   *  is shipped for future use when SYSTEM_PROMPTS becomes language-parameterized. */
+  outputLanguage?: string;
+}
+
+export interface AssistantTextRequest extends AssistantVariables {
   roomId: string;
   context: AssistantContext;
   userPrompt: string;
@@ -52,6 +126,10 @@ export interface AssistantConversationDTO {
   ownerId: string;
   context: AssistantContext;
   title: string;
+  /** Per-conversation default variables (Session 3.1 / Phase 2a P4).
+   *  When the user sends a request with empty AssistantVariables, the server
+   *  falls back to these. Empty object `{}` means no defaults are set. */
+  defaults: AssistantVariables;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,10 +140,17 @@ export interface CreateAssistantConversationRequest {
   roomId: string;
   context: AssistantContext;
   title?: string;
+  /** Optional initial defaults stored on the conversation row. */
+  defaults?: AssistantVariables;
 }
 
 export interface RenameAssistantConversationRequest {
   title: string;
+}
+
+/** PATCH /ai/conversations/:id/defaults — full-replace semantics (Session 3.1). */
+export interface UpdateConversationDefaultsRequest {
+  defaults: AssistantVariables;
 }
 
 export interface ListAssistantConversationsResponse {
@@ -101,7 +186,7 @@ export type AssistantStreamEvent =
   | { type: 'done'; assistantMessageId: string; content: string }
   | { type: 'error'; kind: AIErrorKind; message: string };
 
-export interface AssistantStreamRequest {
+export interface AssistantStreamRequest extends AssistantVariables {
   roomId: string;
   conversationId: string;
   context: AssistantContext;

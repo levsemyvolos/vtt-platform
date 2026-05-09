@@ -31,58 +31,6 @@
   padding: var(--space-md) 0;
 }
 
-.audioPlayer {
-  display: flex;
-  flex-direction: column;
-}
-
-.playerControls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.playerBtn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-primary-muted);
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.12s;
-}
-
-.playerBtn:hover {
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-}
-
-.playerBtn:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.scrubBar {
-  flex: 1;
-  height: 4px;
-  background: var(--color-border);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.scrubFill {
-  height: 100%;
-  background: var(--color-primary);
-  border-radius: var(--radius-full);
-  transition: width 0.1s linear;
-}
-
 .quota {
   display: flex;
   flex-direction: column;
@@ -147,20 +95,3 @@
   opacity: 1;
 }
 
-.audioRow {
-  margin-bottom: var(--space-xs);
-}
-
-.audioLabel {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  margin-bottom: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.audioPlayerEl {
-  width: 100%;
-  height: 28px;
-}

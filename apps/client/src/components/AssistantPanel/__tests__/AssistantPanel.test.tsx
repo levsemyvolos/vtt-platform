@@ -60,6 +60,7 @@ function buildSeededStore() {
             ownerId: 'owner-stub',
             context: 'free-chat' as const,
             title: 'Seeded',
+            defaults: {},
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           },
