@@ -32,7 +32,7 @@ const MUSIC_PRESET_LABELS: Record<MusicPresetKey, string> = {
 
 function firstTwoWordsTitleCase(s: string): string {
   const words = s
-    .split(/[\s,.;:!?\-\/]+/)
+    .split(/[\s,.;:!?\-/]+/)
     .filter((w) => w.length > 0)
     .slice(0, 2)
     .map((w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase());

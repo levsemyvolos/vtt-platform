@@ -235,6 +235,37 @@ export interface AIQuotaResponse {
   llm: { messagesLast24h: number };
 }
 
+// ---------- Prompt-assist (Session 7.1, P5.3 LLM-as-prompt-generator) ----------
+
+/**
+ * Where the generated draft will be pasted next. Drives the output formula
+ * baked into PROMPT_ASSIST_SYSTEM (image vs music have different field
+ * skeletons per AI_PROMPT_ENGINEERING_GUIDE.md §5.3).
+ */
+export type PromptAssistTarget = 'image' | 'music';
+
+/**
+ * One-shot LLM call: GM writes a natural-language brief, gets back a
+ * structured prompt for the relevant Image/Music modal. No conversation
+ * persistence — `prompt-assist` is route-local and never enters the
+ * `AssistantContext` union (no DB conversation row, no message log).
+ *
+ * RBAC: GM-only — the only consumers (image + music routes) are GM-gated,
+ * so authorising members would burn LLM budget on an unusable draft.
+ */
+export interface PromptAssistRequest {
+  /** RBAC scope. */
+  roomId: string;
+  target: PromptAssistTarget;
+  /** GM brief, max 1000 chars. Empty/oversize → 400 ai_invalid_prompt. */
+  userPrompt: string;
+}
+
+export interface PromptAssistResponse {
+  /** Plain-text draft the client pastes into the Image or Music modal. */
+  draft: string;
+}
+
 // ---------- Image conversations (Session 7.1, Nano Banana 2) ----------
 
 export interface AssistantImageConversationDTO {

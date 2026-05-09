@@ -15,6 +15,9 @@ import type {
   AssistantStreamRequest,
   AIQuotaResponse,
   AssistantVariables,
+  PromptAssistRequest,
+  PromptAssistResponse,
+  PromptAssistTarget,
 } from '@vtt/shared';
 import type { AssistantMessageRepository } from '../repositories/AssistantMessageRepository.js';
 import type { AssistantConversationRepository } from '../repositories/AssistantConversationRepository.js';
@@ -214,6 +217,41 @@ const NPC_RESPONSE_SCHEMA: Record<string, any> = {
  * provided schema, and fixes the contract for license-bounded refusal
  * (sentinel hp=-1, ac=-1 + refusal sentence in `special_ability`).
  */
+/**
+ * S7.1 / P5.3 — system prompt for the LLM-as-prompt-generator endpoint.
+ *
+ * Source: AI_PROMPT_ENGINEERING_GUIDE.md §5.3 (lines 580-587). The SPECIAL
+ * SKILL block is reproduced verbatim from the guide and dispatches on the
+ * `[Target]` token the service injects into the user message; the model
+ * picks the right formula skeleton based on the target the GM asked for.
+ *
+ * Output is **plain text** (not Ukrainian narrative). The draft will be
+ * pasted as-is into the Image or Music modal textarea, where it feeds the
+ * existing image/music providers — those providers do their own translation
+ * to provider-native prompt format. No conversation persistence; no
+ * session-context injection; no variables block (the modals already carry
+ * setting/style/preset selectors).
+ */
+const PROMPT_ASSIST_SYSTEM = `You are a prompt-engineering specialist for a Virtual Tabletop AI pipeline. Your single output is a structured prompt the Game Master will paste into a generation modal — never a chat reply, never a refusal narrative, never markdown decoration.
+
+SPECIAL SKILL: If the user asks you to generate a prompt for image generation or music,
+output a structured prompt using the following format:
+
+For IMAGE: Start with "IMAGE PROMPT:" then apply the formula:
+[Subject] + [Composition] + [Style] + [Lighting] + [Color palette] + [Constraints].
+
+For MUSIC: Start with "MUSIC PROMPT:" then apply the formula:
+[Scene] + [Genre] + [Mood adjectives] + [Instrumentation] + [Tempo] + [Ambiance] + [Hard constraints: instrumental only, no vocals, no prominent beat].
+
+RULES:
+1. The user message will be tagged with "[Target: image]" or "[Target: music]" — use that exact target's formula. Do not produce both.
+2. Render the formula as a single comma- or plus-separated line, plain English, no Ukrainian narrative, no headings, no preamble, no "Here's the prompt:" intro.
+3. Substitute every bracketed placeholder with concrete English nouns, adjectives, or descriptive phrases drawn from the GM brief. Do not leave a placeholder un-filled.
+4. For MUSIC: the hard-constraints block is mandatory — append "instrumental only, no vocals, no prominent beat" verbatim at the end even if the GM did not mention it.
+5. For IMAGE: the constraints slot defaults to "no text, no watermark, no logo" when the GM gave no specific exclusion.
+6. If the GM brief is too vague to fill a slot, infer the most genre-appropriate value and proceed silently — do not ask clarifying questions, do not flag uncertainty, do not produce variants.
+7. Keep the total length under 80 words. The downstream image/music providers truncate aggressively beyond that.`;
+
 const NPC_JSON_INSTRUCTION = `
 OUTPUT FORMAT (JSON MODE):
 - Respond with a single JSON object matching the provided schema. Do NOT output markdown headings, prose preamble, or trailing commentary — only the JSON.
@@ -543,6 +581,27 @@ export class AssistantService {
       { system: SYSTEM_PROMPTS['srd-lookup'], history: [], user: trimmed },
       { thinkingLevel: 'low' },
     );
+  }
+
+  /**
+   * S7.1 / P5.3 — LLM-as-prompt-generator. One-shot: GM brief → structured
+   * prompt for the image or music modal. No conversation row, no message
+   * log, no session-context injection.
+   *
+   * Caller (route layer) is responsible for GM-only RBAC; the service only
+   * validates input shape. Mirrors the contract of `lookupSRD`.
+   */
+  async generatePromptDraft(req: PromptAssistRequest): Promise<PromptAssistResponse> {
+    const trimmed = req.userPrompt.trim();
+    if (trimmed.length === 0) throw new Error('INVALID_CONTENT');
+    if (trimmed.length > 1000) throw new Error('INVALID_CONTENT');
+    const target: PromptAssistTarget = req.target === 'music' ? 'music' : 'image';
+    const taggedUser = `[Target: ${target}]\n\n${trimmed}`;
+    const draft = await this.provider.generateText(
+      { system: PROMPT_ASSIST_SYSTEM, history: [], user: taggedUser },
+      { thinkingLevel: 'low' },
+    );
+    return { draft };
   }
 
   /**

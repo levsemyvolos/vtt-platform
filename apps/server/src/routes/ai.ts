@@ -13,6 +13,8 @@ import type {
   AssistantStreamRequest,
   SRDLookupRequest,
   SRDLookupResponse,
+  PromptAssistRequest,
+  PromptAssistResponse,
   CreateImageConversationRequest,
   RenameImageConversationRequest,
   ContinueImageConversationRequest,
@@ -209,6 +211,40 @@ export function buildAiRouter(
         const result = await aiService.generateMusic(req.user!.id, req.body);
         res.status(201).json(result);
       } catch (err) {
+        handleError(err, res);
+      }
+    },
+  );
+
+  /**
+   * POST /ai/prompt-assist
+   * S7.1 / P5.3 — LLM-as-prompt-generator. GM-only (cost-coupling: the only
+   * downstream consumers, /image and /music, are GM-gated). One-shot, no
+   * persistence. Body: { roomId, target: 'image' | 'music', userPrompt }.
+   */
+  router.post(
+    '/prompt-assist',
+    jwtAuth,
+    aiRateLimiter,
+    roomGM,
+    async (req: Request<object, object, PromptAssistRequest>, res: Response) => {
+      try {
+        const { roomId, target, userPrompt } = req.body;
+        if (!roomId || !target || !userPrompt) {
+          res.status(400).json({ error: { code: 400, message: 'roomId, target, userPrompt are required' } });
+          return;
+        }
+        if (target !== 'image' && target !== 'music') {
+          res.status(400).json({ error: { code: 400, kind: 'ai_invalid_prompt', message: 'target must be image or music' } });
+          return;
+        }
+        const result: PromptAssistResponse = await assistantService.generatePromptDraft({ roomId, target, userPrompt });
+        res.json(result);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'INVALID_CONTENT') {
+          res.status(400).json({ error: { code: 400, kind: 'ai_invalid_prompt', message: 'Prompt is empty or too long' } });
+          return;
+        }
         handleError(err, res);
       }
     },

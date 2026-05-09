@@ -72,7 +72,9 @@ function makeRoomRepo(): RoomRepository {
 
 function makeStubs() {
   const aiService = {} as AIService;
-  const assistantService = {} as AssistantService;
+  const assistantService = {
+    generatePromptDraft: vi.fn().mockResolvedValue({ draft: 'IMAGE PROMPT: stub' }),
+  } as unknown as AssistantService;
   const imageAssistantService = {
     createConversation: vi.fn().mockResolvedValue({
       id: 'conv-stub-id',
@@ -142,5 +144,73 @@ describe('AI image-conversations RBAC — POST /ai/image-conversations (S-Fix1)'
       .send({ roomId: ROOM_ID, title: 'no-auth' });
 
     expect(res.status).toBe(401);
+  });
+});
+
+/**
+ * S7.1 / P5.3 — `/ai/prompt-assist` mirrors the image/music GM-only gate.
+ * The endpoint exists to feed inputs into the GM-gated /image and /music
+ * routes; authorising members would burn LLM budget on an unusable draft.
+ */
+describe('AI prompt-assist RBAC — POST /ai/prompt-assist (S7.1)', () => {
+  it('Player member → 403', async () => {
+    const app = makeApp();
+    const token = makeAccessToken(PLAYER_ID);
+
+    const res = await request(app)
+      .post('/ai/prompt-assist')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ roomId: ROOM_ID, target: 'image', userPrompt: 'a wounded knight at dawn' });
+
+    expect(res.status).toBe(403);
+    expect(res.body?.error?.code).toBe(403);
+  });
+
+  it('Non-member outsider → 403', async () => {
+    const app = makeApp();
+    const token = makeAccessToken(OUTSIDER_ID);
+
+    const res = await request(app)
+      .post('/ai/prompt-assist')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ roomId: ROOM_ID, target: 'music', userPrompt: 'tense cave exploration' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('GM owner → 200 + { draft }', async () => {
+    const app = makeApp();
+    const token = makeAccessToken(GM_ID);
+
+    const res = await request(app)
+      .post('/ai/prompt-assist')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ roomId: ROOM_ID, target: 'image', userPrompt: 'a wounded knight at dawn' });
+
+    expect(res.status).toBe(200);
+    expect(res.body?.draft).toBe('IMAGE PROMPT: stub');
+  });
+
+  it('Missing token → 401', async () => {
+    const app = makeApp();
+
+    const res = await request(app)
+      .post('/ai/prompt-assist')
+      .send({ roomId: ROOM_ID, target: 'image', userPrompt: 'no auth' });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('GM with invalid target → 400 ai_invalid_prompt', async () => {
+    const app = makeApp();
+    const token = makeAccessToken(GM_ID);
+
+    const res = await request(app)
+      .post('/ai/prompt-assist')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ roomId: ROOM_ID, target: 'video', userPrompt: 'something' });
+
+    expect(res.status).toBe(400);
+    expect(res.body?.error?.kind).toBe('ai_invalid_prompt');
   });
 });
