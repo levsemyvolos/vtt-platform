@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetDTO } from '@vtt/shared';
+import ConfirmModal from '../common/ConfirmModal';
 import styles from './AssetCard.module.css';
 
 export interface AssetCardActions {
@@ -42,21 +43,20 @@ interface AssetActionsRowProps {
   asset: AssetDTO;
   isImage: boolean;
   pickLabel?: string | undefined;
-  deleteConfirmMsg: string;
   deleteLabel: string;
   useAsBackgroundLabel: string;
   addToSceneLabel: string;
   onPick?: ((asset: AssetDTO) => void) | undefined;
   onSetBackground?: ((asset: AssetDTO) => void) | undefined;
   onAddToScene?: ((asset: AssetDTO) => void) | undefined;
-  onDelete?: ((asset: AssetDTO) => void) | undefined;
+  onDeleteRequest?: ((asset: AssetDTO) => void) | undefined;
 }
 
 /** Action buttons rendered over the thumbnail (pick, set bg, add, delete).
  *  Extracted to keep AssetCard cyclomatic complexity ≤ 10 (lint gate). */
 function AssetActionsRow(props: AssetActionsRowProps): JSX.Element {
-  const { asset, isImage, pickLabel, deleteConfirmMsg, deleteLabel, useAsBackgroundLabel, addToSceneLabel,
-    onPick, onSetBackground, onAddToScene, onDelete } = props;
+  const { asset, isImage, pickLabel, deleteLabel, useAsBackgroundLabel, addToSceneLabel,
+    onPick, onSetBackground, onAddToScene, onDeleteRequest } = props;
   return (
     <div className={styles.actions}>
       {onPick && isImage ? (
@@ -74,11 +74,11 @@ function AssetActionsRow(props: AssetActionsRowProps): JSX.Element {
           {addToSceneLabel}
         </button>
       ) : null}
-      {onDelete ? (
+      {onDeleteRequest ? (
         <button
           type="button"
           className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
-          onClick={() => { if (window.confirm(deleteConfirmMsg)) onDelete(asset); }}
+          onClick={() => onDeleteRequest(asset)}
         >
           {deleteLabel}
         </button>
@@ -100,6 +100,7 @@ export default function AssetCard({
   const { t } = useTranslation('room');
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(asset.name);
+  const [pendingDelete, setPendingDelete] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -155,14 +156,13 @@ export default function AssetCard({
           asset={asset}
           isImage={isImage}
           pickLabel={pickLabel}
-          deleteConfirmMsg={t('sceneEditor.assetLibrary.deleteConfirm', { name: asset.name })}
           deleteLabel={t('sceneEditor.assetLibrary.delete')}
           useAsBackgroundLabel={t('sceneEditor.assetLibrary.useAsBackground')}
           addToSceneLabel={t('sceneEditor.assetLibrary.addToScene')}
           onPick={onPick}
           onSetBackground={onSetBackground}
           onAddToScene={onAddToScene}
-          onDelete={onDelete}
+          onDeleteRequest={onDelete ? () => setPendingDelete(true) : undefined}
         />
       </div>
       {editing ? (
@@ -186,6 +186,15 @@ export default function AssetCard({
         </span>
       )}
       <span className={styles.meta}>{formatType(asset.type)}</span>
+      <ConfirmModal
+        open={pendingDelete}
+        title={t('sceneEditor.assetLibrary.delete')}
+        message={t('sceneEditor.assetLibrary.deleteConfirm', { name: asset.name })}
+        confirmLabel={t('common:btn.delete')}
+        variant="danger"
+        onConfirm={() => { setPendingDelete(false); onDelete?.(asset); }}
+        onClose={() => setPendingDelete(false)}
+      />
     </div>
   );
 }

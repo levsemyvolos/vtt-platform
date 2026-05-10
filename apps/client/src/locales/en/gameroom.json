@@ -95,6 +95,20 @@
     "fowOff": "off",
     "noScene": "—"
   },
+  "connection": {
+    "reconnecting": "Reconnecting…",
+    "restored": "Connection restored",
+    "failed": "Connection failed — please reload"
+  },
+  "notifications": {
+    "whisperFrom": "Whisper from {{name}}",
+    "yourTurn": "Your turn",
+    "sceneChanged": "GM changed the scene: {{name}}"
+  },
+  "kicked": {
+    "title": "Removed from session",
+    "body": "You were removed from the session by the GM."
+  },
   "migration": {
     "aiMoved": "AI Assistant has moved to the main toolbar"
   },

@@ -274,6 +274,19 @@ export default function GameCanvas({
   // cyclomatic-complexity gate.
   const renderFlags = computeRenderFlags(activeTool, myRole, imgTool.showPlacementGhost, imgTool.pendingImageAssetUrl);
 
+  // B6 — fade-to-black overlay when GM changes the active scene (non-GMs only).
+  const [sceneTransitioning, setSceneTransitioning] = useState(false);
+  const prevSceneIdRef = useRef<string>(scene.id);
+  useEffect(() => {
+    if (myRole === 'GM') return;
+    if (prevSceneIdRef.current !== scene.id) {
+      prevSceneIdRef.current = scene.id;
+      setSceneTransitioning(true);
+      const t = setTimeout(() => setSceneTransitioning(false), 280);
+      return () => clearTimeout(t);
+    }
+  }, [scene.id, myRole]);
+
   const { onStageMouseDown, onStageMouseMove, onStageMouseUp, onStageClick } =
     useToolHandlers(activeTool, scene, myRole, myUserId, roomId, setTextAnnCoords, fogMode, setFogMarquee, setSelectMarquee);
 
@@ -569,6 +582,9 @@ export default function GameCanvas({
           onPick={(asset) => { dispatch(setPendingImageAssetId(asset.id)); }}
           onClose={() => { dispatch(setActiveTool('select')); }}
         />
+      )}
+      {sceneTransitioning && (
+        <div className={styles.sceneFadeOverlay} aria-hidden="true" />
       )}
     </div>
   );

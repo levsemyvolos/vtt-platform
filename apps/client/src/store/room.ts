@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { RoomDTO, RoomMemberDTO, CreateRoomRequest } from '@vtt/shared';
-import { apiFetch } from '../api/apiFetch';
+import { apiFetch, ApiError } from '../api/apiFetch';
 import { addToast } from './toast';
 
 // B6-BUG-002: typed query option types for fetchRooms.
@@ -27,6 +27,8 @@ interface RoomState {
   members: RoomMemberDTO[];
   status: 'idle' | 'loading' | 'loaded' | 'error';
   error: string | null;
+  /** HTTP status code from the last failed fetchRoom call (0 = network error). */
+  roomErrorCode: number | null;
   sessionActive: boolean;
   editingSceneId: string | null;
 }
@@ -37,6 +39,7 @@ const initialState: RoomState = {
   members: [],
   status: 'idle',
   error: null,
+  roomErrorCode: null,
   sessionActive: false,
   editingSceneId: null,
 };
@@ -76,15 +79,23 @@ export const createRoom = createAsyncThunk<RoomDTO, CreateRoomRequest, { rejectV
   },
 );
 
-export const fetchRoom = createAsyncThunk<RoomDTO, string, { rejectValue: string }>(
+export const fetchRoom = createAsyncThunk<
+  RoomDTO,
+  string,
+  { rejectValue: { message: string; code: number | null } }
+>(
   'room/fetchRoom',
   async (roomId, { rejectWithValue }) => {
     try {
       return await apiFetch<RoomDTO>(`/api/rooms/${roomId}`);
     } catch (err) {
-      return rejectWithValue(
-        err instanceof Error ? err.message : 'Не вдалося завантажити кімнату',
-      );
+      if (err instanceof ApiError) {
+        return rejectWithValue({ message: err.message, code: err.status });
+      }
+      return rejectWithValue({
+        message: err instanceof Error ? err.message : 'Не вдалося завантажити кімнату',
+        code: null,
+      });
     }
   },
 );
@@ -138,6 +149,7 @@ const roomSlice = createSlice({
       state.members = [];
       state.status = 'idle';
       state.error = null;
+      state.roomErrorCode = null;
       state.sessionActive = false;
       state.editingSceneId = null;
     },
@@ -147,6 +159,7 @@ const roomSlice = createSlice({
       state.members = [];
       state.status = 'idle';
       state.error = null;
+      state.roomErrorCode = null;
       state.sessionActive = false;
       state.editingSceneId = null;
     },
@@ -233,7 +246,8 @@ const roomSlice = createSlice({
       })
       .addCase(fetchRoom.rejected, (state, action) => {
         state.status = 'error';
-        state.error = action.payload ?? 'Помилка завантаження';
+        state.error = action.payload?.message ?? 'Помилка завантаження';
+        state.roomErrorCode = action.payload?.code ?? null;
       })
       .addCase(updateRoom.fulfilled, (state, action) => {
         const idx = state.ownRooms.findIndex((r) => r.id === action.payload.id);

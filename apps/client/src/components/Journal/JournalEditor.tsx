@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { FileText, Lock, Users } from 'lucide-react';
+import ConfirmModal from '../common/ConfirmModal';
 import type { AssetDTO, JournalEntryDTO, Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
@@ -113,7 +114,6 @@ function useEditorActions({
 
   async function handleDelete(): Promise<void> {
     if (!entry) return;
-    if (!window.confirm(t('journal.editor.deleteConfirm'))) return;
     setDeleting(true);
     try {
       await dispatch(deleteEntryThunk(entry.id)).unwrap();
@@ -478,6 +478,7 @@ export default function JournalEditor({
   const [showShareModal, setShowShareModal] = useState(false);
   const [pickerOpen, setPickerOpen] = useState<PickerMode>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [pendingDeleteOpen, setPendingDeleteOpen] = useState(false);
 
   // Sync from store when entry is updated (WSS patches)
   useEffect(() => {
@@ -495,11 +496,11 @@ export default function JournalEditor({
   // Keyboard close (ESC)
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape' && !showShareModal && !lightboxOpen) onClose();
+      if (e.key === 'Escape' && !showShareModal && !lightboxOpen && !pendingDeleteOpen) onClose();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, showShareModal, lightboxOpen]);
+  }, [onClose, showShareModal, lightboxOpen, pendingDeleteOpen]);
 
   const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -595,7 +596,7 @@ export default function JournalEditor({
             deleting={deleting}
             titleEmpty={title.trim().length === 0}
             onSave={() => { void handleSave(); }}
-            onDelete={() => { void handleDelete(); }}
+            onDelete={() => setPendingDeleteOpen(true)}
             onCancel={onClose}
           />
         </div>
@@ -612,6 +613,16 @@ export default function JournalEditor({
           onClose={() => setLightboxOpen(false)}
         />
       )}
+      <ConfirmModal
+        open={pendingDeleteOpen}
+        title={t('journal.editor.deleteBtn')}
+        message={t('journal.editor.deleteConfirm')}
+        confirmLabel={t('common:btn.delete')}
+        variant="danger"
+        busy={deleting}
+        onConfirm={() => { setPendingDeleteOpen(false); void handleDelete(); }}
+        onClose={() => setPendingDeleteOpen(false)}
+      />
     </>,
     document.body,
   );

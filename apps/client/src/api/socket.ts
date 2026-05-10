@@ -39,7 +39,7 @@ import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
 import { upsertRoomMember, removeRoomMember, removeRoom, applyRoomUpdate, startSession, clearRoom } from '../store/room';
 import { setMicEnabled, setCameraEnabled } from '../store/media';
 import { addToast } from '../store/toast';
-import { bumpTab } from '../store/notifications';
+import { bumpTab, setKicked, setSocketReconnecting } from '../store/notifications';
 import { upsertCharacter, removeCharacter } from '../store/characters';
 import { upsertEntry, removeEntry } from '../store/journal';
 import { playNotificationBeep } from '../utils/notificationSound';
@@ -85,6 +85,19 @@ export function getSocket(): TypedClientSocket {
         console.error('[Socket] Reconnect auth failure:', e);
       }
     }
+  });
+
+  // B4 — reconnect lifecycle: banner state + success toast + state resync.
+  socket.io.on('reconnect_attempt', () => {
+    store.dispatch(setSocketReconnecting(true));
+  });
+  socket.io.on('reconnect', () => {
+    store.dispatch(setSocketReconnecting(false));
+    store.dispatch(addToast('success', i18n.t('gameroom:connection.restored')));
+  });
+  socket.io.on('reconnect_failed', () => {
+    store.dispatch(setSocketReconnecting(false));
+    store.dispatch(addToast('error', i18n.t('gameroom:connection.failed')));
   });
 
   socket.on('scene:updated', (payload) => {
@@ -194,7 +207,7 @@ export function getSocket(): TypedClientSocket {
     if (msg.userId === myUserId) return; // suppress self-notification
     if (msg.mode === 'whisper' && msg.recipientId === myUserId) {
       const fromName = state.room.members.find((m) => m.userId === msg.userId)?.name ?? msg.userId.slice(0, 6);
-      store.dispatch(addToast('info', `Whisper from ${fromName}`));
+      store.dispatch(addToast('info', i18n.t('gameroom:notifications.whisperFrom', { name: fromName })));
       playNotificationBeep(state.notifications.soundMuted);
       if (state.notifications.activeTab !== 'chat') {
         store.dispatch(bumpTab('chat'));
@@ -223,7 +236,7 @@ export function getSocket(): TypedClientSocket {
     const token = tokens.find((tk) => tk.id === nextCurrent.tokenId);
     if (!token) return;
     if (token.assignedUserId === myUserId) {
-      store.dispatch(addToast('info', 'Your turn'));
+      store.dispatch(addToast('info', i18n.t('gameroom:notifications.yourTurn')));
       playNotificationBeep(next.notifications.soundMuted);
       if (next.notifications.activeTab !== 'initiative') {
         store.dispatch(bumpTab('initiative'));
@@ -253,7 +266,15 @@ export function getSocket(): TypedClientSocket {
   // Sender's hydrateScene from PATCH response is idempotent; others get the update.
   // On scene:flush (Done), players receive background/grid changes staged during Edit Scene.
   socket.on('scene:snapshot', (payload) => {
+    const prevState = store.getState();
+    const prevSceneId = prevState.scene.current?.id ?? null;
+    const myUserId = prevState.session.currentUser?.id;
+    const myMember = myUserId ? prevState.room.members.find((m) => m.userId === myUserId) : null;
+    const isGm = myMember?.role === 'GM';
     store.dispatch(hydrateScene(payload.scene));
+    if (!isGm && prevSceneId !== null && prevSceneId !== payload.scene.id) {
+      store.dispatch(addToast('info', i18n.t('gameroom:notifications.sceneChanged', { name: payload.scene.name })));
+    }
   });
   // Note: server responds to `session:resync` only via the ack callback (see
   // `emitSessionResync` below вЂ” its caller in RoomLobby dispatches the hydrate
@@ -330,16 +351,12 @@ export function getSocket(): TypedClientSocket {
     store.dispatch(addToast('warning', i18n.t('gameroom:gmCamOff')));
   });
 
-  // Moderation: kicked from session — hard-redirect to dashboard.
-  // Hard navigate so PeerManager + Redux state are wiped cleanly.
-  // disconnect() stops the auto-reconnect loop before the 800 ms redirect fires.
+  // Moderation: kicked from session — show blocking modal, user navigates on OK.
+  // KickedModal reads notifications.kicked from Redux and calls navigate('/dashboard').
   socket.on('room:kicked', () => {
     socket?.disconnect();
-    store.dispatch(addToast('error', i18n.t('gameroom:kickedFromRoom')));
     store.dispatch(clearRoom());
-    setTimeout(() => {
-      window.location.href = '/dashboard';
-    }, 800);
+    store.dispatch(setKicked(true));
   });
 
   // Ф3.4.3 — ephemeral ruler; upsert per-userId, auto-removed 5 s after last update.

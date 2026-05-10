@@ -6,6 +6,7 @@ import { useTheme } from '../hooks/useTheme';
 import DesktopOnlyGuard from '../components/common/DesktopOnlyGuard';
 import Toast from '../components/common/Toast';
 import BootstrapLoader from '../components/common/BootstrapLoader';
+import KickedModal from '../components/GameRoom/KickedModal';
 
 export default function RootLayout(): JSX.Element {
   useTheme();
@@ -25,6 +26,7 @@ export default function RootLayout(): JSX.Element {
   return (
     <DesktopOnlyGuard>
       <Toast />
+      <KickedModal />
       {isBooting ? (
         <BootstrapLoader
           networkError={status === 'error'}

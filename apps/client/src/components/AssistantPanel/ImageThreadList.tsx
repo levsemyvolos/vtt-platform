@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import ConfirmModal from '../common/ConfirmModal';
 import type { AssistantImageConversationDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
@@ -76,6 +77,7 @@ export default function ImageThreadList({ roomId }: ImageThreadListProps): JSX.E
   const { t } = useTranslation('assistant');
   const conversationsMap = useAppSelector((s) => s.imageAssistant.conversations);
   const activeConversationId = useAppSelector((s) => s.imageAssistant.activeConversationId);
+  const [pendingDelete, setPendingDelete] = useState<AssistantImageConversationDTO | null>(null);
 
   // Fetch on mount per room.
   useEffect(() => {
@@ -115,13 +117,23 @@ export default function ImageThreadList({ roomId }: ImageThreadListProps): JSX.E
   }
 
   function handleDelete(conv: AssistantImageConversationDTO): void {
-    const ok = window.confirm(t('imageThreadList.deleteConfirm', { title: conv.title }));
-    if (!ok) return;
-    void dispatch(deleteImageConv({ id: conv.id }));
+    setPendingDelete(conv);
   }
 
   return (
     <aside className={styles.imageThreadList}>
+      <ConfirmModal
+        open={pendingDelete !== null}
+        title={t('imageThreadList.deleteLabel')}
+        message={t('imageThreadList.deleteConfirm', { title: pendingDelete?.title ?? '' })}
+        confirmLabel={t('common:btn.delete')}
+        variant="danger"
+        onConfirm={() => {
+          if (pendingDelete) void dispatch(deleteImageConv({ id: pendingDelete.id }));
+          setPendingDelete(null);
+        }}
+        onClose={() => setPendingDelete(null)}
+      />
       <button type="button" className={styles.newBtn} onClick={handleNew}>
         {t('imageThreadList.newBtn')}
       </button>

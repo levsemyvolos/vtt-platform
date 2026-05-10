@@ -10,12 +10,18 @@ interface NotificationsState {
    *  listeners can decide whether to bump a badge or skip (when user is
    *  already viewing the relevant tab). Updated via setActiveTab. */
   activeTab: SidebarTab | null;
+  /** Set to true when the server emits room:kicked — triggers KickedModal. */
+  kicked: boolean;
+  /** Set to true while socket.io is actively reconnecting. */
+  socketReconnecting: boolean;
 }
 
 const initialState: NotificationsState = {
   unreadByTab: {},
-  soundMuted: false,
+  soundMuted: localStorage.getItem('vtt:soundMuted') === '1',
   activeTab: null,
+  kicked: false,
+  socketReconnecting: false,
 };
 
 const slice = createSlice({
@@ -30,12 +36,19 @@ const slice = createSlice({
     },
     toggleSoundMuted(state) {
       state.soundMuted = !state.soundMuted;
+      localStorage.setItem('vtt:soundMuted', state.soundMuted ? '1' : '0');
     },
     setActiveTab(state, action: PayloadAction<SidebarTab | null>) {
       state.activeTab = action.payload;
     },
+    setKicked(state, action: PayloadAction<boolean>) {
+      state.kicked = action.payload;
+    },
+    setSocketReconnecting(state, action: PayloadAction<boolean>) {
+      state.socketReconnecting = action.payload;
+    },
   },
 });
 
-export const { bumpTab, clearTab, toggleSoundMuted, setActiveTab } = slice.actions;
+export const { bumpTab, clearTab, toggleSoundMuted, setActiveTab, setKicked, setSocketReconnecting } = slice.actions;
 export default slice.reducer;

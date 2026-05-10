@@ -14,34 +14,13 @@ import { Logo, Badge, Avatar, IconButton } from '../ui';
 import ThemeToggle from '../Header/ThemeToggle';
 import LanguageSwitcher from '../Header/LanguageSwitcher';
 import { getSocket } from '../../api/socket';
+import { useWssConnected } from '../../api/useWssConnected';
 import styles from './GameRoomTopBar.module.css';
 
 interface GameRoomTopBarProps {
   myRole: Role;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
-}
-
-function useWssConnected(): boolean {
-  const [connected, setConnected] = useState(false);
-  useEffect(() => {
-    let sock: ReturnType<typeof getSocket>;
-    try {
-      sock = getSocket();
-    } catch {
-      return;
-    }
-    setConnected(sock.connected);
-    const onConnect = (): void => setConnected(true);
-    const onDisconnect = (): void => setConnected(false);
-    sock.on('connect', onConnect);
-    sock.on('disconnect', onDisconnect);
-    return () => {
-      sock.off('connect', onConnect);
-      sock.off('disconnect', onDisconnect);
-    };
-  }, []);
-  return connected;
 }
 
 // eslint-disable-next-line complexity

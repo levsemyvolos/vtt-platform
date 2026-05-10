@@ -72,9 +72,15 @@ describe('fetchRoom thunk', () => {
   });
 
   it('rejected sets error status', () => {
-    const action = fetchRoom.rejected(null, '', 'deleted-room', 'Не вдалося завантажити кімнату');
+    const action = fetchRoom.rejected(null, '', 'deleted-room', { message: 'Не вдалося завантажити кімнату', code: null });
     const s = roomReducer(init(), action);
     expect(s.status).toBe('error');
+  });
+
+  it('rejected 404 sets roomErrorCode', () => {
+    const action = fetchRoom.rejected(null, '', 'deleted-room', { message: 'Not Found', code: 404 });
+    const s = roomReducer(init(), action);
+    expect(s.roomErrorCode).toBe(404);
   });
 });
 

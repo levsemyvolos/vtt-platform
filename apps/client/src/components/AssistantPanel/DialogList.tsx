@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import ConfirmModal from '../common/ConfirmModal';
 import type { AssistantContext, AssistantConversationDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
@@ -31,6 +32,7 @@ export default function DialogList({ roomId }: DialogListProps): JSX.Element {
   const activeConversationId = useAppSelector((s) => s.assistant.activeConversationId);
   const conversationsMap = useAppSelector((s) => s.assistant.conversations);
   const messagesLoaded = useAppSelector((s) => s.assistant.messagesLoaded);
+  const [pendingDelete, setPendingDelete] = useState<AssistantConversationDTO | null>(null);
 
   // Fetch conversations once per room.
   useEffect(() => {
@@ -78,13 +80,23 @@ export default function DialogList({ roomId }: DialogListProps): JSX.Element {
   }
 
   function handleDelete(conv: AssistantConversationDTO): void {
-    const ok = window.confirm(t('dialogList.deleteConfirm', { title: conv.title }));
-    if (!ok) return;
-    void dispatch(deleteConversation({ id: conv.id }));
+    setPendingDelete(conv);
   }
 
   return (
     <aside className={styles.dialogList}>
+      <ConfirmModal
+        open={pendingDelete !== null}
+        title={t('dialogList.deleteLabel')}
+        message={t('dialogList.deleteConfirm', { title: pendingDelete?.title ?? '' })}
+        confirmLabel={t('common:btn.delete')}
+        variant="danger"
+        onConfirm={() => {
+          if (pendingDelete) void dispatch(deleteConversation({ id: pendingDelete.id }));
+          setPendingDelete(null);
+        }}
+        onClose={() => setPendingDelete(null)}
+      />
       <div className={styles.filterBar} role="tablist" aria-label={t('dialogList.filterLabel')}>
         {CONTEXTS.map((id) => (
           <button

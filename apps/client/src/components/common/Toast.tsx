@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { removeToast, type ToastItem, type ToastVariant } from '../../store/toast';
@@ -19,10 +19,13 @@ const DISMISS_MS: Record<ToastVariant, number> = {
   info: 5000,
 };
 
+const LEAVE_DURATION_MS = 180;
+
 /** Single toast item that auto-dismisses after its variant-specific delay. */
 function ToastItemView({ item }: { item: ToastItem }): JSX.Element {
   const dispatch = useAppDispatch();
   const { t: translate } = useTranslation(['errors', 'common', 'room']);
+  const [leaving, setLeaving] = useState(false);
 
   const renderMessage = (raw: string): string => {
     if (
@@ -33,29 +36,42 @@ function ToastItemView({ item }: { item: ToastItem }): JSX.Element {
     return raw;
   };
 
+  function startLeave(): void {
+    setLeaving(true);
+    setTimeout(() => {
+      dispatch(removeToast(item.id));
+    }, LEAVE_DURATION_MS);
+  }
+
   // Each toast manages its own timer so they dismiss independently.
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      dispatch(removeToast(item.id));
-    }, DISMISS_MS[item.variant]);
+    timerRef.current = setTimeout(startLeave, DISMISS_MS[item.variant]);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [item.id, item.variant, dispatch]);
+    // startLeave is stable within the closure; item.id/variant are the keys.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id, item.variant]);
+
+  const variantClass = item.variant === 'error' ? 'alert' : 'status';
 
   return (
     <div
-      role="status"
-      className={`${styles.toast} ${styles[`toast--${item.variant}`]}`}
+      role={variantClass === 'alert' ? 'alert' : 'status'}
+      aria-live={variantClass === 'alert' ? 'assertive' : 'polite'}
+      className={`${styles.toast} ${styles[`toast--${item.variant}`]}${leaving ? ` ${styles.leaving}` : ''}`}
     >
       <span className={styles.icon} aria-hidden="true">{ICONS[item.variant]}</span>
-      <span className={styles.message}>{renderMessage(item.message)}</span>
+      <span className={styles.message}>
+        {renderMessage(item.message)}
+        {item.count && item.count > 1 ? <span className={styles.count}> ×{item.count}</span> : null}
+      </span>
       <button
         type="button"
         className={styles.close}
-        onClick={() => dispatch(removeToast(item.id))}
+        onClick={startLeave}
         aria-label="Закрити сповіщення"
       >
         ×

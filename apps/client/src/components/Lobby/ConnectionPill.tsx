@@ -20,10 +20,20 @@ function StepIcon({ status }: { status: StepStatus }): JSX.Element {
   return <Circle size={10} strokeWidth={2} aria-hidden="true" />;
 }
 
+function roomErrorLabel(code: number | null, t: (k: string) => string): string | null {
+  if (code === null) return null;
+  if (code === 403) return t('lobby.connection.error.403');
+  if (code === 404) return t('lobby.connection.error.404');
+  if (code === 0) return t('lobby.connection.error.network');
+  if (code >= 500) return t('lobby.connection.error.5xx');
+  return null;
+}
+
 export default function ConnectionPill(): JSX.Element {
   const { t } = useTranslation('room');
   const sessionStatus = useAppSelector((s) => s.session.status);
   const roomStatus = useAppSelector((s) => s.room.status);
+  const roomErrorCode = useAppSelector((s) => s.room.roomErrorCode);
   const [socketConnected, setSocketConnected] = useState(false);
 
   useEffect(() => {
@@ -76,12 +86,18 @@ export default function ConnectionPill(): JSX.Element {
         {allDone && !hasError ? t('lobby.connection.allReady') : t('lobby.connection.diagnostic')}
       </span>
       <span className={styles.steps}>
-        {steps.map((step) => (
-          <span key={step.key} className={[styles.step, styles[step.status]].join(' ')}>
-            <StepIcon status={step.status} />
-            <span>{step.label}</span>
-          </span>
-        ))}
+        {steps.map((step) => {
+            const errLabel = step.status === 'error' && step.key === 'scene'
+              ? roomErrorLabel(roomErrorCode, t)
+              : null;
+            return (
+              <span key={step.key} className={[styles.step, styles[step.status]].join(' ')}>
+                <StepIcon status={step.status} />
+                <span>{step.label}</span>
+                {errLabel && <span className={styles.errorDetail}>{errLabel}</span>}
+              </span>
+            );
+          })}
       </span>
     </div>
   );

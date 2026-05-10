@@ -85,7 +85,13 @@
       "allReady": "Ready",
       "auth": "Auth",
       "scene": "Room",
-      "channel": "Channel"
+      "channel": "Channel",
+      "error": {
+        "403": "Access denied",
+        "404": "Room deleted",
+        "5xx": "Server unavailable",
+        "network": "No network"
+      }
     }
   },
   "sceneManager": {

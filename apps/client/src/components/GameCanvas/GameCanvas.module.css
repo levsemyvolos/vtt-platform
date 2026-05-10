@@ -16,6 +16,25 @@
   z-index: var(--z-modal);
 }
 
+.sceneFadeOverlay {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+  z-index: var(--z-elevated);
+  animation: sceneFade 280ms ease forwards;
+}
+
+@keyframes sceneFade {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sceneFadeOverlay { display: none; }
+}
+
 .fogEditBadge {
   position: absolute;
   bottom: var(--space-md);

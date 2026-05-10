@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Upload } from 'lucide-react';
 import type { AudioLayer, AudioMime } from '@vtt/shared';
 import { AUDIO_MAX_BYTES, AUDIO_ALLOWED_MIME } from '@vtt/shared';
-import { useAppDispatch } from '../../store';
+import { useAppDispatch, useAppSelector } from '../../store';
 import { uploadAudioTrack } from '../../store/audio';
 import styles from './AudioPanel.module.css';
 
@@ -16,6 +16,7 @@ interface TrackUploadProps {
 export default function TrackUpload({ roomId, sceneId, layer }: TrackUploadProps): JSX.Element {
   const { t } = useTranslation(['campaign', 'errors']);
   const dispatch = useAppDispatch();
+  const uploadProgress = useAppSelector((s) => s.audio.uploadProgress);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -122,6 +123,12 @@ export default function TrackUpload({ roomId, sceneId, layer }: TrackUploadProps
           {t('campaign:audio.uploadCancel')}
         </button>
       </div>
+      {busy && uploadProgress !== null && (
+        <div>
+          <progress className={styles.uploadProgress} max={100} value={uploadProgress} />
+          <span className={styles.uploadProgressLabel}>{uploadProgress}%</span>
+        </div>
+      )}
       {error && <p className={styles.uploadError}>{error}</p>}
     </form>
   );

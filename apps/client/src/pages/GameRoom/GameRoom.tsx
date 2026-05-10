@@ -17,6 +17,7 @@ import CharacterSheetOverlay from '../../components/CharacterSheet/CharacterShee
 import DiceTool from '../../components/Dice/DiceTool';
 import DiceOverlay from '../../components/Dice/DiceOverlay';
 import { GameRoomTopBar, CanvasToolbar, PartyColumn, StatusBar } from '../../components/GameRoom';
+import ConnectionLostBanner from '../../components/common/ConnectionLostBanner';
 import TurnRibbon from '../../components/GameRoom/TurnRibbon';
 import FogControlsPopover from '../../components/GameRoom/FogControlsPopover';
 import type { SidebarTab } from '../../components/GameRoom';
@@ -262,6 +263,7 @@ export default function GameRoom(): JSX.Element | null {
 
   return (
     <div className={styles.gameRoom} ref={gameRoomRef}>
+      <ConnectionLostBanner />
       <GameRoomTopBar
         myRole={myRole}
         sidebarCollapsed={sidebarCollapsed}

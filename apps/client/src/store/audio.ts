@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createAction, type PayloadAction } from '@reduxjs/toolkit';
 import type { AudioPlayPayload, AudioTrackDTO, AudioLayer, AudioMime } from '@vtt/shared';
 import { AUDIO_ALLOWED_MIME } from '@vtt/shared';
 import {
@@ -10,8 +10,8 @@ import {
   patchAudioTrack,
   playAudioTrack,
   stopAudioLayer,
-  uploadBytesToGcs,
 } from '../api/audio';
+import { uploadWithProgress } from '../api/uploads';
 
 
 interface VolumeMixer {
@@ -52,6 +52,8 @@ interface AudioState {
   pendingSfx: SfxEvent[];
   status: 'idle' | 'loading' | 'loaded' | 'error';
   error: string | null;
+  /** Upload progress 0–100 while uploadAudioTrack is in-flight; null otherwise. */
+  uploadProgress: number | null;
 }
 
 const SFX_QUEUE_CAP = 10;
@@ -63,7 +65,11 @@ const initialState: AudioState = {
   pendingSfx: [],
   status: 'idle',
   error: null,
+  uploadProgress: null,
 };
+
+/** Standalone action so the uploadAudioTrack thunk can dispatch it before the slice is defined. */
+export const setUploadProgress = createAction<number | null>('audio/uploadProgress');
 
 /** Generate a lightweight session-unique id. Browser `crypto.randomUUID` is
  *  required; fallback to monotonic counter to keep ids unique within session
@@ -115,18 +121,19 @@ export const uploadAudioTrack = createAsyncThunk<
   AudioTrackDTO,
   UploadArgs,
   { rejectValue: string }
->('audio/upload', async ({ roomId, file, title, layer, sceneId, loop, fadeMs }, { rejectWithValue }) => {
+>('audio/upload', async ({ roomId, file, title, layer, sceneId, loop, fadeMs }, { rejectWithValue, dispatch }) => {
   try {
     if (!AUDIO_ALLOWED_MIME.includes(file.type as AudioMime)) {
       return rejectWithValue('Підтримуються лише MP3, OGG та WAV файли');
     }
     const mimeType = file.type as AudioMime;
+    dispatch(setUploadProgress(0));
     const init = await initAudioUpload({
       roomId,
       mimeType,
       size: file.size,
     });
-    await uploadBytesToGcs(init.uploadUrl, file);
+    await uploadWithProgress(init.uploadUrl, file, (p) => dispatch(setUploadProgress(p)));
     const dto = await finalizeAudioUpload({
       roomId,
       storageKey: init.storageKey,
@@ -138,8 +145,10 @@ export const uploadAudioTrack = createAsyncThunk<
       loop: loop ?? false,
       ...(fadeMs !== undefined ? { fadeMs } : {}),
     });
+    dispatch(setUploadProgress(null));
     return dto;
   } catch (err) {
+    dispatch(setUploadProgress(null));
     return rejectWithValue(err instanceof Error ? err.message : 'Помилка завантаження');
   }
 });
@@ -298,6 +307,9 @@ const audioSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(setUploadProgress, (state, action) => {
+        state.uploadProgress = action.payload;
+      })
       .addCase(loadAudioTracks.pending, (state) => {
         state.status = 'loading';
         state.error = null;
