@@ -8,6 +8,68 @@
   background: color-mix(in srgb, var(--bg-1) 35%, transparent);
 }
 
+.listHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding-bottom: var(--space-xs);
+}
+
+.listEyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  box-shadow: var(--shadow-engrave);
+  transition: border-color var(--transition-fast);
+  min-width: 0;
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.search::placeholder {
+  color: var(--ink-faint);
+}
+
+.sortBtn {
+  width: 24px;
+  height: 24px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--ink-mute);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.sortBtn:hover {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--line));
+}
+
 .newBtn {
   padding: var(--space-sm) var(--space-md);
   background: var(--bg-1);
@@ -124,6 +186,15 @@
   border-radius: 2px;
   border: 1px solid transparent;
   transition: background var(--transition-fast), border-color var(--transition-fast);
+  overflow: hidden;
+}
+
+.row::before {
+  content: '';
+  width: 3px;
+  align-self: stretch;
+  background: var(--row-accent, var(--line));
+  flex-shrink: 0;
 }
 
 .row:hover {

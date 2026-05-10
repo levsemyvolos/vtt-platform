@@ -127,12 +127,17 @@ function CharacterCard({ character, onOpenSheet, ownerName }: CharacterCardProps
         </div>
       </div>
       <div className={styles.metrics}>
-        <span className={styles.metric}>
-          {stats.hp === null && stats.maxHp === null
-            ? 'HP —'
-            : `HP ${stats.hp ?? '—'}/${stats.maxHp ?? '—'}`}
-        </span>
-        <span className={styles.metric}>AC {stats.ac ?? '—'}</span>
+        {(() => {
+          const lowHp = stats.hp !== null && stats.maxHp !== null && stats.maxHp > 0 && stats.hp / stats.maxHp < 0.4;
+          return (
+            <span className={`${styles.metric}${lowHp ? ` ${styles.metricFire}` : ''}`}>
+              {stats.hp === null && stats.maxHp === null
+                ? 'HP —'
+                : `HP ${stats.hp ?? '—'}/${stats.maxHp ?? '—'}`}
+            </span>
+          );
+        })()}
+        <span className={`${styles.metric} ${styles.metricSteel}`}>AC {stats.ac ?? '—'}</span>
         <span className={styles.metric}>Init {formatMod(stats.initMod)}</span>
         <span className={styles.metric}>{stats.speed ?? '—'}ft</span>
       </div>

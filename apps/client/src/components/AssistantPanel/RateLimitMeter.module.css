@@ -1,0 +1,55 @@
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+  user-select: none;
+}
+
+.meterHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.meterEyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.meterValue {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+
+.meterValueLow {
+  color: var(--ember);
+}
+
+.meterTrack {
+  width: 100%;
+  height: 2px;
+  background: var(--line);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.meterBar {
+  height: 100%;
+  width: var(--fill, 100%);
+  background: var(--vitality, var(--primary));
+  border-radius: 1px;
+  transition: width 0.4s ease;
+}
+
+.meterBarLow {
+  background: var(--ember);
+}

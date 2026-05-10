@@ -69,13 +69,11 @@ export default function ConversationVariables({ conversationId, value, onChange,
     }
   }
 
-  const summary = (() => {
-    const parts: string[] = [];
-    if (value.ruleset) parts.push(value.ruleset);
-    if (value.playerLevel) parts.push(`L${value.playerLevel}`);
-    if (value.tone) parts.push(value.tone);
-    return parts.length > 0 ? parts.join(' • ') : t('variables.summaryNone');
-  })();
+  const summaryChips: Array<{ key: string; label: string; val: string }> = [];
+  if (value.ruleset)     summaryChips.push({ key: 'ruleset', label: 'Ruleset', val: value.ruleset });
+  if (value.playerLevel) summaryChips.push({ key: 'level',   label: 'L',       val: String(value.playerLevel) });
+  if (value.tone)        summaryChips.push({ key: 'tone',    label: 'Tone',    val: value.tone });
+  if (value.outputLanguage) summaryChips.push({ key: 'lang', label: 'Lang',    val: value.outputLanguage });
 
   return (
     <div className={styles.varsWrapper}>
@@ -86,7 +84,17 @@ export default function ConversationVariables({ conversationId, value, onChange,
         aria-expanded={open}
       >
         <span>{open ? '▼' : '▶'} {t('variables.title')}</span>
-        <span className={styles.varsSummary}>{summary}</span>
+        {!open && summaryChips.length > 0 ? (
+          <span className={styles.varsSummary}>
+            {summaryChips.slice(0, 4).map((chip) => (
+              <span key={chip.key} className={styles.summaryChip}>
+                <strong>{chip.label}:</strong> {chip.val}
+              </span>
+            ))}
+          </span>
+        ) : !open ? (
+          <span className={styles.varsSummary}>{t('variables.summaryNone')}</span>
+        ) : null}
       </button>
       {open && (
         <div className={styles.varsForm}>

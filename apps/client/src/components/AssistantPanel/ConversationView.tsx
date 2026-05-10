@@ -26,6 +26,21 @@ interface BubbleProps {
   onEditChange: (val: string) => void;
 }
 
+function formatMsgTime(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderParagraph(para: string, idx: number): JSX.Element {
+  const m = para.match(/^"(.+)"$/s);
+  if (m) {
+    return <blockquote key={idx} className={styles.speech}>{m[1]}</blockquote>;
+  }
+  return <ReactMarkdown key={idx}>{para}</ReactMarkdown>;
+}
+
 function MessageBubble({ msg, context, isEditing, editText, onEditChange }: BubbleProps): JSX.Element {
   const { t } = useTranslation('assistant');
   if (isEditing) {
@@ -47,7 +62,8 @@ function MessageBubble({ msg, context, isEditing, editText, onEditChange }: Bubb
       const npc = tryParseNpc(msg.content);
       if (npc) return <NpcCard npc={npc} />;
     }
-    return <ReactMarkdown>{msg.content}</ReactMarkdown>;
+    const paragraphs = msg.content.split(/\n\n+/);
+    return <>{paragraphs.map((p, i) => renderParagraph(p, i))}</>;
   }
   return <p>{msg.content}</p>;
 }
@@ -188,19 +204,28 @@ function MessageRow({
   msg, idx, context, isEditing, canEdit, isLastMsg, editText, status,
   onStartEdit, onEditChange, onSaveEdit, onCancelEdit, onRegenerate, onToNotes, onToChat,
 }: MessageRowProps): JSX.Element {
-  const { t } = useTranslation('assistant');
+  const isStreaming = msg.role === 'assistant' && isLastMsg && status === 'sending';
+  const timeStr = formatMsgTime(msg.createdAt);
+  const eyebrow = msg.role === 'user'
+    ? `ASKED${timeStr ? ` · ${timeStr}` : ''}`
+    : `COUNSEL${timeStr ? ` · ${timeStr}` : ''}${isStreaming ? ' · STREAMING' : ''}`;
+
   return (
     <div className={`${styles.message} ${msg.role === 'user' ? styles.messageUser : styles.messageAssistant}`}>
-      {msg.role === 'assistant' && (
-        <span className={styles.msgGlyph} aria-hidden>᛫</span>
-      )}
+      <div className={styles.roleChip} aria-hidden="true">
+        {msg.role === 'user' ? 'YOU' : 'GM'}
+      </div>
       <div className={styles.msgBody}>
-        <span className={styles.messageRole}>
-          {msg.role === 'user' ? t('conversation.roleUser') : t('conversation.roleAssistant')}
-        </span>
+        <span className={styles.messageRole}>{eyebrow}</span>
         <div className={styles.messageBubble}>
           <MessageBubble msg={msg} context={context} isEditing={isEditing} editText={editText} onEditChange={onEditChange} />
         </div>
+        {isStreaming && (
+          <div className={styles.streamingTail}>
+            <span className={styles.streamingDots}>···</span>
+            <span className={styles.streamingLabel}>CONTINUING…</span>
+          </div>
+        )}
         <MessageActions
           msg={msg} idx={idx} isEditing={isEditing} canEdit={canEdit} isLastMsg={isLastMsg}
           editText={editText} status={status}
@@ -464,6 +489,11 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
         />
         <div className={styles.inputActions}>
           <PresetChips context={activeContext} onSelect={(prompt) => setText(prompt)} />
+          <span className={styles.keyHint} aria-hidden="true">
+            <kbd className={styles.kbd}>Ctrl</kbd>
+            +
+            <kbd className={styles.kbd}>Enter</kbd>
+          </span>
           <button
             type="button"
             className={styles.sendBtn}
@@ -472,6 +502,9 @@ function LlmPanel({ roomId }: LlmPanelProps): JSX.Element {
             aria-label={t('input.sendLabel')}
           >
             {status === 'sending' ? t('input.sending') : t('input.sendBtn')}
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 6h8M7 3l3 3-3 3" />
+            </svg>
           </button>
         </div>
       </div>

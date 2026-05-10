@@ -35,7 +35,7 @@
   },
   "header": {
     "eyebrow": "Ведучий · AI-асистент",
-    "title": "AI-інструментарій ведучого",
+    "title": "GM AI <em>Toolkit</em>",
     "subtitle": "Gemini · Lyria",
     "rateLimit": {
       "label": "AI: {{remaining}} лишилось",
@@ -44,10 +44,10 @@
     }
   },
   "tabs": {
-    "llm": "LLM-асистент",
-    "image": "Генерація зображень",
-    "music": "Генерація музики",
-    "history": "Історія"
+    "llm": "Counsel",
+    "image": "Scenery",
+    "music": "Lyria",
+    "history": "Marginalia"
   },
   "context": {
     "npc-description": "NPC",

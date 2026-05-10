@@ -54,6 +54,24 @@
   box-shadow: var(--shadow-engrave);
 }
 
+.metricFire {
+  background: color-mix(in srgb, var(--ember) 8%, var(--bg-1));
+  border-color: color-mix(in srgb, var(--ember) 40%, var(--line));
+  color: var(--ember);
+}
+
+.metricSteel {
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg-1));
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+  color: color-mix(in srgb, var(--primary) 80%, var(--ink));
+}
+
+.metricGold {
+  background: color-mix(in srgb, var(--vitality, oklch(0.75 0.12 80)) 8%, var(--bg-1));
+  border-color: color-mix(in srgb, var(--vitality, oklch(0.75 0.12 80)) 40%, var(--line));
+  color: oklch(0.6 0.1 70);
+}
+
 .empty {
   display: flex;
   flex-direction: column;

@@ -35,7 +35,7 @@
   },
   "header": {
     "eyebrow": "Game Master · AI Assistant",
-    "title": "GM AI Toolkit",
+    "title": "GM AI <em>Toolkit</em>",
     "subtitle": "Gemini · Lyria",
     "rateLimit": {
       "label": "AI: {{remaining}} left",
@@ -44,10 +44,10 @@
     }
   },
   "tabs": {
-    "llm": "LLM Assistant",
-    "image": "Image Generation",
-    "music": "Music Generation",
-    "history": "History"
+    "llm": "Counsel",
+    "image": "Scenery",
+    "music": "Lyria",
+    "history": "Marginalia"
   },
   "context": {
     "npc-description": "NPC",

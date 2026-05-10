@@ -50,6 +50,7 @@ export interface NpcResponse {
 export interface ConversationMessage {
   role: 'user' | 'assistant';
   content: string;
+  createdAt?: string;
 }
 
 /**

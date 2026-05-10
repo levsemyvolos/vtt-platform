@@ -153,16 +153,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--line));
-  background: color-mix(in srgb, var(--primary) 8%, var(--bg-1));
+  border: 1px solid var(--line-strong);
+  background: var(--bg-1);
   color: var(--primary);
-  font-family: var(--font-mono);
-  font-size: 1.125rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-engrave);
 }
 
 /* Numeric input constrained to small stat box size */
@@ -258,8 +258,14 @@
 
 .identityGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: var(--space-md);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 24px;
+}
+
+@media (max-width: 720px) {
+  .identityGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .identityGrid .statGroup {

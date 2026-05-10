@@ -25,39 +25,53 @@
 }
 
 .message {
-  /* base — overridden by variant below */
-}
-
-.messageAssistant {
   display: grid;
-  grid-template-columns: 18px 1fr;
+  grid-template-columns: 32px 1fr;
   gap: var(--space-xs) var(--space-sm);
   align-items: start;
 }
 
 .messageUser {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-xs);
+  direction: rtl;
 }
 
-.msgGlyph {
-  color: var(--rune);
-  font-size: 15px;
-  line-height: 1.7;
-  text-align: center;
-  opacity: 0.45;
-  padding-top: 1px;
+.messageUser .msgBody {
+  direction: ltr;
+  align-items: flex-end;
+}
+
+.messageAssistant {
+  direction: ltr;
+}
+
+.roleChip {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-2);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--ink-mute);
+  border-radius: 2px;
+  box-shadow: var(--shadow-engrave);
+  flex-shrink: 0;
   user-select: none;
+}
+
+.messageUser .roleChip {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--line));
 }
 
 .msgBody {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
+  min-width: 0;
 }
-
 .messageRole {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -66,8 +80,45 @@
   color: var(--ink-mute);
 }
 
+.streamingTail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 2px 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.streamingDots {
+  animation: pulse 1.2s ease-in-out infinite;
+  letter-spacing: 2px;
+}
+
+.streamingLabel {
+  opacity: 0.5;
+}
+
+.speech {
+  border-left: 2px solid var(--ember);
+  padding-left: 12px;
+  margin: 8px 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
 .messageBubble {
-  max-width: 90%;
+  max-width: 100%;
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--line);
   border-radius: 2px;
@@ -150,11 +201,26 @@
     color-mix(in srgb, var(--bg-1) 92%, transparent)
   );
   flex-shrink: 0;
+  position: relative;
+}
+
+.inputBar::before {
+  content: '"';
+  position: absolute;
+  top: calc(var(--space-md) + 4px);
+  left: calc(var(--space-md) + 10px);
+  font-family: var(--font-serif);
+  font-size: 32px;
+  color: var(--ink-faint);
+  opacity: 0.35;
+  pointer-events: none;
+  line-height: 1;
+  z-index: 1;
 }
 
 .textarea {
   width: 100%;
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-sm) var(--space-md) var(--space-sm) 40px;
   background: var(--bg-1);
   border: 1px solid var(--line-strong);
   border-radius: 2px;
@@ -177,6 +243,30 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.keyHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  box-shadow: inset 0 -1px 0 var(--line-strong);
+  line-height: 1.4;
 }
 
 .modeChips {
@@ -437,18 +527,36 @@
 }
 
 .varsSummary {
-  color: var(--ink-mute);
-  font-family: var(--font-serif);
-  font-style: italic;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 13px;
-  font-weight: 400;
-  margin-left: var(--space-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   max-width: 60%;
+  margin-left: var(--space-sm);
+}
+
+.summaryChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-mute);
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.summaryChip strong {
+  color: var(--ink);
+  font-weight: 500;
+  font-style: normal;
 }
 
 .varsSummary strong {

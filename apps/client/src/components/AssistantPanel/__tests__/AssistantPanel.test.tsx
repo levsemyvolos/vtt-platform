@@ -87,10 +87,10 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
         <AssistantPanel roomId={ROOM_ID} onClose={vi.fn()} />
       </Provider>,
     );
-    expect(screen.getByRole('tab', { name: 'LLM-асистент' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Генерація зображень' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Генерація музики' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Історія' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Counsel' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Scenery' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Lyria' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Marginalia' })).toBeTruthy();
   });
 
   it('calls onClose when close button is clicked', () => {
@@ -128,7 +128,7 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
         <AssistantPanel roomId={ROOM_ID} onClose={vi.fn()} />
       </Provider>,
     );
-    fireEvent.click(screen.getByRole('tab', { name: 'Генерація зображень' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenery' }));
     expect(screen.getByRole('button', { name: '+ Нова сцена' })).toBeTruthy();
   });
 
@@ -141,7 +141,7 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
         <AssistantPanel roomId={ROOM_ID} onClose={vi.fn()} />
       </Provider>,
     );
-    fireEvent.click(screen.getByRole('tab', { name: 'Генерація музики' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Lyria' }));
     expect(screen.getByRole('button', { name: 'Генерувати' })).toBeTruthy();
   });
 });
