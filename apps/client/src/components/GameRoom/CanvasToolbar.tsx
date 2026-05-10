@@ -6,7 +6,7 @@ import {
   PencilRuler,
   ZoomIn,
   ZoomOut,
-  Maximize2,
+  Crosshair,
   BookOpen,
   Dice5,
   Undo2,
@@ -14,7 +14,7 @@ import {
   Eraser,
 } from 'lucide-react';
 import type { Role } from '@vtt/shared';
-import { zoomIn, zoomOut, fit, setZoom, setBrushSize, setStrokeColor, BRUSH_SIZE_BOUNDS } from '../../store/canvasViewport';
+import { zoomIn, zoomOut, centerViewport, setZoom, setBrushSize, setStrokeColor, BRUSH_SIZE_BOUNDS } from '../../store/canvasViewport';
 import { startEditing } from '../../store/room';
 import { clearDrawStrokes } from '../../store/scene';
 import { emitDrawClear } from '../../api/socket';
@@ -229,11 +229,11 @@ export default function CanvasToolbar({
         <IconButton
           variant="ghost"
           size="sm"
-          aria-label={t('toolbar.zoomFit')}
-          title={t('toolbar.zoomFit')}
-          onClick={() => dispatch(fit())}
+          aria-label={t('toolbar.zoomCenter')}
+          title={t('toolbar.zoomCenter')}
+          onClick={() => dispatch(centerViewport())}
         >
-          <Maximize2 size={14} />
+          <Crosshair size={14} />
         </IconButton>
       </div>
 

@@ -30,7 +30,7 @@
     "srd": "SRD lookup",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
-    "zoomFit": "Fit to window",
+    "zoomCenter": "Center canvas",
     "zoomReset": "Reset zoom",
     "brushSize": "Brush size",
     "strokeColor": "Stroke color",

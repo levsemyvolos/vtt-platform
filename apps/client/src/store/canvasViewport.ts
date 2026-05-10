@@ -16,6 +16,9 @@ interface CanvasViewportState {
   /** Stroke color for the draw tool — empty string means "auto" (per-user
    *  hash via getUserPingColor). Sess 9.2. Persisted in localStorage. */
   strokeColor: string;
+  /** Signals GameCanvas to reposition the stage to the viewport center.
+   *  Set by centerViewport(), cleared by clearCenterFlag() after the stage moves. */
+  needsCenter: boolean;
 }
 
 const BRUSH_SIZE_MIN = 1;
@@ -71,6 +74,7 @@ const initialState: CanvasViewportState = {
   fogGmAlpha: 0.55,
   brushSize: readPersistedBrushSize(),
   strokeColor: readPersistedStrokeColor(),
+  needsCenter: false,
 };
 
 const ZOOM_MIN = 0.25;
@@ -99,6 +103,15 @@ const canvasViewportSlice = createSlice({
     },
     fit(state) {
       state.zoom = 1;
+    },
+    /** Resets zoom to 100% and signals GameCanvas to recentre the stage. */
+    centerViewport(state) {
+      state.zoom = 1;
+      state.needsCenter = true;
+    },
+    /** Cleared by GameCanvas after the stage position has been applied. */
+    clearCenterFlag(state) {
+      state.needsCenter = false;
     },
     setActiveTool(state, action: PayloadAction<CanvasTool>) {
       state.activeTool = action.payload;
@@ -134,7 +147,8 @@ const canvasViewportSlice = createSlice({
 export const BRUSH_SIZE_BOUNDS = { min: BRUSH_SIZE_MIN, max: BRUSH_SIZE_MAX, default: BRUSH_SIZE_DEFAULT } as const;
 
 export const {
-  setZoom, zoomIn, zoomOut, center, fit, setActiveTool, setPendingImageAssetId, resetTool,
+  setZoom, zoomIn, zoomOut, center, fit, centerViewport, clearCenterFlag,
+  setActiveTool, setPendingImageAssetId, resetTool,
   setFogMode, setFogGmAlpha, setBrushSize, setStrokeColor,
 } = canvasViewportSlice.actions;
 export default canvasViewportSlice.reducer;

@@ -10,7 +10,7 @@ import { requestAddFromToken } from '../../store/initiativeUi';
 import { emitObjectDelete, emitObjectDuplicate } from '../../api/socket';
 import { buildClonedObject } from '../../store/sceneObjectClone';
 import type { CanvasTool } from '../../store/canvasViewport';
-import { setActiveTool, setPendingImageAssetId } from '../../store/canvasViewport';
+import { setActiveTool, setPendingImageAssetId, setZoom, clearCenterFlag } from '../../store/canvasViewport';
 import { useTheme } from '../../hooks/useTheme';
 import { useToolHandlers, type SelectMarquee } from '../../hooks/useToolHandlers';
 import BackgroundLayer from './layers/BackgroundLayer';
@@ -259,6 +259,7 @@ export default function GameCanvas({
   const roomId = useAppSelector((s) => s.room.currentRoom?.id ?? '');
   const activeTool = useAppSelector((s) => s.canvasViewport.activeTool);
   const viewportZoom = useAppSelector((s) => s.canvasViewport.zoom);
+  const needsCenter = useAppSelector((s) => s.canvasViewport.needsCenter);
   const fogMode = useAppSelector((s) => s.canvasViewport.fogMode);
   const fogGmAlpha = useAppSelector((s) => s.canvasViewport.fogGmAlpha);
   // Sess 8 + 8.5 — image-tool UI state (modal, ghost preview).
@@ -307,6 +308,20 @@ export default function GameCanvas({
     stage.scale({ x: viewportZoom, y: viewportZoom });
     stage.batchDraw();
   }, [viewportZoom]);
+
+  // Center the stage in the viewport when centerViewport() is dispatched.
+  // Runs after the scale effect (declared later = runs later in same flush).
+  useEffect(() => {
+    if (!needsCenter) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.position({
+      x: (size.width - sceneWidth) / 2,
+      y: (size.height - sceneHeight) / 2,
+    });
+    stage.batchDraw();
+    dispatch(clearCenterFlag());
+  }, [needsCenter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sess 10.7.1 — middle-mouse-drag pan, independent of activeTool. The handler
   // attaches in CAPTURE phase and calls stopImmediatePropagation so Konva's
@@ -439,6 +454,8 @@ export default function GameCanvas({
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
     });
+    // Sync Redux so the toolbar percentage display stays current.
+    dispatch(setZoom(newScale));
   }
 
   return (
