@@ -241,7 +241,7 @@
     "sendLabel": "Send"
   },
   "promptAssist": {
-    "openBtn": "✨ Generate prompt with AI",
+    "openBtn": "Generate prompt with AI",
     "dialogLabel": "AI prompt assistant",
     "heading": "Describe what you want — AI will write the prompt",
     "hint": "Type a free-form brief in any language. The assistant returns a structured prompt you can edit before generating.",

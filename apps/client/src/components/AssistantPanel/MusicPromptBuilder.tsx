@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Sparkles } from 'lucide-react';
 import i18next from 'i18next';
 import type { AIMusicRequest, AIMusicResponse, MusicPresetKey } from '@vtt/shared';
 import { apiFetch, ApiError } from '../../api/apiFetch';
@@ -169,6 +170,7 @@ export default function MusicPromptBuilder({ roomId, onGenerated }: Props): JSX.
           onClick={() => setAssistOpen(true)}
           disabled={generating}
         >
+          <Sparkles size={12} strokeWidth={1.5} aria-hidden />
           {t('promptAssist.openBtn')}
         </button>
 

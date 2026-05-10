@@ -71,6 +71,9 @@
 .btnSubmit:hover:not(:disabled) { background: var(--color-primary-hover); }
 .btnSubmit:disabled, .btnGhost:disabled, .btnCancel:disabled { opacity: 0.55; cursor: not-allowed; }
 .assistTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: var(--space-xs) var(--space-sm);
   background: var(--color-surface-hover);
   border: 1px dashed var(--color-border);

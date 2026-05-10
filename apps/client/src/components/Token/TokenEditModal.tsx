@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Sparkles } from 'lucide-react';
 import type { StatusMarker, AssetDTO } from '@vtt/shared';
 import { ALL_STATUS_MARKERS } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -125,10 +126,11 @@ function renderImagePicker(a: ImagePickerArgs): JSX.Element {
       <button
         type="button"
         className={styles.btnCancel}
-        style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)' }}
+        style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-xs) var(--space-sm)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         onClick={a.onShowGenerator}
         disabled={a.saving || !a.roomId}
       >
+        <Sparkles size={12} strokeWidth={1.5} aria-hidden />
         {a.generateAiLabel}
       </button>
     </div>

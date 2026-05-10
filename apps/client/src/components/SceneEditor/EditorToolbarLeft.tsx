@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Sparkles } from 'lucide-react';
 import type { AssetDTO, ImageSceneObject, BackgroundFit } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { applyDraftSceneUpdate, clearFogMask, appendSceneObject } from '../../store/scene';
@@ -175,6 +176,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           className={styles.aiBtn}
           onClick={() => setAiOpen(true)}
         >
+          <Sparkles size={12} strokeWidth={1.5} aria-hidden />
           {t('sceneEditor.bg.aiBtn')}
         </button>
         <button
@@ -182,6 +184,7 @@ export default function EditorToolbarLeft({ roomId, sceneId }: EditorToolbarLeft
           className={styles.aiBtn}
           onClick={() => setBattlemapOpen(true)}
         >
+          <Sparkles size={12} strokeWidth={1.5} aria-hidden />
           {t('sceneEditor.bg.battlemapBtn')}
         </button>
         <AssetLibrary

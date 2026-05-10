@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Sparkles } from 'lucide-react';
 import type { AIImageRequest, AIImageResponse, UpdateSceneRequest } from '@vtt/shared';
 import { apiFetch, ApiError } from '../../api/apiFetch';
 import GenerationProgress from './GenerationProgress';
@@ -120,6 +121,7 @@ export default function GenerateBattlemapModal({ roomId, sceneId, onClose }: Pro
               onClick={() => setAssistOpen(true)}
               disabled={generating || applying}
             >
+              <Sparkles size={12} strokeWidth={1.5} aria-hidden />
               {t('room:promptAssist.openBtn')}
             </button>
             <small className={styles.fieldHint}>{t('room:aiGenerate.englishHint')}</small>
