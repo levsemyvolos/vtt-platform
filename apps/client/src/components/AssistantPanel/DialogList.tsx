@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowUpDown } from 'lucide-react';
+import DialogListResizer from './DialogListResizer';
 import ConfirmModal from '../common/ConfirmModal';
 import type { AssistantContext, AssistantConversationDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
@@ -18,6 +19,7 @@ import styles from './DialogList.module.css';
 
 interface DialogListProps {
   roomId: string;
+  containerRef?: RefObject<HTMLDivElement>;
 }
 
 const CONTEXTS: ReadonlyArray<AssistantContext> = [
@@ -41,7 +43,7 @@ function hashStr(s: string): number {
   return Math.abs(h);
 }
 
-export default function DialogList({ roomId }: DialogListProps): JSX.Element {
+export default function DialogList({ roomId, containerRef }: DialogListProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('assistant');
   const activeContext = useAppSelector((s) => s.assistant.activeContext);
@@ -111,6 +113,7 @@ export default function DialogList({ roomId }: DialogListProps): JSX.Element {
 
   return (
     <aside className={styles.dialogList}>
+      {containerRef != null && <DialogListResizer containerRef={containerRef} />}
       <ConfirmModal
         open={pendingDelete !== null}
         title={t('dialogList.deleteLabel')}

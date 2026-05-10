@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
-import { MessagesSquare, Image as ImageIcon, Music, Clock } from 'lucide-react';
+import { MessagesSquare, Image as ImageIcon, Music } from 'lucide-react';
 import { Tabs } from '../ui';
 import type { TabItem } from '../ui';
 import DialogList from './DialogList';
@@ -28,6 +28,14 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
   // Bumped on every successful music generation — drives MusicHistoryList refetch.
   const [musicGenCount, setMusicGenCount] = useState<number>(0);
   const rateLimitRemaining = useAppSelector((s) => s.assistant.rateLimitRemaining);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('vtt.assistantDialogListWidth');
+    if (stored && bodyRef.current) {
+      bodyRef.current.style.setProperty('--dialog-list-w', `${stored}px`);
+    }
+  }, []);
 
   const counselCount = useAppSelector((s) =>
     Object.values(s.assistant.conversations).filter((c) => c.roomId === roomId).length,
@@ -40,7 +48,6 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
     { id: 'llm',     label: t('tabs.llm'),     icon: <MessagesSquare size={14} />, ...(counselCount > 0 ? { count: counselCount } : {}) },
     { id: 'image',   label: t('tabs.image'),   icon: <ImageIcon size={14} />,      ...(sceneryCount > 0 ? { count: sceneryCount } : {}) },
     { id: 'music',   label: t('tabs.music'),   icon: <Music size={14} /> },
-    { id: 'history', label: t('tabs.history'), icon: <Clock size={14} /> },
   ];
 
   return (
@@ -78,7 +85,7 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
           ariaLabel={t('panel.title')}
         />
       </div>
-      <div className={styles.body}>
+      <div className={styles.body} ref={bodyRef}>
         {mainTab === 'image' && (
           <>
             <ImageThreadList roomId={roomId} />
@@ -93,9 +100,9 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
             <RecentGenerations roomId={roomId} />
           </>
         )}
-        {(mainTab === 'llm' || mainTab === 'history') && (
+        {mainTab === 'llm' && (
           <>
-            <DialogList roomId={roomId} />
+            <DialogList roomId={roomId} containerRef={bodyRef} />
             <ConversationView roomId={roomId} mainTab={mainTab} />
             <RecentGenerations roomId={roomId} />
           </>

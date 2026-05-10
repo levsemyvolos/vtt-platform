@@ -46,8 +46,7 @@
   "tabs": {
     "llm": "Counsel",
     "image": "Scenery",
-    "music": "Lyria",
-    "history": "Marginalia"
+    "music": "Lyria"
   },
   "context": {
     "npc-description": "NPC",

@@ -14,7 +14,7 @@ import PresetChips from './PresetChips';
 import ConversationVariables from './ConversationVariables';
 import styles from './ConversationView.module.css';
 
-export type MainTab = 'llm' | 'image' | 'music' | 'history';
+export type MainTab = 'llm' | 'image' | 'music';
 
 // ─── MessageRow helpers ──────────────────────────────────────────────────────
 
@@ -597,54 +597,6 @@ function GeneratePanel({ type, roomId }: GeneratePanelProps): JSX.Element {
   );
 }
 
-// ─── History panel ──────────────────────────────────────────────────────────
-
-interface HistoryPanelProps {
-  roomId: string;
-}
-
-function HistoryPanel({ roomId }: HistoryPanelProps): JSX.Element {
-  const { t } = useTranslation('assistant');
-  const conversationsMap = useAppSelector((s) => s.assistant.conversations);
-  const messagesMap = useAppSelector((s) => s.assistant.messages);
-
-  const threads = Object.values(conversationsMap)
-    .filter((c) => c.roomId === roomId)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
-  return (
-    <div className={styles.conversation}>
-      <div className={styles.messages}>
-        {threads.length === 0 && (
-          <p className={styles.empty}>{t('conversation.historyEmpty')}</p>
-        )}
-        {threads.map((c) => {
-          const msgs = messagesMap[c.id] ?? [];
-          const tail = msgs.slice(-3);
-          return (
-            <div key={c.id} className={styles.historyGroup}>
-              <p className={styles.historyId}>
-                {c.title} · {t(`context.${c.context}`)} · {new Date(c.updatedAt).toLocaleDateString()}
-              </p>
-              {tail.length === 0 && (
-                <p className={styles.historyMsg}><em>{t('conversation.historyNoMessages')}</em></p>
-              )}
-              {tail.map((msg, idx) => (
-                <p key={idx} className={styles.historyMsg}>
-                  <strong>
-                    {msg.role === 'user' ? t('conversation.roleUser') : t('conversation.roleAssistant')}:
-                  </strong>{' '}
-                  {msg.content.length > 80 ? `${msg.content.slice(0, 80)}…` : msg.content}
-                </p>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ─── Public component ───────────────────────────────────────────────────────
 
 interface ConversationViewProps {
@@ -655,7 +607,6 @@ interface ConversationViewProps {
 export default function ConversationView({ roomId, mainTab }: ConversationViewProps): JSX.Element {
   if (mainTab === 'llm') return <LlmPanel roomId={roomId} />;
   if (mainTab === 'image') return <GeneratePanel type="image" roomId={roomId} />;
-  // Music tab is rendered directly from AssistantPanel (with sibling MusicHistoryList);
-  // ConversationView is not invoked for music. Keep history as the catch-all.
-  return <HistoryPanel roomId={roomId} />;
+  // Music tab renders via AssistantPanel siblings; ConversationView is not invoked for it.
+  return <LlmPanel roomId={roomId} />;
 }

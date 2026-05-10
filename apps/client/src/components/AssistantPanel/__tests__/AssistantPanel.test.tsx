@@ -90,7 +90,7 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
     expect(screen.getByRole('tab', { name: 'Counsel' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Scenery' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Lyria' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Marginalia' })).toBeTruthy();
+
   });
 
   it('calls onClose when close button is clicked', () => {

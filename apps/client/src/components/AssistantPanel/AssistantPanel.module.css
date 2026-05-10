@@ -172,7 +172,7 @@
 
 .body {
   display: grid;
-  grid-template-columns: 240px 1fr 280px;
+  grid-template-columns: var(--dialog-list-w, 240px) 1fr 280px;
   flex: 1;
   overflow: hidden;
   min-height: 0;
