@@ -25,17 +25,37 @@
 }
 
 .message {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.messageUser {
-  align-items: flex-end;
+  /* base — overridden by variant below */
 }
 
 .messageAssistant {
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: var(--space-xs) var(--space-sm);
+  align-items: start;
+}
+
+.messageUser {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-xs);
+}
+
+.msgGlyph {
+  color: var(--rune);
+  font-size: 15px;
+  line-height: 1.7;
+  text-align: center;
+  opacity: 0.45;
+  padding-top: 1px;
+  user-select: none;
+}
+
+.msgBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
 }
 
 .messageRole {

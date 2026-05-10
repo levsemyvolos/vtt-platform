@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import CharacterSheet from './CharacterSheet';
-import Sigil from '../common/Sigil';
+import Logo from '../ui/Logo';
 import { useAppSelector } from '../../store';
 import styles from './CharacterSheetOverlay.module.css';
 
@@ -50,7 +50,7 @@ export default function CharacterSheetOverlay({
 
         <header className={styles.header}>
           <div className={styles.headerMark} aria-hidden="true">
-            <Sigil variant="shield" />
+            <Logo size={22} withText={false} />
           </div>
           <div className={styles.headerInfo}>
             <span className={styles.headerEyebrow}>{eyebrow}</span>

@@ -191,18 +191,23 @@ function MessageRow({
   const { t } = useTranslation('assistant');
   return (
     <div className={`${styles.message} ${msg.role === 'user' ? styles.messageUser : styles.messageAssistant}`}>
-      <span className={styles.messageRole}>
-        {msg.role === 'user' ? t('conversation.roleUser') : t('conversation.roleAssistant')}
-      </span>
-      <div className={styles.messageBubble}>
-        <MessageBubble msg={msg} context={context} isEditing={isEditing} editText={editText} onEditChange={onEditChange} />
+      {msg.role === 'assistant' && (
+        <span className={styles.msgGlyph} aria-hidden>᛫</span>
+      )}
+      <div className={styles.msgBody}>
+        <span className={styles.messageRole}>
+          {msg.role === 'user' ? t('conversation.roleUser') : t('conversation.roleAssistant')}
+        </span>
+        <div className={styles.messageBubble}>
+          <MessageBubble msg={msg} context={context} isEditing={isEditing} editText={editText} onEditChange={onEditChange} />
+        </div>
+        <MessageActions
+          msg={msg} idx={idx} isEditing={isEditing} canEdit={canEdit} isLastMsg={isLastMsg}
+          editText={editText} status={status}
+          onStartEdit={onStartEdit} onSaveEdit={onSaveEdit} onCancelEdit={onCancelEdit} onRegenerate={onRegenerate}
+          onToNotes={onToNotes} onToChat={onToChat}
+        />
       </div>
-      <MessageActions
-        msg={msg} idx={idx} isEditing={isEditing} canEdit={canEdit} isLastMsg={isLastMsg}
-        editText={editText} status={status}
-        onStartEdit={onStartEdit} onSaveEdit={onSaveEdit} onCancelEdit={onCancelEdit} onRegenerate={onRegenerate}
-        onToNotes={onToNotes} onToChat={onToChat}
-      />
     </div>
   );
 }

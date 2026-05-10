@@ -29,8 +29,8 @@
   max-width: 320px;
 }
 
-/* Show banner when viewport < 1280px */
-@media (max-width: 1279px) {
+/* Show banner when viewport < 900px */
+@media (max-width: 899px) {
   .banner {
     display: flex;
   }

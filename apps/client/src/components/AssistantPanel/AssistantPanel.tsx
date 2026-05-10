@@ -10,7 +10,7 @@ import ImageThreadView from './ImageThreadView';
 import MusicHistoryList from './MusicHistoryList';
 import MusicPromptBuilder from './MusicPromptBuilder';
 import RecentGenerations from './RecentGenerations';
-import Sigil from '../common/Sigil';
+import Logo from '../ui/Logo';
 import { useAppSelector } from '../../store';
 import styles from './AssistantPanel.module.css';
 
@@ -38,7 +38,7 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
     <div className={styles.overlay} role="dialog" aria-label={t('header.title')}>
       <header className={styles.header}>
         <div className={styles.headerMark} aria-hidden="true">
-          <Sigil variant="compass" />
+          <Logo size={22} withText={false} />
         </div>
         <div className={styles.headerInfo}>
           <span className={styles.headerEyebrow}>{t('header.eyebrow')}</span>

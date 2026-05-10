@@ -35,7 +35,7 @@
   },
   "desktopGuard": {
     "title": "Mobile / tablet not supported",
-    "subtitle": "Please use a desktop browser with a width of at least 1280 px."
+    "subtitle": "Please use a desktop browser with a width of at least 900 px."
   },
   "loader": {
     "connecting": "Connecting to server…",
