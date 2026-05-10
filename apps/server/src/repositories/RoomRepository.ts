@@ -148,19 +148,19 @@ export class RoomRepository {
   /**
    * Resolves the effective role of `userId` inside `roomId`.
    *
-   * MVP rules (no dedicated RoomMember table yet):
-   *   - Room owner       → 'GM'.
-   *   - Anyone else      → fall through to `fallbackJwtRole` (the role baked
-   *     into the user's access token at invite-redemption time).
-   *   - Room not found   → null.
-   *
-   * Persisted membership tracking (Player vs Observer attached to a room) is
-   * planned for a later iteration; for Чат 7.1 the JWT-bound role is the
-   * single source of truth for non-owners.
+   * Resolution order (single SQL via nested `members` selection):
+   *   - `Room.ownerId === userId`        → 'GM' (owner is the single source of
+   *     truth for the GM role; see PROJECT_BIBLE.md §10).
+   *   - `RoomMember(roomId,userId)` row  → 'Player' or 'Observer' as stored.
+   *   - `fallbackJwtRole === 'Observer'`
+   *     and `boundRoomId === roomId`     → 'Observer' (JWT-bound observer
+   *     issued by `/rooms/join-invite`, not yet persisted in `RoomMember`).
+   *   - otherwise                         → null.
    *
    * @param roomId Room UUID
    * @param userId User UUID
    * @param fallbackJwtRole role from req.user.role for non-owners
+   * @param boundRoomId Observer scope-binding from JWT (if any)
    */
   async getRoleInRoom(
     roomId: string,
@@ -168,16 +168,20 @@ export class RoomRepository {
     fallbackJwtRole: Role,
     boundRoomId?: string,
   ): Promise<Role | null> {
-    const room = await this.db.room.findUnique({
+    const row = await this.db.room.findUnique({
       where: { id: roomId },
-      select: { ownerId: true },
+      select: {
+        ownerId: true,
+        members: {
+          where: { userId },
+          select: { role: true },
+          take: 1,
+        },
+      },
     });
-    if (!room) return null;
-    if (room.ownerId === userId) return 'GM';
-    const member = await this.db.roomMember.findFirst({
-      where: { roomId, userId },
-      select: { role: true },
-    });
+    if (!row) return null;
+    if (row.ownerId === userId) return 'GM';
+    const member = row.members[0];
     if (member) {
       return member.role === 'Observer' ? 'Observer' : 'Player';
     }

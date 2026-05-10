@@ -332,7 +332,9 @@ export function getSocket(): TypedClientSocket {
 
   // Moderation: kicked from session — hard-redirect to dashboard.
   // Hard navigate so PeerManager + Redux state are wiped cleanly.
+  // disconnect() stops the auto-reconnect loop before the 800 ms redirect fires.
   socket.on('room:kicked', () => {
+    socket.disconnect();
     store.dispatch(addToast('error', i18n.t('gameroom:kickedFromRoom')));
     store.dispatch(clearRoom());
     setTimeout(() => {

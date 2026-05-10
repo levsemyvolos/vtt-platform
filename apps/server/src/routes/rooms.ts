@@ -125,6 +125,7 @@ roomsRouter.get('/:id', jwtAuth, requireBoundRoom, async (req: Request<{ id: str
 roomsRouter.post(
   '/join',
   jwtAuth,
+  requireRole('GM', 'Player'),
   async (req: Request<object, object, { token?: string }>, res: Response) => {
     try {
       const token = req.body.token?.trim();
@@ -200,6 +201,7 @@ roomsRouter.post(
 roomsRouter.post(
   '/:id/invites',
   jwtAuth,
+  requireBoundRoom,
   async (req: Request<{ id: string }>, res: Response) => {
     try {
       const tokens = await roomService.getInviteTokens(req.params.id, req.user!.id);
@@ -279,35 +281,39 @@ roomsRouter.delete(
 );
 
 /**
- * GET /rooms/:id/members — R6 γ-variant membership resolution.
+ * GET /rooms/:id/members — RBAC-projected membership roster.
  *
- * gm      = room.owner
- * players = distinct Character.ownerId for this room (joined with User)
- * observers = [] (Ф7.2 does not grant Observer any campaign visibility)
+ * Source of truth — RoomMember table (Player/Observer) plus Room.ownerId (GM).
+ * `requireBoundRoom` blocks foreign-room reads from Observer JWTs; ownership /
+ * membership for GM/Player is enforced inside `roomService.getById` (404 on
+ * not-found) and the projection itself.
  *
- * No RoomMember table — persistent membership tracking is R-Persistent-Membership.
+ * Response shape `RoomMembersResponse` is preserved for client compatibility:
+ * gm = Room.owner, players = RoomMember(role='Player'), observers = RoomMember(role='Observer').
  */
-roomsRouter.get('/:id/members', jwtAuth, async (req: Request<{ id: string }>, res: Response) => {
-  try {
-    const room = await roomService.getById(req.params.id);
-    const characters = await prisma.character.findMany({
-      where: { roomId: req.params.id },
-      distinct: ['ownerId'],
-      include: { owner: true },
-    });
-    const gm: UserPublic = {
-      id: room.owner.id,
-      email: room.owner.email,
-      name: room.owner.displayName,
-    };
-    const players: UserPublic[] = characters.map((c) => ({
-      id: c.owner.id,
-      email: c.owner.email,
-      name: c.owner.displayName,
-    }));
-    const body: RoomMembersResponse = { gm, players, observers: [] };
-    res.json(body);
-  } catch (err) {
-    handleError(err, res);
-  }
-});
+roomsRouter.get(
+  '/:id/members',
+  jwtAuth,
+  requireBoundRoom,
+  async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      const room = await roomService.getById(req.params.id);
+      const members = await roomService.getMembersProjection(room.id);
+      const gm: UserPublic = {
+        id: room.owner.id,
+        email: room.owner.email,
+        name: room.owner.displayName,
+      };
+      const players: UserPublic[] = members
+        .filter((m) => m.role === 'Player')
+        .map((m) => ({ id: m.userId, email: '', name: m.name }));
+      const observers: UserPublic[] = members
+        .filter((m) => m.role === 'Observer')
+        .map((m) => ({ id: m.userId, email: '', name: m.name }));
+      const body: RoomMembersResponse = { gm, players, observers };
+      res.json(body);
+    } catch (err) {
+      handleError(err, res);
+    }
+  },
+);
