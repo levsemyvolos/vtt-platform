@@ -35,7 +35,8 @@ declare module '@3d-dice/dice-box-threejs' {
     roll(notation: string): Promise<DiceRollResult>;
     /** Add more dice to existing roll. */
     add(notation: string): Promise<DiceRollResult>;
-    /** Clear all dice from the scene. */
-    clear(): void;
+    // NOTE: clear() does NOT exist in v0.0.12. The library only exposes
+    // clearDice() as an internal method; startClickThrow() calls it automatically
+    // when a new roll starts while rolling=true.
   }
 }

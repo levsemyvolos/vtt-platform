@@ -7,6 +7,9 @@ import styles from './DiceOverlay.module.css';
 export default function DiceOverlay(): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const dbRef = useRef<DiceBox | null>(null);
+  // Prevents starting a second animation while one is running.
+  // Reset by onRollComplete (which fires even for invalid notation).
+  const animatingRef = useRef(false);
   const [boxReady, setBoxReady] = useState(false);
   const queue = useAppSelector((s) => s.diceAnim.queue);
   const dispatch = useAppDispatch();
@@ -33,6 +36,13 @@ export default function DiceOverlay(): JSX.Element {
           baseScale: 80,
           gravity_multiplier: 400,
           light_intensity: 0.7,
+          // Consume the queue item after animation completes, not immediately.
+          // The library calls this even for invalid notation (instant resolve),
+          // so the animatingRef guard is always released.
+          onRollComplete: () => {
+            animatingRef.current = false;
+            dispatch(consumeDiceAnimQueue());
+          },
         });
         dbRef.current = box;
         // The constructor only assigns config; renderer + scene + textures are
@@ -53,7 +63,14 @@ export default function DiceOverlay(): JSX.Element {
       }
     };
 
-    if (tryInit()) return () => { dbRef.current = null; };
+    if (tryInit()) {
+      return () => {
+        // Stop ongoing animation so requestAnimationFrame loop exits.
+        try { (dbRef.current as unknown as { clearDice(): void } | null)?.clearDice(); } catch { /* ignore */ }
+        dbRef.current = null;
+        animatingRef.current = false;
+      };
+    }
 
     const ro = new ResizeObserver(() => {
       if (tryInit()) ro.disconnect();
@@ -61,27 +78,40 @@ export default function DiceOverlay(): JSX.Element {
     ro.observe(el);
     return () => {
       ro.disconnect();
+      try { (dbRef.current as unknown as { clearDice(): void } | null)?.clearDice(); } catch { /* ignore */ }
       dbRef.current = null;
+      animatingRef.current = false;
     };
-  }, []);
+  }, [dispatch]);
 
-  // Drain the queue once box is ready and a new item arrives.
+  // Drain the queue one item at a time: start next roll only after current
+  // animation completes (onRollComplete clears animatingRef and dispatches
+  // consumeDiceAnimQueue, which triggers this effect again for the next item).
   useEffect(() => {
-    if (!boxReady || queue.length === 0) return;
-    const item = queue[0]!;
+    if (!boxReady || queue.length === 0 || animatingRef.current) return;
     const box = dbRef.current;
     if (!box) return;
-    try {
-      box.clear();
-      // Predetermined notation: "<expr>@<r1>,<r2>,…" — each die lands on its server-rolled value.
-      const notation = item.rolls.length > 0
-        ? `${item.expression}@${item.rolls.join(',')}`
-        : item.expression;
-      void box.roll(notation);
-    } catch {
-      /* visual only */
+
+    animatingRef.current = true;
+    const item = queue[0]!;
+
+    // d100 uses two physical d10 dice; the library cannot reliably sync the
+    // face swap for percentile notation — skip 3D and surface the result only.
+    if (/\bd100\b/.test(item.expression)) {
+      animatingRef.current = false;
+      dispatch(consumeDiceAnimQueue());
+      return;
     }
-    dispatch(consumeDiceAnimQueue());
+
+    // Predetermined notation: "<expr>@<r1>,<r2>,…" — each die lands on its
+    // server-rolled value. Server sends crypto.randomInt results; the library
+    // calls swapDiceFace() after simulation to show the correct face.
+    // NOTE: box.clear() does NOT exist on this library version — the library's
+    // startClickThrow() already calls clearDice() internally when rolling=true.
+    const notation = item.rolls.length > 0
+      ? `${item.expression}@${item.rolls.join(',')}`
+      : item.expression;
+    void box.roll(notation);
   }, [boxReady, queue, dispatch]);
 
   return (
