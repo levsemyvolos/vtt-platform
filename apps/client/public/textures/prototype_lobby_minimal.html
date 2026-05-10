@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="uk" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Obscure VTT — Lobby Prototype Minimal</title>
+<link rel="icon" type="image/svg+xml" href="favicon_obscure.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--serif:'Cormorant Garamond',Georgia,serif;--sans:Inter,system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;--bg-0:#0a0c10;--bg-1:#131720;--bg-2:#1c2230;--bg-3:#262d3d;--line:#2d3340;--line-strong:#3a4252;--ink:#d4cfc0;--ink-mute:#8a8b88;--ink-faint:#5a5b58;--primary:#9eaab8;--primary-hi:#c2c8d0;--rune:#c8a55c;--ember:#b8341a;--shadow-engrave:inset 0 1px 0 rgba(212,207,192,.04),inset 0 -1px 0 rgba(0,0,0,.6);--shadow-cast:0 24px 48px -16px rgba(0,0,0,.7),0 8px 18px -10px rgba(0,0,0,.6)}
+body{min-height:100vh;background:radial-gradient(700px 420px at 15% 0,rgba(158,170,184,.05),transparent 60%),radial-gradient(circle at 50% 50%,#10131a,#0a0c10 72%);color:var(--ink);font-family:var(--sans)}
+.topbar{height:64px;position:sticky;top:0;display:flex;align-items:center;padding:0 24px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg-1) 64%,transparent);backdrop-filter:blur(2px);z-index:10}.brand{font:500 23px var(--serif)}.brand em{font-style:italic;color:var(--rune)}.spacer{flex:1}.meta{font:500 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-left:16px}
+.conn{position:sticky;top:64px;z-index:9;padding:8px 16px;display:flex;justify-content:center}.conn span{font:500 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);border:1px solid color-mix(in srgb,var(--line) 55%,transparent);border-radius:999px;background:color-mix(in srgb,var(--bg-2) 30%,transparent);padding:8px 14px}
+.wrap{max-width:700px;margin:0 auto;padding:34px 20px 88px}.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:22px}.eyebrow{font:500 10px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--primary);margin-bottom:8px}h1{font:500 34px/.98 var(--serif)}h1 em{font-style:italic;color:var(--rune)}.status{font:500 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ember);border:1px solid var(--ember);border-radius:999px;padding:7px 10px;white-space:nowrap}.fold{border:0;height:1px;background:linear-gradient(90deg,transparent,var(--rune),transparent);margin-bottom:18px}
+.stack{display:grid;gap:14px}.glass{background:color-mix(in srgb,var(--bg-2) 45%,transparent);border:1px solid color-mix(in srgb,var(--line) 70%,transparent);box-shadow:var(--shadow-engrave);backdrop-filter:blur(1px);border-radius:6px}.card{padding:16px}.head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.head h2{font:500 24px var(--serif)}.head h2 em{font-style:italic}.hint{font:500 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.member,.scene{display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 0;border-top:1px solid color-mix(in srgb,var(--line) 45%,transparent)}.avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--bg-3);font:500 11px var(--mono);color:var(--ink)}.body{flex:1}.name{font-size:14px}.role{font:500 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--primary)}.pill{font:500 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:5px 9px;color:var(--ink-mute)}.active{border-color:var(--ember);color:var(--ember)}
+.inviteRow{display:flex;gap:8px;align-items:center}.code{flex:1;min-width:0;border:1px solid var(--line);border-radius:4px;padding:10px 12px;font:500 13px var(--mono);letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}button{height:36px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--ink);padding:0 12px;font:500 10px var(--mono);letter-spacing:.18em;text-transform:uppercase}.primary{border-color:var(--primary);color:var(--primary-hi);box-shadow:0 0 28px -12px var(--primary)}
+.cta{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px}.cta p{font:italic 17px var(--serif);color:var(--ink-mute)}
+@media(max-width:680px){.meta:nth-of-type(n+2){display:none}.wrap{padding:28px 14px 96px}.hero{display:block}h1{font-size:30px}.status{display:inline-flex;margin-top:12px}.inviteRow{display:grid;grid-template-columns:1fr 40px 40px}.cta{position:sticky;bottom:10px;box-shadow:var(--shadow-cast)}.cta p{display:none}}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="brand">Obscure <em>VTT</em></div><div class="spacer"></div><div class="meta">31 ms</div><div class="meta">4 online</div><div class="meta">Dark</div></div>
+<div class="conn"><span>✓ Auth · ✓ Room · ✓ Channel</span></div>
+<main class="wrap">
+  <section class="hero">
+    <div><div class="eyebrow">Dungeons & Dragons · Lobby</div><h1>The <em>Ashen Vault</em></h1></div>
+    <div class="status">Active</div>
+  </section>
+  <hr class="fold" />
+  <div class="stack">
+    <section class="glass card">
+      <div class="head"><h2>Members <em>4</em></h2><span class="hint">ready table</span></div>
+      <div class="member"><div class="avatar">GM</div><div class="body"><div class="name">Semyvolos</div><div class="role">Game Master</div></div><span class="pill">Crown</span></div>
+      <div class="member"><div class="avatar">AR</div><div class="body"><div class="name">Arden</div><div class="role">Player · Kael</div></div><span class="pill">Sword</span></div>
+      <div class="member"><div class="avatar">MI</div><div class="body"><div class="name">Mira</div><div class="role">Player · Nox</div></div><span class="pill">Sword</span></div>
+      <div class="member"><div class="avatar">OB</div><div class="body"><div class="name">Archivist</div><div class="role">Observer</div></div><span class="pill">Eye</span></div>
+    </section>
+    <section class="glass card">
+      <div class="head"><h2>Invite <em>codes</em></h2><span class="hint">GM only</span></div>
+      <div class="inviteRow"><div class="code">p_8f31a9c4d0b642e5</div><button>Link</button><button class="primary">Copy</button></div>
+    </section>
+    <section class="glass card">
+      <div class="head"><h2>Scenes <em>3</em></h2><button class="primary">Add</button></div>
+      <div class="scene"><div class="body"><div class="name">Vault Entrance</div><div class="role">Active scene</div></div><span class="pill active">Active</span><button>Edit</button></div>
+      <div class="scene"><div class="body"><div class="name">Collapsed Chapel</div><div class="role">Prepared</div></div><button>Activate</button><button>Edit</button></div>
+      <div class="scene"><div class="body"><div class="name">Lower Reliquary</div><div class="role">Prepared</div></div><button>Activate</button><button>Edit</button></div>
+    </section>
+    <section class="glass cta"><p>Open the session when everyone is ready.</p><button class="primary">Start Session</button></section>
+  </div>
+</main>
+</body>
+</html>

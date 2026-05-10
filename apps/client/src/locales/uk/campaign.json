@@ -137,7 +137,16 @@
     "noOwnCharacter": "Персонажа ще немає.",
     "createBtn": "Створити персонажа",
     "allCharactersLabel": "Усі персонажі",
-    "invalidName": "Ім'я має бути від 1 до 64 символів"
+    "invalidName": "Ім'я має бути від 1 до 64 символів",
+    "sheetNav": {
+      "overview": "Огляд",
+      "combat": "Бій",
+      "abilities": "Здібності та рятунки",
+      "skills": "Навички",
+      "spellcasting": "Магія",
+      "personality": "Біо та спорядження",
+      "aria": "Секції аркуша персонажа"
+    }
   },
   "audio": {
     "sidebarTab": "Музика",

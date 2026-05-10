@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type {
   Role,
   CharacterSheetFullDTO,
@@ -32,6 +33,8 @@ import {
 } from '../../store/characters';
 import SpellsList from './SpellsList';
 import { Avatar, Button } from '../ui';
+import Input from '../ui/Input';
+import SheetSectionNav, { type SheetSectionId } from './SheetSectionNav';
 import {
   IdentityHeader,
   AbilityCard,
@@ -131,6 +134,7 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
   const { t } = useTranslation(['campaign', 'common', 'errors']);
   const dispatch = useAppDispatch();
   const allChars = useAppSelector((s) => s.characters.items);
+  const members = useAppSelector((s) => s.room.members);
   const myUserId = useAppSelector((s) => s.session.currentUser?.id);
 
   const [creating, setCreating] = useState(false);
@@ -141,18 +145,27 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
   const myChars = allChars.filter((c) => c.ownerId === myUserId);
   const otherChars = myRole === 'GM' ? allChars.filter((c) => c.ownerId !== myUserId) : [];
 
+  function ownerLabel(ownerId: string): string | undefined {
+    return members.find((m) => m.userId === ownerId)?.name;
+  }
+
   return (
     <section className={styles.sheet}>
       <span className={`eyebrow ${styles.sectionTitle}`}>{t('campaign:character.heading')}</span>
       {myChars.length > 0 && (
         <>
           <p className={styles.subheading}>{t('campaign:character.myChars')}</p>
-          <ul className={styles.charList}>
+          <ul className={styles.charCardList}>
             {myChars.map((c) => (
               <li key={c.id}>
-                <Button variant="ghost" size="sm" fullWidth onClick={() => dispatch(setCurrentCharacter(c))}>
-                  {c.name}
-                </Button>
+                <button
+                  type="button"
+                  className={styles.charCard}
+                  onClick={() => dispatch(setCurrentCharacter(c))}
+                >
+                  <Avatar size="md" name={c.name} {...(c.kind === 'short' && c.portraitUrl ? { src: c.portraitUrl } : {})} />
+                  <span className={styles.charCardName}>{c.name}</span>
+                </button>
               </li>
             ))}
           </ul>
@@ -161,12 +174,22 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
       {otherChars.length > 0 && (
         <>
           <p className={styles.subheading}>{t('campaign:character.otherChars')}</p>
-          <ul className={styles.charList}>
+          <ul className={styles.charCardList}>
             {otherChars.map((c) => (
               <li key={c.id}>
-                <Button variant="ghost" size="sm" fullWidth onClick={() => dispatch(setCurrentCharacter(c))}>
-                  {c.name}
-                </Button>
+                <button
+                  type="button"
+                  className={styles.charCard}
+                  onClick={() => dispatch(setCurrentCharacter(c))}
+                >
+                  <Avatar size="md" name={c.name} {...(c.kind === 'short' && c.portraitUrl ? { src: c.portraitUrl } : {})} />
+                  <span className={styles.charCardMeta}>
+                    <span className={styles.charCardName}>{c.name}</span>
+                    {ownerLabel(c.ownerId) && (
+                      <span className={styles.charCardOwner}>{ownerLabel(c.ownerId)}</span>
+                    )}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
@@ -193,8 +216,8 @@ function CharacterListView({ roomId, myRole }: CharacterListViewProps): JSX.Elem
               }
             }}
           >
-            <input
-              className={styles.inventoryInput}
+            <Input
+              fullWidth
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={t('campaign:character.namePlaceholder')}
@@ -236,187 +259,305 @@ function ShortView({ name, portraitUrl }: { name: string; portraitUrl?: string }
   const { t } = useTranslation('campaign');
   return (
     <section className={styles.sheet}>
-      <div className={styles.header}>
+      <div className={styles.shortViewCard}>
         <Avatar size="lg" name={name} {...(portraitUrl ? { src: portraitUrl } : {})} />
-        <span className={styles.name}>{name}</span>
+        <span className={styles.shortViewName}>{name}</span>
+        <p className={styles.shortViewHint}>{t('character.closedByOwner')}</p>
       </div>
-      <p className={styles.empty}>{t('character.closedByOwner')}</p>
     </section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Column props — 5e-specific state slice
-// ---------------------------------------------------------------------------
-
-interface FiveEColBaseProps {
-  sheet: Sheet5e;
-  readOnly: boolean;
-  onAbility: (ab: Ability, v: number) => void;
-  onSaveProf: (ab: Ability, v: boolean) => void;
-  onSkillTier: (id: SkillId, tier: SkillProf) => void;
-  onVitals: (patch: Partial<VitalsBlock>) => void;
-  onCombat: (patch: Partial<Combat5e>) => void;
-  onHitDice: (total: number | null, used: number | null, type?: 'd6' | 'd8' | 'd10' | 'd12') => void;
-  onSpellcasting: (patch: Partial<Spellcasting5e>) => void;
-  onPersonality: (patch: Partial<Personality5e>) => void;
-  onAttacks: (next: AttackEntry5e[]) => void;
-  onSpellSlots: (next: SpellSlot[]) => void;
-  onOtherProfs: (v: string) => void;
-  onEquipment: (v: string) => void;
-  onSpellsChange: (next: Sheet5e['spells']) => void;
-}
-
-// ---------------------------------------------------------------------------
-// Left column (5e)
-// ---------------------------------------------------------------------------
-
-function LeftColumn({ sheet, readOnly, onAbility, onSaveProf, onSkillTier, onCombat, onOtherProfs }: Pick<
-  FiveEColBaseProps,
-  'sheet' | 'readOnly' | 'onAbility' | 'onSaveProf' | 'onSkillTier' | 'onCombat' | 'onOtherProfs'
->): JSX.Element {
-  const { t } = useTranslation('campaign');
-  return (
-    <div className={styles.col}>
-      <section className={styles.section} aria-label={t('dnd5e.section.abilities')}>
-        {ALL_ABILITIES.map((ab) => (
-          <AbilityCard key={ab} ability={ab} score={sheet.abilities[ab]}
-            onChange={(v) => onAbility(ab, v)} disabled={readOnly} />
-        ))}
-      </section>
-
-      <section className={styles.section} aria-label={`${t('dnd5e.section.inspiration')} & ${t('dnd5e.section.proficiencyBonus')}`}>
-        <label className={styles.inspirationRow}>
-          <input type="checkbox" checked={sheet.combat.inspiration ?? false}
-            onChange={(e) => onCombat({ inspiration: e.target.checked })}
-            disabled={readOnly} aria-label={t('dnd5e.section.inspiration')} />
-          <span>{t('dnd5e.section.inspiration')}</span>
-        </label>
-        <div className={styles.profBonus}>
-          <span className={styles.profBonusLabel}>{t('dnd5e.section.proficiencyBonus')}</span>
-          <span className={styles.profBonusValue}>{formatMod(proficiencyBonus(sheet.identity.level))}</span>
-        </div>
-      </section>
-
-      <section className={styles.section} aria-label={t('dnd5e.section.savingThrows')}>
-        <h3 className={styles.sectionTitle}>{t('dnd5e.section.savingThrows')}</h3>
-        {ALL_ABILITIES.map((ab) => (
-          <SaveRow key={ab} ability={ab} proficient={sheet.saveProfs[ab]}
-            modValue={saveModFor(sheet, ab)}
-            onToggle={(next) => onSaveProf(ab, next)} disabled={readOnly} />
-        ))}
-      </section>
-
-      <section className={styles.section} aria-label={t('dnd5e.section.skills')}>
-        <h3 className={styles.sectionTitle}>{t('dnd5e.section.skills')}</h3>
-        {ALL_SKILL_IDS.map((id) => (
-          <SkillRow key={id} skillId={id} tier={sheet.skills[id] ?? 'none'}
-            modValue={skillModFor(sheet, id)}
-            onChangeTier={(next) => onSkillTier(id, next)} disabled={readOnly} />
-        ))}
-      </section>
-
-      <section className={styles.section} aria-label={t('dnd5e.section.passivePerception')}>
-        <div className={styles.passive}>
-          <span>{t('dnd5e.section.passivePerception')}</span>
-          <span className={styles.modBadge}>{passivePerception(sheet)}</span>
-        </div>
-      </section>
-
-      <section className={styles.section} aria-label={t('dnd5e.section.otherProficiencies')}>
-        <h3 className={styles.sectionTitle}>{t('dnd5e.section.otherProficiencies')}</h3>
-        <textarea value={sheet.otherProfs ?? ''} onChange={(e) => onOtherProfs(e.target.value)}
-          disabled={readOnly} className={styles.textarea} rows={4} />
-      </section>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Center column (5e)
-// ---------------------------------------------------------------------------
-
-function CenterColumn({ sheet, readOnly, onVitals, onHitDice, onSpellcasting, onAttacks, onSpellSlots, onSpellsChange }: Pick<
-  FiveEColBaseProps,
-  'sheet' | 'readOnly' | 'onVitals' | 'onHitDice' | 'onSpellcasting' | 'onAttacks' | 'onSpellSlots' | 'onSpellsChange'
->): JSX.Element {
-  const { t } = useTranslation('campaign');
-  return (
-    <div className={styles.col}>
-      <section className={styles.combatTop}>
-        <StatBox label={t('dnd5e.section.armorClass')} value={sheet.vitals.ac ?? null}
-          onChange={(v) => onVitals({ ac: v })} min={0} max={40} disabled={readOnly} />
-        <StatBox label={t('dnd5e.section.initiative')} value={sheet.vitals.initiativeOverride ?? null}
-          onChange={(v) => onVitals({ initiativeOverride: v })}
-          placeholder={formatMod(initiativeMod(sheet))} disabled={readOnly} />
-        <StatBox label={t('dnd5e.section.speed')} value={sheet.vitals.speed ?? null}
-          onChange={(v) => onVitals({ speed: v })} min={0} max={120} disabled={readOnly} />
-      </section>
-
-      <HpBlock hp={sheet.vitals.hp ?? null} maxHp={sheet.vitals.maxHp ?? null}
-        tempHp={sheet.vitals.tempHp ?? null}
-        onChange={(p) => onVitals(p)} disabled={readOnly} />
-
-      <HitDiceBlock
-        total={sheet.combat.hitDiceTotal ?? null}
-        used={sheet.combat.hitDiceUsed ?? null}
-        type={sheet.combat.hitDiceType}
-        onChange={(p) => onHitDice(
-          p.total !== undefined ? p.total : sheet.combat.hitDiceTotal ?? null,
-          p.used !== undefined ? p.used : sheet.combat.hitDiceUsed ?? null,
-          p.type !== undefined ? p.type : sheet.combat.hitDiceType,
-        )}
-        disabled={readOnly}
-      />
-
-      <section className={styles.section} aria-label={t('dnd5e.section.attacks')}>
-        <h3 className={styles.sectionTitle}>{t('dnd5e.section.attacks')}</h3>
-        <AttackTable attacks={sheet.attacks} onChange={onAttacks} disabled={readOnly} />
-      </section>
-
-      <SpellcastingBlock value={sheet.spellcasting} abilityScores={sheet.abilities}
-        level={sheet.identity.level} onChange={onSpellcasting} disabled={readOnly} />
-
-      <SpellSlots slots={sheet.spellcasting.slots} onChange={onSpellSlots} disabled={readOnly} />
-
-      <SpellsList spells={sheet.spells} readOnly={readOnly} onChange={onSpellsChange} />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Right column (5e)
-// ---------------------------------------------------------------------------
-
-function RightColumn({ sheet, readOnly, onPersonality, onEquipment }: Pick<
-  FiveEColBaseProps,
-  'sheet' | 'readOnly' | 'onPersonality' | 'onEquipment'
->): JSX.Element {
-  const { t } = useTranslation('campaign');
-  return (
-    <div className={styles.col}>
-      <PersonalityBlock value={sheet.personality} onChange={onPersonality} disabled={readOnly} />
-
-      <section className={styles.section} aria-label={t('dnd5e.section.equipment')}>
-        <h3 className={styles.sectionTitle}>{t('dnd5e.section.equipment')}</h3>
-        <textarea value={sheet.equipment ?? ''} onChange={(e) => onEquipment(e.target.value)}
-          disabled={readOnly} className={styles.textarea} rows={10} />
-      </section>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// FiveESheetBody — wraps 3-col grid + all 5e patch helpers
+// FiveESheetBody — section navigation + same patch helpers as before
 // ---------------------------------------------------------------------------
 
 interface FiveESheetBodyProps {
   sheet: Sheet5e;
   onChangeSheet: (next: Sheet5e) => void;
   readOnly: boolean;
+  characterName: string;
+  onNameChange: (v: string) => void;
+  onIdentity: (patch: Partial<Identity5e>) => void;
 }
 
-function FiveESheetBody({ sheet, onChangeSheet, readOnly }: FiveESheetBodyProps): JSX.Element {
+interface FiveEPatchFns {
+  sheet: Sheet5e;
+  readOnly: boolean;
+  pbVal: number;
+  hpSummary: string;
+  setAbility: (ab: Ability, val: number) => void;
+  setSaveProf: (ab: Ability, prof: boolean) => void;
+  setSkillTier: (sid: SkillId, tier: SkillProf) => void;
+  setVitals: (patch: Partial<VitalsBlock>) => void;
+  setCombat: (patch: Partial<Combat5e>) => void;
+  setSpellcasting: (patch: Partial<Spellcasting5e>) => void;
+  setPersonality: (patch: Partial<Personality5e>) => void;
+  setAttacks: (next: AttackEntry5e[]) => void;
+  setSpellSlots: (next: SpellSlot[]) => void;
+  setOtherProfs: (val: string) => void;
+  setEquipment: (val: string) => void;
+  handleHitDice: (
+    total: number | null,
+    used: number | null,
+    type?: 'd6' | 'd8' | 'd10' | 'd12',
+  ) => void;
+  onChangeSheet: (next: Sheet5e) => void;
+}
+
+function renderFiveEOverview(
+  p: FiveEPatchFns & {
+    characterName: string;
+    onNameChange: (v: string) => void;
+    onIdentity: (patch: Partial<Identity5e>) => void;
+    t: TFunction<'campaign'>;
+  },
+): JSX.Element {
+  const {
+    sheet, readOnly, characterName, onNameChange, onIdentity, pbVal, hpSummary, t,
+  } = p;
+  return (
+    <>
+      <IdentityHeader
+        value={sheet.identity}
+        characterName={characterName}
+        onNameChange={onNameChange}
+        onChange={onIdentity}
+        disabled={readOnly}
+      />
+      <div
+        className={styles.quickStrip}
+        role="group"
+        aria-label={t('character.sheetNav.overview')}
+      >
+        <div className={styles.quickChip}>
+          <span className={styles.quickLabel}>{t('dnd5e.section.armorClass')}</span>
+          <span className={styles.quickValue}>{sheet.vitals.ac ?? '—'}</span>
+        </div>
+        <div className={styles.quickChip}>
+          <span className={styles.quickLabel}>{t('character.vitals')}</span>
+          <span className={styles.quickValue}>{hpSummary}</span>
+        </div>
+        <div className={styles.quickChip}>
+          <span className={styles.quickLabel}>{t('dnd5e.section.speed')}</span>
+          <span className={styles.quickValue}>{sheet.vitals.speed ?? '—'}</span>
+        </div>
+        <div className={styles.quickChip}>
+          <span className={styles.quickLabel}>{t('dnd5e.section.initiative')}</span>
+          <span className={styles.quickValue}>
+            {sheet.vitals.initiativeOverride != null
+              ? formatMod(sheet.vitals.initiativeOverride)
+              : formatMod(initiativeMod(sheet))}
+          </span>
+        </div>
+        <div className={styles.quickChip}>
+          <span className={styles.quickLabel}>{t('dnd5e.section.proficiencyBonus')}</span>
+          <span className={styles.quickValue}>{formatMod(pbVal)}</span>
+        </div>
+        <div className={styles.quickChip}>
+          <span className={styles.quickLabel}>{t('dnd5e.section.inspiration')}</span>
+          <span className={styles.quickValue}>{sheet.combat.inspiration ? '✓' : '—'}</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function renderFiveECombat(p: FiveEPatchFns & { t: TFunction<'campaign'> }): JSX.Element {
+  const { sheet, readOnly, setVitals, handleHitDice, setAttacks, t } = p;
+  return (
+    <>
+      <section className={styles.section} aria-label={t('dnd5e.section.armorClass')}>
+        <div className={styles.combatTop}>
+          <StatBox
+            label={t('dnd5e.section.armorClass')}
+            value={sheet.vitals.ac ?? null}
+            onChange={(v) => setVitals({ ac: v })}
+            min={0}
+            max={40}
+            disabled={readOnly}
+          />
+          <StatBox
+            label={t('dnd5e.section.initiative')}
+            value={sheet.vitals.initiativeOverride ?? null}
+            onChange={(v) => setVitals({ initiativeOverride: v })}
+            placeholder={formatMod(initiativeMod(sheet))}
+            disabled={readOnly}
+          />
+          <StatBox
+            label={t('dnd5e.section.speed')}
+            value={sheet.vitals.speed ?? null}
+            onChange={(v) => setVitals({ speed: v })}
+            min={0}
+            max={120}
+            disabled={readOnly}
+          />
+        </div>
+      </section>
+      <HpBlock
+        hp={sheet.vitals.hp ?? null}
+        maxHp={sheet.vitals.maxHp ?? null}
+        tempHp={sheet.vitals.tempHp ?? null}
+        onChange={(vitalsPatch) => setVitals(vitalsPatch)}
+        disabled={readOnly}
+      />
+      <HitDiceBlock
+        total={sheet.combat.hitDiceTotal ?? null}
+        used={sheet.combat.hitDiceUsed ?? null}
+        type={sheet.combat.hitDiceType}
+        onChange={(hitDicePatch) => handleHitDice(
+          hitDicePatch.total !== undefined ? hitDicePatch.total : sheet.combat.hitDiceTotal ?? null,
+          hitDicePatch.used !== undefined ? hitDicePatch.used : sheet.combat.hitDiceUsed ?? null,
+          hitDicePatch.type !== undefined ? hitDicePatch.type : sheet.combat.hitDiceType,
+        )}
+        disabled={readOnly}
+      />
+      <section className={styles.section} aria-label={t('dnd5e.section.attacks')}>
+        <AttackTable attacks={sheet.attacks} onChange={setAttacks} disabled={readOnly} />
+      </section>
+    </>
+  );
+}
+
+function renderFiveEAbilities(p: FiveEPatchFns & { t: TFunction<'campaign'> }): JSX.Element {
+  const {
+    sheet, readOnly, pbVal, setAbility, setSaveProf, setCombat, t,
+  } = p;
+  return (
+    <>
+      <section className={styles.section} aria-label={t('dnd5e.section.abilities')}>
+        <div className={styles.abilityRow}>
+          {ALL_ABILITIES.map((ab) => (
+            <AbilityCard
+              key={ab}
+              ability={ab}
+              score={sheet.abilities[ab]}
+              onChange={(v) => setAbility(ab, v)}
+              disabled={readOnly}
+            />
+          ))}
+        </div>
+      </section>
+      <section
+        className={styles.section}
+        aria-label={`${t('dnd5e.section.inspiration')} & ${t('dnd5e.section.proficiencyBonus')}`}
+      >
+        <label className={styles.inspirationRow}>
+          <input
+            type="checkbox"
+            checked={sheet.combat.inspiration ?? false}
+            onChange={(e) => setCombat({ inspiration: e.target.checked })}
+            disabled={readOnly}
+            aria-label={t('dnd5e.section.inspiration')}
+          />
+          <span>{t('dnd5e.section.inspiration')}</span>
+        </label>
+        <div className={styles.profBonus}>
+          <span className={styles.profBonusLabel}>{t('dnd5e.section.proficiencyBonus')}</span>
+          <span className={styles.profBonusValue}>{formatMod(pbVal)}</span>
+        </div>
+      </section>
+      <section className={styles.section} aria-label={t('dnd5e.section.savingThrows')}>
+        {ALL_ABILITIES.map((ab) => (
+          <SaveRow
+            key={ab}
+            ability={ab}
+            proficient={sheet.saveProfs[ab]}
+            modValue={saveModFor(sheet, ab)}
+            onToggle={(next) => setSaveProf(ab, next)}
+            disabled={readOnly}
+          />
+        ))}
+      </section>
+    </>
+  );
+}
+
+function renderFiveESkills(p: FiveEPatchFns & { t: TFunction<'campaign'> }): JSX.Element {
+  const { sheet, readOnly, setSkillTier, t } = p;
+  return (
+    <>
+      <section className={styles.section} aria-label={t('dnd5e.section.skills')}>
+        {ALL_SKILL_IDS.map((id) => (
+          <SkillRow
+            key={id}
+            skillId={id}
+            tier={sheet.skills[id] ?? 'none'}
+            modValue={skillModFor(sheet, id)}
+            onChangeTier={(next) => setSkillTier(id, next)}
+            disabled={readOnly}
+          />
+        ))}
+      </section>
+      <section className={styles.section} aria-label={t('dnd5e.section.passivePerception')}>
+        <div className={styles.passive}>
+          <span>{t('dnd5e.section.passivePerception')}</span>
+          <span className={styles.modBadge}>{passivePerception(sheet)}</span>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function renderFiveESpellcasting(p: FiveEPatchFns): JSX.Element {
+  const { sheet, readOnly, setSpellcasting, setSpellSlots, onChangeSheet } = p;
+  return (
+    <>
+      <SpellcastingBlock
+        value={sheet.spellcasting}
+        abilityScores={sheet.abilities}
+        level={sheet.identity.level}
+        onChange={setSpellcasting}
+        disabled={readOnly}
+      />
+      <SpellSlots slots={sheet.spellcasting.slots} onChange={setSpellSlots} disabled={readOnly} />
+      <SpellsList
+        spells={sheet.spells}
+        readOnly={readOnly}
+        onChange={(next) => onChangeSheet({ ...sheet, spells: next })}
+      />
+    </>
+  );
+}
+
+function renderFiveEPersonality(p: FiveEPatchFns & { t: TFunction<'campaign'> }): JSX.Element {
+  const { sheet, readOnly, setPersonality, setEquipment, setOtherProfs, t } = p;
+  return (
+    <>
+      <PersonalityBlock value={sheet.personality} onChange={setPersonality} disabled={readOnly} />
+      <section className={styles.section} aria-label={t('dnd5e.section.equipment')}>
+        <textarea
+          value={sheet.equipment ?? ''}
+          onChange={(e) => setEquipment(e.target.value)}
+          disabled={readOnly}
+          className={styles.textarea}
+          rows={10}
+        />
+      </section>
+      <section className={styles.section} aria-label={t('dnd5e.section.otherProficiencies')}>
+        <textarea
+          value={sheet.otherProfs ?? ''}
+          onChange={(e) => setOtherProfs(e.target.value)}
+          disabled={readOnly}
+          className={styles.textarea}
+          rows={4}
+        />
+      </section>
+    </>
+  );
+}
+
+function FiveESheetBody({
+  sheet,
+  onChangeSheet,
+  readOnly,
+  characterName,
+  onNameChange,
+  onIdentity,
+}: FiveESheetBodyProps): JSX.Element {
+  const { t } = useTranslation('campaign');
+  const [mobileSection, setMobileSection] = useState<SheetSectionId>('overview');
+
   const setAbility = (ab: Ability, val: number): void =>
     onChangeSheet({ ...sheet, abilities: { ...sheet.abilities, [ab]: val } });
   const setSaveProf = (ab: Ability, prof: boolean): void =>
@@ -450,34 +591,51 @@ function FiveESheetBody({ sheet, onChangeSheet, readOnly }: FiveESheetBodyProps)
     setCombat(patch);
   };
 
+  const pbVal = proficiencyBonus(sheet.identity.level);
+  const hpCurrent = sheet.vitals.hp;
+  const hpMax = sheet.vitals.maxHp;
+  const hpSummary =
+    hpCurrent != null || hpMax != null ? `${hpCurrent ?? '—'} / ${hpMax ?? '—'}` : '—';
+
+  const patchFns: FiveEPatchFns = {
+    sheet,
+    readOnly,
+    pbVal,
+    hpSummary,
+    setAbility,
+    setSaveProf,
+    setSkillTier,
+    setVitals,
+    setCombat,
+    setSpellcasting,
+    setPersonality,
+    setAttacks,
+    setSpellSlots,
+    setOtherProfs,
+    setEquipment,
+    handleHitDice,
+    onChangeSheet,
+  };
+
+  const sectionContent: Record<SheetSectionId, JSX.Element> = {
+    overview: renderFiveEOverview({
+      ...patchFns,
+      characterName,
+      onNameChange,
+      onIdentity,
+      t,
+    }),
+    combat: renderFiveECombat({ ...patchFns, t }),
+    abilities: renderFiveEAbilities({ ...patchFns, t }),
+    skills: renderFiveESkills({ ...patchFns, t }),
+    spellcasting: renderFiveESpellcasting(patchFns),
+    personality: renderFiveEPersonality({ ...patchFns, t }),
+  };
+
   return (
-    <div className={styles.sheetGrid}>
-      <LeftColumn
-        sheet={sheet}
-        readOnly={readOnly}
-        onAbility={setAbility}
-        onSaveProf={setSaveProf}
-        onSkillTier={setSkillTier}
-        onCombat={setCombat}
-        onOtherProfs={setOtherProfs}
-      />
-      <CenterColumn
-        sheet={sheet}
-        readOnly={readOnly}
-        onVitals={setVitals}
-        onHitDice={handleHitDice}
-        onSpellcasting={setSpellcasting}
-        onAttacks={setAttacks}
-        onSpellSlots={setSpellSlots}
-        onSpellsChange={(next) => onChangeSheet({ ...sheet, spells: next })}
-      />
-      <RightColumn
-        sheet={sheet}
-        readOnly={readOnly}
-        onPersonality={setPersonality}
-        onEquipment={setEquipment}
-      />
-    </div>
+    <SheetSectionNav activeMobile={mobileSection} onMobileChange={setMobileSection}>
+      {sectionContent}
+    </SheetSectionNav>
   );
 }
 
@@ -550,6 +708,63 @@ interface SheetOwnerViewProps {
   onUploadPdfFile: (file: File) => void;
 }
 
+interface SheetOwnerSheetBodyProps {
+  sheet: CharacterSheetData;
+  current: CharacterSheetFullDTO;
+  readOnly: boolean;
+  name: string;
+  onNameChange: (v: string) => void;
+  onIdentity: (patch: Partial<Identity5e>) => void;
+  onChangeSheet: (next: CharacterSheetData) => void;
+  onUploadPdfFile: (file: File) => void;
+}
+
+function SheetOwnerSheetBody({
+  sheet,
+  current,
+  readOnly,
+  name,
+  onNameChange,
+  onIdentity,
+  onChangeSheet,
+  onUploadPdfFile,
+}: SheetOwnerSheetBodyProps): JSX.Element | null {
+  if (sheet.kind === '5e') {
+    return (
+      <FiveESheetBody
+        sheet={sheet}
+        onChangeSheet={(next) => onChangeSheet(next)}
+        readOnly={readOnly}
+        characterName={name}
+        onNameChange={onNameChange}
+        onIdentity={onIdentity}
+      />
+    );
+  }
+  if (sheet.kind === 'pdf') {
+    return (
+      <PdfModeBody
+        sheet={sheet}
+        {...(current.pdfUrl !== undefined ? { pdfUrl: current.pdfUrl } : {})}
+        onUploadPdf={onUploadPdfFile}
+        onChangeVitals={(patch) => onChangeSheet({ ...sheet, vitals: { ...sheet.vitals, ...patch } })}
+        readOnly={readOnly}
+      />
+    );
+  }
+  if (sheet.kind === 'vitals') {
+    return (
+      <VitalsModeBody
+        sheet={sheet}
+        onChangeVitals={(patch) => onChangeSheet({ ...sheet, vitals: { ...sheet.vitals, ...patch } })}
+        onChangeNotes={(notes) => onChangeSheet({ ...sheet, notes })}
+        readOnly={readOnly}
+      />
+    );
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // SheetOwnerView — composes mode bodies
 // ---------------------------------------------------------------------------
@@ -563,57 +778,45 @@ function SheetOwnerView({
 
   return (
     <section className={styles.sheet} aria-label={t('campaign:character.sheetLabel', { name: current.name })}>
-      <IdentityHeader
-        value={sheet.kind === '5e' ? sheet.identity : {}}
-        characterName={name}
-        onNameChange={onNameChange}
-        onChange={onIdentity}
-        disabled={readOnly}
-      />
-
-      {isGmViewer(myRole, isOwner) && (
-        <span className={`eyebrow ${styles.readOnlyBadge}`}>{t('campaign:character.readOnlyBadge')}</span>
-      )}
-
-      {/* GM can switch mode locally on others' sheets to peek PDF/Vitals views;
-          save is gated by readOnly so changes never persist. */}
-      <SystemSelector value={sheet.kind} onChange={onSwitchMode} />
-
-      {sheet.kind === '5e' && (
-        <FiveESheetBody
-          sheet={sheet}
-          onChangeSheet={(next) => onChangeSheet(next)}
-          readOnly={readOnly}
-        />
-      )}
-
-      {sheet.kind === 'pdf' && (
-        <PdfModeBody
-          sheet={sheet}
-          {...(current.pdfUrl !== undefined ? { pdfUrl: current.pdfUrl } : {})}
-          onUploadPdf={onUploadPdfFile}
-          onChangeVitals={(patch) => onChangeSheet({ ...sheet, vitals: { ...sheet.vitals, ...patch } })}
-          readOnly={readOnly}
-        />
-      )}
-
-      {sheet.kind === 'vitals' && (
-        <VitalsModeBody
-          sheet={sheet}
-          onChangeVitals={(patch) => onChangeSheet({ ...sheet, vitals: { ...sheet.vitals, ...patch } })}
-          onChangeNotes={(notes) => onChangeSheet({ ...sheet, notes })}
-          readOnly={readOnly}
-        />
-      )}
-
-      {!readOnly && (
-        <div className={styles.actions}>
-          <Button variant="primary" onClick={onSave} disabled={saving}>
-            {saving ? t('common:btn.saving') : t('common:btn.save')}
-          </Button>
-          {saveError && <p className={styles.error} role="alert">{saveError}</p>}
+      <div className={styles.stickyToolbar}>
+        <div className={styles.toolbarCluster}>
+          {isGmViewer(myRole, isOwner) && (
+            <span className={`eyebrow ${styles.readOnlyBadge}`}>{t('campaign:character.readOnlyBadge')}</span>
+          )}
+          <SystemSelector value={sheet.kind} onChange={onSwitchMode} />
         </div>
+        {!readOnly && (
+          <div className={styles.toolbarActions}>
+            <Button variant="primary" size="sm" onClick={onSave} disabled={saving}>
+              {saving ? t('common:btn.saving') : t('common:btn.save')}
+            </Button>
+            {saveError && (
+              <p className={styles.toolbarError} role="alert">{saveError}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {sheet.kind !== '5e' && (
+        <IdentityHeader
+          value={{}}
+          characterName={name}
+          onNameChange={onNameChange}
+          onChange={onIdentity}
+          disabled={readOnly}
+        />
       )}
+
+      <SheetOwnerSheetBody
+        sheet={sheet}
+        current={current}
+        readOnly={readOnly}
+        name={name}
+        onNameChange={onNameChange}
+        onIdentity={onIdentity}
+        onChangeSheet={onChangeSheet}
+        onUploadPdfFile={onUploadPdfFile}
+      />
     </section>
   );
 }
@@ -665,7 +868,7 @@ export default function CharacterSheet({ characterId, roomId, myRole }: Characte
   );
 
   if (!effectiveId) return <CharacterListView roomId={roomId} myRole={myRole} />;
-  if (!current) return <p>{t('campaign:character.loading')}</p>;
+  if (!current) return <p className={styles.loadingHint}>{t('campaign:character.loading')}</p>;
   if (current.kind === 'short') {
     return <ShortView name={current.name} {...(current.portraitUrl ? { portraitUrl: current.portraitUrl } : {})} />;
   }

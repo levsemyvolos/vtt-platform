@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { Identity5e } from '@vtt/shared';
+import Input from '../../ui/Input';
 import styles from './dnd5e.module.css';
 
 export interface IdentityHeaderProps {
@@ -21,15 +22,12 @@ export default function IdentityHeader({
   const { t } = useTranslation('campaign');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      {/* Character name — wider than the grid fields */}
-      <input
-        type="text"
+    <div className={styles.identityRoot}>
+      <Input
+        label={t('dnd5e.identity.characterName')}
         value={characterName}
         disabled={disabled}
-        aria-label={t('dnd5e.identity.characterName')}
-        placeholder={t('dnd5e.identity.characterName')}
-        style={{ fontSize: '1.125rem', fontWeight: 700, width: '100%' }}
+        fullWidth
         onChange={(e) => onNameChange(e.target.value)}
       />
 
@@ -41,6 +39,7 @@ export default function IdentityHeader({
             value={value.className ?? ''}
             disabled={disabled}
             aria-label={t('dnd5e.identity.className')}
+            className={styles.identityField}
             onChange={(e) => onChange({ className: e.target.value })}
           />
         </div>
@@ -54,7 +53,7 @@ export default function IdentityHeader({
             max={20}
             disabled={disabled}
             aria-label={t('dnd5e.identity.level')}
-            style={{ width: '3.5rem' }}
+            className={`${styles.identityField} ${styles.identityLevelInput}`}
             onChange={(e) => {
               if (e.target.value === '') {
                 onChange({});
@@ -72,6 +71,7 @@ export default function IdentityHeader({
             value={value.race ?? ''}
             disabled={disabled}
             aria-label={t('dnd5e.identity.race')}
+            className={styles.identityField}
             onChange={(e) => onChange({ race: e.target.value })}
           />
         </div>
@@ -83,6 +83,7 @@ export default function IdentityHeader({
             value={value.background ?? ''}
             disabled={disabled}
             aria-label={t('dnd5e.identity.background')}
+            className={styles.identityField}
             onChange={(e) => onChange({ background: e.target.value })}
           />
         </div>
@@ -94,6 +95,7 @@ export default function IdentityHeader({
             value={value.alignment ?? ''}
             disabled={disabled}
             aria-label={t('dnd5e.identity.alignment')}
+            className={styles.identityField}
             onChange={(e) => onChange({ alignment: e.target.value })}
           />
         </div>
@@ -106,6 +108,7 @@ export default function IdentityHeader({
             min={0}
             disabled={disabled}
             aria-label={t('dnd5e.identity.experiencePoints')}
+            className={styles.identityField}
             onChange={(e) => {
               if (e.target.value === '') {
                 onChange({});

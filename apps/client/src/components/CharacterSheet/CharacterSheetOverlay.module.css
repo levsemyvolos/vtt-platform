@@ -1,54 +1,71 @@
-.overlay {
+.backdrop {
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--bg-0) 72%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: var(--space-md);
+  box-sizing: border-box;
+}
+
+.panel {
   display: flex;
   flex-direction: column;
+  width: min(1120px, 100%);
+  max-height: calc(100dvh - 2 * var(--space-md));
+  background: var(--bg-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-cast);
   overflow: hidden;
 }
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: var(--space-md) var(--space-xl);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-elevated);
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-1);
   flex-shrink: 0;
 }
 
-.title {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.closeBtn {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 18px;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
+.headerMain {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.closeBtn:hover {
-  background: var(--color-surface);
-  color: var(--color-text-primary);
+.title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.characterName {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .body {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  padding: var(--space-xl);
-  /* Constrain width on huge monitors so the sheet doesn't sprawl */
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
+  overflow-x: hidden;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
 }

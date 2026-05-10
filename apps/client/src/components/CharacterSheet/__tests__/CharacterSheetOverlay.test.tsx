@@ -29,7 +29,7 @@ function makeStore() {
 }
 
 describe('CharacterSheetOverlay', () => {
-  it('renders the body and a close button', () => {
+  it('renders dialog, body and close control', () => {
     const onClose = vi.fn();
     const { getByTestId, getByRole } = render(
       <Provider store={makeStore()}>
@@ -42,9 +42,8 @@ describe('CharacterSheetOverlay', () => {
       </Provider>,
     );
     expect(getByTestId('character-sheet-body')).toBeTruthy();
-    // button text is ✕; role+type is sufficient
-    const closeBtn = getByRole('button');
-    expect(closeBtn).toBeTruthy();
+    expect(getByRole('dialog')).toBeTruthy();
+    expect(getByRole('button', { name: /close character sheet|закрити аркуш/i })).toBeTruthy();
   });
 
   it('calls onClose when close button is clicked', () => {
@@ -59,7 +58,7 @@ describe('CharacterSheetOverlay', () => {
         />
       </Provider>,
     );
-    fireEvent.click(getByRole('button'));
+    fireEvent.click(getByRole('button', { name: /close character sheet|закрити аркуш/i }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 

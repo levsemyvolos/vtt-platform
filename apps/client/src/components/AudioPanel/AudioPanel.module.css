@@ -39,8 +39,8 @@
   font-size: var(--text-sm);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text);
+  background: var(--bg-1);
+  color: var(--ink);
 }
 
 .titleInput:focus-visible {

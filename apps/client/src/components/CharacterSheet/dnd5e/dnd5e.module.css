@@ -32,8 +32,12 @@
   text-align: center;
   font-size: 0.875rem;
   font-weight: 600;
-  background: var(--color-surface-2, #2a2a3a);
-  border-radius: 0.25rem;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-engrave);
+  color: var(--primary);
+  font-family: var(--font-mono);
 }
 
 /* Tri-state proficiency pill (○ ● ★) */
@@ -44,14 +48,14 @@
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 50%;
-  border: 1.5px solid var(--color-border, #555);
+  border: 1.5px solid var(--line-strong);
   background: transparent;
   cursor: pointer;
   font-size: 0.75rem;
   flex-shrink: 0;
   transition: background 0.15s, border-color 0.15s;
   padding: 0;
-  color: inherit;
+  color: var(--ink);
 }
 
 .tierPill:disabled {
@@ -60,15 +64,15 @@
 }
 
 .tierPill--proficient {
-  background: var(--color-primary, #6366f1);
-  border-color: var(--color-primary, #6366f1);
-  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--ink-inverse);
 }
 
 .tierPill--expertise {
-  background: var(--color-accent, #f59e0b);
-  border-color: var(--color-accent, #f59e0b);
-  color: #fff;
+  background: var(--ember);
+  border-color: var(--ember-hi);
+  color: var(--ink-inverse);
 }
 
 /* Ability short label (STR, DEX, etc.) */
@@ -78,7 +82,7 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   text-align: center;
-  color: var(--color-text-2, #a0a0b0);
+  color: var(--ink-mute);
 }
 
 /* Card wrapper for an ability score block */
@@ -88,8 +92,10 @@
   align-items: center;
   gap: 0.125rem;
   padding: 0.5rem 0.25rem;
-  border: 1px solid var(--color-border, #555);
-  border-radius: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-engrave);
   min-width: 4rem;
   text-align: center;
 }
@@ -105,7 +111,7 @@
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--color-text-2, #a0a0b0);
+  color: var(--ink-mute);
   margin-bottom: 0.125rem;
 }
 
@@ -136,7 +142,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   min-width: 3rem;
-  color: var(--color-text-2, #a0a0b0);
+  color: var(--ink-mute);
 }
 
 /* Attack table */
@@ -154,29 +160,60 @@
 .attackTable th {
   text-align: left;
   font-weight: 600;
-  color: var(--color-text-2, #a0a0b0);
-  border-bottom: 1px solid var(--color-border, #555);
+  color: var(--ink-mute);
+  border-bottom: 1px solid var(--line);
 }
 
 /* Personality textareas */
 .personalityField {
   width: 100%;
   resize: vertical;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   font-family: inherit;
+  box-sizing: border-box;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+  color: var(--ink);
+  box-shadow: var(--shadow-engrave);
 }
 
 /* Identity header grid */
+.identityRoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-engrave);
+}
+
 .identityGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 0.75rem;
+  gap: var(--space-md);
+}
+
+.identityGrid .statGroup {
+  align-items: stretch;
+}
+
+.identityField {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.identityLevelInput {
+  max-width: 5rem;
 }
 
 /* Ability tag in skill rows, e.g. "(DEX)" */
 .abilityTag {
   font-size: 0.7rem;
-  color: var(--color-text-2, #a0a0b0);
+  color: var(--ink-mute);
   margin-left: 0.125rem;
 }
 

@@ -137,7 +137,16 @@
     "noOwnCharacter": "No character yet.",
     "createBtn": "Create character",
     "allCharactersLabel": "All characters",
-    "invalidName": "Name must be 1–64 characters"
+    "invalidName": "Name must be 1–64 characters",
+    "sheetNav": {
+      "overview": "Overview",
+      "combat": "Combat",
+      "abilities": "Abilities & saves",
+      "skills": "Skills",
+      "spellcasting": "Spells",
+      "personality": "Bio & gear",
+      "aria": "Character sheet sections"
+    }
   },
   "audio": {
     "sidebarTab": "Music",
