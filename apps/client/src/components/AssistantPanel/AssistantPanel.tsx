@@ -10,6 +10,7 @@ import ImageThreadView from './ImageThreadView';
 import MusicHistoryList from './MusicHistoryList';
 import MusicPromptBuilder from './MusicPromptBuilder';
 import RecentGenerations from './RecentGenerations';
+import Sigil from '../common/Sigil';
 import { useAppSelector } from '../../store';
 import styles from './AssistantPanel.module.css';
 
@@ -35,11 +36,15 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
 
   return (
     <div className={styles.overlay} role="dialog" aria-label={t('header.title')}>
-      <div className={styles.header}>
-        <div className={styles.headerInfo}>
-          <span className={styles.title}>{t('header.title')}</span>
-          <span className={styles.subtitle}>{t('header.subtitle')}</span>
+      <header className={styles.header}>
+        <div className={styles.headerMark} aria-hidden="true">
+          <Sigil variant="compass" />
         </div>
+        <div className={styles.headerInfo}>
+          <span className={styles.headerEyebrow}>{t('header.eyebrow')}</span>
+          <h1 className={styles.title}>{t('header.title')}</h1>
+        </div>
+        <span className={styles.subtitle}>{t('header.subtitle')}</span>
         {rateLimitRemaining !== null && (
           <span
             className={`${styles.rateLimitBadge} ${showWarning ? styles.rateLimitWarning : ''}`}
@@ -57,7 +62,7 @@ export default function AssistantPanel({ roomId, onClose }: AssistantPanelProps)
         >
           ✕
         </button>
-      </div>
+      </header>
       <div className={styles.tabsBar}>
         <Tabs
           variant="pill"

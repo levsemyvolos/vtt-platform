@@ -38,7 +38,7 @@ export default function AbilityCard({
           if (!Number.isNaN(v)) onChange(v);
         }}
       />
-      <span className={styles.modBadge} aria-label={`${t(`dnd5e.ability.${ability}.full`)} modifier`}>
+      <span className={styles.abilityMod} aria-label={`${t(`dnd5e.ability.${ability}.full`)} modifier`}>
         {formatMod(mod)}
       </span>
     </div>

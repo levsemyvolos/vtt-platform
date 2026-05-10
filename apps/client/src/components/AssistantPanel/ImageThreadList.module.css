@@ -1,31 +1,36 @@
 .imageThreadList {
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   padding: var(--space-md);
   gap: var(--space-sm);
   overflow-y: auto;
+  background: color-mix(in srgb, var(--bg-1) 35%, transparent);
 }
 
 .newBtn {
   padding: var(--space-sm) var(--space-md);
-  background: var(--color-primary-muted);
-  color: var(--color-primary);
-  border: 1px dashed var(--color-primary);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
+  background: var(--bg-1);
+  color: var(--primary);
+  border: 1px dashed color-mix(in srgb, var(--primary) 50%, var(--line));
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-mono-cap);
+  text-transform: uppercase;
   cursor: pointer;
   width: 100%;
   text-align: center;
-  transition: opacity 0.15s;
+  transition: all var(--transition-fast);
 }
 
 .newBtn:hover {
-  opacity: 0.85;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border-color: var(--primary);
 }
 
 .newBtn:focus-visible {
-  outline: var(--focus-ring);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
@@ -39,9 +44,10 @@
 }
 
 .empty {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  font-family: var(--font-serif);
   font-style: italic;
+  font-size: var(--text-sm);
   padding: var(--space-sm);
   text-align: center;
 }
@@ -49,16 +55,19 @@
 .row {
   display: flex;
   align-items: stretch;
-  border-radius: var(--radius-sm);
-  transition: background 0.12s;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .row:hover {
-  background: var(--color-surface-hover);
+  background: color-mix(in srgb, var(--bg-2) 60%, transparent);
+  border-color: var(--line);
 }
 
 .rowActive {
-  background: var(--color-primary-muted);
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-1));
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--line));
 }
 
 .rowMain {
@@ -77,13 +86,14 @@
 }
 
 .rowMain:focus-visible {
-  outline: var(--focus-ring);
+  outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
 
 .rowTitle {
+  font-family: var(--font-serif);
   font-size: var(--text-sm);
-  color: var(--color-text-primary);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -91,12 +101,15 @@
 }
 
 .rowMeta {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 .rowActive .rowTitle {
-  color: var(--color-primary);
+  color: var(--primary);
   font-weight: 500;
 }
 
@@ -106,7 +119,7 @@
   gap: 2px;
   padding-right: var(--space-xs);
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity var(--transition-fast);
 }
 
 .row:hover .rowActions,
@@ -115,16 +128,17 @@
 }
 
 .rowActionBtn {
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
   font-size: var(--text-sm);
-  padding: 2px 4px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
+  padding: 2px 6px;
+  border-radius: 2px;
+  color: var(--ink-mute);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .rowActionBtn:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text-primary);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--line));
 }

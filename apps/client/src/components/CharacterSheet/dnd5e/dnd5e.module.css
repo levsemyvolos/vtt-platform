@@ -8,6 +8,36 @@
   min-height: 1.75rem;
 }
 
+/* Skill row variant: leader-line dots between name and modifier badge */
+.skillRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.75rem;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--line);
+}
+
+.skillRow:last-child {
+  border-bottom: 0;
+}
+
+.skillName {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.skillLeader {
+  flex: 1;
+  align-self: center;
+  height: 2px;
+  background: radial-gradient(circle, var(--line) 1px, transparent 1.5px) repeat-x;
+  background-size: 6px 2px;
+  min-width: 1.5rem;
+}
+
 /* Compact numeric display (score, mod, AC, etc.) */
 .statValue {
   font-size: 1.25rem;
@@ -85,19 +115,54 @@
   color: var(--ink-mute);
 }
 
-/* Card wrapper for an ability score block */
+/* Card wrapper for an ability score block (manuscript pattern) */
 .abilityCard {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.125rem;
-  padding: 0.5rem 0.25rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem 0.625rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
   background: var(--bg-2);
   box-shadow: var(--shadow-engrave);
-  min-width: 4rem;
+  min-width: 5.25rem;
   text-align: center;
+  position: relative;
+  transition: border-color var(--transition-fast);
+}
+
+.abilityCard:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--line-strong));
+}
+
+.abilityCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 1px;
+  background: var(--primary);
+  opacity: .35;
+}
+
+/* Circular modifier badge inside ability card */
+.abilityMod {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--line));
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-1));
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 1.125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Numeric input constrained to small stat box size */

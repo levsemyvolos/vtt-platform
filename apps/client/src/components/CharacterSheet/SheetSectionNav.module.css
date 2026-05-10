@@ -38,39 +38,87 @@
   .rail {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    width: 148px;
+    gap: 2px;
+    width: 168px;
     flex-shrink: 0;
     position: sticky;
     top: var(--sheet-rail-sticky-top, 4.75rem);
     align-self: flex-start;
-    padding-top: 2px;
+    padding: 14px 0;
+    border-right: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg-1) 35%, transparent);
+    counter-reset: rail-num;
   }
 }
 
-.railBtn {
-  text-align: left;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background: var(--bg-2);
-  color: var(--ink-mute);
+.railEyebrow {
   font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 500;
   letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 4px 18px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.railEyebrow::before {
+  content: '';
+  width: 14px;
+  height: 1px;
+  background: currentColor;
+  opacity: .5;
+}
+
+.railBtn {
+  background: transparent;
+  border: 0;
+  padding: 8px 18px;
+  text-align: left;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--ink-mute);
   cursor: pointer;
+  border-left: 2px solid transparent;
   transition:
-    background var(--transition-fast),
+    color var(--transition-fast),
     border-color var(--transition-fast),
-    color var(--transition-fast);
+    background var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  counter-increment: rail-num;
+}
+
+.railBtn::after {
+  content: counter(rail-num, upper-roman);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .railBtn:hover {
-  background: var(--bg-3);
   color: var(--ink);
-  border-color: var(--line);
+  background: color-mix(in srgb, var(--bg-2) 40%, transparent);
+}
+
+.railBtn[aria-current="true"] {
+  color: var(--ink);
+  border-left-color: var(--primary);
+  background: color-mix(in srgb, var(--bg-2) 60%, transparent);
+}
+
+.railBtn[aria-current="true"]::after {
+  color: var(--primary);
+}
+
+.railBtn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 .main {
@@ -89,24 +137,21 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: var(--tracking-eyebrow);
+  letter-spacing: var(--tracking-mono-cap);
   text-transform: uppercase;
-  color: var(--primary);
-  margin: 0 0 var(--space-sm);
+  color: var(--ink-mute);
+  margin: 0 0 var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-@media (min-width: 900px) {
-  .sectionHeading {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
+.sectionHeading::before {
+  content: '';
+  height: 1px;
+  flex: 0 0 24px;
+  background: currentColor;
+  opacity: .5;
 }
 
 @media (max-width: 899px) {

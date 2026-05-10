@@ -133,6 +133,7 @@
     "pdfUploadLabel": "Upload PDF",
     "overlayTitle": "Character Sheet",
     "closeOverlay": "Close character sheet",
+    "editMode": "Edit mode",
     "openSheet": "Open Sheet",
     "noOwnCharacter": "No character yet.",
     "createBtn": "Create character",
@@ -145,7 +146,8 @@
       "skills": "Skills",
       "spellcasting": "Spells",
       "personality": "Bio & gear",
-      "aria": "Character sheet sections"
+      "aria": "Character sheet sections",
+      "railEyebrow": "Sections"
     }
   },
   "audio": {

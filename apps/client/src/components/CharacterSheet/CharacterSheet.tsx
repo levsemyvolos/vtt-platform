@@ -56,6 +56,7 @@ import {
 } from './dnd5e';
 import { normaliseCharacterSheet } from './dnd5e/normalise';
 import SystemSelector from './SystemSelector';
+import EditToggle from './EditToggle';
 import PdfSheetView from './PdfSheetView';
 import VitalsSheetView from './VitalsSheetView';
 import VitalsStrip from './VitalsStrip';
@@ -330,11 +331,11 @@ function renderFiveEOverview(
         role="group"
         aria-label={t('character.sheetNav.overview')}
       >
-        <div className={styles.quickChip}>
+        <div className={`${styles.quickChip} ${styles.quickChipSteel}`}>
           <span className={styles.quickLabel}>{t('dnd5e.section.armorClass')}</span>
           <span className={styles.quickValue}>{sheet.vitals.ac ?? '—'}</span>
         </div>
-        <div className={styles.quickChip}>
+        <div className={`${styles.quickChip} ${styles.quickChipFire}`}>
           <span className={styles.quickLabel}>{t('character.vitals')}</span>
           <span className={styles.quickValue}>{hpSummary}</span>
         </div>
@@ -354,9 +355,9 @@ function renderFiveEOverview(
           <span className={styles.quickLabel}>{t('dnd5e.section.proficiencyBonus')}</span>
           <span className={styles.quickValue}>{formatMod(pbVal)}</span>
         </div>
-        <div className={styles.quickChip}>
+        <div className={`${styles.quickChip} ${styles.quickChipGold}`}>
           <span className={styles.quickLabel}>{t('dnd5e.section.inspiration')}</span>
-          <span className={styles.quickValue}>{sheet.combat.inspiration ? '✓' : '—'}</span>
+          <span className={styles.quickValue}>{sheet.combat.inspiration ? '★' : '—'}</span>
         </div>
       </div>
     </>
@@ -774,10 +775,15 @@ function SheetOwnerView({
   onNameChange, onIdentity, onSave, onSwitchMode, onChangeSheet, onUploadPdfFile,
 }: SheetOwnerViewProps): JSX.Element {
   const { t } = useTranslation(['campaign', 'common', 'errors']);
-  const readOnly = !isOwner;
+  const [editing, setEditing] = useState<boolean>(true);
+  // readOnly when GM views someone else's sheet, OR when owner has edit-mode off
+  const readOnly = !isOwner || !editing;
 
   return (
-    <section className={styles.sheet} aria-label={t('campaign:character.sheetLabel', { name: current.name })}>
+    <section
+      className={`${styles.sheet} ${editing && isOwner ? styles.editing : ''}`}
+      aria-label={t('campaign:character.sheetLabel', { name: current.name })}
+    >
       <div className={styles.stickyToolbar}>
         <div className={styles.toolbarCluster}>
           {isGmViewer(myRole, isOwner) && (
@@ -785,9 +791,10 @@ function SheetOwnerView({
           )}
           <SystemSelector value={sheet.kind} onChange={onSwitchMode} />
         </div>
-        {!readOnly && (
+        {isOwner && (
           <div className={styles.toolbarActions}>
-            <Button variant="primary" size="sm" onClick={onSave} disabled={saving}>
+            <EditToggle pressed={editing} onPressedChange={setEditing} />
+            <Button variant="primary" size="sm" onClick={onSave} disabled={saving || !editing}>
               {saving ? t('common:btn.saving') : t('common:btn.save')}
             </Button>
             {saveError && (

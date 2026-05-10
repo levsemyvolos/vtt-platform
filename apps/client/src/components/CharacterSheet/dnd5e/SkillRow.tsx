@@ -50,7 +50,7 @@ export default function SkillRow({
   const abShort = t(`dnd5e.ability.${ab}.short`);
 
   return (
-    <div className={styles.fieldRow}>
+    <div className={styles.skillRow}>
       <button
         type="button"
         className={pillStyle}
@@ -60,10 +60,11 @@ export default function SkillRow({
       >
         {TIER_SYMBOL[tier]}
       </button>
-      <span style={{ flex: 1, fontSize: '0.8125rem' }}>
+      <span className={styles.skillName}>
         {skillName}
         <span className={styles.abilityTag}>({abShort})</span>
       </span>
+      <span className={styles.skillLeader} aria-hidden="true" />
       <span className={styles.modBadge} aria-label={`${skillName} modifier`}>
         {formatMod(modValue)}
       </span>

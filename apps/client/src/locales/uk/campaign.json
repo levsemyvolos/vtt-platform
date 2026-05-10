@@ -133,6 +133,7 @@
     "pdfUploadLabel": "Завантажити PDF",
     "overlayTitle": "Аркуш персонажа",
     "closeOverlay": "Закрити аркуш",
+    "editMode": "Режим правки",
     "openSheet": "Відкрити аркуш",
     "noOwnCharacter": "Персонажа ще немає.",
     "createBtn": "Створити персонажа",
@@ -145,7 +146,8 @@
       "skills": "Навички",
       "spellcasting": "Магія",
       "personality": "Біо та спорядження",
-      "aria": "Секції аркуша персонажа"
+      "aria": "Секції аркуша персонажа",
+      "railEyebrow": "Секції"
     }
   },
   "audio": {

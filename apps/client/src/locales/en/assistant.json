@@ -34,6 +34,7 @@
     "closeLabel": "Close"
   },
   "header": {
+    "eyebrow": "Game Master · AI Assistant",
     "title": "GM AI Toolkit",
     "subtitle": "Gemini · Lyria",
     "rateLimit": {

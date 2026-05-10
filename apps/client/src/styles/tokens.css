@@ -66,6 +66,7 @@
   --font-serif: 'Cormorant Garamond',Georgia,serif;
   --font-mono: 'JetBrains Mono','Fira Code','Consolas',monospace;
   --font-letterspaced: 'Inter','Segoe UI',system-ui,sans-serif;
+  --font-display: var(--font-serif);
 
   --text-xs: 12px;  --text-sm: 14px;  --text-base: 16px;
   --text-lg: 20px;  --text-xl: 24px;  --text-2xl: 32px;  --text-3xl: 42px;

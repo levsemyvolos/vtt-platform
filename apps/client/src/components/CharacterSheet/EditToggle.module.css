@@ -1,0 +1,50 @@
+.editToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.led {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ink-faint);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.editToggle:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.editToggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.editToggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editToggleOn {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--line));
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-1));
+}
+
+.editToggleOn .led {
+  background: var(--primary);
+  box-shadow: 0 0 6px var(--primary);
+}

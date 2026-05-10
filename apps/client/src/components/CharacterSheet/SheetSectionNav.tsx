@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import Tabs, { type TabItem } from '../ui/Tabs';
 import styles from './SheetSectionNav.module.css';
@@ -26,6 +26,8 @@ export default function SheetSectionNav({
   children,
 }: SheetSectionNavProps): JSX.Element {
   const { t } = useTranslation('campaign');
+  const mainRef = useRef<HTMLDivElement>(null);
+  const [activeRail, setActiveRail] = useState<SheetSectionId>(activeMobile);
 
   const labels = useMemo(
     () =>
@@ -44,7 +46,44 @@ export default function SheetSectionNav({
     [labels],
   );
 
+  // Sync rail when mobile tab changes (mobile-first state)
+  useEffect(() => {
+    setActiveRail(activeMobile);
+  }, [activeMobile]);
+
+  // Observe section visibility on desktop to update active rail entry while scrolling
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    const sections = SHEET_SECTION_IDS
+      .map((id) => document.getElementById(`sheet-section-${id}`))
+      .filter((el): el is HTMLElement => el !== null);
+
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible.length === 0) return;
+        const id = visible[0]?.target.id.replace('sheet-section-', '') as SheetSectionId | undefined;
+        if (id && (SHEET_SECTION_IDS as ReadonlyArray<string>).includes(id)) {
+          setActiveRail(id);
+        }
+      },
+      { rootMargin: '-30% 0px -55% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+
+    sections.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   function scrollTo(id: SheetSectionId): void {
+    setActiveRail(id);
+    onMobileChange(id);
     document.getElementById(`sheet-section-${id}`)?.scrollIntoView({
       behavior: 'smooth',
       block: 'start',
@@ -65,11 +104,13 @@ export default function SheetSectionNav({
       </div>
 
       <nav className={styles.rail} aria-label={t('character.sheetNav.aria')}>
+        <span className={styles.railEyebrow}>{t('character.sheetNav.railEyebrow', { defaultValue: 'Sections' })}</span>
         {SHEET_SECTION_IDS.map((id) => (
           <button
             key={id}
             type="button"
             className={styles.railBtn}
+            aria-current={activeRail === id ? 'true' : undefined}
             onClick={() => scrollTo(id)}
           >
             {labels[id]}
@@ -77,7 +118,7 @@ export default function SheetSectionNav({
         ))}
       </nav>
 
-      <div className={styles.main}>
+      <div className={styles.main} ref={mainRef}>
         {SHEET_SECTION_IDS.map((id) => (
           <section
             key={id}

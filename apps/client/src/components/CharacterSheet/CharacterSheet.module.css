@@ -8,6 +8,13 @@
   --sheet-section-scroll-margin: 5.25rem;
 }
 
+/* When edit mode is on and viewer is the owner, lift input borders so
+   user notices the sheet is mutable. Without this class, inputs read
+   as static manuscript labels. */
+.sheet.editing {
+  --sheet-edit-emphasis: 1;
+}
+
 .col {
   display: flex;
   flex-direction: column;
@@ -52,37 +59,58 @@
 }
 
 .quickStrip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 0;
+  margin: 18px 0 22px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-2);
+  box-shadow: var(--shadow-engrave);
+  border-radius: 2px;
+  overflow: hidden;
 }
 
 .quickChip {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-engrave);
-  min-width: 4.5rem;
+  padding: 10px 14px;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  min-width: 0;
+}
+
+.quickChip:last-child {
+  border-right: 0;
 }
 
 .quickLabel {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 9.5px;
   letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
   color: var(--ink-mute);
 }
 
 .quickValue {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.quickChipGold .quickValue {
+  color: var(--vitality);
+}
+
+.quickChipFire .quickValue {
+  color: var(--ember);
+}
+
+.quickChipSteel .quickValue {
+  color: var(--rune);
 }
 
 .abilityRow {
