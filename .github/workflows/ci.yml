@@ -80,13 +80,12 @@ jobs:
             --region=${{ env.GCP_REGION }} \
             --platform=managed \
             --min-instances=1 \
-            --max-instances=3 \
+            --max-instances=1 \
             --memory=512Mi \
             --cpu=0.5 \
             --port=4000 \
-            --session-affinity \
             --allow-unauthenticated \
-            --set-env-vars="^|^NODE_ENV=production|PORT=4000|DATABASE_URL=${{ secrets.DATABASE_URL }}|JWT_SECRET=${{ secrets.JWT_SECRET }}|CLIENT_URL=${{ secrets.CLIENT_URL }}|GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|GCP_LOCATION=${{ secrets.GCP_LOCATION }}|GCP_TEXT_LOCATION=global|GCP_IMAGE_LOCATION=global|GCS_BUCKET=${{ secrets.GCS_BUCKET }}|GCP_SERVICE_ACCOUNT_KEY=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}|TURN_HOST=${{ secrets.TURN_HOST }}|TURN_STATIC_AUTH_SECRET=${{ secrets.TURN_STATIC_AUTH_SECRET }}" \
+            --set-env-vars="^|^NODE_ENV=production|DATABASE_URL=${{ secrets.DATABASE_URL }}|JWT_SECRET=${{ secrets.JWT_SECRET }}|CLIENT_URL=${{ secrets.CLIENT_URL }}|GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|GCP_LOCATION=${{ secrets.GCP_LOCATION }}|GCP_TEXT_LOCATION=global|GCP_IMAGE_LOCATION=global|GCS_BUCKET=${{ secrets.GCS_BUCKET }}|GCP_SERVICE_ACCOUNT_KEY=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}|TURN_HOST=${{ secrets.TURN_HOST }}|TURN_STATIC_AUTH_SECRET=${{ secrets.TURN_STATIC_AUTH_SECRET }}" \
             --quiet
 
       - name: Sync Cloud Run URL → vercel.json

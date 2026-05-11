@@ -5,7 +5,13 @@
   "installCommand": "echo \"install handled inside buildCommand from monorepo root\"",
   "framework": null,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://vtt-server.onrender.com/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "https://vtt-server-x7b4y4suwq-lm.a.run.app/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

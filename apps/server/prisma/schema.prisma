@@ -3,7 +3,11 @@
 // Spec: §2.15
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // `native` keeps local dev working (Windows + Linux glibc). The musl-openssl-3
+  // target is required for the Cloud Run runtime: node:20-alpine ships libssl3
+  // but no libssl.so.1.1, and Prisma's default engine links against the latter.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

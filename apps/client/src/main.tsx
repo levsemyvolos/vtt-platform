@@ -32,17 +32,18 @@ if (apiUrl && /^https?:\/\//.test(apiUrl)) {
   }
 }
 
-// Fire-and-forget i18n init — kicks off namespace fetches in parallel with the
-// first render. react-i18next's `useTranslation` already suspends until the
-// store is ready, so the Suspense boundary below covers the brief gap.
-void initI18n();
-
-createRoot(rootElement).render(
-  <StrictMode>
-    <Provider store={store}>
-      <Suspense fallback={null}>
-        <RouterProvider router={appRouter} />
-      </Suspense>
-    </Provider>
-  </StrictMode>,
-);
+// Blocking i18n init — useTranslation does NOT suspend by default in our
+// react-i18next setup, so rendering before init returns raw keys (hero.title,
+// CTA.REGISTER, …). Cost of awaiting ~150 ms is acceptable; can be revisited
+// once we enable useSuspense in the i18n config.
+initI18n().then(() => {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <Provider store={store}>
+        <Suspense fallback={null}>
+          <RouterProvider router={appRouter} />
+        </Suspense>
+      </Provider>
+    </StrictMode>,
+  );
+});

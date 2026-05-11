@@ -54,6 +54,19 @@ import { GcsFileStorageAdapter } from './infrastructure/storage/GcsFileStorageAd
 import { LocalFileStorageAdapter } from './infrastructure/storage/LocalFileStorageAdapter.js';
 import type { FileStorageAdapter } from './infrastructure/storage/FileStorageAdapter.js';
 
+// Global crash diagnostics — Cloud Run logs were showing the container
+// process dying (ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL) without any stack trace,
+// which made socket.io sessions disappear mid-handshake. Capturing the
+// reason here gives us the offending error in Cloud Logging next crash.
+process.on('unhandledRejection', (reason, promise) => {
+  // eslint-disable-next-line no-console
+  console.error('[unhandledRejection] reason:', reason, '\npromise:', promise);
+});
+process.on('uncaughtException', (err) => {
+  // eslint-disable-next-line no-console
+  console.error('[uncaughtException]', err);
+});
+
 const app = express();
 const httpServer = createServer(app);
 

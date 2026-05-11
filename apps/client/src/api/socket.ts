@@ -64,7 +64,12 @@ export function getSocket(): TypedClientSocket {
   if (socket) return socket;
   socket = io(SERVER_URL, {
     autoConnect: false,
-    transports: ['websocket'],
+    // Required for cross-origin (vercel.app → a.run.app) so the browser
+    // sends Cloud Run's GAESA session-affinity cookie on every polling
+    // request. Without this, polling XHRs were landing on different
+    // instances and the server replied 400 (sid unknown). Server-side
+    // pair: cors.credentials = true in apps/server/src/socketio/index.ts.
+    withCredentials: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,

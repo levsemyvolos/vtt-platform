@@ -65,9 +65,13 @@ export interface SocketDeps {
  */
 export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedServer {
   const io: TypedServer = new Server(httpServer, {
-    cors: { origin: deps.corsOrigin },
-    transports: ['websocket'],
-    perMessageDeflate: { threshold: 1024 },
+    // credentials:true is required so the browser sends Cloud Run's
+    // GAESA session-affinity cookie back on every polling request —
+    // without it each XHR landed on a different instance, the socket.io
+    // session map was empty, and the server replied 400 (sid unknown)
+    // until the client gave up and re-handshook. The client side must
+    // pair this with withCredentials:true (apps/client/src/api/socket.ts).
+    cors: { origin: deps.corsOrigin, credentials: true },
     pingInterval: 25000,
     pingTimeout: 20000,
   });

@@ -5,6 +5,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# OpenSSL is required at runtime by the Prisma query engine. node:20-alpine
+# ships libssl3 transitively, but pinning it here makes the dependency
+# explicit so Prisma's `linux-musl-openssl-3.0.x` engine resolves cleanly.
+RUN apk add --no-cache openssl
+
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 # Workspace manifests first — preserves layer cache when only sources change.
