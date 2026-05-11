@@ -26,16 +26,22 @@ Virtual Tabletop platform — diploma thesis project, Chapter 3 implementation.
 | Component | Host | URL | Plan |
 |---|---|---|---|
 | Client SPA | Vercel | `https://vtt-client.vercel.app` | Hobby |
-| App Server | Render | `https://vtt-server.onrender.com` | Starter |
+| App Server | Google Cloud Run | `https://vtt-server-<hash>.a.run.app` | min-instances=1, 512Mi/0.5 vCPU, `europe-central2` |
 | PostgreSQL | Supabase | `eu-central-1` (Frankfurt) | Free |
 | TURN | GCP e2-micro VM, `us-central1-f` | `turn:turn.vtt.example.com:3478?transport=udp` / `turns:...:5349?transport=tcp` | Free trial $300 |
 | Source | GitHub | `https://github.com/levsemyvolos/<repo>` | — |
 
 > URL заглушки замінити на реальні після першого деплою; цей блок —
 > джерело істини для §3.5 «Стратегія доставки» Розділу 3.
+> Legacy Render-конфіг збережено у `apps/server/render.yaml.legacy` для історії
+> (міграція з Render Free → Cloud Run виконана через `.github/workflows/ci.yml`
+> deploy-job: build Docker → push до Artifact Registry → `gcloud run deploy`).
 
-CI/CD: Vercel auto-deploy на push у `main` (Client), Render auto-deploy на
-push у `main` (Server, з `preDeployCommand: prisma migrate deploy`).
+CI/CD: Vercel auto-deploy на push у `main` (Client), GitHub Actions job
+`deploy` (`.github/workflows/ci.yml:42`) збирає Docker і деплоїть у Cloud Run,
+далі окремий step синхронізує Cloud Run URL у `apps/client/vercel.json`.
+Prisma-міграції — ручні (`prisma migrate deploy`) через локальний `DIRECT_URL`,
+бо Supabase Free pooler не пропускає DDL.
 Pre-merge gate — GitHub Actions workflow `.github/workflows/ci.yml`
 (type-check + lint + test).
 
@@ -77,8 +83,8 @@ apps/
   client/                   — React 18 + Vite + Konva + Redux Toolkit
     vercel.json             — Vercel build config (monorepo-aware)
   server/                   — Express 4 + socket.io 4 + Prisma 5 + tsx (no tsc build)
-    render.yaml             — Render Blueprint (Node web service)
-    Dockerfile              — single-stage node:20-alpine, Render Docker fallback
+    render.yaml.legacy      — архів старої Render-конфігурації (до міграції на Cloud Run)
+    Dockerfile              — single-stage node:20-alpine, build for Cloud Run via Artifact Registry
 packages/
   shared/                   — TS DTO interfaces (no build; exports ./src/index.ts)
 infra/

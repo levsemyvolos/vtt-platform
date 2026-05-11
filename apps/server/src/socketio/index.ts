@@ -66,6 +66,10 @@ export interface SocketDeps {
 export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedServer {
   const io: TypedServer = new Server(httpServer, {
     cors: { origin: deps.corsOrigin },
+    transports: ['websocket'],
+    perMessageDeflate: { threshold: 1024 },
+    pingInterval: 25000,
+    pingTimeout: 20000,
   });
   const roomAccess = new RoomAccessService(deps.rooms);
 

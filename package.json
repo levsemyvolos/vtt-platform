@@ -14,7 +14,8 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "sharp"
+      "sharp",
+      "bcrypt"
     ]
   },
   "devDependencies": {

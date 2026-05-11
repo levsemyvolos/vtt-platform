@@ -1,4 +1,6 @@
 import express from 'express';
+import compression from 'compression';
+import helmet from 'helmet';
 import { createServer } from 'http';
 import path from 'path';
 import { authRouter } from './routes/auth.js';
@@ -55,7 +57,10 @@ import type { FileStorageAdapter } from './infrastructure/storage/FileStorageAda
 const app = express();
 const httpServer = createServer(app);
 
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(compression({ threshold: 1024 }));
+app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });

@@ -53,9 +53,10 @@ describe('SceneService.applyTokenMove (algorithm A2 OCC, §2.17.3)', () => {
       updatePositionWithVersion: vi
         .fn()
         .mockResolvedValue({ ...baseToken, x: 5, y: 7, version: 6 }),
-      listBySceneId: vi
-        .fn()
-        .mockResolvedValue([{ ...baseToken, x: 5, y: 7, version: 6 }]),
+      // QW-5: listBySceneId is read BEFORE the OCC write, so it must return
+      // the PRE-update snapshot (version 5). The service patches the array
+      // in-memory after updatePositionWithVersion succeeds.
+      listBySceneId: vi.fn().mockResolvedValue([baseToken]),
     });
     const svc = new SceneService(makeSceneRepo(), tokenRepo);
     const r = await svc.applyTokenMove(
@@ -100,12 +101,12 @@ describe('SceneService.applyTokenMove (algorithm A2 OCC, §2.17.3)', () => {
   it('race lost mid-update (updateMany returns null) → rollback fallback', async () => {
     const tokenRepo = makeTokenRepo({
       updatePositionWithVersion: vi.fn().mockResolvedValue(null),
+      // QW-5: applyTokenMove now reads listBySceneId once upfront and only
+      // falls back to findById on the race-loss recovery path.
+      listBySceneId: vi.fn().mockResolvedValue([baseToken]),
       findById: vi
         .fn()
-        // first call (in applyTokenMove start) returns baseToken
-        .mockResolvedValueOnce(baseToken)
-        // second call (after race detected) returns the post-race state
-        .mockResolvedValueOnce({ ...baseToken, x: 11, y: 11, version: 7 }),
+        .mockResolvedValue({ ...baseToken, x: 11, y: 11, version: 7 }),
     });
     const svc = new SceneService(makeSceneRepo(), tokenRepo);
     const r = await svc.applyTokenMove(

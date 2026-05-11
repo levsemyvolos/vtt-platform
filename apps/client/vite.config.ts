@@ -32,6 +32,25 @@ export default defineConfig(({ mode }: ConfigEnv) => {
         },
       },
     },
+    build: {
+      target: 'es2020',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Heavy 2D canvas stack — only used inside session route
+            konva: ['konva', 'react-konva'],
+            // Three.js + Cannon-es transitive via dice-box (~300 KB gzip)
+            dice: ['@3d-dice/dice-box-threejs'],
+            // i18n bundles all translation namespaces; isolate so first paint
+            // can stream the main chunk without waiting on it.
+            i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+            // Redux Toolkit is on the critical path but ships large; isolating
+            // gives the browser a separate cacheable chunk.
+            redux: ['@reduxjs/toolkit', 'react-redux'],
+          },
+        },
+      },
+    },
     test: {
       environment: 'jsdom',
       globals: false,

@@ -89,11 +89,12 @@ export class SceneService {
     viewerRole: Role,
     viewerId: string,
   ): Promise<OccResult<Token>> {
-    const token = await this.tokens.findById(payload.tokenId);
+    // Single SELECT for the whole scene: serves both validation (target token
+    // lookup) and the post-update broadcast snapshot. Replaces the prior
+    // findById + listBySceneId pair that cost 2 round-trips per move.
+    const sceneTokens = await this.tokens.listBySceneId(payload.sceneId);
+    const token = sceneTokens.find((t) => t.id === payload.tokenId);
     if (!token) throw new HttpError(404, 'Token not found');
-    if (token.sceneId !== payload.sceneId) {
-      throw new HttpError(400, 'Scene mismatch');
-    }
     if (viewerRole !== 'GM' && token.assignedUserId !== viewerId) {
       throw new HttpError(403, 'Only the GM or assigned player can move this token');
     }
@@ -135,8 +136,10 @@ export class SceneService {
       };
     }
 
-    // Build SceneUpdated payload from a fresh tokens snapshot, projected per A6.
-    const sceneTokens = await this.tokens.listBySceneId(token.sceneId);
+    // Patch the in-memory snapshot with the updated record — avoids a second
+    // SELECT just to refresh the broadcast payload.
+    const idx = sceneTokens.findIndex((t) => t.id === updated.id);
+    if (idx >= 0) sceneTokens[idx] = updated;
     const projected = sceneTokens
       .map((t) => projectToken(t, viewerRole, viewerId))
       .filter((t): t is NonNullable<typeof t> => t !== null);

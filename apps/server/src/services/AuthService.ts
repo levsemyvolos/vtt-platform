@@ -1,6 +1,6 @@
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import type { AuthTokenPair, UserPublic } from '@vtt/shared';
 import type { Role } from '@vtt/shared';
 import { UserRepository } from '../repositories/UserRepository.js';
@@ -32,6 +32,24 @@ function signRefresh(userId: string, sessionId: string, role: Role, boundRoomId?
   const payload: Record<string, unknown> = { sub: userId, sid: sessionId, role };
   if (boundRoomId !== undefined) payload['boundRoomId'] = boundRoomId;
   return jwt.sign(payload, JWT_SECRET!, { expiresIn: '30d' });
+}
+
+/**
+ * SHA-256 hashing for refresh tokens (Phase 1 / QW-7).
+ * Refresh JWTs are already high-entropy (256+ bits of signed random); a slow
+ * KDF like bcrypt buys nothing here and was costing ~250 ms per refresh on
+ * Render Free CPU. Verification uses crypto.timingSafeEqual to avoid leaking
+ * timing information about partial matches.
+ */
+function hashRefresh(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function verifyRefresh(rawToken: string, storedHash: string): boolean {
+  const candidate = Buffer.from(hashRefresh(rawToken), 'hex');
+  const expected = Buffer.from(storedHash, 'hex');
+  if (candidate.length !== expected.length) return false;
+  return timingSafeEqual(candidate, expected);
 }
 
 function toUserPublic(user: {
@@ -119,10 +137,10 @@ export class AuthService {
       throw new HttpError(401, 'Refresh token reuse detected');
     }
 
-    // 3. bcrypt.compare outside transaction to avoid holding a DB connection during slow hash.
-    // NOTE: bcrypt truncates input to 72 bytes — only header+partial payload is compared for long JWTs.
-    // Acceptable for MVP per A5 algorithm. Production hardening: use opaque random token instead.
-    const valid = await bcrypt.compare(rawRefreshToken, session.refreshTokenHash);
+    // 3. SHA-256 + timingSafeEqual — fast and uniform over the full token length
+    // (bcrypt's 72-byte truncation would have only verified the JWT header for
+    // long tokens). Refresh JWTs are high-entropy random; no KDF needed.
+    const valid = verifyRefresh(rawRefreshToken, session.refreshTokenHash);
     if (!valid) {
       await this.sessions.deleteAllByUserId(userId);
       throw new HttpError(401, 'Refresh token compromised');
@@ -137,7 +155,7 @@ export class AuthService {
     const newSessionId = randomUUID();
     const newAccessToken = signAccess(userId, payload.role, newSessionId, payload.boundRoomId);
     const newRefreshToken = signRefresh(userId, newSessionId, payload.role, payload.boundRoomId);
-    const newRefreshHash = await bcrypt.hash(newRefreshToken, 12);
+    const newRefreshHash = hashRefresh(newRefreshToken);
 
     // 6. Atomic session swap: DELETE old, INSERT new
     await this.sessions.deleteById(sessionId);
@@ -196,7 +214,7 @@ export class AuthService {
     const sessionId = randomUUID();
     const accessToken = signAccess(userId, role, sessionId, boundRoomId);
     const refreshToken = signRefresh(userId, sessionId, role, boundRoomId);
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
+    const refreshTokenHash = hashRefresh(refreshToken);
     await this.sessions.create({
       id: sessionId,
       user: { connect: { id: userId } },

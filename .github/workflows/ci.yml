@@ -38,3 +38,68 @@ jobs:
 
       - name: Test (gate)
         run: pnpm test
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    env:
+      GCP_REGION: europe-central2
+      REGISTRY: europe-central2-docker.pkg.dev
+      SERVICE: vtt-server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build and push image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE }}/app:${{ github.sha }}"
+          docker build -f apps/server/Dockerfile -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE }}/app:${{ github.sha }}"
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image="$IMAGE" \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --min-instances=1 \
+            --max-instances=3 \
+            --memory=512Mi \
+            --cpu=0.5 \
+            --port=4000 \
+            --session-affinity \
+            --allow-unauthenticated \
+            --set-env-vars="^|^NODE_ENV=production|PORT=4000|DATABASE_URL=${{ secrets.DATABASE_URL }}|JWT_SECRET=${{ secrets.JWT_SECRET }}|CLIENT_URL=${{ secrets.CLIENT_URL }}|GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}|GCP_LOCATION=${{ secrets.GCP_LOCATION }}|GCP_TEXT_LOCATION=global|GCP_IMAGE_LOCATION=global|GCS_BUCKET=${{ secrets.GCS_BUCKET }}|GCP_SERVICE_ACCOUNT_KEY=${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}|TURN_HOST=${{ secrets.TURN_HOST }}|TURN_STATIC_AUTH_SECRET=${{ secrets.TURN_STATIC_AUTH_SECRET }}" \
+            --quiet
+
+      - name: Sync Cloud Run URL → vercel.json
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --format='value(status.url)')
+          jq --arg url "$SERVICE_URL" \
+            '(.rewrites[] | select(.source == "/api/(.*)")).destination = ($url + "/$1")' \
+            apps/client/vercel.json > /tmp/vercel.json
+          mv /tmp/vercel.json apps/client/vercel.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/client/vercel.json
+          git diff --staged --quiet || git commit -m "chore(deploy): sync Cloud Run URL [skip ci]"
+          git push

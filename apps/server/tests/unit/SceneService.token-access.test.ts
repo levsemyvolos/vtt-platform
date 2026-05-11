@@ -26,7 +26,9 @@ describe('SceneService token movement access', () => {
     const tokenRepo = {
       findById: vi.fn().mockResolvedValue(token),
       updatePositionWithVersion: vi.fn(),
-      listBySceneId: vi.fn(),
+      // QW-5: applyTokenMove now reads the whole scene tokens upfront
+      // instead of findById, so the stub must return the array.
+      listBySceneId: vi.fn().mockResolvedValue([token]),
     } as unknown as TokenRepository;
     const svc = new SceneService({} as SceneRepository, tokenRepo);
 
@@ -95,7 +97,9 @@ describe('SceneService OCC — multi-token regression (per-token version)', () =
     const tokenRepo = {
       findById: vi.fn().mockResolvedValue(tokenB),
       updatePositionWithVersion: vi.fn().mockResolvedValue(tokenBUpdated),
-      listBySceneId: vi.fn().mockResolvedValue([tokenA, tokenBUpdated]),
+      // listBySceneId is now called BEFORE the update — must return the
+      // pre-update Token B so OCC clientSeq==version validation passes.
+      listBySceneId: vi.fn().mockResolvedValue([tokenA, tokenB]),
     } as unknown as TokenRepository;
     const svc = new SceneService({} as SceneRepository, tokenRepo);
 
@@ -117,7 +121,7 @@ describe('SceneService OCC — multi-token regression (per-token version)', () =
     const tokenRepo = {
       findById: vi.fn().mockResolvedValue(tokenB),
       updatePositionWithVersion: vi.fn(),
-      listBySceneId: vi.fn(),
+      listBySceneId: vi.fn().mockResolvedValue([tokenA, tokenB]),
     } as unknown as TokenRepository;
     const svc = new SceneService({} as SceneRepository, tokenRepo);
 

@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createHash } from 'crypto';
 import { AuthService } from '../../src/services/AuthService.js';
 import type { UserRepository } from '../../src/repositories/UserRepository.js';
 import type { SessionRepository } from '../../src/repositories/SessionRepository.js';
 
-vi.mock('bcryptjs', () => ({
-  default: {
-    hash: vi.fn().mockResolvedValue('hashed'),
-    compare: vi.fn().mockResolvedValue(true),
-  },
-}));
+// QW-7: refresh tokens are now SHA-256 hashed (was bcryptjs). Sessions must
+// store the matching sha256 digest for `verifyRefresh` to accept the token.
+const MOCK_REFRESH = 'signed.jwt.token';
+const VALID_REFRESH_HASH = createHash('sha256').update(MOCK_REFRESH).digest('hex');
 
 vi.mock('jsonwebtoken', () => ({
   default: {
@@ -45,7 +44,7 @@ function makeSessionRepo(overrides: Partial<SessionRepository> = {}): SessionRep
     findById: vi.fn().mockResolvedValue({
       id: 'session-old',
       userId: 'user-123',
-      refreshTokenHash: 'hashed',
+      refreshTokenHash: VALID_REFRESH_HASH,
       issuedAt: new Date(),
       expiresAt: new Date(Date.now() + 86400000),
       userAgent: 'test-agent',
@@ -77,7 +76,7 @@ describe('AuthService.rotateRefresh', () => {
       findById: vi.fn().mockResolvedValue({
         id: 'session-old',
         userId: 'user-123',
-        refreshTokenHash: 'hashed',
+        refreshTokenHash: VALID_REFRESH_HASH,
         issuedAt: new Date(),
         expiresAt: new Date(Date.now() + 86400000),
         userAgent: 'ua',
@@ -132,11 +131,19 @@ describe('AuthService.rotateRefresh', () => {
     expect(result).toHaveProperty('user');
   });
 
-  it('returns 401 and calls deleteAllByUserId when bcrypt.compare returns false', async () => {
-    const bcrypt = await import('bcryptjs');
-    vi.mocked(bcrypt.default.compare).mockResolvedValueOnce(false);
-
-    const sessionRepo = makeSessionRepo();
+  it('returns 401 and calls deleteAllByUserId when stored hash does not match (QW-7: sha256 mismatch)', async () => {
+    // Store a hash that will never match sha256(MOCK_REFRESH) — verifyRefresh
+    // must reject and trigger the reuse-attack remediation path.
+    const sessionRepo = makeSessionRepo({
+      findById: vi.fn().mockResolvedValue({
+        id: 'session-old',
+        userId: 'user-123',
+        refreshTokenHash: createHash('sha256').update('different-token').digest('hex'),
+        issuedAt: new Date(),
+        expiresAt: new Date(Date.now() + 86400000),
+        userAgent: 'ua',
+      }),
+    });
     const userRepo = makeUserRepo();
     const service = new AuthService(userRepo, sessionRepo);
 

@@ -75,6 +75,8 @@ model Room {
   assistantMessages AssistantMessage[]
   assistantConversations AssistantConversation[]
   assistantImageConversations AssistantImageConversation[]
+
+  @@index([ownerId, lastActiveAt(sort: Desc)])
 }
 
 /// Persistent player membership — written on invite-join, used for lobby roster
@@ -126,6 +128,7 @@ model Asset {
   imageTurnGenerated AssistantImageTurn[] @relation("ImageTurnGenerated")
 
   @@index([roomId, source, createdAt])
+  @@index([ownerId])
 }
 
 model Scene {
@@ -185,6 +188,7 @@ model Token {
   initiativeEntries InitiativeEntry[] @relation("InitiativeEntryToken")
 
   @@index([sceneId])
+  @@index([assignedUserId])
 }
 
 model Character {
@@ -199,6 +203,9 @@ model Character {
   owner    User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   room     Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
   pdfAsset Asset? @relation("CharacterPdf", fields: [pdfAssetId], references: [id], onDelete: SetNull)
+
+  @@index([roomId])
+  @@index([ownerId])
 }
 
 model ChatMessage {
@@ -216,6 +223,8 @@ model ChatMessage {
   recipient User? @relation("ChatMessageRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
 
   @@index([roomId, createdAt(sort: Desc)])
+  @@index([senderId])
+  @@index([recipientId])
 }
 
 model AudioTrack {
@@ -234,6 +243,7 @@ model AudioTrack {
   asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
+  @@index([sceneId])
 }
 
 enum JournalVisibility {

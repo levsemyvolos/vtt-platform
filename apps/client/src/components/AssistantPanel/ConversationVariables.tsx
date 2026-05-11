@@ -37,22 +37,40 @@ interface Props {
   onToggle: (next: boolean) => void;
 }
 
+function applyField<K extends keyof AssistantVariables>(
+  current: AssistantVariables,
+  key: K,
+  v: AssistantVariables[K],
+): AssistantVariables {
+  const next = { ...current };
+  const isEmpty =
+    v === undefined ||
+    (typeof v === 'string' && v.length === 0) ||
+    (typeof v === 'number' && (v <= 0 || Number.isNaN(v)));
+  if (isEmpty) {
+    delete next[key];
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (next as any)[key] = v;
+  }
+  return next;
+}
+
+function buildSummaryChips(value: AssistantVariables): Array<{ key: string; label: string; val: string }> {
+  const chips: Array<{ key: string; label: string; val: string }> = [];
+  if (value.ruleset)        chips.push({ key: 'ruleset', label: 'Ruleset', val: value.ruleset });
+  if (value.playerLevel)    chips.push({ key: 'level',   label: 'L',       val: String(value.playerLevel) });
+  if (value.tone)           chips.push({ key: 'tone',    label: 'Tone',    val: value.tone });
+  if (value.outputLanguage) chips.push({ key: 'lang',    label: 'Lang',    val: value.outputLanguage });
+  return chips;
+}
+
+// TODO(refactor): split chip-rendering and save-handler logic into hooks to drop complexity below 10.
+// eslint-disable-next-line complexity
 export default function ConversationVariables({ conversationId, value, onChange, open, onToggle }: Props): JSX.Element {
   const { t } = useTranslation('assistant');
   const dispatch = useAppDispatch();
   const [saving, setSaving] = useState(false);
-
-  function setField<K extends keyof AssistantVariables>(key: K, v: AssistantVariables[K]): void {
-    const next = { ...value };
-    if (v === undefined || (typeof v === 'string' && v.length === 0) || (typeof v === 'number' && (v <= 0 || Number.isNaN(v)))) {
-      delete next[key];
-    } else {
-      // Type narrowing: assignment is sound for each K.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (next as any)[key] = v;
-    }
-    onChange(next);
-  }
 
   async function handleSave(): Promise<void> {
     if (!conversationId) return;
@@ -69,11 +87,7 @@ export default function ConversationVariables({ conversationId, value, onChange,
     }
   }
 
-  const summaryChips: Array<{ key: string; label: string; val: string }> = [];
-  if (value.ruleset)     summaryChips.push({ key: 'ruleset', label: 'Ruleset', val: value.ruleset });
-  if (value.playerLevel) summaryChips.push({ key: 'level',   label: 'L',       val: String(value.playerLevel) });
-  if (value.tone)        summaryChips.push({ key: 'tone',    label: 'Tone',    val: value.tone });
-  if (value.outputLanguage) summaryChips.push({ key: 'lang', label: 'Lang',    val: value.outputLanguage });
+  const summaryChips = buildSummaryChips(value);
 
   return (
     <div className={styles.varsWrapper}>
@@ -102,7 +116,7 @@ export default function ConversationVariables({ conversationId, value, onChange,
             <span>{t('variables.fields.ruleset')}</span>
             <select
               value={value.ruleset ?? ''}
-              onChange={(e) => setField('ruleset', e.target.value || undefined)}
+              onChange={(e) => onChange(applyField(value, 'ruleset', e.target.value || undefined))}
             >
               <option value="">{t('variables.fields.rulesetUnset')}</option>
               {RULESET_OPTIONS.map((rs) => (
@@ -117,7 +131,7 @@ export default function ConversationVariables({ conversationId, value, onChange,
               type="text"
               maxLength={280}
               value={value.setting ?? ''}
-              onChange={(e) => setField('setting', e.target.value)}
+              onChange={(e) => onChange(applyField(value, 'setting', e.target.value))}
               placeholder={t('variables.fields.settingPlaceholder')}
             />
           </label>
@@ -129,7 +143,7 @@ export default function ConversationVariables({ conversationId, value, onChange,
               min={1}
               max={30}
               value={value.playerLevel ?? ''}
-              onChange={(e) => setField('playerLevel', e.target.value === '' ? undefined : Number(e.target.value))}
+              onChange={(e) => onChange(applyField(value, 'playerLevel', e.target.value === '' ? undefined : Number(e.target.value)))}
               placeholder="1–30"
             />
           </label>
@@ -140,7 +154,7 @@ export default function ConversationVariables({ conversationId, value, onChange,
               type="text"
               maxLength={120}
               value={value.tone ?? ''}
-              onChange={(e) => setField('tone', e.target.value)}
+              onChange={(e) => onChange(applyField(value, 'tone', e.target.value))}
               placeholder={t('variables.fields.tonePlaceholder')}
             />
           </label>
@@ -151,7 +165,7 @@ export default function ConversationVariables({ conversationId, value, onChange,
               type="text"
               maxLength={40}
               value={value.outputLanguage ?? ''}
-              onChange={(e) => setField('outputLanguage', e.target.value)}
+              onChange={(e) => onChange(applyField(value, 'outputLanguage', e.target.value))}
               placeholder={t('variables.fields.outputLanguagePlaceholder')}
             />
           </label>

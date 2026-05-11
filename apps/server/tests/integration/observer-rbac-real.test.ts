@@ -40,26 +40,37 @@ function makeUserRepo(): UserRepository {
   } as unknown as UserRepository;
 }
 
-let capturedSessionData: Record<string, unknown> = {};
+// Track every session created so each rotation can verify against its own
+// stored hash (QW-7 sha256 verification is strict — the stub used to rely on
+// bcrypt.compare being mocked to always return true).
+const sessionsById = new Map<string, { refreshTokenHash: string }>();
 
 function makeSessionRepo(): SessionRepository {
   return {
     findById: vi.fn().mockImplementation((id: string) => {
+      const stored = sessionsById.get(id);
+      if (!stored) return Promise.resolve(null);
       return Promise.resolve({
         id,
         userId: TEST_USER_ID,
-        refreshTokenHash: capturedSessionData['refreshTokenHash'] as string,
+        refreshTokenHash: stored.refreshTokenHash,
         issuedAt: new Date(),
         expiresAt: new Date(Date.now() + 86400000),
         userAgent: 'test-agent',
       });
     }),
-    create: vi.fn().mockImplementation((data: { refreshTokenHash?: string }) => {
-      capturedSessionData = { refreshTokenHash: data.refreshTokenHash };
+    create: vi.fn().mockImplementation((data: { id: string; refreshTokenHash: string }) => {
+      sessionsById.set(data.id, { refreshTokenHash: data.refreshTokenHash });
       return Promise.resolve({});
     }),
-    deleteById: vi.fn().mockResolvedValue(undefined),
-    deleteAllByUserId: vi.fn().mockResolvedValue(undefined),
+    deleteById: vi.fn().mockImplementation((id: string) => {
+      sessionsById.delete(id);
+      return Promise.resolve();
+    }),
+    deleteAllByUserId: vi.fn().mockImplementation(() => {
+      sessionsById.clear();
+      return Promise.resolve();
+    }),
     findActiveByUserId: vi.fn().mockResolvedValue([]),
   } as unknown as SessionRepository;
 }
@@ -108,14 +119,19 @@ describe('Observer RBAC — real end-to-end (no synthetic JWT)', () => {
     expect(decoded['boundRoomId']).toBe(TEST_ROOM_ID);
   });
 
+  // QW-7: refresh tokens are now single-use (sha256-verified against the
+  // session row, which is deleted-then-recreated atomically inside
+  // rotateRefresh). Previously these tests rotated the same token three times
+  // because bcrypt.compare was mocked to always return true. The replacement
+  // re-issues a fresh observer pair for each rotation assertion so we keep
+  // the same coverage without bumping up against real reuse-detection.
   it('rotateRefresh produces new access token with role="Observer"', async () => {
-    // bcrypt.compare is mocked at module level in unit tests setup, but here we
-    // need a real bcrypt compare to succeed. We mock bcryptjs for this test file.
-    const bcryptMod = await import('bcryptjs');
-    vi.spyOn(bcryptMod.default, 'compare').mockResolvedValue(true as never);
-    vi.spyOn(bcryptMod.default, 'hash').mockResolvedValue('hashed' as never);
-
-    const rotated = await authService.rotateRefresh(observerRefreshToken);
+    const fresh = await authService.issueObserverTokens(
+      { id: TEST_USER_ID, email: 'observer@anon.local', name: 'QA Observer', boundRoomId: TEST_ROOM_ID },
+      TEST_ROOM_ID,
+      'test-ua',
+    );
+    const rotated = await authService.rotateRefresh(fresh.refreshToken);
     const decoded = jwt.decode(rotated.accessToken) as Record<string, unknown>;
 
     expect(decoded['role']).toBe('Observer');
@@ -123,8 +139,12 @@ describe('Observer RBAC — real end-to-end (no synthetic JWT)', () => {
   });
 
   it('rotateRefresh produces new refresh token with role="Observer"', async () => {
-    // Re-use the previous spy results — bcryptjs is already mocked above
-    const rotated = await authService.rotateRefresh(observerRefreshToken);
+    const fresh = await authService.issueObserverTokens(
+      { id: TEST_USER_ID, email: 'observer@anon.local', name: 'QA Observer', boundRoomId: TEST_ROOM_ID },
+      TEST_ROOM_ID,
+      'test-ua',
+    );
+    const rotated = await authService.rotateRefresh(fresh.refreshToken);
     const decoded = jwt.decode(rotated.refreshToken) as Record<string, unknown>;
 
     expect(decoded['role']).toBe('Observer');
@@ -132,7 +152,12 @@ describe('Observer RBAC — real end-to-end (no synthetic JWT)', () => {
   });
 
   it('rotated response user has boundRoomId (Observer client identity preserved)', async () => {
-    const rotated = await authService.rotateRefresh(observerRefreshToken);
+    const fresh = await authService.issueObserverTokens(
+      { id: TEST_USER_ID, email: 'observer@anon.local', name: 'QA Observer', boundRoomId: TEST_ROOM_ID },
+      TEST_ROOM_ID,
+      'test-ua',
+    );
+    const rotated = await authService.rotateRefresh(fresh.refreshToken);
     expect(rotated.user.boundRoomId).toBe(TEST_ROOM_ID);
   });
 
@@ -149,9 +174,10 @@ describe('Observer RBAC — real end-to-end (no synthetic JWT)', () => {
       } as unknown as SessionRepository,
     );
 
-    const bcryptMod = await import('bcryptjs');
+    // Password verification still uses native bcrypt — spy on it so we don't
+    // need to bake a real bcrypt hash into the fixture.
+    const bcryptMod = await import('bcrypt');
     vi.spyOn(bcryptMod.default, 'compare').mockResolvedValue(true as never);
-    vi.spyOn(bcryptMod.default, 'hash').mockResolvedValue('hashed' as never);
 
     const tokens = await regularService.login('gm@test.com', 'password', 'ua');
     const decoded = jwt.decode(tokens.accessToken) as Record<string, unknown>;

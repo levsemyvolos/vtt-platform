@@ -13,7 +13,6 @@ import { peerManagerRef } from '../../infrastructure/webrtc/peerManagerRef';
 import { Logo, Badge, Avatar, IconButton } from '../ui';
 import ThemeToggle from '../Header/ThemeToggle';
 import LanguageSwitcher from '../Header/LanguageSwitcher';
-import { getSocket } from '../../api/socket';
 import { useWssConnected } from '../../api/useWssConnected';
 import styles from './GameRoomTopBar.module.css';
 

@@ -1,12 +1,26 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import RootLayout from './RootLayout';
 import { RequireAuth, RequireUnauth, RequireNonObserver } from './guards';
+// Landing + auth stay eager — they own the first paint.
 import LandingRoute from '../routes/LandingRoute';
 import AuthRoute from '../routes/AuthRoute';
-import DashboardRoute from '../routes/DashboardRoute';
-import RoomLobbyRoute from '../routes/RoomLobbyRoute';
-import RoomSessionRoute from '../routes/RoomSessionRoute';
-import JoinResolverRoute from '../routes/JoinResolverRoute';
+// Heavy routes are split off so the landing bundle doesn't drag in Konva,
+// dice-box (Three.js), Redux slices used only inside rooms, etc.
+const DashboardRoute = lazy(() => import('../routes/DashboardRoute'));
+const RoomLobbyRoute = lazy(() => import('../routes/RoomLobbyRoute'));
+const RoomSessionRoute = lazy(() => import('../routes/RoomSessionRoute'));
+const JoinResolverRoute = lazy(() => import('../routes/JoinResolverRoute'));
+
+const RouteFallback = () => (
+  <div className="app-route-fallback" style={{ padding: '2rem', textAlign: 'center' }}>
+    Loading…
+  </div>
+);
+
+const withSuspense = (node: React.ReactNode) => (
+  <Suspense fallback={<RouteFallback />}>{node}</Suspense>
+);
 
 export const appRouter = createBrowserRouter([
   {
@@ -29,31 +43,21 @@ export const appRouter = createBrowserRouter([
         path: 'dashboard',
         element: (
           <RequireAuth>
-            <RequireNonObserver>
-              <DashboardRoute />
-            </RequireNonObserver>
+            <RequireNonObserver>{withSuspense(<DashboardRoute />)}</RequireNonObserver>
           </RequireAuth>
         ),
       },
       {
         path: 'rooms/:id',
-        element: (
-          <RequireAuth>
-            <RoomLobbyRoute />
-          </RequireAuth>
-        ),
+        element: <RequireAuth>{withSuspense(<RoomLobbyRoute />)}</RequireAuth>,
       },
       {
         path: 'rooms/:id/session',
-        element: (
-          <RequireAuth>
-            <RoomSessionRoute />
-          </RequireAuth>
-        ),
+        element: <RequireAuth>{withSuspense(<RoomSessionRoute />)}</RequireAuth>,
       },
       {
         path: 'join/:token',
-        element: <JoinResolverRoute />,
+        element: withSuspense(<JoinResolverRoute />),
       },
       {
         path: '*',
