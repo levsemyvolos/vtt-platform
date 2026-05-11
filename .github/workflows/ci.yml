@@ -45,7 +45,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Cloud Run deploy paused for the thesis-demo window: GFE forces a TLS
+    # renegotiation right after the WebSocket 101 Switching Protocols
+    # handshake which drops socket.io's '2probe' frame. The upgrade never
+    # completes and the client loops on long-polling with 400 / Rate
+    # exceeded responses from both GFE and Vercel firewall. Reverted the
+    # Vercel rewrite back to Render until we can prove out a workaround
+    # (custom domain with own TLS termination, or socket.io redis-adapter
+    # with sticky sessions via SameSite=None cookie). Restore by changing
+    # the condition back to `github.ref == 'refs/heads/main' && github.event_name == 'push'`.
+    if: false
 
     env:
       GCP_REGION: europe-central2
