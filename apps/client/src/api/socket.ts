@@ -64,11 +64,18 @@ export function getSocket(): TypedClientSocket {
   if (socket) return socket;
   socket = io(SERVER_URL, {
     autoConnect: false,
-    // Required for cross-origin (vercel.app → a.run.app) so the browser
-    // sends Cloud Run's GAESA session-affinity cookie on every polling
-    // request. Without this, polling XHRs were landing on different
-    // instances and the server replied 400 (sid unknown). Server-side
-    // pair: cors.credentials = true in apps/server/src/socketio/index.ts.
+    // Cloud Run + WebSocket has a real bug: when socket.io does the
+    // standard polling -> WS upgrade flow, GFE forces a TLS renegotiation
+    // mid-connection right after the 101 Switching Protocols. The probe
+    // frame from client gets dropped, the upgrade never completes, and
+    // the client falls back into a 400-loop on long-polling. Reproduced
+    // with raw curl: 101 OK then 10 s of silence with 0 bytes received.
+    // Forcing transports:['websocket'] skips polling entirely — the
+    // first frame after 101 is the server's open packet (which Cloud Run
+    // delivers fine before any renegotiation kicks in).
+    transports: ['websocket'],
+    // Kept harmless cross-origin defaults in case we ever switch back to
+    // a transport that uses XHRs.
     withCredentials: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
