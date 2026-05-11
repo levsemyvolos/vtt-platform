@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { Router, type IRouter } from 'express';
 import type { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import type {
   CreateRoomRequest,
   ObserverJoinRequest,
@@ -26,7 +27,22 @@ import type { RoomUpdateInput } from '../schemas/room.schema.js';
 import { HttpError } from '../lib/errors.js';
 import type { TypedServer } from '../socketio/types.js';
 
-const roomService = new RoomService(new RoomRepository(prisma), prisma);
+/**
+ * Rate limiter for anonymous observer join — 10 attempts per IP per 15 min.
+ * Without this, an attacker can create unlimited anonymous User rows in the DB
+ * using a single valid inviteTokenObserver.
+ */
+const joinInviteRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: { error: { code: 429, message: 'Too many join attempts, please try again later' } },
+});
+
+const roomRepo = new RoomRepository(prisma);
+const roomService = new RoomService(roomRepo, prisma);
 const userRepo = new UserRepository(prisma);
 const authService = new AuthService(userRepo, new SessionRepository(prisma));
 
@@ -107,6 +123,15 @@ roomsRouter.post(
 
 roomsRouter.get('/:id', jwtAuth, requireBoundRoom, async (req: Request<{ id: string }>, res: Response) => {
   try {
+    // requireBoundRoom handles Observer scope; GM/Player need an explicit
+    // membership check — without it any authenticated user can read any room.
+    const role = await roomRepo.getRoleInRoom(
+      req.params.id,
+      req.user!.id,
+      req.user!.role,
+      req.user!.boundRoomId,
+    );
+    if (!role) throw new HttpError(403, 'Not a room member');
     const room = await roomService.getById(req.params.id);
     const members = await roomService.getMembersProjection(req.params.id);
     res.json(toRoomDTO(room, members));
@@ -161,6 +186,7 @@ roomsRouter.post(
  */
 roomsRouter.post(
   '/join-invite',
+  joinInviteRateLimiter,
   async (req: Request<object, object, ObserverJoinRequest>, res: Response) => {
     try {
       const inviteCode = req.body.inviteCode?.trim();
@@ -182,6 +208,16 @@ roomsRouter.post(
         passwordHash: '',
         displayName,
       });
+
+      // Persist a RoomMember row so that:
+      //   1. mod:kick can find and delete the record (deleteMany is safe if missing,
+      //      but the record should exist for consistent roster display).
+      //   2. isMember() returns true → WebRTC signaling back to this Observer works.
+      //   3. getMembersProjection() includes the Observer in the members list.
+      await prisma.roomMember.create({
+        data: { roomId: room.id, userId: user.id, role: 'Observer' },
+      });
+
       const userPublic: UserPublic = {
         id: user.id,
         email: user.email,
@@ -201,9 +237,12 @@ roomsRouter.post(
 roomsRouter.post(
   '/:id/invites',
   jwtAuth,
-  requireBoundRoom,
+  requireRole('GM', 'Player'),
   async (req: Request<{ id: string }>, res: Response) => {
     try {
+      // getInviteTokens enforces room ownership — only the GM owner gets tokens.
+      // requireRole('GM', 'Player') blocks Observers at the middleware layer so
+      // they never reach the service-level 403 (defence-in-depth).
       const tokens = await roomService.getInviteTokens(req.params.id, req.user!.id);
       res.json(tokens);
     } catch (err) {
@@ -297,6 +336,14 @@ roomsRouter.get(
   requireBoundRoom,
   async (req: Request<{ id: string }>, res: Response) => {
     try {
+      // requireBoundRoom handles Observer scope; GM/Player need membership check.
+      const role = await roomRepo.getRoleInRoom(
+        req.params.id,
+        req.user!.id,
+        req.user!.role,
+        req.user!.boundRoomId,
+      );
+      if (!role) throw new HttpError(403, 'Not a room member');
       const room = await roomService.getById(req.params.id);
       const members = await roomService.getMembersProjection(room.id);
       const gm: UserPublic = {

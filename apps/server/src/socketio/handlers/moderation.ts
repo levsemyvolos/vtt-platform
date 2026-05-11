@@ -43,8 +43,11 @@ export function registerModerationHandlers(io: TypedServer, socket: TypedSocket)
   socket.on('mod:kick', async (payload: ModerationPayload, ack: (r: Ack<{ ok: boolean }>) => void) => {
     if (!gate(socket, 'mod:kick', payload, ack)) return;
     try {
-      await prisma.roomMember.delete({
-        where: { roomId_userId: { roomId: payload.roomId, userId: payload.targetUserId } },
+      // deleteMany instead of delete — anonymous Observers have no RoomMember
+      // row (joined purely via JWT), so delete would throw P2025. deleteMany is
+      // a no-op when no record exists and never throws on missing rows.
+      await prisma.roomMember.deleteMany({
+        where: { roomId: payload.roomId, userId: payload.targetUserId },
       });
 
       // Force the kicked user's sockets out of the room *before* broadcasting
@@ -52,6 +55,7 @@ export function registerModerationHandlers(io: TypedServer, socket: TypedSocket)
       // immediately without waiting for an F5. The hard `disconnect(true)`
       // closes the underlying transport so any in-flight handler that captured
       // socket.data into a local variable cannot continue acting on the room.
+      // This must run even for anonymous Observers who have no DB row.
       const userSockets = await io.in(userRoom(payload.targetUserId)).fetchSockets();
       for (const s of userSockets) {
         if (s.data.roomId === payload.roomId) {
@@ -82,6 +86,17 @@ export function registerModerationHandlers(io: TypedServer, socket: TypedSocket)
         data: { role: 'Observer' },
         include: { user: { select: { displayName: true } } },
       });
+
+      // Force-update socket.data.role on the server for any live connection
+      // the demoted user still has open. Without this the in-memory role stays
+      // 'Player' for the lifetime of the socket, bypassing the DB write above.
+      const userSockets = await io.in(userRoom(payload.targetUserId)).fetchSockets();
+      for (const s of userSockets) {
+        if (s.data.roomId === payload.roomId) {
+          (s.data as { role: string }).role = 'Observer';
+        }
+      }
+
       io.to(payload.roomId).emit('room:member-updated', {
         roomId: payload.roomId,
         member: toDTO(updated),

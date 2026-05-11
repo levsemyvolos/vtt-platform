@@ -101,6 +101,18 @@ describe('Rooms routes — RBAC guards', () => {
     // The guard passes; the stubbed service returns 404/500 below it. Either
     // way, the response status MUST NOT be 401/403 — that proves the guard
     // accepted the matching boundRoomId. We accept any 4xx/5xx other than 401/403.
+    //
+    // The route now ALSO calls roomRepo.getRoleInRoom() as a defence-in-depth
+    // membership check, which does a prisma.room.findUnique. Without a stubbed
+    // response that call returns undefined, getRoleInRoom returns null and
+    // the route would 403. Provide a fixture where Observer's boundRoomId
+    // matches the room (fallback branch returns 'Observer').
+    const { prisma } = await import('../../src/lib/prisma.js');
+    (prisma.room.findUnique as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ownerId: 'someone-else',
+      members: [],
+    });
+
     const res = await request(app)
       .get(`/api/rooms/${ROOM_ID}/members`)
       .set('Authorization', `Bearer ${observerToken(ROOM_ID)}`);

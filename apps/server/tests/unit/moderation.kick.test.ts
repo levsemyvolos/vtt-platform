@@ -15,7 +15,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../src/lib/prisma.js', () => ({
   prisma: {
     roomMember: {
-      delete: vi.fn().mockResolvedValue(undefined),
+      // mod:kick now uses deleteMany — anonymous Observers have no RoomMember
+      // row and prisma.delete would throw P2025. deleteMany is no-op on miss.
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       update: vi.fn().mockResolvedValue({ userId: 't', role: 'Observer', user: { displayName: 'Tgt' } }),
     },
   },

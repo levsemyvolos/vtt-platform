@@ -248,16 +248,32 @@ export class RoomService {
     ];
     const charMap = new Map(characters.map((c) => [c.ownerId, c.id]));
     const playerIds = new Set<string>();
+    const observerIds = new Set<string>();
 
     const addPlayer = (userId: string, name: string) => {
-      if (userId === room.owner.id || playerIds.has(userId)) return;
+      if (userId === room.owner.id || playerIds.has(userId) || observerIds.has(userId)) return;
       playerIds.add(userId);
       const cid = charMap.get(userId);
       members.push({ userId, name, role: 'Player', ...(cid !== undefined ? { characterId: cid } : {}) });
     };
 
+    const addObserver = (userId: string, name: string) => {
+      if (userId === room.owner.id || playerIds.has(userId) || observerIds.has(userId)) return;
+      observerIds.add(userId);
+      members.push({ userId, name, role: 'Observer' });
+    };
+
+    // Characters determine Player membership; RoomMember rows carry the
+    // authoritative role (Player vs Observer). Previously all RoomMember rows
+    // were projected as Player, hiding demoted observers from the roster.
     characters.forEach((c) => addPlayer(c.ownerId, c.owner.displayName));
-    roomMembers.forEach((rm) => addPlayer(rm.userId, rm.user.displayName));
+    roomMembers.forEach((rm) => {
+      if (rm.role === 'Observer') {
+        addObserver(rm.userId, rm.user.displayName);
+      } else {
+        addPlayer(rm.userId, rm.user.displayName);
+      }
+    });
 
     return members;
   }
