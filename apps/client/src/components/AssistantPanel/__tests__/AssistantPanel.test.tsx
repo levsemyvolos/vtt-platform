@@ -114,7 +114,7 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
         <AssistantPanel roomId={ROOM_ID} onClose={vi.fn()} />
       </Provider>,
     );
-    expect(screen.getByText(/Задайте питання/)).toBeTruthy();
+    expect(screen.getByText(/Поставте питання/)).toBeTruthy();
     expect(container.querySelectorAll('aside').length).toBeGreaterThanOrEqual(1);
   });
 
