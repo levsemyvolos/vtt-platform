@@ -26,7 +26,12 @@ import { sceneCreateSchema, sceneUpdateSchema } from '../schemas/scene.schema.js
 import { tokenCreateSchema, tokenUpdateSchema } from '../schemas/token.schema.js';
 import { HttpError } from '../lib/errors.js';
 
-const sceneService = new SceneService(
+// Exported so index.ts can wire `onSceneActivated` on the SAME instance the
+// REST `/scenes/:id/activate` endpoint calls. Previously index.ts created its
+// own SceneService and assigned the hook there, but the route handler kept
+// using this module-level one — so the hook was attached to an orphan and no
+// broadcast ever fired (clients needed F5 to see scene switches).
+export const sceneService = new SceneService(
   new SceneRepository(prisma),
   new TokenRepository(prisma),
 );

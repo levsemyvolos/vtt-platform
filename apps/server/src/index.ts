@@ -5,7 +5,7 @@ import { createServer } from 'http';
 import path from 'path';
 import { authRouter } from './routes/auth.js';
 import { roomsRouter, buildRoomsRouter } from './routes/rooms.js';
-import { buildScenesRouter, roomScenesSubRouter, buildTokensRouter } from './routes/scenes.js';
+import { buildScenesRouter, roomScenesSubRouter, buildTokensRouter, sceneService } from './routes/scenes.js';
 import { buildAiRouter } from './routes/ai.js';
 import { buildAssetsRouter } from './routes/assets.js';
 import { buildTurnRouter } from './routes/turn.js';
@@ -27,7 +27,6 @@ import { AudioTrackRepository } from './repositories/AudioTrackRepository.js';
 import { TurnConfigProvider } from './services/TurnConfigProvider.js';
 import { prisma } from './lib/prisma.js';
 import { buildSocketIo } from './socketio/index.js';
-import { SceneService } from './services/SceneService.js';
 import { DiceService } from './services/DiceService.js';
 import { ChatService } from './services/ChatService.js';
 import { SessionResyncService } from './services/SessionResyncService.js';
@@ -37,7 +36,6 @@ import { AIService } from './services/AIService.js';
 import { AssistantService } from './services/AssistantService.js';
 import { AssetService } from './services/AssetService.js';
 import { SceneRepository } from './repositories/SceneRepository.js';
-import { TokenRepository } from './repositories/TokenRepository.js';
 import { ChatMessageRepository } from './repositories/ChatMessageRepository.js';
 import { InitiativeRepository } from './repositories/InitiativeRepository.js';
 import { RoomRepository } from './repositories/RoomRepository.js';
@@ -87,7 +85,6 @@ app.use('/rooms', roomsRouter);
 
 // ---------- Repositories (shared across verticals) ----------
 const sceneRepo = new SceneRepository(prisma);
-const tokenRepo = new TokenRepository(prisma);
 const chatRepo = new ChatMessageRepository(prisma);
 const initiativeRepo = new InitiativeRepository(prisma);
 const roomRepo = new RoomRepository(prisma);
@@ -163,7 +160,9 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
 }
 
 // ---------- Services (vertical 2 + Чат 7.1) ----------
-const sceneService = new SceneService(sceneRepo, tokenRepo);
+// sceneService is imported from routes/scenes.js so the REST `/scenes/:id/
+// activate` endpoint and the onSceneActivated hook assignment below operate
+// on the same instance.
 const diceService = new DiceService();
 const chatService = new ChatService(chatRepo);
 
@@ -301,33 +300,17 @@ if (fileStorage) {
 // Wire scene-activation hook so Ф6.4 (autoplay-on-scene-switch) fires from
 // the existing REST endpoint without coupling SceneService to AudioService.
 //
-// Live-sync contract:
-//  - `scene:activated` is a lightweight notification (just ids). Clients use it
-//    for side-effects only (audio track-list refresh, scenes-list isActive flag).
-//  - `scene:snapshot` carries the full per-viewer SceneDTO and drives canvas
-//    hydration. Per-viewer because A6/visibility projection differs by role
-//    (GM sees gm-only objects, players don't). Without this push, clients had
-//    to F5 to pick up the new scene — the per-component listener in GameRoom
-//    was fragile across remounts and depended on a second resync round-trip.
+// Live-sync contract: server emits a lightweight `scene:activated` (just ids).
+// The client's singleton listener (api/socket.ts) then re-emits `session:resync`
+// — the same code path F5 uses — and dispatches `hydrateScene`. We tried a
+// per-viewer `scene:snapshot` push from this hook (commit 6347fe6) but the
+// pattern was silently failing for unclear runtime reasons (fetchSockets data
+// shape on Railway? snapshot guard skipping?). The resync round-trip is
+// proven (F5 always works) and projection logic stays in one place.
 sceneService.onSceneActivated = (roomId, sceneId) => {
+  // eslint-disable-next-line no-console
+  console.log('[scene:activated] hook fired', { roomId, sceneId });
   io.to(roomId).emit('scene:activated', { roomId, sceneId });
-  void (async () => {
-    try {
-      const sockets = await io.in(roomId).fetchSockets();
-      await Promise.all(
-        sockets.map(async (s) => {
-          const role = s.data.role;
-          const userId = s.data.userId;
-          if (!role || !userId) return;
-          const snapshot = await sceneService.getActiveSnapshot(roomId, role, userId);
-          if (snapshot) s.emit('scene:snapshot', { scene: snapshot });
-        }),
-      );
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('[scene:activated] per-viewer snapshot broadcast failed', err);
-    }
-  })();
   if (audioService) {
     void audioService.handleSceneSwitch(roomId, sceneId);
   }

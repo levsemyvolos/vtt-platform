@@ -294,12 +294,31 @@ export function getSocket(): TypedClientSocket {
   // actions on the resolved payload). No server-pushed `session:resync` event
   // exists, so we deliberately do NOT register a listener here.
 
-  // Scene activation side-effects. Canvas hydration arrives via `scene:snapshot`
-  // (per-viewer push from index.ts onSceneActivated). This listener only refreshes
-  // the audio track list (so TrackItem.isBoundHere reflects new scene bindings)
-  // and the scenes list (so non-GM clients see the updated isActive flag without
-  // F5 — GM gets it via activateScene.fulfilled).
-  socket.on('scene:activated', (payload) => {
+  // Scene activation singleton listener — runs the SAME resync path F5 uses,
+  // bound once per socket lifetime so it survives all GameRoom remounts.
+  //
+  // History: a per-viewer `scene:snapshot` push from the server hook (commit
+  // 6347fe6) was supposed to drive canvas hydration directly, but failed to
+  // reach clients in production. Pivoted to: server emits a lightweight
+  // `scene:activated`, client requests the full resync payload here (same as
+  // F5), dispatches `hydrateScene`. session:resync's payload is per-viewer
+  // (fog / gm-only projection), so no role-specific server iteration needed.
+  socket.on('scene:activated', async (payload) => {
+    try {
+      const data = await emitSessionResync(payload.roomId);
+      const prevState = store.getState();
+      const prevSceneId = prevState.scene.current?.id ?? null;
+      const myUserId = prevState.session.currentUser?.id;
+      const myMember = myUserId ? prevState.room.members.find((m) => m.userId === myUserId) : null;
+      const isGm = myMember?.role === 'GM';
+      store.dispatch(hydrateScene(data.scene));
+      if (!isGm && prevSceneId !== null && prevSceneId !== data.scene.id) {
+        store.dispatch(addToast('info', i18n.t('gameroom:notifications.sceneChanged', { name: data.scene.name })));
+      }
+    } catch {
+      // session:resync may 403 if the socket isn't yet in the room (e.g. mid
+      // reconnect). The next reconnect's initial resync covers it.
+    }
     void store.dispatch(loadAudioTracks(payload.roomId));
     void store.dispatch(loadScenes(payload.roomId));
   });
