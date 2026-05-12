@@ -124,6 +124,12 @@
       "attackBonusAria": "Бонус атаки {{i}}",
       "attackDamageAria": "Шкода атаки {{i}}"
     },
+    "statStrip": {
+      "hp":    "HP",
+      "ac":    "КО",
+      "init":  "Ініц",
+      "speed": "Шв"
+    },
     "inventoryItem": "Предмет {{idx}}",
     "addInventoryBtn": "+ Додати предмет",
     "spells": "Закляття",

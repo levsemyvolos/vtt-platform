@@ -132,14 +132,14 @@ function CharacterCard({ character, onOpenSheet, ownerName }: CharacterCardProps
           return (
             <span className={`${styles.metric}${lowHp ? ` ${styles.metricFire}` : ''}`}>
               {stats.hp === null && stats.maxHp === null
-                ? 'HP —'
-                : `HP ${stats.hp ?? '—'}/${stats.maxHp ?? '—'}`}
+                ? `${t('character.statStrip.hp')} —`
+                : `${t('character.statStrip.hp')} ${stats.hp ?? '—'}/${stats.maxHp ?? '—'}`}
             </span>
           );
         })()}
-        <span className={`${styles.metric} ${styles.metricSteel}`}>AC {stats.ac ?? '—'}</span>
-        <span className={styles.metric}>Init {formatMod(stats.initMod)}</span>
-        <span className={styles.metric}>{stats.speed ?? '—'}</span>
+        <span className={`${styles.metric} ${styles.metricSteel}`}>{t('character.statStrip.ac')} {stats.ac ?? '—'}</span>
+        <span className={styles.metric}>{t('character.statStrip.init')} {formatMod(stats.initMod)}</span>
+        <span className={styles.metric}>{t('character.statStrip.speed')} {stats.speed ?? '—'}</span>
       </div>
       <Button
         variant="primary"

@@ -124,6 +124,12 @@
       "attackBonusAria": "Attack {{i}} bonus",
       "attackDamageAria": "Attack {{i}} damage"
     },
+    "statStrip": {
+      "hp":    "HP",
+      "ac":    "AC",
+      "init":  "Init",
+      "speed": "Spd"
+    },
     "inventoryItem": "Item {{idx}}",
     "addInventoryBtn": "+ Add Item",
     "spells": "Spells",
