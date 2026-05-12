@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Phone } from 'lucide-react';
-import type { RoomMemberDTO, TurnConfigResponse } from '@vtt/shared';
+import type { Role, RoomMemberDTO, TurnConfigResponse } from '@vtt/shared';
 import { Button } from '../ui';
 import styles from './VideoCall.module.css';
 import { store, useAppDispatch, useAppSelector } from '../../store';
@@ -31,10 +31,11 @@ const MESH_CEILING = 6;
 interface VideoCallProps {
   roomId: string;
   myUserId: string;
+  myRole: Role;
   members: RoomMemberDTO[];
 }
 
-export default function VideoCall({ roomId, myUserId, members }: VideoCallProps): JSX.Element {
+export default function VideoCall({ roomId, myUserId, myRole, members }: VideoCallProps): JSX.Element {
   const dispatch = useAppDispatch();
   const { t } = useTranslation('gameroom');
   const { localStreamReady, callJoined, peers, peerOrder, pinnedPeerIds, speakingPeerIds } = useAppSelector((s) => s.media);
@@ -75,12 +76,18 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
       return apiFetch<TurnConfigResponse>('/api/turn-config');
     }
 
+    function shouldInitiateTo(peerRole: Role, peerId: string): boolean {
+      if (myRole === 'Observer') return false;
+      if (peerRole === 'Observer') return true;
+      return myUserId < peerId;
+    }
+
     function autoCallPeers(manager: PeerManager): void {
       const list = knownMembersRef.current;
       for (const member of list) {
         if (cancelled || member.userId === myUserId) continue;
         if (calledPeersRef.current.has(member.userId)) continue;
-        if (myUserId < member.userId) {
+        if (shouldInitiateTo(member.role, member.userId)) {
           calledPeersRef.current.add(member.userId);
           manager.call(member.userId);
         }
@@ -168,23 +175,29 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
           },
         });
 
-        const alreadyAtCeiling =
-          Object.keys(store.getState().media.peers).length >= MESH_CEILING;
-        const stream = await manager.startLocalMedia({
-          audio: true,
-          video: !alreadyAtCeiling,
-        });
-        if (cancelled) {
-          manager.closeAll();
-          return;
+        if (myRole === 'Observer') {
+          // Observer receives audio/video but never transmits — skip getUserMedia.
+          setLocalStream(null);
+          dispatch(setLocalStreamReady(true));
+        } else {
+          const alreadyAtCeiling =
+            Object.keys(store.getState().media.peers).length >= MESH_CEILING;
+          const stream = await manager.startLocalMedia({
+            audio: true,
+            video: !alreadyAtCeiling,
+          });
+          if (cancelled) {
+            manager.closeAll();
+            return;
+          }
+          // Mute mic and camera by default — user opts in via Mic/Cam buttons in MediaControls.
+          manager.setMicEnabled(false);
+          manager.setCameraEnabled(false);
+          setLocalStream(stream);
+          dispatch(setLocalStreamReady(true));
+          // VAD on the local stream — drives self-tile speaking outline.
+          detectorRef.current?.attach(myUserId, stream);
         }
-        // Mute mic and camera by default — user opts in via Mic/Cam buttons in MediaControls.
-        manager.setMicEnabled(false);
-        manager.setCameraEnabled(false);
-        setLocalStream(stream);
-        dispatch(setLocalStreamReady(true));
-        // VAD on the local stream — drives self-tile speaking outline.
-        detectorRef.current?.attach(myUserId, stream);
 
         unsubscribe = onSignal(async (event, payload) => {
           if (payload.toUserId !== myUserId) return;
@@ -229,20 +242,25 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
     if (!managerRef.current) return;
     const manager = managerRef.current;
     const memberIds = new Set(members.map((m) => m.userId));
-    // Drop stale entries so a kicked-and-rejoined player gets re-dialed.
-    for (const id of [...calledPeersRef.current]) {
-      if (!memberIds.has(id)) calledPeersRef.current.delete(id);
+    function pruneStalePeers(): void {
+      for (const id of [...calledPeersRef.current]) {
+        if (!memberIds.has(id)) calledPeersRef.current.delete(id);
+      }
     }
+    pruneStalePeers();
     for (const member of members) {
       if (member.userId === myUserId) continue;
       if (calledPeersRef.current.has(member.userId)) continue;
-      // Lex-lower side initiates; perfect negotiation handles glare if both fire.
-      if (myUserId < member.userId) {
+      // Non-Observer always initiates to Observer; lex-lower initiates otherwise.
+      const shouldCall =
+        myRole !== 'Observer' &&
+        (member.role === 'Observer' || myUserId < member.userId);
+      if (shouldCall) {
         calledPeersRef.current.add(member.userId);
         manager.call(member.userId);
       }
     }
-  }, [members, myUserId, callJoined]);
+  }, [members, myUserId, callJoined, myRole]);
 
   // Compute ordered/pinned lists unconditionally (hooks must not appear after early return).
   const orderedPeers = peerOrder.filter((id) => id in peers).map((id) => peers[id]!);
@@ -306,13 +324,15 @@ export default function VideoCall({ roomId, myUserId, members }: VideoCallProps)
           </div>
         ))}
 
-        {/* Self tile — always first in unpinned area, not draggable */}
-        <VideoTile
-          label={t('videoCall.selfLabel')}
-          stream={localStream}
-          muted
-          speaking={speakingPeerIds.includes(myUserId)}
-        />
+        {/* Self tile — hidden for Observer (no own stream) */}
+        {myRole !== 'Observer' && (
+          <VideoTile
+            label={t('videoCall.selfLabel')}
+            stream={localStream}
+            muted
+            speaking={speakingPeerIds.includes(myUserId)}
+          />
+        )}
 
         {/* Unpinned remote tiles */}
         {unpinnedPeers.map((peer, idx) => (

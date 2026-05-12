@@ -348,18 +348,22 @@ export function useToolHandlers(
     }
   }
 
+  function emitPingAtCoords(coords: { x: number; y: number }): void {
+    if (activeTool !== 'ping' || !roomId || myRole === 'Observer') return;
+    emitAnnotationPing({
+      roomId, sceneId: scene.id, ...coords,
+      color: getUserPingColor(myUserId), userId: myUserId, timestamp: Date.now(),
+    });
+  }
+
   function onStageClick(e: Konva.KonvaEventObject<MouseEvent>): void {
     if (e.target !== e.target.getStage()) return;
     const stage = e.target.getStage();
     if (!stage) return;
     const coords = sceneCoords(stage);
     if (!coords) return;
-    if (activeTool === 'ping' && roomId) {
-      emitAnnotationPing({
-        roomId, sceneId: scene.id, ...coords,
-        color: getUserPingColor(myUserId), userId: myUserId, timestamp: Date.now(),
-      });
-    } else if (activeTool === 'text' && myRole === 'GM') {
+    emitPingAtCoords(coords);
+    if (activeTool === 'text' && myRole === 'GM') {
       setTextAnnCoords(coords);
     } else if (activeTool === 'image' && myRole === 'GM') {
       void placeImageAtCoords(coords);

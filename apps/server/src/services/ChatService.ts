@@ -62,12 +62,7 @@ export class ChatService {
     input: ChatMessageInput,
     recipients: RoomRecipients,
   ): Promise<{ message: ChatMessageDTO; delivery: ChatDelivery }> {
-    if (input.mode === 'secret_roll') {
-      throw new HttpError(400, 'secret_roll is reserved for dice rolls');
-    }
-    if (sender.role !== 'Observer' && input.mode === 'whisper' && !input.recipientId) {
-      throw new HttpError(400, 'whisper requires recipientId');
-    }
+    this.validateInput(sender, input);
 
     const channel: 'public' | 'observer' = sender.role === 'Observer' ? 'observer' : 'public';
 
@@ -84,30 +79,41 @@ export class ChatService {
     });
 
     const dto = projectChatMessage(created);
+    const delivery = this.decideDelivery(channel, sender, input, recipients);
+    return { message: dto, delivery };
+  }
 
-    let delivery: ChatDelivery;
+  private validateInput(sender: ChatSender, input: ChatMessageInput): void {
+    if (input.mode === 'secret_roll') {
+      throw new HttpError(400, 'secret_roll is reserved for dice rolls');
+    }
+    if (sender.role !== 'Observer' && input.mode === 'whisper' && !input.recipientId) {
+      throw new HttpError(400, 'whisper requires recipientId');
+    }
+  }
+
+  private decideDelivery(
+    channel: 'public' | 'observer',
+    sender: ChatSender,
+    input: ChatMessageInput,
+    recipients: RoomRecipients,
+  ): ChatDelivery {
     if (channel === 'observer') {
-      // Observer side-channel: visible to all observers + GMs (the author is
-      // included via the observer set, but Set dedupes).
       const targetSet = new Set<string>([
         sender.userId,
         ...recipients.gmUserIds,
         ...recipients.observerUserIds,
       ]);
-      delivery = { mode: 'unicast', recipients: Array.from(targetSet) };
-    } else if (input.mode === 'whisper') {
-      delivery = {
-        mode: 'unicast',
-        recipients:
-          input.recipientId && input.recipientId !== sender.userId
-            ? [sender.userId, input.recipientId]
-            : [sender.userId],
-      };
-    } else {
-      delivery = { mode: 'broadcast', recipients: [] };
+      return { mode: 'unicast', recipients: Array.from(targetSet) };
     }
-
-    return { message: dto, delivery };
+    if (input.mode === 'whisper') {
+      const targets =
+        input.recipientId && input.recipientId !== sender.userId
+          ? [sender.userId, input.recipientId]
+          : [sender.userId];
+      return { mode: 'unicast', recipients: targets };
+    }
+    return { mode: 'broadcast', recipients: [] };
   }
 
   /**

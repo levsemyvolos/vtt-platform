@@ -1,14 +1,13 @@
 import type { Role } from '@vtt/shared';
 
 /**
- * Single source of truth for the per-room RBAC matrix described in
- * `PROJECT_BIBLE.md` §2.18.2. Express middleware (`requireRole`,
- * `requireRoomGM`, `requireBoundRoom`) and Socket.IO handlers must consult
- * `can()` instead of hard-coding role comparisons, so that any future change
- * to the matrix has exactly one edit site.
+ * Single source of truth for the per-room RBAC matrix.
+ * Express middleware (`requireRole`, `requireRoomGM`, `requireBoundRoom`) and
+ * Socket.IO handlers must consult `can()` instead of hard-coding role
+ * comparisons, so that any future change to the matrix has exactly one edit site.
  *
  * Action vocabulary mirrors the documented operations; new actions added here
- * MUST be reflected in §2.18.2 of the BIBLE in the same change.
+ * MUST be reflected in the RBAC matrix definition in the same change.
  */
 export type Action =
   | 'room:create'
@@ -20,6 +19,8 @@ export type Action =
   | 'token:move'
   | 'chat:message'
   | 'cursor:ping'
+  | 'dice:roll'
+  | 'webrtc:signal'
   | 'mod:kick'
   | 'mod:demote'
   | 'mod:server-mute'
@@ -38,8 +39,17 @@ export const POLICY: Record<Action, ReadonlyArray<Role>> = {
   'room:join': ['GM', 'Player'],
   'scene:manage': ['GM'],
   'token:move': ['GM', 'Player'],
+  // Observer-isolation (§3): observer-authored messages are forced onto the
+  // `observer` channel inside ChatService — visible to Observer + GM only.
+  // Player-authored / GM-authored messages always land on the `public` channel.
   'chat:message': ['GM', 'Player', 'Observer'],
-  'cursor:ping': ['GM', 'Player', 'Observer'],
+  // Observer denied: no cursor pings, no dice rolls (§3).
+  // Observer is allowed webrtc:signal so non-Observer peers can initiate to Observer
+  // and Observer can send ICE/answers back — receive-only; getUserMedia is skipped
+  // client-side (VideoCall.tsx).
+  'cursor:ping': ['GM', 'Player'],
+  'dice:roll': ['GM', 'Player'],
+  'webrtc:signal': ['GM', 'Player', 'Observer'],
   'mod:kick': ['GM'],
   'mod:demote': ['GM'],
   'mod:server-mute': ['GM'],

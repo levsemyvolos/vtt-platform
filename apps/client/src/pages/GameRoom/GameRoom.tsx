@@ -58,6 +58,21 @@ function resolveHydrateError(err: unknown): string | null {
   return raw.startsWith('errors:') ? raw : 'errors:network.joinFailed';
 }
 
+function DiceToolMount({
+  myRole,
+  roomId,
+  open,
+  onClose,
+}: {
+  myRole: Role;
+  roomId: string;
+  open: boolean;
+  onClose: () => void;
+}): JSX.Element | null {
+  if (myRole === 'Observer') return null;
+  return <DiceTool roomId={roomId} open={open} onClose={onClose} />;
+}
+
 function TurnRibbonAndAddToken({
   scene,
   myRole,
@@ -288,7 +303,8 @@ export default function GameRoom(): JSX.Element | null {
           onOpenAssistant={handleOpenAssistant}
           onToggleDice={() => { setDiceToolOpen((open) => !open); }}
         />
-        <DiceTool
+        <DiceToolMount
+          myRole={myRole}
           roomId={currentRoom.id}
           open={diceToolOpen}
           onClose={() => { setDiceToolOpen(false); }}

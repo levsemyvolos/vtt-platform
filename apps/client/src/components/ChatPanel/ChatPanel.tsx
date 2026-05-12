@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Lock } from 'lucide-react';
-import type { ChatMode } from '@vtt/shared';
+import { Lock, Eye } from 'lucide-react';
+import type { ChatMode, Role } from '@vtt/shared';
 import { useAppSelector } from '../../store';
 import { emitChatMessage, emitDiceRoll } from '../../api/socket';
 import { Button, Input } from '../ui';
@@ -10,9 +10,11 @@ import { parseChatCommand } from '../../utils/chatCommands';
 
 interface ChatPanelProps {
   roomId: string;
+  myRole: Role;
 }
 
-export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
+export default function ChatPanel({ roomId, myRole }: ChatPanelProps): JSX.Element {
+  const isObserver = myRole === 'Observer';
   const { t } = useTranslation(['room', 'common', 'errors']);
   const messages = useAppSelector((s) => s.chat.messages);
   const members = useAppSelector((s) => s.room.members);
@@ -92,15 +94,23 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed) return;
+    const parsed = parseChatCommand(trimmed);
+    if (isObserver && (parsed.kind === 'roll' || parsed.kind === 'whisper')) {
+      setError(t('errors:chat.invalidCommand'));
+      return;
+    }
     try {
-      const ok = await dispatchCommand(parseChatCommand(trimmed));
+      const ok = await dispatchCommand(parsed);
       if (ok) { setText(''); setError(null); }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Send failed');
     }
   }
 
-  function bubbleClass(m: { mode: string; rollPayload?: unknown }): string {
+  function bubbleClass(m: { mode: string; rollPayload?: unknown; channel?: string }): string {
+    // Observer-channel takes precedence over mode-based styling so users can
+    // tell at a glance which messages are restricted to the observer side-chat.
+    if (m.channel === 'observer') return `${styles.msg} ${styles.msgObserver}`;
     if (m.rollPayload) return `${styles.msg} ${styles.bubbleDice}`;
     if (m.mode === 'ooc') return `${styles.msg} ${styles.msgOoc}`;
     if (m.mode === 'whisper') return `${styles.msg} ${styles.msgWhisper}`;
@@ -130,7 +140,15 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
             <time className={styles.timestamp} dateTime={m.createdAt}>
               {new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(m.createdAt))}
             </time>
-            {m.rollPayload ? (
+            {m.channel === 'observer' ? (
+              <>
+                <span className={`eyebrow ${styles.eyebrowObserver}`}>
+                  <Eye size={10} aria-hidden="true" />
+                  {' '}{t('room:chat.eyebrow.observer')}
+                </span>
+                <span className={styles.text}>{m.text}</span>
+              </>
+            ) : m.rollPayload ? (
               <>
                 <span className={`eyebrow ${styles.eyebrowRoll}`}>{t('room:chat.eyebrow.roll')}</span>
                 <span className={styles.roll}>
@@ -158,31 +176,38 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
       {filteredMessages.length === 0 && search.trim() && (
         <p className={styles.searchEmpty}>{t('room:chat.searchEmpty')}</p>
       )}
+      {isObserver && (
+        <p className={styles.observerHint}>
+          <Eye size={10} aria-hidden="true" /> {t('room:chat.observerInputHint')}
+        </p>
+      )}
       <form onSubmit={onSubmit} className={styles.form}>
-        <div className={styles.formRow}>
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value as ChatMode)}
-            aria-label={t('chat.modeLabel')}
-          >
-            {MODES.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
-          {mode === 'whisper' && (
+        {!isObserver && (
+          <div className={styles.formRow}>
             <select
-              value={recipientId}
-              onChange={(e) => setRecipientId(e.target.value)}
-              aria-label={t('chat.recipientLabel')}
-              required
+              value={mode}
+              onChange={(e) => setMode(e.target.value as ChatMode)}
+              aria-label={t('chat.modeLabel')}
             >
-              <option value="">{t('chat.selectRecipient')}</option>
-              {members.map((m) => (
-                <option key={m.userId} value={m.userId}>{m.name}</option>
+              {MODES.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
-          )}
-        </div>
+            {mode === 'whisper' && (
+              <select
+                value={recipientId}
+                onChange={(e) => setRecipientId(e.target.value)}
+                aria-label={t('chat.recipientLabel')}
+                required
+              >
+                <option value="">{t('chat.selectRecipient')}</option>
+                {members.map((m) => (
+                  <option key={m.userId} value={m.userId}>{m.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
         <div className={styles.formRow}>
           <Input
             className={styles.msgInput}
@@ -195,7 +220,7 @@ export default function ChatPanel({ roomId }: ChatPanelProps): JSX.Element {
             {t('common:btn.send')}
           </Button>
         </div>
-        <p className={styles.hint}>{t('room:chat.commandHint')}</p>
+        {!isObserver && <p className={styles.hint}>{t('room:chat.commandHint')}</p>}
       </form>
       {error && <p className={styles.error} role="alert">{error}</p>}
     </section>

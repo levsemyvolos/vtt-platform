@@ -34,6 +34,7 @@ const chatSlice = createSlice({
         roomId: p.roomId,
         userId: p.userId,
         mode: p.secret ? 'secret_roll' : 'normal',
+        channel: 'public',
         text: p.expression,
         rollPayload: {
           expression: p.expression,

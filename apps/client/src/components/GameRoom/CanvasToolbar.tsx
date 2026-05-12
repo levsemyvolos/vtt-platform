@@ -33,6 +33,54 @@ interface CanvasToolbarProps {
   onToggleDice: () => void;
 }
 
+function DiceToggleButton({
+  myRole,
+  onToggleDice,
+}: {
+  myRole: Role;
+  onToggleDice: () => void;
+}): JSX.Element | null {
+  const { t } = useTranslation('gameroom');
+  if (myRole === 'Observer') return null;
+  return (
+    <IconButton
+      variant="ghost"
+      size="sm"
+      aria-label={t('toolbar.dice')}
+      title={t('toolbar.dice')}
+      onClick={onToggleDice}
+    >
+      <Dice5 size={16} />
+    </IconButton>
+  );
+}
+
+function EditSceneSection({
+  myRole,
+  currentSceneId,
+}: {
+  myRole: Role;
+  currentSceneId: string | null;
+}): JSX.Element | null {
+  const dispatch = useAppDispatch();
+  const { t } = useTranslation('gameroom');
+  if (myRole !== 'GM' || !currentSceneId) return null;
+  return (
+    <>
+      <span className={styles.divider} aria-hidden />
+      <IconButton
+        variant="ghost"
+        size="sm"
+        aria-label={t('topBar.editScene')}
+        title={t('topBar.editScene')}
+        onClick={() => { dispatch(startEditing(currentSceneId)); }}
+      >
+        <PencilRuler size={16} />
+      </IconButton>
+    </>
+  );
+}
+
 export default function CanvasToolbar({
   myRole,
   onOpenTab,
@@ -70,7 +118,7 @@ export default function CanvasToolbar({
   return (
     <div className={styles.toolbar} role="toolbar" aria-label={t('canvasToolbar.ariaLabel')}>
       <div className={styles.tools}>
-        <ToolPicker myRole={myRole} />
+        {myRole !== 'Observer' && <ToolPicker myRole={myRole} />}
 
         {activeTool === 'draw' && myRole === 'GM' && (
           <>
@@ -120,15 +168,7 @@ export default function CanvasToolbar({
           <Music size={16} />
         </IconButton>
 
-        <IconButton
-          variant="ghost"
-          size="sm"
-          aria-label={t('toolbar.dice')}
-          title={t('toolbar.dice')}
-          onClick={onToggleDice}
-        >
-          <Dice5 size={16} />
-        </IconButton>
+        <DiceToggleButton myRole={myRole} onToggleDice={onToggleDice} />
 
         {myRole === 'GM' && (
           <IconButton
@@ -179,20 +219,7 @@ export default function CanvasToolbar({
           </>
         )}
 
-        {myRole === 'GM' && currentSceneId && (
-          <>
-            <span className={styles.divider} aria-hidden />
-            <IconButton
-              variant="ghost"
-              size="sm"
-              aria-label={t('topBar.editScene')}
-              title={t('topBar.editScene')}
-              onClick={() => { dispatch(startEditing(currentSceneId)); }}
-            >
-              <PencilRuler size={16} />
-            </IconButton>
-          </>
-        )}
+        <EditSceneSection myRole={myRole} currentSceneId={currentSceneId} />
       </div>
 
       <div className={styles.zoom}>
