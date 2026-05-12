@@ -99,6 +99,9 @@
     "fowOff": "вимк.",
     "noScene": "—"
   },
+  "units": {
+    "cells": "кл"
+  },
   "connection": {
     "reconnecting": "Перепідключення…",
     "restored": "З'єднання відновлено",

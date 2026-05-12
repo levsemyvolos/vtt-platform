@@ -33,7 +33,8 @@ import { store } from '../store';
 import { applySceneUpdate, applyTokenRollback, fogShapeAdded, fogShapeRemoved, clearFogMask, fogBitmapUpdated, moveSceneObjectOptimistic, removeSceneObject, applyAnnotationsUpdate, transformSceneObjectOptimistic, hydrateScene, lockSceneObject, setSceneObjectZIndex, appendSceneObject, setSceneObjectLayer, setSceneObjectVisibility, upsertToken } from '../store/scene';
 import { appendChatMessage, appendDiceRoll } from '../store/chat';
 import { hydrateInitiative } from '../store/initiative';
-import { applyAudioPlay } from '../store/audio';
+import { applyAudioPlay, loadAudioTracks } from '../store/audio';
+import { loadScenes } from '../store/scenes';
 import { addPing, removePing, upsertMeasure, removeMeasure, upsertTokenDragPreview, removeTokenDragPreview } from '../store/annotations';
 import { applyDrawStroke, clearDrawStrokes } from '../store/scene';
 import { upsertRoomMember, removeRoomMember, removeRoom, applyRoomUpdate, startSession, clearRoom } from '../store/room';
@@ -292,6 +293,17 @@ export function getSocket(): TypedClientSocket {
   // `emitSessionResync` below вЂ” its caller in RoomLobby dispatches the hydrate
   // actions on the resolved payload). No server-pushed `session:resync` event
   // exists, so we deliberately do NOT register a listener here.
+
+  // Scene activation side-effects. Canvas hydration arrives via `scene:snapshot`
+  // (per-viewer push from index.ts onSceneActivated). This listener only refreshes
+  // the audio track list (so TrackItem.isBoundHere reflects new scene bindings)
+  // and the scenes list (so non-GM clients see the updated isActive flag without
+  // F5 — GM gets it via activateScene.fulfilled).
+  socket.on('scene:activated', (payload) => {
+    void store.dispatch(loadAudioTracks(payload.roomId));
+    void store.dispatch(loadScenes(payload.roomId));
+  });
+
   // Р¤6 вЂ” universal `audio:play` event (broadcast from REST handlers and from
   // SceneService.onSceneActivated hook). Discriminated union by `action`.
   socket.on('audio:play', (payload) => {

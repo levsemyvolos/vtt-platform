@@ -6,7 +6,7 @@ import { hydrateScene, clearScene } from '../../store/scene';
 import { hydrateChat } from '../../store/chat';
 import { hydrateInitiative } from '../../store/initiative';
 import { applyAudioPlay, loadAudioTracks } from '../../store/audio';
-import { connectSocket, emitRoomJoin, emitSessionResync, getSocket } from '../../api/socket';
+import { connectSocket, emitRoomJoin, emitSessionResync } from '../../api/socket';
 import { addToast } from '../../store/toast';
 import { setActiveTab } from '../../store/notifications';
 import GameCanvas from '../../components/GameCanvas/GameCanvas';
@@ -164,21 +164,15 @@ export default function GameRoom(): JSX.Element | null {
       }
     })();
 
-    const s = getSocket();
-    const handleSceneActivated = () => {
-      if (!cancelled) {
-        setHydrating(true);
-        void doResync();
-        // Re-fetch track list so TrackItem.isBoundHere reflects the new scene's
-        // sceneId bindings (Task 6 / S9.1 — scene-bind UI refresh).
-        dispatch(loadAudioTracks(roomId));
-      }
-    };
-    s.on('scene:activated', handleSceneActivated);
+    // Live scene-switch sync is now handled by the singleton listeners in
+    // api/socket.ts: `scene:snapshot` (per-viewer push from the server hook)
+    // drives canvas hydration, and `scene:activated` triggers track-list +
+    // scenes-list reload. The previous per-component listener here was
+    // fragile across remounts (StrictMode, t-ref churn) and added an
+    // unnecessary resync round-trip.
 
     return () => {
       cancelled = true;
-      s.off('scene:activated', handleSceneActivated);
     };
   }, [roomId, t, dispatch]);
 

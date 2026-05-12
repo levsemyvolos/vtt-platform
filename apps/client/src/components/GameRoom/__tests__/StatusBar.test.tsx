@@ -49,15 +49,15 @@ function makeStore(scene: SceneDTO | null = null) {
 }
 
 describe('StatusBar', () => {
-  it('renders scene name and grid size', () => {
-    const store = makeStore(makeScene({ name: 'Склеп', gridSize: 10 }));
+  it('renders scene name and grid dimensions', () => {
+    const store = makeStore(makeScene({ name: 'Склеп', gridWidth: 24, gridHeight: 18 }));
     render(
       <Provider store={store}>
         <StatusBar />
       </Provider>,
     );
     expect(screen.getByText('Склеп')).toBeTruthy();
-    expect(screen.getByText('10ft')).toBeTruthy();
+    expect(screen.getByText('24×18')).toBeTruthy();
   });
 
   it('shows token count', () => {

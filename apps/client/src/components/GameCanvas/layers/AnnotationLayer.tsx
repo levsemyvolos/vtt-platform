@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Layer, Circle, Group, Image as KonvaImage, Line, Rect, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import type {
@@ -67,6 +68,7 @@ function PingCircle({ ping }: { ping: AnnotationPingPayload }): JSX.Element {
 }
 
 function RulerLine({ measure, gridSize }: { measure: MeasurePayload; gridSize: number }): JSX.Element {
+  const { t } = useTranslation('gameroom');
   const color = getUserPingColor(measure.userId);
   const dx = measure.to.x - measure.from.x;
   const dy = measure.to.y - measure.from.y;
@@ -87,7 +89,7 @@ function RulerLine({ measure, gridSize }: { measure: MeasurePayload; gridSize: n
       <Text
         x={midX + 4}
         y={midY - 14}
-        text={`${distUnits} кл`}
+        text={`${distUnits} ${t('units.cells')}`}
         fill={color}
         fontSize={13}
         fontStyle="bold"

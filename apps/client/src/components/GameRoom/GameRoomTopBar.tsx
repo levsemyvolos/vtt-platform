@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bell, BellOff, Film, PanelRightClose, PanelRightOpen, RotateCw } from 'lucide-react';
+import { Bell, BellOff, Check, ChevronDown, Film, PanelRightClose, PanelRightOpen, RotateCw } from 'lucide-react';
 import type { Role } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { activateScene, loadScenes } from '../../store/scenes';
@@ -41,6 +41,8 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [sceneMenuOpen, setSceneMenuOpen] = useState(false);
+  const sceneMenuRef = useRef<HTMLDivElement>(null);
 
   // Close avatar dropdown on click-outside or Escape
   useEffect(() => {
@@ -61,6 +63,25 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
     };
   }, [menuOpen]);
 
+  // Scene popover — same click-outside/Escape pattern.
+  useEffect(() => {
+    if (!sceneMenuOpen) return;
+    const onMouseDown = (e: MouseEvent): void => {
+      if (sceneMenuRef.current && !sceneMenuRef.current.contains(e.target as Node)) {
+        setSceneMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setSceneMenuOpen(false);
+    };
+    document.addEventListener('click', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('click', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [sceneMenuOpen]);
+
   useEffect(() => {
     if (currentRoom?.id) {
       void dispatch(loadScenes(currentRoom.id));
@@ -78,9 +99,10 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
   }
 
   function handleSceneChange(sceneId: string): void {
-    if (myRole === 'GM') {
-      void dispatch(activateScene(sceneId));
-    }
+    if (myRole !== 'GM') return;
+    setSceneMenuOpen(false);
+    if (sceneId === activeScene?.id) return;
+    void dispatch(activateScene(sceneId));
   }
 
   function handleReconnect(): void {
@@ -117,27 +139,56 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
         {sceneList.length > 0 && (
           <>
             <span className={styles.sep} aria-hidden>·</span>
-            <div className={styles.sceneDropdownWrap}>
+            <div className={styles.sceneDropdownWrap} ref={sceneMenuRef}>
               <Film size={12} className={styles.sceneIcon} aria-hidden />
               <span className={styles.sceneLabel}>{t('topBar.sceneLabel')}</span>
-              <select
-                className={styles.sceneSelect}
-                value={activeScene?.id ?? ''}
-                onChange={(e) => handleSceneChange(e.target.value)}
-                aria-label={t('topBar.noScene')}
-                disabled={myRole !== 'GM'}
-              >
-                {!activeScene && (
-                  <option value="" disabled>
-                    {t('topBar.noScene')}
-                  </option>
-                )}
-                {sceneList.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              {myRole === 'GM' ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.sceneTrigger}
+                    onClick={() => setSceneMenuOpen((o) => !o)}
+                    aria-haspopup="listbox"
+                    aria-expanded={sceneMenuOpen}
+                    aria-label={t('topBar.sceneLabel')}
+                  >
+                    <span className={styles.sceneTriggerText}>
+                      {activeScene?.name ?? t('topBar.noScene')}
+                    </span>
+                    <ChevronDown
+                      size={12}
+                      className={`${styles.sceneChevron} ${sceneMenuOpen ? styles.sceneChevronOpen : ''}`}
+                      aria-hidden
+                    />
+                  </button>
+                  {sceneMenuOpen && (
+                    <div className={styles.sceneListbox} role="listbox">
+                      {sceneList.map((s) => {
+                        const isActive = s.id === activeScene?.id;
+                        return (
+                          <button
+                            type="button"
+                            key={s.id}
+                            role="option"
+                            aria-selected={isActive}
+                            className={`${styles.sceneOption} ${isActive ? styles.sceneOptionActive : ''}`}
+                            onClick={() => handleSceneChange(s.id)}
+                          >
+                            <span className={styles.sceneOptionCheck} aria-hidden>
+                              {isActive && <Check size={12} />}
+                            </span>
+                            <span className={styles.sceneOptionLabel}>{s.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <span className={styles.sceneTriggerReadOnly}>
+                  {activeScene?.name ?? t('topBar.noScene')}
+                </span>
+              )}
             </div>
           </>
         )}

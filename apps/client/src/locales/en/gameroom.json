@@ -99,6 +99,9 @@
     "fowOff": "off",
     "noScene": "—"
   },
+  "units": {
+    "cells": "cells"
+  },
   "connection": {
     "reconnecting": "Reconnecting…",
     "restored": "Connection restored",

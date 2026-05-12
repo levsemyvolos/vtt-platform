@@ -139,7 +139,7 @@ function CharacterCard({ character, onOpenSheet, ownerName }: CharacterCardProps
         })()}
         <span className={`${styles.metric} ${styles.metricSteel}`}>AC {stats.ac ?? '—'}</span>
         <span className={styles.metric}>Init {formatMod(stats.initMod)}</span>
-        <span className={styles.metric}>{stats.speed ?? '—'}ft</span>
+        <span className={styles.metric}>{stats.speed ?? '—'}</span>
       </div>
       <Button
         variant="primary"

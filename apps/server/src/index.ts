@@ -300,8 +300,34 @@ if (fileStorage) {
 
 // Wire scene-activation hook so Ф6.4 (autoplay-on-scene-switch) fires from
 // the existing REST endpoint without coupling SceneService to AudioService.
+//
+// Live-sync contract:
+//  - `scene:activated` is a lightweight notification (just ids). Clients use it
+//    for side-effects only (audio track-list refresh, scenes-list isActive flag).
+//  - `scene:snapshot` carries the full per-viewer SceneDTO and drives canvas
+//    hydration. Per-viewer because A6/visibility projection differs by role
+//    (GM sees gm-only objects, players don't). Without this push, clients had
+//    to F5 to pick up the new scene — the per-component listener in GameRoom
+//    was fragile across remounts and depended on a second resync round-trip.
 sceneService.onSceneActivated = (roomId, sceneId) => {
   io.to(roomId).emit('scene:activated', { roomId, sceneId });
+  void (async () => {
+    try {
+      const sockets = await io.in(roomId).fetchSockets();
+      await Promise.all(
+        sockets.map(async (s) => {
+          const role = s.data.role;
+          const userId = s.data.userId;
+          if (!role || !userId) return;
+          const snapshot = await sceneService.getActiveSnapshot(roomId, role, userId);
+          if (snapshot) s.emit('scene:snapshot', { scene: snapshot });
+        }),
+      );
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[scene:activated] per-viewer snapshot broadcast failed', err);
+    }
+  })();
   if (audioService) {
     void audioService.handleSceneSwitch(roomId, sceneId);
   }

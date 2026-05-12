@@ -7,7 +7,7 @@ export default function StatusBar(): JSX.Element {
   const scene = useAppSelector((s) => s.scene.current);
 
   const sceneName = scene?.name ?? t('statusBar.noScene');
-  const gridSize = scene ? `${scene.gridSize}ft` : t('statusBar.noScene');
+  const gridSize = scene ? `${scene.gridWidth}×${scene.gridHeight}` : t('statusBar.noScene');
   const tokenCount = scene?.tokens.length ?? 0;
   const fowOn = scene ? (scene.fogShapes?.length ?? 0) > 0 : false;
 
