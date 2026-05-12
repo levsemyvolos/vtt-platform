@@ -237,9 +237,9 @@ function EditControls({ track, isSfx, draft, onDraftChange, onClose }: EditContr
           value={draft.layer}
           onChange={(e) => onDraftChange({ ...draft, layer: e.target.value as AudioLayer })}
         >
-          <option value="music">Music</option>
-          <option value="ambient">Ambient</option>
-          <option value="sfx">SFX</option>
+          <option value="music">{t('campaign:audio.layer.music')}</option>
+          <option value="ambient">{t('campaign:audio.layer.ambient')}</option>
+          <option value="sfx">{t('campaign:audio.layer.sfx')}</option>
         </select>
       </label>
       <Button type="button" variant="secondary" size="sm" onClick={() => void onSave()} disabled={busy}>

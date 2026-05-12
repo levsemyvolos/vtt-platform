@@ -6,7 +6,8 @@
     "comingSoonShort": "soon",
     "menu": {
       "theme": "Theme",
-      "language": "Language"
+      "language": "Language",
+      "languageAriaLabel": "Language"
     }
   }
 }

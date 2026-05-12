@@ -232,6 +232,9 @@
     "referenceAlt": "Reference",
     "generatedAlt": "Generated image"
   },
+  "presetChips": {
+    "ariaLabel": "Prompt presets"
+  },
   "input": {
     "placeholder": "Ask the GM assistant… (Ctrl+Enter — send)",
     "inputLabel": "Message to GM assistant",

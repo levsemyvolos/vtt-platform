@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SceneDTO } from '@vtt/shared';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { stopEditing } from '../../store/room';
@@ -12,6 +13,7 @@ import FogControlsPopover from '../../components/GameRoom/FogControlsPopover';
 import styles from './SceneEditor.module.css';
 
 export default function SceneEditor(): JSX.Element | null {
+  const { t } = useTranslation('room');
   const dispatch = useAppDispatch();
   const { currentRoom, editingSceneId, members } = useAppSelector((s) => s.room);
   const { currentUser } = useAppSelector((s) => s.session);
@@ -46,8 +48,8 @@ export default function SceneEditor(): JSX.Element | null {
     <div className={styles.editor} data-testid="scene-editor">
       <EditorTopBar />
       <EditorToolbarLeft roomId={roomId} sceneId={sceneId} />
-      <div className={styles.canvasZone} data-testid="scene-editor-canvas" aria-label="Scene canvas">
-        <div className={styles.toolStrip} role="toolbar" aria-label="Edit scene tools">
+      <div className={styles.canvasZone} data-testid="scene-editor-canvas" aria-label={t('sceneEditor.canvasAriaLabel')}>
+        <div className={styles.toolStrip} role="toolbar" aria-label={t('sceneEditor.toolsAriaLabel')}>
           <ToolPicker myRole={myRole} hideEphemeral />
         </div>
         {scene && (

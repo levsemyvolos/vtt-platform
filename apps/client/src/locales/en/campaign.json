@@ -115,6 +115,15 @@
     "vitals": "Vitals",
     "skills": "Skills",
     "inventory": "Inventory",
+    "attackTable": {
+      "nameHeader": "Name",
+      "atkBonusHeader": "Atk Bonus",
+      "damageHeader": "Damage",
+      "actionsAriaLabel": "Actions",
+      "attackNameAria": "Attack {{i}} name",
+      "attackBonusAria": "Attack {{i}} bonus",
+      "attackDamageAria": "Attack {{i}} damage"
+    },
     "inventoryItem": "Item {{idx}}",
     "addInventoryBtn": "+ Add Item",
     "spells": "Spells",

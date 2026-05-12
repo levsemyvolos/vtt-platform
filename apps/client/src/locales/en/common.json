@@ -54,5 +54,9 @@
     "onlineN": "{{count}} online",
     "onlineN_one": "{{count}} online",
     "onlineN_few": "{{count}} online"
+  },
+  "logo": {
+    "subtitle": "Virtual Tabletop",
+    "ariaLabel": "Obscure VTT logo"
   }
 }

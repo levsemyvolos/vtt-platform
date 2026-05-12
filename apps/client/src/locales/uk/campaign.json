@@ -112,20 +112,29 @@
     "sheetLabel": "Аркуш {{name}}",
     "attrs": "Атрибути",
     "attrLabel": "Атрибут {{key}}",
-    "vitals": "Vitals",
-    "skills": "Skills",
-    "inventory": "Inventory",
+    "vitals": "Життєві показники",
+    "skills": "Навички",
+    "inventory": "Інвентар",
+    "attackTable": {
+      "nameHeader": "Назва",
+      "atkBonusHeader": "Бонус атаки",
+      "damageHeader": "Шкода",
+      "actionsAriaLabel": "Дії",
+      "attackNameAria": "Назва атаки {{i}}",
+      "attackBonusAria": "Бонус атаки {{i}}",
+      "attackDamageAria": "Шкода атаки {{i}}"
+    },
     "inventoryItem": "Предмет {{idx}}",
     "addInventoryBtn": "+ Додати предмет",
-    "spells": "Spells",
+    "spells": "Закляття",
     "spellsEmpty": "Заклинань немає.",
     "addSpellBtn": "+ Заклинання",
     "spellNameLabel": "Назва заклинання",
     "spellLevelLabel": "Рівень заклинання",
     "spellDescPlaceholder": "Опис (необов'язково)",
     "spellDescLabel": "Опис заклинання",
-    "spellCantrip": "Cantrip",
-    "spellLevel": "Level {{level}}",
+    "spellCantrip": "Замовляння",
+    "spellLevel": "Рівень {{level}}",
     "spellEditLabel": "Редагувати {{name}}",
     "spellDeleteLabel": "Видалити {{name}}",
     "pdfSection": "PDF",
@@ -156,18 +165,18 @@
     "heading": "Музика",
     "volume": "Гучність",
     "empty": "Треків ще немає.",
-    "loopBadge": "loop",
-    "editBtn": "✎ Edit",
+    "loopBadge": "повтор",
+    "editBtn": "✎ Редагувати",
     "editAriaLabel": "Редагувати {{title}}",
     "deleteAriaLabel": "Видалити трек {{title}}",
-    "bindBtn": "bind",
-    "unbindBtn": "✕ scene",
+    "bindBtn": "привʼязати",
+    "unbindBtn": "✕ сцена",
     "noScene": "Активна сцена відсутня",
     "bindTitle": "Прив'язати до активної сцени",
     "unbindTitle": "Відв'язати від сцени",
-    "fadeLabel": "Fade {{ms}} мс",
+    "fadeLabel": "Згасання {{ms}} мс",
     "fadeAriaLabel": "Тривалість fade-in/out",
-    "loopLabel": "Loop",
+    "loopLabel": "Повтор",
     "layerLabel": "Шар",
     "trackTitlePlaceholder": "Назва треку",
     "trackTitleLabel": "Назва аудіо-треку",
@@ -190,7 +199,7 @@
     "aiLibraryToastAdded": "Трек додано з AI-бібліотеки",
     "layer": {
       "music": "Музика",
-      "ambient": "Ambient",
+      "ambient": "Атмосфера",
       "sfx": "SFX",
       "empty": "У цьому шарі немає треків."
     },
@@ -198,11 +207,14 @@
       "heading": "Гучність",
       "master": "Загальна",
       "music": "Музика",
-      "ambient": "Ambient",
+      "ambient": "Атмосфера",
       "sfx": "SFX"
     },
     "section": {
-      "tracks": "{{count}} треки"
+      "tracks_one": "{{count}} трек",
+      "tracks_few": "{{count}} треки",
+      "tracks_many": "{{count}} треків",
+      "tracks": "{{count}} треків"
     },
     "gestureOverlay": {
       "label": "Натисніть, щоб увімкнути аудіо"
@@ -262,8 +274,8 @@
     }
   },
   "sidebar": {
-    "ariaLabel": "Room sidebar",
-    "aiBtn": "GM AI Асистент",
+    "ariaLabel": "Бічна панель кімнати",
+    "aiBtn": "ГМ AI-асистент",
     "noActiveScene": "Сцена не активна."
   },
   "dnd5e": {
@@ -289,7 +301,7 @@
       "attacks": "Атаки та закляття",
       "spellcasting": "Заклинання",
       "spellAbility": "Здібність заклинань",
-      "spellSaveDc": "СК рятівного від заклинання",
+      "spellSaveDc": "СК закляття",
       "spellAttack": "Атака закляття",
       "spellSlots": "Слоти заклинань",
       "personality": "Особистість",
@@ -331,7 +343,7 @@
     },
     "skill": {
       "acrobatics": "Акробатика",
-      "animalHandling": "Догляд за тваринами",
+      "animalHandling": "Поводження з тваринами",
       "arcana": "Магічні знання",
       "athletics": "Атлетика",
       "deception": "Облуда",
@@ -375,7 +387,7 @@
       "label": "Система",
       "fiveE": "D&D 5e",
       "pdf": "PDF-аркуш",
-      "vitals": "Лише vitals"
+      "vitals": "Лише життєві показники"
     }
   }
 }

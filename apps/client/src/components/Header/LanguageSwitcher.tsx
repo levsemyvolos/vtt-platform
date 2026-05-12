@@ -9,7 +9,7 @@ const LANGS = [
 type LangCode = (typeof LANGS)[number]['code'];
 
 export default function LanguageSwitcher(): JSX.Element {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation('nav');
   const current = i18n.language?.startsWith('uk') ? 'uk' : 'en';
 
   function handleChange(code: LangCode): void {
@@ -17,7 +17,7 @@ export default function LanguageSwitcher(): JSX.Element {
   }
 
   return (
-    <div className={styles.langSwitcher} role="group" aria-label="Language">
+    <div className={styles.langSwitcher} role="group" aria-label={t('nav.menu.languageAriaLabel')}>
       {LANGS.map(({ code, shortLabel, label }) => (
         <button
           key={code}

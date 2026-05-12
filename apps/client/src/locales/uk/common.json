@@ -53,6 +53,11 @@
   "presence": {
     "onlineN": "{{count}} онлайн",
     "onlineN_one": "{{count}} онлайн",
-    "onlineN_few": "{{count}} онлайн"
+    "onlineN_few": "{{count}} онлайн",
+    "onlineN_many": "{{count}} онлайн"
+  },
+  "logo": {
+    "subtitle": "Віртуальний стіл",
+    "ariaLabel": "Логотип Obscure VTT"
   }
 }

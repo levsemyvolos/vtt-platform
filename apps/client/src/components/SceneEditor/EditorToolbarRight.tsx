@@ -67,23 +67,23 @@ export default function EditorToolbarRight(): JSX.Element {
           </label>
           <div className={styles.row}>
             <label className={styles.field}>
-              <span className={styles.label}>HP</span>
+              <span className={styles.label}>{t('room:sceneEditor.hpLabel')}</span>
               <input
                 type="number"
                 className={styles.input}
                 value={hp}
                 onChange={(e) => setHp(e.target.value)}
-                aria-label="HP"
+                aria-label={t('room:sceneEditor.hpLabel')}
               />
             </label>
             <label className={styles.field}>
-              <span className={styles.label}>Max HP</span>
+              <span className={styles.label}>{t('room:sceneEditor.maxHpLabel')}</span>
               <input
                 type="number"
                 className={styles.input}
                 value={maxHp}
                 onChange={(e) => setMaxHp(e.target.value)}
-                aria-label="Max HP"
+                aria-label={t('room:sceneEditor.maxHpLabel')}
               />
             </label>
           </div>

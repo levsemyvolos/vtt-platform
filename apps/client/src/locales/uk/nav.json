@@ -6,7 +6,8 @@
     "comingSoonShort": "скоро",
     "menu": {
       "theme": "Тема",
-      "language": "Мова"
+      "language": "Мова",
+      "languageAriaLabel": "Мова"
     }
   }
 }

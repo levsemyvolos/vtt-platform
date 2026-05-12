@@ -281,23 +281,23 @@ export default function TokenEditModal({ tokenId, onClose }: TokenEditModalProps
 
         <div className={styles.row}>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>HP</span>
+            <span className={styles.fieldLabel}>{t('room:token.hpLabel')}</span>
             <input
               type="number"
               className={styles.input}
               value={hp}
               onChange={(e) => setHp(e.target.value)}
-              aria-label="HP"
+              aria-label={t('room:token.hpLabel')}
             />
           </label>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>Max HP</span>
+            <span className={styles.fieldLabel}>{t('room:token.maxHpLabel')}</span>
             <input
               type="number"
               className={styles.input}
               value={maxHp}
               onChange={(e) => setMaxHp(e.target.value)}
-              aria-label="Max HP"
+              aria-label={t('room:token.maxHpLabel')}
             />
           </label>
         </div>

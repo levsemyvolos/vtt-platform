@@ -87,9 +87,9 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
         <AssistantPanel roomId={ROOM_ID} onClose={vi.fn()} />
       </Provider>,
     );
-    expect(screen.getByRole('tab', { name: 'Counsel' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Scenery' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'Lyria' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Порадник' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Краєвиди' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Музика' })).toBeTruthy();
 
   });
 
@@ -128,7 +128,7 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
         <AssistantPanel roomId={ROOM_ID} onClose={vi.fn()} />
       </Provider>,
     );
-    fireEvent.click(screen.getByRole('tab', { name: 'Scenery' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Краєвиди' }));
     expect(screen.getByRole('button', { name: '+ Нова сцена' })).toBeTruthy();
   });
 
@@ -141,7 +141,7 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
         <AssistantPanel roomId={ROOM_ID} onClose={vi.fn()} />
       </Provider>,
     );
-    fireEvent.click(screen.getByRole('tab', { name: 'Lyria' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Музика' }));
     expect(screen.getByRole('button', { name: 'Генерувати' })).toBeTruthy();
   });
 });

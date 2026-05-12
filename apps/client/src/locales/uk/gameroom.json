@@ -1,14 +1,16 @@
-﻿{
+{
   "topBar": {
     "breadcrumb": "Кімнати",
     "wssHealthOnline": "WSS активний",
-    "wssHealthOffline": "WSS відключено",
+    "wssHealthOffline": "WSS відʼєднано",
     "noScene": "Оберіть сцену",
     "settingsDisabled": "Налаштування (незабаром)",
     "hideSidebar": "Сховати панель",
     "showSidebar": "Показати панель",
-    "reconnect": "Перепідключити peers",
-    "reconnectToast": "Перепідключаємо peer-з'єднання…",
+    "sceneLabel": "СЦЕНА",
+    "dashboardLabel": "Дашборд",
+    "reconnect": "Перепідключити учасників",
+    "reconnectToast": "Відновлюємо прямі зʼєднання…",
     "logout": "Вийти",
     "editScene": "Редагувати сцену",
     "muteNotifications": "Вимкнути звук сповіщень",
@@ -56,7 +58,7 @@
     "camOff": "Камера вимкн.",
     "micOn": "Мікрофон",
     "micOff": "Без звуку",
-    "meshCeiling": "Відео вимкнено — досягнуто межі mesh",
+    "meshCeiling": "Відео вимкнено — досягнуто ліміту прямих зʼєднань",
     "negotiationError": "З'єднання з {{peer}} не вдалося — оновіть сторінку"
   },
   "gmMutedYou": "ГМ вимкнув ваш мікрофон",
@@ -75,10 +77,11 @@
     "pinForMe": "Закріпити (тільки для мене)",
     "unpinForMe": "Відкріпити",
     "muteLocally": "Вимкнути локально",
-    "serverMute": "Серверний mute",
+    "serverMute": "Заглушити на сервері",
     "forceCamOff": "Примусово вимкнути камеру",
-    "demote": "Понизити до Observer",
-    "kick": "Виключити з сесії",
+    "demote": "Понизити до Спостерігача",
+    "kick": "Видалити з сесії",
+    "errorFallback": "Дію не вдалося виконати",
     "comingNextEpoch": "доступно в наступній епосі",
     "notJoined": "Спершу натисніть «Підключитися»"
   },
@@ -89,8 +92,9 @@
     "scene": "Сцена",
     "grid": "Сітка",
     "tokens": "Токенів",
-    "light": "Освітлення",
-    "autosave": "Auto-save",
+    "ariaLabel": "Панель стану",
+    "light": "ТВ",
+    "autosave": "Автозбереження",
     "fowOn": "вмк.",
     "fowOff": "вимк.",
     "noScene": "—"
@@ -107,7 +111,7 @@
   },
   "kicked": {
     "title": "Вас видалено з сесії",
-    "body": "Гейм-майстер видалив вас із поточної сесії."
+    "body": "ГМ видалив вас із поточної сесії."
   },
   "migration": {
     "aiMoved": "AI-помічник переїхав на головну панель інструментів"
@@ -117,10 +121,17 @@
     "mode": "Режим",
     "hide": "Приховати",
     "reveal": "Відкрити",
-    "opacity": "Прозорість для ДМ",
+    "opacity": "Прозорість для ГМ",
     "hideAll": "Приховати все",
     "revealAll": "Відкрити все",
-    "undo": "Скасувати"
+    "undo": "Скасувати останнє"
+  },
+  "canvasToolbar": {
+    "ariaLabel": "Інструменти полотна"
+  },
+  "videoTile": {
+    "pinnedTitle": "Закріплено",
+    "videoAriaLabel": "Відеовіконце {{label}}"
   },
   "srd": {
     "title": "SRD-довідник",

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pin } from 'lucide-react';
 import ConnectionState from '../VideoCall/ConnectionState';
 import styles from './VideoTile.module.css';
@@ -28,6 +29,7 @@ export default function VideoTile({
   rttMs,
   speaking,
 }: VideoTileProps): JSX.Element {
+  const { t } = useTranslation('gameroom');
   const isMuted = muted ?? false;
   const isPinned = pinned ?? false;
   const isSpeaking = speaking ?? false;
@@ -54,7 +56,7 @@ export default function VideoTile({
       />
       {connectionState && <ConnectionState state={connectionState} />}
       {isPinned && (
-        <span className={styles.pinBadge} title="Pinned">
+        <span className={styles.pinBadge} title={t('videoTile.pinnedTitle')}>
           <Pin size={10} />
         </span>
       )}

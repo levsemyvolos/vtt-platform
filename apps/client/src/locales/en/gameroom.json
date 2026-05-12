@@ -7,6 +7,8 @@
     "settingsDisabled": "Settings (coming soon)",
     "hideSidebar": "Hide sidebar",
     "showSidebar": "Show sidebar",
+    "sceneLabel": "SCENE",
+    "dashboardLabel": "Dashboard",
     "reconnect": "Reconnect peers",
     "reconnectToast": "Re-establishing peer connections…",
     "logout": "Log out",
@@ -79,6 +81,7 @@
     "forceCamOff": "Force camera off",
     "demote": "Demote to Observer",
     "kick": "Kick from session",
+    "errorFallback": "Action failed",
     "comingNextEpoch": "coming in next epoch",
     "notJoined": "Click \"Connect\" first"
   },
@@ -86,6 +89,7 @@
     "format": "{{name}} · TURN · ROUND {{round}}"
   },
   "statusBar": {
+    "ariaLabel": "Status bar",
     "scene": "Scene",
     "grid": "Grid",
     "tokens": "Tokens",
@@ -121,6 +125,13 @@
     "hideAll": "Hide all",
     "revealAll": "Reveal all",
     "undo": "Undo last"
+  },
+  "canvasToolbar": {
+    "ariaLabel": "Canvas tools"
+  },
+  "videoTile": {
+    "pinnedTitle": "Pinned",
+    "videoAriaLabel": "Video tile {{label}}"
   },
   "srd": {
     "title": "SRD Lookup",

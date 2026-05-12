@@ -41,10 +41,10 @@ export default function AttackTable({
       <table className={styles.attackTable}>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Atk Bonus</th>
-            <th>Damage</th>
-            <th aria-label="Actions" />
+            <th>{t('character.attackTable.nameHeader')}</th>
+            <th>{t('character.attackTable.atkBonusHeader')}</th>
+            <th>{t('character.attackTable.damageHeader')}</th>
+            <th aria-label={t('character.attackTable.actionsAriaLabel')} />
           </tr>
         </thead>
         <tbody>
@@ -55,7 +55,7 @@ export default function AttackTable({
                   type="text"
                   value={attack.name}
                   disabled={disabled}
-                  aria-label={`Attack ${i + 1} name`}
+                  aria-label={t('character.attackTable.attackNameAria', { i: i + 1 })}
                   onChange={(e) => updateRow(i, { name: e.target.value })}
                 />
               </td>
@@ -64,7 +64,7 @@ export default function AttackTable({
                   type="text"
                   value={attack.atkBonus}
                   disabled={disabled}
-                  aria-label={`Attack ${i + 1} bonus`}
+                  aria-label={t('character.attackTable.attackBonusAria', { i: i + 1 })}
                   onChange={(e) => updateRow(i, { atkBonus: e.target.value })}
                 />
               </td>
@@ -73,7 +73,7 @@ export default function AttackTable({
                   type="text"
                   value={attack.damage}
                   disabled={disabled}
-                  aria-label={`Attack ${i + 1} damage`}
+                  aria-label={t('character.attackTable.attackDamageAria', { i: i + 1 })}
                   onChange={(e) => updateRow(i, { damage: e.target.value })}
                 />
               </td>

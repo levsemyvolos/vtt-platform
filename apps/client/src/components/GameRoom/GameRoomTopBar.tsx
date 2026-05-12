@@ -107,7 +107,7 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
           type="button"
           className={styles.logoBtn}
           onClick={handleBack}
-          aria-label={isObserver ? t('topBar.logout') : 'Dashboard'}
+          aria-label={isObserver ? t('topBar.logout') : t('topBar.dashboardLabel')}
         >
           <Logo size={28} />
         </button>
@@ -119,7 +119,7 @@ export default function GameRoomTopBar({ myRole, sidebarCollapsed, onToggleSideb
             <span className={styles.sep} aria-hidden>·</span>
             <div className={styles.sceneDropdownWrap}>
               <Film size={12} className={styles.sceneIcon} aria-hidden />
-              <span className={styles.sceneLabel}>SCENE</span>
+              <span className={styles.sceneLabel}>{t('topBar.sceneLabel')}</span>
               <select
                 className={styles.sceneSelect}
                 value={activeScene?.id ?? ''}

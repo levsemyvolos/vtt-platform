@@ -68,7 +68,7 @@ export default function CanvasToolbar({
   }
 
   return (
-    <div className={styles.toolbar} role="toolbar" aria-label="Canvas tools">
+    <div className={styles.toolbar} role="toolbar" aria-label={t('canvasToolbar.ariaLabel')}>
       <div className={styles.tools}>
         <ToolPicker myRole={myRole} />
 

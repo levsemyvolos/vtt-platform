@@ -15,7 +15,7 @@ export default function StatusBar(): JSX.Element {
     <footer
       className={styles.bar}
       aria-live="polite"
-      aria-label="Status bar"
+      aria-label={t('statusBar.ariaLabel')}
     >
       <span className={styles.item}>
         <span className={styles.label}>{t('statusBar.scene')}: </span>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import styles from './Logo.module.css';
 
 export interface LogoProps {
@@ -10,8 +11,9 @@ export interface LogoProps {
 }
 
 export default function Logo({ size = 40, withText = true }: LogoProps) {
+  const { t } = useTranslation('common');
   return (
-    <div className={styles.brand} role="img" aria-label="Obscure VTT logo">
+    <div className={styles.brand} role="img" aria-label={t('logo.ariaLabel')}>
       <div className={styles.sigil} style={{ width: size, height: size }}>
         <OracleSvg className={styles.oracle} />
         <CounselorSvg className={styles.counselor} />
@@ -21,7 +23,7 @@ export default function Logo({ size = 40, withText = true }: LogoProps) {
           <div className={styles.name}>
             Obscure <em>VTT</em>
           </div>
-          <div className={styles.meta}>Virtual Tabletop</div>
+          <div className={styles.meta}>{t('logo.subtitle')}</div>
         </div>
       )}
     </div>

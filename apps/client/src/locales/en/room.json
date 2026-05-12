@@ -192,6 +192,8 @@
     "statusLabel": "Status",
     "assignedPlayerLabel": "Assigned Player",
     "noAssigned": "— not assigned —",
+    "hpLabel": "HP",
+    "maxHpLabel": "Max HP",
     "contextMenuLabel": "Token actions",
     "imageLabel": "Token Image",
     "imagePreviewAlt": "Token image",
@@ -289,6 +291,10 @@
     "fog": {
       "clearBtn": "Clear fog (reveal all)"
     },
+    "hpLabel": "HP",
+    "maxHpLabel": "Max HP",
+    "canvasAriaLabel": "Scene canvas",
+    "toolsAriaLabel": "Edit scene tools",
     "properties": {
       "noSelection": "Click a token on the canvas to select it"
     }

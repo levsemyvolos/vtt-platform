@@ -20,7 +20,7 @@ export default function PresetChips({ context, onSelect }: PresetChipsProps): JS
   if (!Array.isArray(presets)) return <></>;
 
   return (
-    <div className={styles.modeChips} role="toolbar" aria-label="Prompt presets">
+    <div className={styles.modeChips} role="toolbar" aria-label={t('presetChips.ariaLabel')}>
       {presets.map((p, idx) => (
         <button
           key={idx}

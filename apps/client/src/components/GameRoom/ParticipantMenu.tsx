@@ -121,7 +121,7 @@ export default function ParticipantMenu({ triggerRect, target, viewerRole, roomI
         label: t('participantMenu.demote'),
         onClick: () => {
           void emitModDemote({ roomId, targetUserId: target.userId }).catch((err: unknown) => {
-            dispatch(addToast('error', err instanceof Error ? err.message : 'Failed'));
+            dispatch(addToast('error', err instanceof Error ? err.message : t('participantMenu.errorFallback')));
           });
         },
       });
@@ -130,7 +130,7 @@ export default function ParticipantMenu({ triggerRect, target, viewerRole, roomI
         label: t('participantMenu.kick'),
         onClick: () => {
           void emitModKick({ roomId, targetUserId: target.userId }).catch((err: unknown) => {
-            dispatch(addToast('error', err instanceof Error ? err.message : 'Failed'));
+            dispatch(addToast('error', err instanceof Error ? err.message : t('participantMenu.errorFallback')));
           });
         },
         danger: true,

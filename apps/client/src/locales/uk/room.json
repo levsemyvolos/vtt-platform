@@ -2,34 +2,36 @@
   "dashboard": {
     "section": "Майстерська · Кампанії",
     "title": "Ваші <em>кімнати</em>",
-    "lede": "Кожна кімната — окрема кампанія. Створюйте, керуйте, входьте як майстер чи гравець.",
+    "lede": "Кожна кімната — окрема кампанія. Створюйте, керуйте, заходьте як ГМ чи гравець.",
     "heading": "Мої кімнати",
-    "subheading": "{{active}} активних · {{total}} всього",
+    "subheading": "{{active}} активних · {{total}} загалом",
     "createBtn": "Створити кімнату",
-    "joinBtn": "Приєднатись за кодом",
+    "joinBtn": "Приєднатися за кодом",
     "joinModal": {
-      "heading": "Приєднатись до кімнати",
+      "heading": "Приєднатися до кімнати",
       "inputLabel": "Код запрошення",
       "placeholder": "p_… або повне посилання",
-      "submitBtn": "Приєднатись",
+      "submitBtn": "Приєднатися",
       "formLabel": "форма приєднання за кодом"
     },
     "noRooms": "Кімнат ще немає. Створіть першу!",
     "membersCount": "{{count}} учасників",
     "membersCount_one": "{{count}} учасник",
     "membersCount_few": "{{count}} учасники",
+    "membersCount_many": "{{count}} учасників",
     "newRoomHeading": "Нова кімната",
     "formLabel": "форма нової кімнати",
     "tabs": {
       "my": "Мої",
-      "invited": "Запрошення"
+      "invited": "За запрошенням"
     },
     "search": {
-      "placeholder": "пошук кімнати…"
+      "placeholder": "пошук кімнат…"
     },
     "count": "{{count}} кімнат",
     "count_one": "{{count}} кімната",
     "count_few": "{{count}} кімнати",
+    "count_many": "{{count}} кімнат",
     "card": {
       "role": "Роль: {{role}}",
       "descFallback": "Кампанія без опису."
@@ -57,7 +59,7 @@
   },
   "lobby": {
     "backBtn": "← Назад",
-    "backToDashboard": "Назад до майстерні",
+    "backToDashboard": "Назад до списку кімнат",
     "eyebrow": "{{system}} · Лобі кімнати",
     "heading": "Кімната <em>{{name}}</em>",
     "systemLabel": "Зберіть стіл, оберіть активну сцену й відкрийте сесію.",
@@ -137,7 +139,7 @@
     "searchEmpty": "Нічого не знайдено.",
     "eyebrow": {
       "roll": "КИДОК",
-      "whisper": "ПРИВАТНО"
+      "whisper": "ПОШЕПКИ"
     }
   },
   "dice": {
@@ -186,7 +188,9 @@
     "addModalLabel": "Новий токен",
     "addModalHeading": "Додати токен",
     "imageUrlLabel": "URL зображення",
-    "tokenFormLabel": "форма токену",
+    "tokenFormLabel": "форма токена",
+    "hpLabel": "HP",
+    "maxHpLabel": "Макс. HP",
     "adding": "Додавання…",
     "addSubmitBtn": "Додати",
     "tokenPlacedNote": "Токен буде розміщено в центрі сцени (позиція {{x}}, {{y}}).",
@@ -203,15 +207,15 @@
     "useForToken": "Використати для токена"
   },
   "annotation": {
-    "toolbarLabel": "Інструменти анотацій",
+    "toolbarLabel": "Інструменти позначок",
     "pingTitle": "Ping — привернути увагу (Ф3.4.1)",
     "drawTitle": "Малювання — TODO R3b (Ф3.4.2)",
     "measureTitle": "Лінійка — TODO R3b (Ф3.4.3)"
   },
   "connection": {
     "new": "Ініціалізація",
-    "connecting": "З'єднання...",
-    "disconnected": "Відключено",
+    "connecting": "Підключення…",
+    "disconnected": "Відʼєднано",
     "failed": "Помилка з'єднання",
     "closed": "Закрито"
   },
@@ -235,7 +239,11 @@
   "sceneEditor": {
     "title": "Редактор сцени",
     "breadcrumb": "Редагування",
-    "breadcrumbLabel": "Хлібні крихти",
+    "breadcrumbLabel": "Шлях навігації",
+    "hpLabel": "HP",
+    "maxHpLabel": "Макс. HP",
+    "canvasAriaLabel": "Полотно сцени",
+    "toolsAriaLabel": "Інструменти редагування сцени",
     "doneBtn": "Готово",
     "cancelBtn": "Скасувати",
     "leftToolbar": {
@@ -271,9 +279,9 @@
       "battlemapBtn": "Бойова карта",
       "fitLabel": "Підгін",
       "fit": {
-        "cover": "Cover",
-        "contain": "Contain",
-        "stretch": "Stretch"
+        "cover": "Заповнення",
+        "contain": "Вписування",
+        "stretch": "Розтягування"
       },
       "offsetXLabel": "Зсув X",
       "offsetYLabel": "Зсув Y",
@@ -311,7 +319,7 @@
   },
   "deletedByGM": "Кімнату видалено Ведучим",
   "lastActive": {
-    "label": "Активність: {{time}}"
+    "label": "Остання активність: {{time}}"
   },
   "sortBy": {
     "label": "Сортувати",
@@ -332,16 +340,16 @@
     "delete": "Видалити",
     "layerLabel": "Шар",
     "layer": {
-      "tile": "Tile (під токенами)",
-      "overlay": "Overlay (над токенами)"
+      "tile": "Підкладка (під токенами)",
+      "overlay": "Накладка (над токенами)"
     },
-    "makeGmOnly": "Зробити лише для GM",
+    "makeGmOnly": "Зробити лише для ГМ",
     "makeVisibleToAll": "Видимо для всіх",
     "resetTransform": "Скинути трансформацію"
   },
   "aiCommon": {
     "expectationLong": "Генерую через Nano Banana 2 (~15с)…",
-    "expectationStillWorking": "Все ще працюю… Nano Banana 2 на global-регіоні може відповідати до 30 с",
+    "expectationStillWorking": "Все ще обробляємо… Nano Banana 2 на global-регіоні може відповідати до 30 с",
     "skeletonAlt": "Підготовка превʼю"
   },
   "aiToken": {
@@ -395,20 +403,20 @@
       "watercolor": "Акварель"
     },
     "compositionPresets": [
-      "wide establishing shot",
-      "medium shot, eye level",
-      "bird's-eye view overhead",
-      "worm's-eye view from below",
-      "first-person perspective",
-      "isometric view"
+      "широкий загальний план",
+      "середній план, рівень очей",
+      "вигляд зверху (птахи)",
+      "вигляд знизу (жаби)",
+      "від першої особи",
+      "ізометричний вигляд"
     ],
     "lightingPresets": [
-      "golden hour sunlight",
-      "candlelight / torchlight",
-      "moonlight, nighttime",
-      "overcast daylight",
-      "dramatic side lighting",
-      "dimly lit dungeon"
+      "сонце золотої години",
+      "світло свічки / смолоскипа",
+      "місячне світло, ніч",
+      "похмурий денний світло",
+      "драматичне бічне освітлення",
+      "слабко освітлене підземелля"
     ]
   },
   "aiBattlemap": {
@@ -433,7 +441,7 @@
       "зал замку / інтер'єр",
       "болото / трясовина",
       "узбережжя / набережна",
-      "міська вулиця / урбан"
+      "міська вулиця / місто"
     ]
   },
   "promptAssist": {
