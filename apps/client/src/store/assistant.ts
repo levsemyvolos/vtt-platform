@@ -151,7 +151,7 @@ export const deleteConversation = createAsyncThunk<
   },
 );
 
-/** Updates per-conversation default variables (Session 3.2 / P4 backend). Owner-only. */
+/** Updates per-conversation default variables. Owner-only. */
 export const updateConversationDefaultsAction = createAsyncThunk<
   AssistantConversationDTO,
   { id: string; defaults: AssistantVariables },
@@ -452,7 +452,7 @@ export function sendAssistantMessage(
     prompt: string;
     useSessionContext?: boolean;
     thinkingLevel?: 'low' | 'high';
-    /** Per-message variable overrides (Session 3.2 / P4). Server resolution:
+    /** Per-message variable overrides. Server resolution:
      *  request value > per-conversation default > undefined. */
     variables?: AssistantVariables;
   },

@@ -65,7 +65,7 @@ function setup(overrides: SetupOverrides = {}): SessionContextBuilder {
   return new SessionContextBuilder(scenes, initiative, characters, chatRepo, roomRepo);
 }
 
-describe('SessionContextBuilder (Session 5.1)', () => {
+describe('SessionContextBuilder', () => {
   it('builds full context for GM: scene + initiative + characters + chat', async () => {
     const builder = setup({
       initEntries: [

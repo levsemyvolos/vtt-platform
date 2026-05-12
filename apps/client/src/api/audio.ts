@@ -75,7 +75,7 @@ export function stopAudioLayer(roomId: string, layer: 'music' | 'ambient'): Prom
 }
 
 /**
- * Presigned-PUT to GCS — bypasses our application server (Чат 5 sequence А.7).
+ * Presigned-PUT to GCS — bypasses our application server.
  * The signed URL pins `Content-Type`; sending a different MIME makes GCS reject.
  */
 export async function uploadBytesToGcs(

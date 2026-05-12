@@ -95,11 +95,10 @@ describe('GeminiProvider.generateText', () => {
     expect(out).toBe('Hello, traveller.');
     const callArg = genaiMocks.generateContent.mock.calls[0]?.[0] as { model?: string; contents?: unknown[] };
     expect(callArg.model).toBe('gemini-3-flash-preview');
-    // S6.1: contents is an array of role/parts turns, not a flat string
     expect(Array.isArray(callArg.contents)).toBe(true);
   });
 
-  it('S6.1 — passes systemInstruction + role-typed contents to Vertex SDK', async () => {
+  it('passes systemInstruction + role-typed contents to Vertex SDK', async () => {
     const { client: genai, mocks: genaiMocks } = makeGenAI();
     const { client: predict } = makePredict();
     genaiMocks.generateContent.mockResolvedValue({ text: 'ok' } as never);
@@ -308,7 +307,7 @@ describe('GeminiProvider.generateMusic — Lyria 3 Clip default path', () => {
 // Model-default regression tests (Sync 2026-05-09 image unification, back-on-spec).
 // Pin the literal model identifiers so a casual edit to GeminiProvider's DEFAULT_*
 // constants — or to the env-override fall-throughs — gets caught before merge.
-// Source authority: `_chats_and_ai/AI_PROMPT_ENGINEERING_GUIDE.md` Project AI Stack.
+// Pins the default model identifiers.
 describe('GeminiProvider — default model identifiers', () => {
   beforeEach(() => vi.clearAllMocks());
 

@@ -1,5 +1,5 @@
 /**
- * S7.1 / P5.3 — AssistantService.generatePromptDraft.
+ * AssistantService.generatePromptDraft.
  *
  * Mirrors the contract of `lookupSRD`: one-shot LLM call, no persistence,
  * no session-context, no history. Tests cover the SPECIAL SKILL system
@@ -12,7 +12,7 @@ import type { AssistantMessageRepository } from '../../src/repositories/Assistan
 import type { AssistantConversationRepository } from '../../src/repositories/AssistantConversationRepository.js';
 import type { AIProvider } from '../../src/infrastructure/ai/AIProvider.js';
 
-describe('AssistantService.generatePromptDraft (Session 7.1, P5.3)', () => {
+describe('AssistantService.generatePromptDraft', () => {
   let provider: AIProvider;
   let service: AssistantService;
   let generateText: ReturnType<typeof vi.fn>;

@@ -135,8 +135,10 @@
     "searchEmpty": "Nothing found.",
     "eyebrow": {
       "roll": "ROLL",
-      "whisper": "WHISPER"
-    }
+      "whisper": "WHISPER",
+      "observer": "OBSERVERS"
+    },
+    "observerInputHint": "Your messages are visible only to other Observers and the GM."
   },
   "dice": {
     "toolHeading": "Dice",

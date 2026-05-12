@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import { createServer } from 'http';
 import path from 'path';
 import { authRouter } from './routes/auth.js';
-import { roomsRouter, buildRoomsRouter } from './routes/rooms.js';
+import { roomsRouter, buildRoomsRouter, roomService } from './routes/rooms.js';
 import { buildScenesRouter, roomScenesSubRouter, buildTokensRouter, sceneService } from './routes/scenes.js';
 import { buildAiRouter } from './routes/ai.js';
 import { buildAssetsRouter } from './routes/assets.js';
@@ -159,7 +159,7 @@ if (gcpProjectId && gcpKeyJson && gcsBucket) {
   );
 }
 
-// ---------- Services (vertical 2 + Чат 7.1) ----------
+// ---------- Services ----------
 // sceneService is imported from routes/scenes.js so the REST `/scenes/:id/
 // activate` endpoint and the onSceneActivated hook assignment below operate
 // on the same instance.
@@ -252,6 +252,7 @@ const io = buildSocketIo(httpServer, {
   drawService,
   sceneAnnotationService,
   rooms: roomRepo,
+  roomService,
   jwtSecret,
   corsOrigin: process.env['CLIENT_URL'] ?? 'http://localhost:5173',
 });
@@ -267,14 +268,14 @@ app.use('/tokens', buildTokensRouter(io));
 
 app.use(buildAnnotationsRouter(sceneAnnotationService, io));
 
-// ---------- Чат 7.1 routers — wired AFTER io is built (initiative broadcasts) ----------
+// ---------- Routers — wired AFTER io is built (initiative broadcasts) ----------
 app.use(buildInitiativeRouter(initiativeService, roomRepo, io));
 const journalRepo = new JournalRepository(prisma);
 const journalService = new JournalService(journalRepo);
 app.use(buildJournalRouter(journalService, journalRepo, roomRepo, io));
 app.use(buildCharactersRouter(characterService, characterRepo, roomRepo, io));
 
-// ---------- Чат 7.2 — audio (Ф6) — needs FileStorage; mounted only when GCS is wired ----------
+// ---------- Audio (Ф6) — needs FileStorage; mounted only when GCS is wired ----------
 let audioService: AudioService | null = null;
 if (fileStorage) {
   audioService = new AudioService(

@@ -323,7 +323,7 @@ describe('AudioService.finalizeUpload', () => {
   });
 });
 
-describe('AudioService.createTrackFromAsset (S5.4 — AI music to track)', () => {
+describe('AudioService.createTrackFromAsset', () => {
   beforeEach(() => vi.clearAllMocks());
 
   function aiAsset(overrides: Partial<Asset> = {}): Asset {
@@ -413,7 +413,7 @@ describe('AudioService.createTrackFromAsset (S5.4 — AI music to track)', () =>
     ).rejects.toMatchObject({ status: 400 });
   });
 
-  it('S5.5 P5 — idempotent: returns existing track when (room, asset, scene, layer) already exists', async () => {
+  it('idempotent: returns existing track when (room, asset, scene, layer) already exists', async () => {
     const ctx = buildService();
     const { service, audio, asset } = ctx;
     const existing = fakeTrack({
@@ -437,7 +437,7 @@ describe('AudioService.createTrackFromAsset (S5.4 — AI music to track)', () =>
     expect(audio.mocks.create).not.toHaveBeenCalled();
   });
 
-  it('S5.5 P5 — idempotent path still broadcasts when playImmediately=true', async () => {
+  it('idempotent path still broadcasts when playImmediately=true', async () => {
     const ctx = buildService();
     const { service, audio, asset, events } = ctx;
     const existing = fakeTrack({ id: 't-existing-2', assetId: 'a-dup-2', sceneId: null, layer: 'music' });
@@ -457,7 +457,7 @@ describe('AudioService.createTrackFromAsset (S5.4 — AI music to track)', () =>
   });
 });
 
-describe('AudioService.deleteTrack (S5.5 P4 — AI cascade safety)', () => {
+describe('AudioService.deleteTrack', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('cascades Asset + GCS object for UPLOAD-source tracks (legacy 1:1 owns)', async () => {
@@ -695,7 +695,7 @@ describe('AudioService layer field (S8 — 3-layer architecture)', () => {
   });
 });
 
-// ── S9.1 T1: in-memory state cache + public playback helpers ────────────────
+// ── Audio state cache + public playback helpers ────────────────────
 
 describe('AudioService.getCurrentForRoom (T1 — in-memory cache)', () => {
   beforeEach(() => vi.clearAllMocks());

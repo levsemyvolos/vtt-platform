@@ -6,6 +6,7 @@ import type {
   InitiativeEntryDTO,
   Role,
   ChatMode,
+  ChatChannel,
   DiceMode,
   StatusMarker,
   BackgroundFit,
@@ -105,11 +106,19 @@ export function projectScene(
  * trusts that the caller decided this viewer is allowed to see the row.
  */
 export function projectChatMessage(msg: ChatMessage): ChatMessageDTO {
+  // `channel` was added in 2026-05-12 migration; older rows that predate it
+  // would have NULL, but the migration backfilled them to 'public' via DEFAULT.
+  // Belt-and-braces: fall back to 'public' if the Prisma client returned an
+  // unknown value (e.g. while tests stub ChatMessage with partial fixtures).
+  const channel = ((msg as ChatMessage & { channel?: string }).channel === 'observer'
+    ? 'observer'
+    : 'public') as ChatChannel;
   const dto: ChatMessageDTO = {
     id: msg.id,
     roomId: msg.roomId,
     userId: msg.senderId ?? '',
     mode: msg.mode as ChatMode,
+    channel,
     createdAt: msg.createdAt.toISOString(),
   };
   if (msg.body) dto.text = msg.body;

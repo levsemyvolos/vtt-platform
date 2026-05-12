@@ -18,7 +18,7 @@ function makeMockRes() {
   return { res: res as unknown as Response, getStatus: () => statusCode, getBody: () => body };
 }
 
-describe('handleError (Session 1.2)', () => {
+describe('handleError', () => {
   const cases: Array<{ err: Error; status: number; kind: string }> = [
     { err: new AIQuotaError(), status: 503, kind: 'ai_quota' },
     { err: new AISafetyError(), status: 422, kind: 'ai_safety' },

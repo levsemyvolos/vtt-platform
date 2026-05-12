@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { GeminiProvider } from '../../src/infrastructure/ai/GeminiProvider.js';
 
 /**
- * S5.1 — P3 Music formula unit tests.
+ * Music formula unit tests.
  *
  * Tests pin `GeminiProvider.buildMusicPrompt()` without constructing
  * a real provider instance (static method, no GCP credentials required).
@@ -10,7 +10,7 @@ import { GeminiProvider } from '../../src/infrastructure/ai/GeminiProvider.js';
 
 const HARD_CONSTRAINTS = GeminiProvider.MUSIC_HARD_CONSTRAINTS;
 
-describe('GeminiProvider.buildMusicPrompt — S5.1 (P3)', () => {
+describe('GeminiProvider.buildMusicPrompt', () => {
   it('legacy path: raw prompt + hard constraints appended when no structured fields', () => {
     const result = GeminiProvider.buildMusicPrompt({
       prompt: 'dark ambient music for a dungeon',

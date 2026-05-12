@@ -7,6 +7,14 @@ export type BackgroundFit = 'cover' | 'contain' | 'stretch';
 
 export type ChatMode = 'normal' | 'ic' | 'ooc' | 'whisper' | 'secret_roll';
 
+/**
+ * Observer-isolation channel (§3). `public` is the default for messages
+ * authored by GM/Player. `observer` is server-derived (never client-trusted)
+ * for Observer-authored messages and is delivered only to Observer members
+ * plus the GM (see ChatService.createMessage).
+ */
+export type ChatChannel = 'public' | 'observer';
+
 export type DiceMode = 'normal' | 'advantage' | 'disadvantage';
 
 export type StatusMarker =
@@ -61,13 +69,16 @@ export interface AssetDTO {
 
 // Note: HandoutDTO / CharacterSheetDTO / NoteDTO are defined in
 // `../rest/handouts.ts`, `../rest/characters.ts`, `../rest/notes.ts`
-// (introduced for Чат 7.1 — кампанійні матеріали Ф7+Ф9).
+// (campaign materials Ф7+Ф9).
 
 export interface ChatMessageDTO {
   id: string;
   roomId: string;
   userId: string;
   mode: ChatMode;
+  /** Observer-isolation channel — `public` is rendered for everyone; `observer`
+   *  is server-restricted to Observers + GM and rendered with a visual marker. */
+  channel: ChatChannel;
   text?: string;
   rollPayload?: {
     expression: string;

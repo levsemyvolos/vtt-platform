@@ -43,6 +43,31 @@
   font-style: italic;
 }
 
+/* Observer-isolation channel (§3): tinted background + accent border so users
+   can immediately tell apart the public chat from the observer side-channel. */
+.msgObserver {
+  background: color-mix(in srgb, #8b5cf6 8%, var(--bg-2));
+  border: 1px solid var(--line);
+  border-left: 2px solid #8b5cf6;
+}
+
+.eyebrowObserver {
+  color: #a78bfa;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.observerHint {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: #a78bfa;
+  padding: var(--space-xs) var(--space-sm);
+  background: color-mix(in srgb, #8b5cf6 8%, var(--bg-1));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
 .bubbleDice {
   background: var(--bg-2);
   border: 1px solid var(--line);

@@ -1,8 +1,6 @@
 # Supabase — PostgreSQL host for VTT Platform
 
-Розгортання вузла `PostgreSQL Server` (Bible §2.12, табл. 2.7 рядок 3) на
-managed-PG Supabase. Цей файл — фактична основа §3.4 «Інфраструктурне
-уявлення» в частині БД-вузла.
+Розгортання вузла `PostgreSQL Server` на managed-PG Supabase.
 
 ## 1. Створення проєкту
 
@@ -38,7 +36,7 @@ DATABASE_URL="<DIRECT_CONNECTION_URL>" pnpm exec prisma migrate deploy
 - Prisma застосує всі файли з `prisma/migrations/` (зокрема
   `20260430041908_vertical2_realtime/migration.sql`).
 - Створиться службова таблиця `_prisma_migrations` для трекінгу.
-- Схема відповідатиме `prisma/schema.prisma` (Bible §2.15, табл. 2.15).
+- Схема відповідатиме `prisma/schema.prisma`.
 
 ## 4. Інтеграція з Render
 

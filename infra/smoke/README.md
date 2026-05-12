@@ -1,7 +1,6 @@
 # Smoke Flow — VTT Platform
 
-8-кроковий end-to-end перевірочний прохід через ключові ФВ після деплою
-(відповідь Чату 8 на пункт 8 завдання).
+8-кроковий end-to-end перевірочний прохід через ключові функціональні вимоги після деплою.
 
 | # | Шар | Запит | ФВ |
 |---|---|---|---|
@@ -43,7 +42,7 @@ curl -X PUT -H "Content-Type: audio/mpeg" \
 - Кроки 1–5: HTTP 200/201, JSON з UUID-сутностями.
 - Крок 6: лог `[ok] dice:rolled → {…}` ≤ 200 мс після emit (НФВ 2.2).
 - Крок 7: HTTP 200 з `assetId`, `mimeType: "image/png"`, `signedUrl`
-  (presigned URL GCS, TTL 15 хв — Bible §2.13.4 / Чат 5).
+  (presigned URL GCS, TTL 15 хв).
 - Крок 8c: HTTP 200, `audioTrack: { id, sceneId: null, loop: false }`.
 
 Якщо будь-який крок повертає 401 — перевірити, що `JWT_SECRET` Render

@@ -25,7 +25,7 @@ const DEFAULT_TTL = 3600;
  *
  * Returns `IceServer[]` (the structural form of W3C `RTCIceServer`); when no
  * TURN host is configured, only the STUN entry is returned — useful for local
- * dev where coturn is not provisioned yet (Чат 6 dev fallback).
+ * dev where coturn is not provisioned yet.
  */
 export class TurnConfigProvider {
   private readonly stunUrl: string;

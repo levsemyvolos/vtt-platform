@@ -33,7 +33,7 @@ function streamingProvider(chunks: string[]): AIProvider {
   } as unknown as AIProvider;
 }
 
-describe('AssistantService.regenerateAndStream + editAndStream (Session 4.3)', () => {
+describe('AssistantService.regenerateAndStream + editAndStream', () => {
   let convRepo: AssistantConversationRepository;
   let msgRepo: AssistantMessageRepository;
 

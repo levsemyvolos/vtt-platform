@@ -88,7 +88,7 @@ export interface RoomAudioState {
  * Coordinator over `AudioTrackRepository`, `AssetRepository` and
  * `FileStorageAdapter` for the music-track feature (Ф6, §2.13.4).
  *
- * Upload flow (presigned-PUT, consistent with Чат 5 sequence А.7):
+ * Upload flow (presigned-PUT):
  *   1. `initUpload`  → mint presigned PUT URL + opaque storageKey
  *   2. client PUTs bytes directly to GCS (server out of the data path)
  *   3. `finalizeUpload` → verify object metadata, create Asset + AudioTrack

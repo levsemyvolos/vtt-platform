@@ -4,6 +4,7 @@ import { userRoom } from '../types.js';
 import type { DiceService } from '../../services/DiceService.js';
 import type { ChatService } from '../../services/ChatService.js';
 import type { RoomRepository } from '../../repositories/RoomRepository.js';
+import { can } from '../../auth/policy.js';
 
 /**
  * Handler for `dice:roll` (sequence diagram Process_View_DiceRoll).
@@ -28,6 +29,12 @@ export function makeDiceRollHandler(
   ): Promise<void> => {
     if (!socket.data.roomId || socket.data.roomId !== payload.roomId) {
       ack({ ok: false, error: { code: 403, message: 'Not joined to this room' } });
+      return;
+    }
+    // Observer-isolation (§3): observers have no dice tool. Defense-in-depth
+    // — the client UI hides the dice button for Observer role.
+    if (!can('dice:roll', socket.data.role)) {
+      ack({ ok: false, error: { code: 403, message: 'Observers cannot roll dice' } });
       return;
     }
     const parsed = diceService.parseAndRoll(payload.expression, payload.mode);

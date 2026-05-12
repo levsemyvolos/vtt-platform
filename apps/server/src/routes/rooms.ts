@@ -42,7 +42,9 @@ const joinInviteRateLimiter = rateLimit({
 });
 
 const roomRepo = new RoomRepository(prisma);
-const roomService = new RoomService(roomRepo, prisma);
+/** Exported so non-route modules (socketio chat handler) can resolve room
+ *  member rosters via the same single instance the REST routes use. */
+export const roomService = new RoomService(roomRepo, prisma);
 const userRepo = new UserRepository(prisma);
 const authService = new AuthService(userRepo, new SessionRepository(prisma));
 

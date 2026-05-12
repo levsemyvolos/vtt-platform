@@ -7,7 +7,7 @@ import type { AIProvider } from '../../src/infrastructure/ai/AIProvider.js';
 
 const ROOM = '11111111-1111-1111-1111-111111111111';
 
-describe('AssistantService.getRoomQuota (Session 6.3.B)', () => {
+describe('AssistantService.getRoomQuota', () => {
   let msgRepo: AssistantMessageRepository;
   let assetRepo: AssetRepository;
   let convRepo: AssistantConversationRepository;

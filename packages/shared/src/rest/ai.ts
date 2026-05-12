@@ -1,10 +1,10 @@
 export type AssistantContext = 'npc-description' | 'scene-description' | 'srd-lookup' | 'free-chat';
 
-// ---------- P5.2 / S6.2 — JSON-structured NPC output ----------
+// ---------- JSON-structured NPC output ----------
 
 /**
  * Shape returned by the assistant when `context === 'npc-description'`.
- * Mirrors AI_PROMPT_ENGINEERING_GUIDE.md §5.2 schema. Stored in
+ * Stored in
  * `ConversationMessage.content` as a JSON string; client parses on render
  * and falls back to markdown if parsing fails.
  */
@@ -54,7 +54,7 @@ export interface ConversationMessage {
 }
 
 /**
- * Per-message and per-conversation prompt variables (Session 3.1, P4 backend).
+ * Per-message and per-conversation prompt variables.
  *
  * Resolution priority: per-request value > per-conversation default >
  * SYSTEM_PROMPTS-baked default (Ukrainian language, D&D 5e ruleset for NPC/SRD).
@@ -62,8 +62,6 @@ export interface ConversationMessage {
  * All fields optional. Empty string treated as "not set". `playerLevel === 0`
  * also treated as "not set" (resolveVariables coerces). When all fields
  * resolve to undefined, no `--- Session variables ---` block is injected.
- *
- * Source: AI_PROMPT_ENGINEERING_GUIDE.md §4.1.
  */
 export interface AssistantVariables {
   /** TTRPG ruleset name e.g. "D&D 5e (2014 SRD)", "Pathfinder 2e", "Shadowdark", "Custom". Max 64 chars. */
@@ -74,9 +72,7 @@ export interface AssistantVariables {
   playerLevel?: number;
   /** Tonal direction e.g. "grimdark and morally gray". Max 120 chars. */
   tone?: string;
-  /** Output language name e.g. "Ukrainian", "English". Max 40 chars. NOTE in S3.1 the
-   *  `Respond in Ukrainian` directive baked into SYSTEM_PROMPTS still wins; this field
-   *  is shipped for future use when SYSTEM_PROMPTS becomes language-parameterized. */
+  /** Output language name e.g. "Ukrainian", "English". Max 40 chars. */
   outputLanguage?: string;
 }
 
@@ -127,7 +123,7 @@ export interface AssistantConversationDTO {
   ownerId: string;
   context: AssistantContext;
   title: string;
-  /** Per-conversation default variables (Session 3.1 / Phase 2a P4).
+  /** Per-conversation default variables.
    *  When the user sends a request with empty AssistantVariables, the server
    *  falls back to these. Empty object `{}` means no defaults are set. */
   defaults: AssistantVariables;
@@ -135,7 +131,7 @@ export interface AssistantConversationDTO {
   updatedAt: string;
 }
 
-// ---------- Conversation management requests/responses (Session 3.1) ----------
+// ---------- Conversation management requests/responses ----------
 
 export interface CreateAssistantConversationRequest {
   roomId: string;
@@ -149,7 +145,7 @@ export interface RenameAssistantConversationRequest {
   title: string;
 }
 
-/** PATCH /ai/conversations/:id/defaults — full-replace semantics (Session 3.1). */
+/** PATCH /ai/conversations/:id/defaults — full-replace semantics. */
 export interface UpdateConversationDefaultsRequest {
   defaults: AssistantVariables;
 }
@@ -158,11 +154,11 @@ export interface ListAssistantConversationsResponse {
   conversations: AssistantConversationDTO[];
 }
 
-// ---------- AI error taxonomy (Session 1.2) ----------
+// ---------- AI error taxonomy ----------
 
 /**
  * Discriminator returned by the server for any AI-related failure.
- * Frontend (Session 2.1) switches on this to render localized messages.
+ * Frontend switches on this to render localized messages.
  */
 export type AIErrorKind =
   | 'ai_quota'           // 503 — provider rate-limited or budget exhausted
@@ -179,7 +175,7 @@ export interface AIErrorResponse {
   };
 }
 
-// ---------- SSE streaming events (Session 4.1) ----------
+// ---------- SSE streaming events ----------
 
 export type AssistantStreamEvent =
   | { type: 'start'; userMessageId: string }
@@ -211,7 +207,7 @@ export interface AssistantContextPreviewResponse {
   text: string;
 }
 
-// ---------- Player SRD lookup (Session 6.1, M10) ----------
+// ---------- Player SRD lookup ----------
 
 export interface SRDLookupRequest {
   /** The room context — used for RBAC (member-of-room check). */
@@ -224,7 +220,7 @@ export interface SRDLookupResponse {
   content: string;
 }
 
-// ---------- AI usage quota (Session 6.3.B) ----------
+// ---------- AI usage quota ----------
 
 export interface AIQuotaResponse {
   /** AI-image assets generated in this room. */
@@ -236,12 +232,11 @@ export interface AIQuotaResponse {
   llm: { messagesLast24h: number };
 }
 
-// ---------- Prompt-assist (Session 7.1, P5.3 LLM-as-prompt-generator) ----------
+// ---------- Prompt-assist (LLM-as-prompt-generator) ----------
 
 /**
  * Where the generated draft will be pasted next. Drives the output formula
- * baked into PROMPT_ASSIST_SYSTEM (image vs music have different field
- * skeletons per AI_PROMPT_ENGINEERING_GUIDE.md §5.3).
+ * baked into PROMPT_ASSIST_SYSTEM (image vs music have different field skeletons).
  */
 export type PromptAssistTarget = 'image' | 'music';
 
@@ -267,7 +262,7 @@ export interface PromptAssistResponse {
   draft: string;
 }
 
-// ---------- Image conversations (Session 7.1, Nano Banana 2) ----------
+// ---------- Image conversations (Nano Banana 2) ----------
 
 export interface AssistantImageConversationDTO {
   id: string;

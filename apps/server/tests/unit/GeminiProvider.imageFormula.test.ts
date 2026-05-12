@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { GeminiProvider } from '../../src/infrastructure/ai/GeminiProvider.js';
 
 /**
- * S4.1 — P2.1 Scene Background formula unit tests.
+ * Scene Background formula unit tests.
  *
  * Tests pin `GeminiProvider.buildSceneBackgroundPrompt()` without constructing
  * a real provider instance (static method, no GCP credentials required).
@@ -10,7 +10,7 @@ import { GeminiProvider } from '../../src/infrastructure/ai/GeminiProvider.js';
 
 const CONSTRAINTS = 'tabletop RPG scene illustration, no text, no logos, no UI overlays, no watermarks, landscape orientation';
 
-describe('GeminiProvider.buildSceneBackgroundPrompt — S4.1 (P2.1)', () => {
+describe('GeminiProvider.buildSceneBackgroundPrompt', () => {
   it('subject only, no style → fallback style descriptor + constraints', () => {
     const result = GeminiProvider.buildSceneBackgroundPrompt({
       prompt: 'dark dungeon corridor',

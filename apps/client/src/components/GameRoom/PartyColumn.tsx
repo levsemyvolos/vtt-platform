@@ -86,11 +86,15 @@ export default function PartyColumn({ roomId, myUserId, myRole }: PartyColumnPro
         {t('party.eyebrow')} &middot; {members.length}
       </p>
 
-      <div className={styles.videoWrap}>
-        <VideoCall roomId={roomId} myUserId={myUserId} members={members} />
-      </div>
+      {myRole !== 'Observer' && (
+        <>
+          <div className={styles.videoWrap}>
+            <VideoCall roomId={roomId} myUserId={myUserId} members={members} />
+          </div>
 
-      <MediaControls />
+          <MediaControls />
+        </>
+      )}
 
       <button
         type="button"

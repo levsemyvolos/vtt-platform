@@ -1,21 +1,18 @@
 /**
- * AI routes — RBAC integration tests (S-Fix1, merge_readiness_fix_plan.md).
+ * AI routes — RBAC integration tests.
  *
- * Background — issue #1 of [current_state_analysis_2026_05_08.md §3.1.2]:
+ * Background:
  *   POST /ai/image-conversations was authorised at the level of "any room
  *   member" instead of "GM only". Players holding a member-level JWT could
  *   create image-conversation threads and burn the project's Vertex budget on
  *   Nano Banana 2 generations (preview-tier model, expensive per call).
- *
- *   Master-plan v1 [line 122-127] only authorised the SRD lookup endpoint for
- *   non-GM members; image generation was always GM-only on the legacy /image
- *   route (`requireRoomGM` middleware). The new /image-conversations CREATE
- *   route accidentally diverged from this pattern when added in the
- *   post-master-plan scope-creep commits (7b87f72, 9b0ba4d).
+ *   Image generation was always GM-only on the legacy /image route
+ *   (`requireRoomGM` middleware); the /image-conversations CREATE route
+ *   accidentally diverged from this pattern.
  *
  * What this test asserts:
  *   1. POST /ai/image-conversations with a Player member JWT → 403.
- *      (Before the S-Fix1 middleware was added this returned 201 — the leak.)
+ *      (Before the fix this returned 201 — the leak.)
  *   2. POST /ai/image-conversations with a non-member outsider JWT → 403.
  *      (This was 403 before too via the inner member check, but the response
  *      shape is now uniform — `requireRoomGM` always returns the same 403.)
@@ -96,7 +93,7 @@ function makeApp(): express.Express {
   return app;
 }
 
-describe('AI image-conversations RBAC — POST /ai/image-conversations (S-Fix1)', () => {
+describe('AI image-conversations RBAC — POST /ai/image-conversations', () => {
   it('Player member → 403 (cost-amplification gate)', async () => {
     const app = makeApp();
     const token = makeAccessToken(PLAYER_ID);
@@ -148,11 +145,11 @@ describe('AI image-conversations RBAC — POST /ai/image-conversations (S-Fix1)'
 });
 
 /**
- * S7.1 / P5.3 — `/ai/prompt-assist` mirrors the image/music GM-only gate.
+ * `/ai/prompt-assist` mirrors the image/music GM-only gate.
  * The endpoint exists to feed inputs into the GM-gated /image and /music
  * routes; authorising members would burn LLM budget on an unusable draft.
  */
-describe('AI prompt-assist RBAC — POST /ai/prompt-assist (S7.1)', () => {
+describe('AI prompt-assist RBAC — POST /ai/prompt-assist', () => {
   it('Player member → 403', async () => {
     const app = makeApp();
     const token = makeAccessToken(PLAYER_ID);

@@ -33,7 +33,7 @@ export interface ImageMultiTurnRequest {
 }
 
 /**
- * Phase 2a S6.1 — proper role-split for text generation.
+ * Proper role-split for text generation.
  *
  * The provider receives:
  *   - `system`: the system instruction text (system role; immovable from
@@ -74,7 +74,7 @@ export interface AIProvider {
   generateText(req: TextGenerationRequest, opts?: { thinkingLevel?: 'low' | 'high' }): Promise<string>;
 
   /**
-   * Streaming variant of `generateText` (Ф8.1, Session 4.1).
+   * Streaming variant of `generateText`.
    * Yields content deltas as they arrive from the upstream model.
    * Honors the optional AbortSignal — implementations must stop iteration
    * when `signal.aborted === true` (used to free resources on client disconnect).
@@ -94,7 +94,7 @@ export interface AIProvider {
   generateBattlemap(req: AIImageRequest): Promise<GeneratedBinary>;
 
   /**
-   * Multi-turn image generation (Session 7.1, Nano Banana 2).
+   * Multi-turn image generation (Nano Banana 2).
    * Sends a sequence of past (user-prompt, generated-image-bytes) turns
    * plus optional reference-image bytes as visual context, then a new
    * user prompt — receives the next image in the conversation.

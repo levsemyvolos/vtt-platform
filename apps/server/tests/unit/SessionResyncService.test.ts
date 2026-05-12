@@ -45,6 +45,7 @@ const broadcastMessage: ChatMessage = {
   roomId: 'room-1',
   senderId: 'user-A',
   mode: 'normal',
+  channel: 'public',
   body: 'hello room',
   rollPayload: null,
   recipientId: null,
@@ -56,6 +57,7 @@ const whisperToB: ChatMessage = {
   roomId: 'room-1',
   senderId: 'user-A',
   mode: 'whisper',
+  channel: 'public',
   body: 'psst',
   rollPayload: null,
   recipientId: 'user-B',
@@ -67,13 +69,14 @@ const secretRoll: ChatMessage = {
   roomId: 'room-1',
   senderId: 'user-A',
   mode: 'secret_roll',
+  channel: 'public',
   body: '1d20',
   rollPayload: { expression: '1d20', total: 17, rolls: [17], mode: 'normal' },
   recipientId: null,
   createdAt: new Date('2026-04-30T10:02:00Z'),
 };
 
-describe('SessionResyncService.buildResyncPayload (algorithm A3, §2.17.4)', () => {
+describe('SessionResyncService.buildResyncPayload', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('happy path: returns scene + messages + initiatives + serverTime', async () => {
@@ -204,5 +207,30 @@ describe('SessionResyncService.buildResyncPayload (algorithm A3, §2.17.4)', () 
     );
     const payload = await svc.buildResyncPayload('room-1', 'Player', 'user-A');
     expect(payload.currentAudio).toEqual({ music: null, ambient: null });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Observer-isolation §3 — listRecent must receive viewerRole so the repo can
+  // drop `observer`-channel rows from Player histories at the SQL layer.
+  // ---------------------------------------------------------------------------
+  it('forwards Player viewerRole into chat-repo.listRecent (drops observer rows)', async () => {
+    const chatRepo = makeChatRepo([broadcastMessage]);
+    const svc = new SessionResyncService(makeSceneService(), makeInitiativeRepo(), chatRepo);
+    await svc.buildResyncPayload('room-1', 'Player', 'user-A');
+    expect(chatRepo.listRecent).toHaveBeenCalledWith('room-1', 200, { viewerRole: 'Player' });
+  });
+
+  it('forwards GM viewerRole into chat-repo.listRecent (GM sees both channels)', async () => {
+    const chatRepo = makeChatRepo([broadcastMessage]);
+    const svc = new SessionResyncService(makeSceneService(), makeInitiativeRepo(), chatRepo);
+    await svc.buildResyncPayload('room-1', 'GM', 'user-gm');
+    expect(chatRepo.listRecent).toHaveBeenCalledWith('room-1', 200, { viewerRole: 'GM' });
+  });
+
+  it('forwards Observer viewerRole into chat-repo.listRecent (Observer sees both channels)', async () => {
+    const chatRepo = makeChatRepo([broadcastMessage]);
+    const svc = new SessionResyncService(makeSceneService(), makeInitiativeRepo(), chatRepo);
+    await svc.buildResyncPayload('room-1', 'Observer', 'observer-X');
+    expect(chatRepo.listRecent).toHaveBeenCalledWith('room-1', 200, { viewerRole: 'Observer' });
   });
 });

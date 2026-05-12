@@ -28,7 +28,7 @@ function makeProvider(generated = { bytes: Buffer.from('img'), mimeType: 'image/
   } as unknown as AIProvider;
 }
 
-describe('ImageAssistantService (Session 7.1)', () => {
+describe('ImageAssistantService', () => {
   let imageRepo: AssistantImageConversationRepository;
   let assetService: AssetService;
   let assetRepo: AssetRepository;

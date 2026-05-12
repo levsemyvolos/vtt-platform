@@ -5,8 +5,7 @@ import { resolve } from 'path';
 
 export default defineConfig(({ mode }: ConfigEnv) => {
   // loadEnv with prefix='' reads ALL keys from .env / .env.local (not just VITE_*).
-  // This lets vite.config.ts pick up CLIENT_PORT and VITE_API_URL from .env.local
-  // so each worktree only needs to set those two values — no manual config edits.
+  // This lets vite.config.ts pick up CLIENT_PORT and VITE_API_URL from .env.local.
   const env = loadEnv(mode, process.cwd(), '');
   const apiUrl = env['VITE_API_URL'] ?? 'http://localhost:4000';
   const clientPort = parseInt(env['CLIENT_PORT'] ?? '5173', 10);

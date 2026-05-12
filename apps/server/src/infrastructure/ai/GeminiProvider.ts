@@ -34,7 +34,7 @@ export interface GeminiProviderConfig {
   serviceAccountKeyJson: string;
   textModel?: string;
   imageModel?: string;
-  /** Model used for multi-turn image generation (Session 7.1, Nano Banana 2).
+  /** Model used for multi-turn image generation (Nano Banana 2).
    *  Defaults to 'gemini-3.1-flash-image-preview'. */
   multiTurnImageModel?: string;
   /** Region for multi-turn image generation. Defaults to 'global' (required
@@ -54,16 +54,13 @@ export interface GeminiProviderConfig {
 
 const DEFAULT_TEXT_MODEL = 'gemini-3-flash-preview';
 const DEFAULT_TEXT_LOCATION = 'global';
-// Image model unification (back-on-spec, Sync 2026-05-09): both single-turn
-// and multi-turn paths default to Nano Banana 2 (gemini-3.1-flash-image-preview),
-// per the Phase 2 target table in `_chats_and_ai/AI_PROMPT_ENGINEERING_GUIDE.md`.
-// Both env-overrides (GEMINI_IMAGE_MODEL, GEMINI_NB2_MODEL) remain for
-// emergency-rollback to gemini-2.5-flash-image without code change.
+// Both single-turn and multi-turn paths default to Nano Banana 2
+// (gemini-3.1-flash-image-preview). Env-overrides (GEMINI_IMAGE_MODEL,
+// GEMINI_NB2_MODEL) allow emergency-rollback to gemini-2.5-flash-image.
 const DEFAULT_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const DEFAULT_MULTI_TURN_IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
-// Music model unification (back-on-spec, Sync 2026-05-09): default = Lyria 3 Clip
-// (`lyria-3-clip-preview`) per Bible §9 line 209 + AI_PROMPT_ENGINEERING_GUIDE.md
-// Phase 2 target table. Empirically verified 2.5× faster (10 s vs 25 s) and 10×
+// Default music model = Lyria 3 Clip (`lyria-3-clip-preview`).
+// Empirically verified 2.5× faster (10 s vs 25 s) and 10×
 // smaller payload (580 KB MP3 vs 6.3 MB WAV) than Lyria 2; no allowlist needed.
 // Lyria 3 only listens on `/v1beta1/.../interactions` endpoint at `global` —
 // `:predict` returns 404, `:generateContent` returns 400. Hence raw fetch in

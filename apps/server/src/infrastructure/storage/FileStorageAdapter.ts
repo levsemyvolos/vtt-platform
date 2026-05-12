@@ -40,7 +40,7 @@ export interface FileStorageAdapter {
 
   /**
    * Returns a presigned PUT URL (TTL = 15 min) the client uses to upload
-   * binary directly to the bucket (Чат 7.2 — audio upload, Ф6).
+   * binary directly to the bucket (audio upload, Ф6).
    *
    * The signed URL pins `Content-Type` to `mimeType`: any PUT with a different
    * MIME is rejected by GCS, which preserves the same MIME-allowlist invariant

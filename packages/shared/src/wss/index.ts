@@ -113,7 +113,7 @@ export interface SessionResyncPayload {
   initiatives: InitiativeEntryDTO[];
   serverTime: number;
   /** Current audio state per persistent layer — used by late-joining clients to
-   *  resync playback offset via `startedAt` (Task 4 / S9.1). */
+   *  resync playback offset via `startedAt`. */
   currentAudio: {
     music: AudioPlayPayload | null;
     ambient: AudioPlayPayload | null;
@@ -560,7 +560,7 @@ export interface ServerToClientEvents {
 }
 
 /**
- * Per-viewer token patch broadcast (S4.2).
+ * Per-viewer token patch broadcast.
  * Emitted after PATCH /tokens/:id — projected per viewer role so private fields
  * (hp, statusMarkers) are only included for GM and token owner.
  */

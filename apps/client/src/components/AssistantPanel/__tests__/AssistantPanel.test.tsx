@@ -118,7 +118,7 @@ describe('AssistantPanel 3-column overlay (Stage 7)', () => {
     expect(container.querySelectorAll('aside').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('Image tab shows the new-thread button (multi-turn rework, post-master-plan)', () => {
+  it('Image tab shows the new-thread button', () => {
     // The Image tab no longer renders the legacy one-shot GeneratePanel. After
     // commit 9b0ba4d it shows ImageThreadList + ImageThreadView; the entry
     // affordance is the "+ Нова сцена" button on the threads list.

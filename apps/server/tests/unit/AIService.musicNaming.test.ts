@@ -5,7 +5,7 @@ import type { AssetService } from '../../src/services/AssetService.js';
 import type { AIMusicRequest } from '@vtt/shared';
 
 /**
- * S5.5 P1 — auto-naming for AI music Asset.
+ * Auto-naming for AI music Asset.
  *
  * Lyria's `/interactions` response has no `name`/`title` field, only raw
  * audio bytes. The display title therefore must be derived from the request.
@@ -21,7 +21,7 @@ import type { AIMusicRequest } from '@vtt/shared';
 
 const ROOM = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
-describe('computeMusicDisplayName (S5.5 P1)', () => {
+describe('computeMusicDisplayName', () => {
   it('returns first 1-2 words of mood, title-cased', () => {
     expect(computeMusicDisplayName({
       prompt: '', roomId: ROOM,
@@ -77,7 +77,7 @@ describe('computeMusicDisplayName (S5.5 P1)', () => {
   });
 });
 
-describe('AIService.generateMusic — auto-name + composedPrompt wiring (S5.5 P1)', () => {
+describe('AIService.generateMusic — auto-name + composedPrompt wiring', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('passes composedPrompt as aiPrompt and derived displayName to storeAiAsset', async () => {

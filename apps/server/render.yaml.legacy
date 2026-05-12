@@ -1,7 +1,5 @@
-# Render Blueprint — VTT Platform App Server
-# Bible §2.12 (Deployment View, table 2.7 row "App Server").
-# Runtime: Node.js 20 LTS — direct execution via tsx (no tsc build step,
-# fixed in Chat 1, see PROJECT_BIBLE.md §10.1 / table 2.17).
+# Render Blueprint — VTT Platform App Server (legacy, replaced by Cloud Run)
+# Runtime: Node.js 20 LTS — direct execution via tsx (no tsc build step).
 #
 # Reads env from Render's process environment — apps/server/package.json:start
 # is `tsx src/index.ts` (no --env-file flag).

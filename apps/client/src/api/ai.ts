@@ -138,7 +138,7 @@ export function getAIQuota(roomId: string): Promise<AIQuotaResponse> {
   return apiFetch<AIQuotaResponse>(`/api/ai/quota?roomId=${encodeURIComponent(roomId)}`);
 }
 
-// ---------- Conversation defaults (Session 3.2) ----------
+// ---------- Conversation defaults ----------
 
 /** GET /api/ai/conversations — used to read a conversation's persisted defaults. */
 export function getConversation(id: string): Promise<AssistantConversationDTO> {
@@ -157,7 +157,7 @@ export function updateConversationDefaults(
   });
 }
 
-// ---------- Image conversations (Session 7.2) ----------
+// ---------- Image conversations ----------
 
 export async function listImageConversations(roomId: string): Promise<AssistantImageConversationDTO[]> {
   const res = await apiFetch<ListImageConversationsResponse>(

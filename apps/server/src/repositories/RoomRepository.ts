@@ -150,7 +150,7 @@ export class RoomRepository {
    *
    * Resolution order (single SQL via nested `members` selection):
    *   - `Room.ownerId === userId`        → 'GM' (owner is the single source of
-   *     truth for the GM role; see PROJECT_BIBLE.md §10).
+   *     truth for the GM role).
    *   - `RoomMember(roomId,userId)` row  → 'Player' or 'Observer' as stored.
    *   - `fallbackJwtRole === 'Observer'`
    *     and `boundRoomId === roomId`     → 'Observer' (JWT-bound observer

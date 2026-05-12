@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { GeminiProvider } from '../../src/infrastructure/ai/GeminiProvider.js';
 
 /**
- * S4.3 — P2.3 Battlemap image formula unit tests.
+ * Battlemap image formula unit tests.
  *
  * Tests pin `GeminiProvider.buildBattlemapPrompt()` without constructing
  * a real provider instance (static method, no GCP credentials required).
@@ -10,7 +10,7 @@ import { GeminiProvider } from '../../src/infrastructure/ai/GeminiProvider.js';
 
 const BATTLEMAP_CONSTRAINTS = 'true top-down orthographic view, no perspective, no grid lines, no compass rose, no labels, grid-ready tileable surface, tabletop RPG battlemap, landscape orientation';
 
-describe('GeminiProvider.buildBattlemapPrompt — S4.3 (P2.3)', () => {
+describe('GeminiProvider.buildBattlemapPrompt', () => {
   it('location only, no style → fallback style descriptor + constraints', () => {
     const result = GeminiProvider.buildBattlemapPrompt({
       prompt: 'stone dungeon room',

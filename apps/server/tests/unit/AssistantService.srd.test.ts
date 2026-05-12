@@ -4,7 +4,7 @@ import type { AssistantMessageRepository } from '../../src/repositories/Assistan
 import type { AssistantConversationRepository } from '../../src/repositories/AssistantConversationRepository.js';
 import type { AIProvider } from '../../src/infrastructure/ai/AIProvider.js';
 
-describe('AssistantService.lookupSRD (Session 6.1)', () => {
+describe('AssistantService.lookupSRD', () => {
   let provider: AIProvider;
   let service: AssistantService;
   let generateText: ReturnType<typeof vi.fn>;
@@ -20,7 +20,7 @@ describe('AssistantService.lookupSRD (Session 6.1)', () => {
     service = new AssistantService(provider, {} as AssistantMessageRepository, {} as AssistantConversationRepository);
   });
 
-  it('builds a SRD-only system prompt (P1.3 v2.0.0, S6.1 role-split) and returns provider output', async () => {
+  it('builds a SRD-only system prompt and returns provider output', async () => {
     const out = await service.lookupSRD('How does Grapple work?');
     expect(out).toBe('Grapple is a special melee attack...');
     expect(generateText).toHaveBeenCalledTimes(1);

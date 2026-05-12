@@ -125,7 +125,7 @@ svg {
   border: 0;
 }
 
-/* === Hybrid atmospheric (Phase 0) ===================================== */
+/* === Hybrid atmospheric =============================================== */
 
 body::before {
   content: '';
@@ -160,7 +160,7 @@ hr.fold {
   margin: var(--space-lg) 0;
 }
 
-/* Topographic atmospheric layer (Phase 5) */
+/* Topographic atmospheric layer */
 body::after {
   content: '';
   position: fixed;

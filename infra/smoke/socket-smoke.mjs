@@ -1,5 +1,5 @@
 // VTT Platform — WSS smoke probe (Step 6 of the 8-step flow).
-// Bible §2.14 (Process View) row "Synchronous Dice Roll" / event `dice:roll`.
+// Tests the `dice:roll` → `dice:rolled` event pair.
 //
 // Usage:
 //   node infra/smoke/socket-smoke.mjs <accessToken> <roomId> [wssUrl]

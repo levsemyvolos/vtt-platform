@@ -36,7 +36,7 @@ function makeProviderStream(chunks: string[], signalCheck?: AbortSignal): AIProv
   } as unknown as AIProvider;
 }
 
-describe('AssistantService.streamAndPersist (Session 4.1)', () => {
+describe('AssistantService.streamAndPersist', () => {
   let convRepo: AssistantConversationRepository;
   let msgRepo: AssistantMessageRepository;
 

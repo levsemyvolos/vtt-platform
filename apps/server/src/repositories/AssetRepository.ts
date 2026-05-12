@@ -60,7 +60,7 @@ export class AssetRepository {
 
   /**
    * Counts assets in a room with a specific source, optionally since a cutoff time.
-   * Used by AI quota endpoint (Session 6.3.B).
+   * Used by AI quota endpoint.
    */
   countByRoomAndSource(
     roomId: string,

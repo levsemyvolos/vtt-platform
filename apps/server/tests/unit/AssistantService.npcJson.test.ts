@@ -74,7 +74,7 @@ function makeProviderJson(jsonOutput: string): {
   return { provider, capturedRequests };
 }
 
-describe('AssistantService NPC JSON path (S6.2 / P5.2)', () => {
+describe('AssistantService NPC JSON path', () => {
   let convRepo: AssistantConversationRepository;
   let msgRepo: AssistantMessageRepository;
 

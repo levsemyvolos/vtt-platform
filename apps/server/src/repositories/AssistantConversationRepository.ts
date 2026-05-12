@@ -21,7 +21,7 @@ export class AssistantConversationRepository {
 
   /**
    * Latest conversation for (roomId, ownerId, context). Used by the
-   * AssistantService.saveMessage bridge until Session 3.1 rewrites routes
+   * AssistantService.saveMessage bridge (legacy route).
    * to take an explicit conversationId.
    */
   findLatestByRoomOwnerContext(

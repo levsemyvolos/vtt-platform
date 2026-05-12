@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { GeminiProvider } from '../../src/infrastructure/ai/GeminiProvider.js';
 
 /**
- * S4.2 — P2.2 Token image formula unit tests (framing selectors + circle-clip wording).
+ * Token image formula unit tests (framing selectors + circle-clip wording).
  *
  * Tests pin `GeminiProvider.buildTokenPrompt()` without constructing
  * a real provider instance (static method, no GCP credentials required).
@@ -10,7 +10,7 @@ import { GeminiProvider } from '../../src/infrastructure/ai/GeminiProvider.js';
 
 const TOKEN_CONSTRAINTS = 'tabletop RPG character token art, neutral pose, clean solid white background, centered composition, circular crop friendly, no text, no logos, no watermarks';
 
-describe('GeminiProvider.buildTokenPrompt — S4.2 (P2.2)', () => {
+describe('GeminiProvider.buildTokenPrompt', () => {
   it('subject only, no style → fallback style descriptor + constraints', () => {
     const result = GeminiProvider.buildTokenPrompt({
       prompt: 'human warrior with a shield',

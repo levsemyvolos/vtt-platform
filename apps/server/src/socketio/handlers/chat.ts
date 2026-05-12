@@ -2,18 +2,21 @@ import type { ChatMessageInput, ChatMessageDTO, Ack } from '@vtt/shared';
 import type { TypedSocket, TypedServer } from '../types.js';
 import { userRoom } from '../types.js';
 import type { ChatService } from '../../services/ChatService.js';
+import type { RoomService } from '../../services/RoomService.js';
 
 /**
- * Handler for `chat:message` — IC/OOC/whisper. Persists via ChatService and
- * dispatches according to `delivery.mode`.
+ * Handler for `chat:message` — IC/OOC/whisper/observer-channel.
  *
- * Whisper unicast goes to both sender and recipient (so the sender sees their
- * own message in the chat log).
+ * Observer-isolation (§3): the channel is server-derived from `socket.data.role`
+ * (set authoritatively at room:join time). Observer-authored messages get
+ * channel='observer' and are unicast to all observers + GMs only; player/GM
+ * messages keep the existing broadcast / whisper-unicast routing.
  */
 export function makeChatMessageHandler(
   io: TypedServer,
   socket: TypedSocket,
   chatService: ChatService,
+  roomService: RoomService,
 ) {
   return async (
     payload: ChatMessageInput,
@@ -24,9 +27,17 @@ export function makeChatMessageHandler(
       return;
     }
     try {
+      // Resolve room recipients (GM owner + observers) lazily — only the
+      // observer-channel path needs them, but the cost is one query (already
+      // used by REST member-listing) and keeps the service free of repo deps.
+      const members = await roomService.getMembersProjection(payload.roomId);
+      const gmUserIds = members.filter((m) => m.role === 'GM').map((m) => m.userId);
+      const observerUserIds = members.filter((m) => m.role === 'Observer').map((m) => m.userId);
+
       const { message, delivery } = await chatService.createMessage(
-        socket.data.userId,
+        { userId: socket.data.userId, role: socket.data.role },
         payload,
+        { gmUserIds, observerUserIds },
       );
       if (delivery.mode === 'broadcast') {
         io.to(payload.roomId).emit('chat:message', message);

@@ -220,7 +220,7 @@ describe('AssetService.getAssetDTO', () => {
   });
 });
 
-describe('AssetService.storeAiAsset (Session 6.3.A — provenance)', () => {
+describe('AssetService.storeAiAsset', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('writes source=AI_IMAGE + aiPrompt + aiModel for image kind', async () => {
@@ -317,7 +317,7 @@ describe('AssetService.storeAiAsset (Session 6.3.A — provenance)', () => {
   // S5.5 P1 — opts.displayName overrides "AI: <prompt>" default so music
   // history shows a readable mood-derived title rather than the full
   // 8-line Lyria prompt.
-  it('storeAiAsset uses opts.displayName when provided (S5.5 P1)', async () => {
+  it('storeAiAsset uses opts.displayName when provided', async () => {
     const { provider } = makeAi();
     const { storage, mocks: storageMocks } = makeStorage();
     const { repo, mocks: repoMocks } = makeRepo();

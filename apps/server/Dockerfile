@@ -1,6 +1,5 @@
-# VTT Platform — App Server. Single-stage build per Chat 8 contract:
-# the server runs through tsx (no tsc emit) — see Chat 1 / Bible §10.1.
-# Deployed to Google Cloud Run via .github/workflows/ci.yml (replaces Render).
+# VTT Platform — App Server. Runs via tsx (no tsc emit step).
+# Deployed to Google Cloud Run via .github/workflows/ci.yml.
 FROM node:20-alpine
 
 WORKDIR /app

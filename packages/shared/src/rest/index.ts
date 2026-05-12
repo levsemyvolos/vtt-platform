@@ -146,13 +146,13 @@ export interface TurnConfigResponse {
   ttlSecondsRemaining: number;
 }
 
-// ---------- Чат 7.1 — кампанійні матеріали (Ф7 + Ф9) + S10 Journal ----------
+// ---------- Campaign materials (Ф7 + Ф9) + Journal ----------
 export * from './journal';
 export * from './characters';
 export * from './character_5e';
 export * from './initiative';
 
-// ---------- Чат 7.4 — token CRUD (Ф2.5) ----------
+// ---------- Token CRUD (Ф2.5) ----------
 export interface CreateTokenRequest {
   name: string;
   x: number;
@@ -174,15 +174,15 @@ export interface UpdateTokenRequest {
   imageAssetId?: string | null;
 }
 
-// ---------- Чат 7.2 — музичний супровід (Ф6) ----------
+// ---------- Музичний супровід (Ф6) ----------
 export * from './audio';
 
-// ---------- Чат 7.5 — room members (R6 γ-variant) ----------
+// ---------- Room members ----------
 export interface RoomMembersResponse {
   gm: UserPublic;
   players: UserPublic[];
   observers: UserPublic[];
 }
 
-// ---------- Чат 7.6 — AI Assistant text (Ф8.1) ----------
+// ---------- AI Assistant text (Ф8.1) ----------
 export * from './ai';

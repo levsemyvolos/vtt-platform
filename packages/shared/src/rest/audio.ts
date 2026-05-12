@@ -2,7 +2,7 @@
  * REST contracts for the music-track feature (Ф6).
  *
  * Upload uses a presigned-PUT flow consistent with the AI-storage adapter
- * introduced in Чат 5 (sequence А.7) — the client never sends raw bytes to
+ * The client never sends raw bytes to
  * the application server; only the metadata round-trips.
  *
  *   1. POST /audio/uploads          → { uploadUrl, storageKey }     (GM)

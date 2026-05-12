@@ -4,6 +4,7 @@ import type {
   ChatMessageDTO,
   ChatDicePayload,
   ChatMessageInput,
+  Role,
 } from '@vtt/shared';
 import { ChatMessageRepository } from '../repositories/ChatMessageRepository.js';
 import { HttpError } from '../lib/errors.js';
@@ -22,51 +23,89 @@ export interface ChatDelivery {
   recipients: string[];
 }
 
+/** Sender context resolved at the socket layer (see chat-handler). */
+export interface ChatSender {
+  userId: string;
+  /** Effective per-room role (RoomRepository.getRoleInRoom). */
+  role: Role;
+}
+
+/**
+ * Recipient lists supplied by the handler so the service stays free of repo
+ * coupling. `gmUserIds` is typically `[room.ownerId]`; `observerUserIds` is
+ * the list of RoomMember rows with role='Observer'.
+ */
+export interface RoomRecipients {
+  gmUserIds: string[];
+  observerUserIds: string[];
+}
+
 export class ChatService {
   constructor(private readonly messages: ChatMessageRepository) {}
 
   /**
-   * Persists a chat message and computes its delivery plan based on `mode`.
+   * Persists a chat message and computes its delivery plan.
    *
-   * - normal/ic/ooc → broadcast to room.
-   * - whisper       → unicast to [senderId, recipientId]; recipientId required.
+   * Routing (post Observer-isolation, §3):
+   *   - sender.role === 'Observer'  → channel='observer', unicast to
+   *                                     [sender, ...observers, ...gms]
+   *   - otherwise (GM/Player)        → channel='public'
+   *       - mode='whisper'  → unicast to [sender, recipient]
+   *       - mode=normal/ic/ooc → broadcast to room
    *
-   * @param senderId author UUID (always populated for non-system messages)
-   * @param input WSS payload from client
+   * Observers cannot whisper or roll secret dice. Their `mode` is preserved
+   * for storage but does not affect routing — visibility is governed by
+   * channel='observer' alone.
    */
   async createMessage(
-    senderId: string,
+    sender: ChatSender,
     input: ChatMessageInput,
+    recipients: RoomRecipients,
   ): Promise<{ message: ChatMessageDTO; delivery: ChatDelivery }> {
-    if (input.mode === 'whisper' && !input.recipientId) {
-      throw new HttpError(400, 'whisper requires recipientId');
-    }
     if (input.mode === 'secret_roll') {
       throw new HttpError(400, 'secret_roll is reserved for dice rolls');
     }
+    if (sender.role !== 'Observer' && input.mode === 'whisper' && !input.recipientId) {
+      throw new HttpError(400, 'whisper requires recipientId');
+    }
+
+    const channel: 'public' | 'observer' = sender.role === 'Observer' ? 'observer' : 'public';
 
     const created: ChatMessage = await this.messages.create({
       id: randomUUID(),
       room: { connect: { id: input.roomId } },
-      sender: { connect: { id: senderId } },
+      sender: { connect: { id: sender.userId } },
       mode: input.mode,
+      channel,
       body: input.text,
-      ...(input.recipientId
+      ...(channel === 'public' && input.recipientId
         ? { recipient: { connect: { id: input.recipientId } } }
         : {}),
     });
 
     const dto = projectChatMessage(created);
-    const delivery: ChatDelivery =
-      input.mode === 'whisper'
-        ? {
-            mode: 'unicast',
-            recipients:
-              input.recipientId && input.recipientId !== senderId
-                ? [senderId, input.recipientId]
-                : [senderId],
-          }
-        : { mode: 'broadcast', recipients: [] };
+
+    let delivery: ChatDelivery;
+    if (channel === 'observer') {
+      // Observer side-channel: visible to all observers + GMs (the author is
+      // included via the observer set, but Set dedupes).
+      const targetSet = new Set<string>([
+        sender.userId,
+        ...recipients.gmUserIds,
+        ...recipients.observerUserIds,
+      ]);
+      delivery = { mode: 'unicast', recipients: Array.from(targetSet) };
+    } else if (input.mode === 'whisper') {
+      delivery = {
+        mode: 'unicast',
+        recipients:
+          input.recipientId && input.recipientId !== sender.userId
+            ? [sender.userId, input.recipientId]
+            : [sender.userId],
+      };
+    } else {
+      delivery = { mode: 'broadcast', recipients: [] };
+    }
 
     return { message: dto, delivery };
   }
@@ -75,19 +114,12 @@ export class ChatService {
    * Persists a dice roll as ChatMessage (mode = normal | secret_roll) and
    * returns ChatDicePayload + delivery plan.
    *
-   * Invariant (Незмінне рішення № 6 з PROJECT_BIBLE / §2.17.2):
+   * Invariant (§2.17.2):
    *   `secret === true` ⇒ delivery is unicast to [senderId, all GMs].
-   *   The list of GM userIds must be supplied by the caller (handler holds
-   *   the room → members map). The service stays free of socket.io coupling.
    *
-   *   The roll mechanic (normal / advantage / disadvantage) is orthogonal to
-   *   visibility — e.g. a GM may roll advantage secretly for an NPC.
-   *
-   * @param senderId UUID of the rolling user
-   * @param roomId Room UUID
-   * @param result DiceService.parseAndRoll output
-   * @param secret When true, the message is unicast to [senderId, all GMs]
-   * @param gmUserIds UUIDs of all GMs in the room (typically just the owner)
+   * Observer-isolation (§3): observers do not have a dice tool, so dice rolls
+   * always land on the `public` channel (server-side guard in the dice handler
+   * rejects observer rolls before this method is reached).
    */
   async recordDiceRoll(
     senderId: string,
@@ -103,6 +135,7 @@ export class ChatService {
       room: { connect: { id: roomId } },
       sender: { connect: { id: senderId } },
       mode: isSecret ? 'secret_roll' : 'normal',
+      channel: 'public',
       body: result.expression,
       rollPayload: {
         expression: result.expression,
@@ -133,8 +166,12 @@ export class ChatService {
     return { payload, delivery };
   }
 
-  async listRecent(roomId: string, limit?: number): Promise<ChatMessageDTO[]> {
-    const rows = await this.messages.listRecent(roomId, limit);
+  async listRecent(roomId: string, limit?: number, viewerRole?: Role): Promise<ChatMessageDTO[]> {
+    const rows = await this.messages.listRecent(
+      roomId,
+      limit,
+      viewerRole ? { viewerRole } : {},
+    );
     return rows.map(projectChatMessage);
   }
 }

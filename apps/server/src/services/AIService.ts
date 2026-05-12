@@ -145,8 +145,7 @@ export class AIService {
   }
 
   private musicModelName(): string {
-    // Sync 2026-05-09 — music unification (back-on-spec): swapped to Lyria 3
-    // Clip per Bible §9 line 209 + AI_PROMPT_ENGINEERING_GUIDE.md Phase 2 target.
+    // Sync 2026-05-09 — music unification: swapped to Lyria 3 Clip.
     // Drift caveat identical to imageModelName() above when env-override is
     // applied (GEMINI_MUSIC_MODEL=lyria-002). TODO same getter refactor.
     return 'lyria-3-clip-preview';

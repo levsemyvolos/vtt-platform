@@ -22,7 +22,7 @@ function makeConv() {
   };
 }
 
-describe('AssistantService.getContextPreview (Session 5.2)', () => {
+describe('AssistantService.getContextPreview', () => {
   let convRepo: AssistantConversationRepository;
   let msgRepo: AssistantMessageRepository;
   let builder: SessionContextBuilder;

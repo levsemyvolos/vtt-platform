@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { SYSTEM_PROMPTS } from '../../src/services/AssistantService.js';
 
 /**
- * S3.0 — license-bounded scope hard refusal tests.
+ * License-bounded scope hard refusal tests.
  *
  * These tests pin the verbatim refusal-string and the rule numbering in the
  * NPC and SRD system prompts. Manual A/B (honeypot corpus in
@@ -18,7 +18,7 @@ import { SYSTEM_PROMPTS } from '../../src/services/AssistantService.js';
 
 const REFUSAL_VERBATIM = 'Це не входить у відкриту ліцензію {Ruleset}; зверніться до офіційного rulebook.';
 
-describe('SYSTEM_PROMPTS S3.0 — license-bounded refusal (npc-description)', () => {
+describe('SYSTEM_PROMPTS — license-bounded refusal (npc-description)', () => {
   const prompt = SYSTEM_PROMPTS['npc-description'];
 
   it('rule 7 LICENSE-BOUNDED STATBLOCK is numbered and present', () => {
@@ -50,7 +50,7 @@ describe('SYSTEM_PROMPTS S3.0 — license-bounded refusal (npc-description)', ()
   });
 });
 
-describe('SYSTEM_PROMPTS S3.0 — license-bounded refusal (srd-lookup)', () => {
+describe('SYSTEM_PROMPTS — license-bounded refusal (srd-lookup)', () => {
   const prompt = SYSTEM_PROMPTS['srd-lookup'];
 
   it('rule 8 LICENSE-BOUNDED SCOPE is numbered and present', () => {
@@ -78,7 +78,7 @@ describe('SYSTEM_PROMPTS S3.0 — license-bounded refusal (srd-lookup)', () => {
   });
 });
 
-describe('SYSTEM_PROMPTS S3.0 — terminology normalisation (2014 SRD → SRD 5.1)', () => {
+describe('SYSTEM_PROMPTS — terminology normalisation (2014 SRD → SRD 5.1)', () => {
   it('npc-description uses "D&D 5e (SRD 5.1)" terminology, not "2014 SRD"', () => {
     expect(SYSTEM_PROMPTS['npc-description']).toContain('D&D 5e (SRD 5.1)');
     expect(SYSTEM_PROMPTS['npc-description']).not.toContain('D&D 5e (2014 SRD)');

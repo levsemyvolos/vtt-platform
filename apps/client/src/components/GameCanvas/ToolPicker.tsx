@@ -20,12 +20,14 @@ interface ToolDef {
   tool: CanvasTool;
   icon: React.ReactNode;
   gmOnly?: boolean;
+  /** Hidden for Observer (Observer-isolation §3): cursor pings reveal position. */
+  hideForObserver?: boolean;
 }
 
 const ALL_TOOLS: ToolDef[] = [
   { tool: 'select', icon: <MousePointer2 size={16} /> },
   { tool: 'pan',    icon: <Hand size={16} /> },
-  { tool: 'ping',   icon: <MapPin size={16} /> },
+  { tool: 'ping',   icon: <MapPin size={16} />,    hideForObserver: true },
   { tool: 'ruler',  icon: <Ruler size={16} /> },
   { tool: 'draw',   icon: <PenTool size={16} />,   gmOnly: true },
   { tool: 'eraser', icon: <Eraser size={16} />,    gmOnly: true },
@@ -61,6 +63,7 @@ export default function ToolPicker({ myRole, hideEphemeral = false }: ToolPicker
 
   const visible = ALL_TOOLS.filter((d) => {
     if (d.gmOnly && myRole !== 'GM') return false;
+    if (d.hideForObserver && myRole === 'Observer') return false;
     if (hideEphemeral && EPHEMERAL.has(d.tool)) return false;
     return true;
   });

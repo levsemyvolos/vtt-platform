@@ -500,7 +500,6 @@ export function buildAiRouter(
    * PATCH /ai/conversations/:id/defaults
    * Replaces per-conversation default variables (ruleset/setting/tone/...).
    * Body: { defaults: AssistantVariables }. Owner-only (verified in service).
-   * Phase 2a S3.1.
    */
   router.patch(
     '/conversations/:id/defaults',
@@ -699,7 +698,7 @@ export function buildAiRouter(
    * POST /ai/image-conversations
    * Body: { roomId, title? }
    *
-   * RBAC: GM-only (S-Fix1, merge_readiness_fix_plan.md). Image-conversation
+   * RBAC: GM-only. Image-conversation
    * threads invoke Nano Banana 2 (preview-tier, expensive per call) on every
    * turn, so creation must be gated to the room owner. Member-level access
    * would let Players burn the project's Vertex budget through the same

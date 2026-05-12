@@ -25,7 +25,7 @@ function makeAiProvider(): AIProvider {
   return {} as AIProvider;
 }
 
-describe('AssistantService — conversation management (Session 3.1)', () => {
+describe('AssistantService — conversation management', () => {
   let convRepo: AssistantConversationRepository;
   let msgRepo: AssistantMessageRepository;
   let service: AssistantService;

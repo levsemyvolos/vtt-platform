@@ -95,7 +95,7 @@ function InitiativePanel({ sceneId, myRole, roomId }: { sceneId: string | null; 
 }
 
 function ActivePanel({ tab, roomId, sceneId, myRole, myCharacterId, myUserId, onOpenCharacterSheet }: PanelProps): JSX.Element | null {
-  if (tab === 'chat') return <ChatPanel roomId={roomId} />;
+  if (tab === 'chat') return <ChatPanel roomId={roomId} myRole={myRole} />;
   if (tab === 'initiative') return <InitiativePanel sceneId={sceneId} myRole={myRole} roomId={roomId} />;
   if (tab === 'character') {
     return (

@@ -13,10 +13,8 @@ type SseReq = Pick<EventEmitter, 'on'>;
 
 /**
  * SSE keepalive heartbeat interval — 15 seconds.
- *
- * Master-plan v1 risk register (line 170) called this out:
- *   "Streaming через ALB/Render proxy дропає з'єднання → mitigation:
- *    додати keepalive comment-frames кожні 15с (`: keep-alive\n\n`)".
+ * Prevents proxy/ALB from closing idle connections before the model returns
+ * the first token (TTFB can reach 10–15 s on global region).
  *
  * The migration to gemini-3-flash-preview (text TTFB ≈ 10s on global region)
  * and gemini-3.1-flash-image-preview (≈ 15s) makes this critical: a stalled

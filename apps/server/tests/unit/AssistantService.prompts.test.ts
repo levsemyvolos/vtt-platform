@@ -58,7 +58,7 @@ describe('SYSTEM_PROMPTS v2.0.0 — npc-description rubric', () => {
     expect(prompt).toMatch(/Respond in Ukrainian\./);
   });
 
-  it('contains all 7 numbered RULES (incl. DEFAULT SYSTEM + LICENSE-BOUNDED, S3.0)', async () => {
+  it('contains all 7 numbered RULES (incl. DEFAULT SYSTEM + LICENSE-BOUNDED)', async () => {
     const prompt = await capture('npc-description');
     expect(prompt).toContain('1. ONE VERBAL MANNERISM');
     expect(prompt).toContain('2. ONE PHYSICAL MANNERISM');
@@ -119,7 +119,7 @@ describe('SYSTEM_PROMPTS v2.0.0 — srd-lookup rubric', () => {
     expect(prompt).toMatch(/Respond in Ukrainian\./);
   });
 
-  it('contains all 8 HARD CONSTRAINTS (incl. license-bounded rule 8, S3.0)', async () => {
+  it('contains all 8 HARD CONSTRAINTS (incl. license-bounded rule 8)', async () => {
     const prompt = await capture('srd-lookup');
     expect(prompt).toContain('1. BASE ALL RULINGS EXCLUSIVELY');
     expect(prompt).toContain('2. "I DO NOT KNOW" PROTOCOL');

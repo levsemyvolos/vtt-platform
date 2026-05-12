@@ -16,7 +16,7 @@ interface BuildOptions {
 /**
  * Aggregates room state (active scene, initiative, characters, recent chat)
  * into a single markdown block injectable into LLM system prompts (X1-lite,
- * Session 5.1).
+ */
  *
  * Privacy: respects RBAC by going through SceneService/CharacterService
  * with the caller's role+id, so a player asking the AI never sees state

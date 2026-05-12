@@ -7,12 +7,11 @@ import { addToast } from '../../store/toast';
 import styles from './ConversationView.module.css';
 
 /**
- * P4 backend ruleset dropdown values — license-bounded whitelist (S3.0).
+ * Ruleset dropdown values — license-bounded whitelist.
  *
  * Only systems with explicit open-license corpus are listed. Closed
  * rulebooks (D&D 5e 2024 PHB, Mothership 1e, CoC 7e core, Shadowdark
- * pending separate legal review) are NOT supported — see Bible §НФВ 4.X
- * + STRIDE T-NEW «Copyright leak via model memory» + ІМ-23.
+ * pending separate legal review) are NOT supported.
  *
  * `value` goes to the server (used in system-prompt and stored as
  * `defaultRuleset`); `label` is rendered in the dropdown with the

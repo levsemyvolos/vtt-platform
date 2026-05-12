@@ -35,6 +35,13 @@ enum MessageMode {
   secret_roll
 }
 
+/// Chat-message delivery channel. `public` — visible to GM/Player/Observer.
+/// `observer` — visible only to Observer members + GM (Observer isolation, §3).
+enum ChatChannel {
+  public
+  observer
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique @db.VarChar(254)
@@ -217,6 +224,10 @@ model ChatMessage {
   roomId      String      @db.Uuid
   senderId    String?     @db.Uuid
   mode        MessageMode
+  /// Observer-isolation channel (§3). Server derives this from the sender's
+  /// per-room role: Observer-authored messages → `observer`; GM/Player → `public`.
+  /// Clients are NEVER trusted to set this — the input DTO has no `channel` field.
+  channel     ChatChannel @default(public)
   body        String      @db.Text
   rollPayload Json?
   recipientId String?     @db.Uuid
@@ -227,6 +238,7 @@ model ChatMessage {
   recipient User? @relation("ChatMessageRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
 
   @@index([roomId, createdAt(sort: Desc)])
+  @@index([roomId, channel, createdAt(sort: Desc)])
   @@index([senderId])
   @@index([recipientId])
 }
@@ -338,7 +350,7 @@ model AssistantMessage {
 /// AI assistant conversation thread per room. Replaces the implicit
 /// `${roomId}:${context}` keying with first-class persistence so that
 /// users can rename, delete, and run multiple parallel threads of the
-/// same context in the same room (Ф8.1, AI-rework Session 1.1).
+/// same context in the same room.
 model AssistantConversation {
   id        String   @id @default(uuid()) @db.Uuid
   roomId    String   @db.Uuid
@@ -347,7 +359,7 @@ model AssistantConversation {
   context   String   @db.VarChar(32)
   title     String   @db.VarChar(120)
 
-  /// Per-conversation default variables (Phase 2a S3.1, P4 backend).
+  /// Per-conversation default variables (ruleset, setting, tone, etc.).
   /// When a request with empty AssistantVariables comes in, server falls back
   /// to these. NULL means "not set" (resolution layer treats as undefined).
   defaultRuleset        String? @db.VarChar(64)
@@ -367,7 +379,7 @@ model AssistantConversation {
   @@index([ownerId])
 }
 
-/// Multi-turn image-generation thread (Session 7.1, Nano Banana 2).
+/// Multi-turn image-generation thread (Nano Banana 2).
 /// Each AssistantImageTurn is a (user-prompt, assistant-image) pair, possibly
 /// including 0..3 user-uploaded reference assets that the model uses as
 /// visual context.

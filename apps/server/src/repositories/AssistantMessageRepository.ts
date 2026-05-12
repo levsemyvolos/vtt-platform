@@ -11,7 +11,7 @@ export class AssistantMessageRepository {
 
   /**
    * Last N messages for a room across ALL conversations, oldest-first.
-   * Kept for the legacy `GET /api/ai/messages?roomId=` route until Session 3.1
+   * Kept for the legacy `GET /api/ai/messages?roomId=` route.
    * deprecates it in favour of `findByConversation`.
    */
   async findByRoom(roomId: string): Promise<AssistantMessage[]> {
@@ -33,7 +33,7 @@ export class AssistantMessageRepository {
 
   /**
    * Deletes all messages with `createdAt > marker` in the given conversation.
-   * Used by Session 4.3 (edit-and-resend) to truncate after an edited message.
+   * Used by edit-and-resend to truncate after an edited message.
    */
   deleteAfter(conversationId: string, createdAt: Date): Promise<{ count: number }> {
     return this.db.assistantMessage.deleteMany({
@@ -41,7 +41,7 @@ export class AssistantMessageRepository {
     });
   }
 
-  /** Updates the content of a single message. Used by edit-and-resend (Session 4.3). */
+  /** Updates the content of a single message. Used by edit-and-resend. */
   update(id: string, content: string): Promise<AssistantMessage> {
     return this.db.assistantMessage.update({ where: { id }, data: { content } });
   }
@@ -53,7 +53,7 @@ export class AssistantMessageRepository {
 
   /**
    * Counts user-role messages saved in a room since a cutoff time. Proxy for
-   * "AI text requests in last 24h" (Session 6.3.B).
+   * "AI text requests in last 24h".
    */
   countUserMessagesByRoomSince(roomId: string, since: Date): Promise<number> {
     return this.db.assistantMessage.count({

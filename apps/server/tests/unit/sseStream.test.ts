@@ -1,11 +1,11 @@
 /**
- * SSE keepalive helper — unit tests (S-Fix2, merge_readiness_fix_plan.md).
+ * SSE keepalive helper — unit tests.
  *
- * Background: master-plan v1 risk register called for `: keep-alive\n\n`
- * comment frames every 15 seconds to survive proxy idle timeouts on Render /
- * ALB / nginx. With preview-tier models (gemini-3-flash-preview text TTFB
- * ≈ 10s; gemini-3.1-flash-image-preview ≈ 15s), a stall before the first
- * data frame can exceed the proxy idle window and cause silent disconnects.
+ * Background: `: keep-alive\n\n` comment frames every 15 seconds survive
+ * proxy idle timeouts on Render / ALB / nginx. With preview-tier models
+ * (gemini-3-flash-preview text TTFB ≈ 10s; gemini-3.1-flash-image-preview
+ * ≈ 15s), a stall before the first data frame can exceed the proxy idle
+ * window and cause silent disconnects.
  *
  * These tests pin the contract of `buildSseStream`:
  *   - sets the four SSE response headers and flushes them

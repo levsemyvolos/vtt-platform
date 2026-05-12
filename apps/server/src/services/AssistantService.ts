@@ -25,27 +25,9 @@ import type { SessionContextBuilder } from './SessionContextBuilder.js';
 import type { AssetRepository } from '../repositories/AssetRepository.js';
 
 // SYSTEM_PROMPTS — v2.1.0 | Updated: 2026-05-09
-// Change log:
-//   v2.1.0 (2026-05-09): Phase 2a / Session 3.0 — license-bounded SRD scope.
-//                        Adds NPC rule 7 (LICENSE-BOUNDED STATBLOCK) + SRD rule 8
-//                        (LICENSE-BOUNDED SCOPE) with verbatim refusal string
-//                        forbidding training-data recall of closed rulebooks.
-//                        Renames "D&D 5e (2014 SRD)" → "D&D 5e (SRD 5.1)" for
-//                        terminology accuracy (SRD 5.1 is the CC-BY 4.0 version
-//                        released May 2023; "2014" referred to the original D&D
-//                        5e PHB which is NOT openly licensed).
-//                        Mitigates STRIDE T-NEW «Copyright leak via model memory»
-//                        — Bible §2.18 sync 2026-05-09.
-//   v2.0.0 (2026-05-09): Full rewrite — Phase 2a / Session 1.1.
-//                        English instructions + Ukrainian output (P1.1–P1.4 from
-//                        AI_PROMPT_ENGINEERING_GUIDE.md §1). Adds: contradiction engine,
-//                        five-senses mandate, SRD anti-hallucination protocol,
-//                        spectrum-of-ideas in free-chat, version header (P5.4).
-//                        Default ruleset = D&D 5e (2014 SRD) when GM not explicit
-//                        (interim, replaced by [Ruleset] variable injection in S3.1).
-//                        Section headings localized to Ukrainian (master-plan §3 #3).
-//   v1.0.0 (≤2026-05-08): Initial 4 single-sentence Ukrainian prompts hardcoded to
-//                        D&D 5e (`Game Master D&D 5e` / `атмосферно` / `SRD reference`).
+// English instructions + Ukrainian output; contradiction engine, five-senses mandate,
+// SRD anti-hallucination protocol, license-bounded scope (SRD 5.1 CC-BY 4.0),
+// section headings in Ukrainian, [Ruleset] variable injection.
 export const SYSTEM_PROMPTS_VERSION = '2.1.0';
 
 export const SYSTEM_PROMPTS: Record<AssistantContext, string> = {
@@ -563,7 +545,7 @@ export class AssistantService {
   }
 
   /**
-   * Read-only SRD rule lookup (Session 6.1, M10).
+   * Read-only SRD rule lookup.
    * Available to all room members (GM and players). No DB write, no conversation
    * history, no session-context injection — a single-turn Q&A.
    *
@@ -669,9 +651,8 @@ export class AssistantService {
   }
 
   /**
-   * Builds the per-prompt variables block (Phase 2a S3.1).
+   * Builds the per-prompt variables block.
    * Returns "" if no variables set — zero overhead for vacuum requests.
-   * Block format mirrors §2.13.X session-context block (Bible) for visual consistency.
    */
   static buildVariablesBlock(vars: AssistantVariables): string {
     const lines: string[] = [];

@@ -1,5 +1,4 @@
 ### VTT Platform — Smoke Flow (8 requests)
-### Bible §2.12 row 1 (HTTPS/WSS), §2.14 (Process View).
 ### Format: REST Client / IntelliJ HTTP Client. Run sequentially, top to bottom.
 ###
 ### Variables — override at top:

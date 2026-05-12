@@ -10,7 +10,7 @@ function makeProvider(text = 'mock'): AIProvider {
   } as unknown as AIProvider;
 }
 
-describe('AssistantService.resolveVariables (S3.1)', () => {
+describe('AssistantService.resolveVariables', () => {
   it('empty req + empty conv → empty vars', () => {
     const out = AssistantService.resolveVariables({}, {});
     expect(out).toEqual({});
@@ -52,7 +52,7 @@ describe('AssistantService.resolveVariables (S3.1)', () => {
   });
 });
 
-describe('AssistantService.buildVariablesBlock (S3.1)', () => {
+describe('AssistantService.buildVariablesBlock', () => {
   it('returns empty string for empty vars', () => {
     expect(AssistantService.buildVariablesBlock({})).toBe('');
   });
@@ -87,14 +87,14 @@ describe('AssistantService.buildVariablesBlock (S3.1)', () => {
     expect(idxO).toBeGreaterThan(idxT);
   });
 
-  it('uses §2.13.X-style fence dividers (--- Session variables ---)', () => {
+  it('uses fence dividers (--- Session variables ---)', () => {
     const block = AssistantService.buildVariablesBlock({ ruleset: 'X' });
     expect(block).toMatch(/--- Session variables ---/);
     expect(block).toMatch(/--- \/Session variables ---/);
   });
 });
 
-describe('AssistantService.convToVars (S3.1)', () => {
+describe('AssistantService.convToVars', () => {
   it('all-null Prisma row → empty vars', () => {
     expect(AssistantService.convToVars({
       defaultRuleset: null, defaultSetting: null, defaultPlayerLevel: null,
@@ -111,7 +111,7 @@ describe('AssistantService.convToVars (S3.1)', () => {
   });
 });
 
-describe('AssistantService.generateAssistantText with variables (S3.1, S6.1)', () => {
+describe('AssistantService.generateAssistantText with variables', () => {
   it('injects --- Session variables --- block when ruleset is set', async () => {
     const provider = makeProvider('mock');
     const svc = new AssistantService(provider);

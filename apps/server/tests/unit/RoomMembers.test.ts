@@ -4,7 +4,7 @@ import type { UserPublic } from '@vtt/shared';
 
 /**
  * Unit-test for the γ-variant membership resolution logic used by
- * GET /rooms/:id/members (R6, Чат 7.5).
+ * GET /rooms/:id/members (R6).
  *
  * Tested logic (extracted from the route handler):
  *   gm      = room.owner

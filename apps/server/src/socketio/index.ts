@@ -13,6 +13,7 @@ import type { AnnotationService } from '../services/AnnotationService.js';
 import type { DrawService } from '../services/DrawService.js';
 import type { SceneAnnotationService } from '../services/SceneAnnotationService.js';
 import type { RoomRepository } from '../repositories/RoomRepository.js';
+import type { RoomService } from '../services/RoomService.js';
 import { RoomAccessService } from '../services/RoomAccessService.js';
 import { makeTokenMoveHandler, makeTokenDragPreviewHandler } from './handlers/token.js';
 import { makeDiceRollHandler } from './handlers/dice.js';
@@ -38,7 +39,7 @@ export interface SocketDeps {
   /**
    * Provided so future WSS handlers (e.g. live-edit of initiative from a
    * client widget) can reuse the same in-memory round counter as the REST
-   * layer. Чат 7.1 itself broadcasts from REST handlers — see
+   * layer. REST handlers broadcast directly — see
    * `routes/initiative.ts`.
    */
   initiativeService: InitiativeService;
@@ -46,6 +47,7 @@ export interface SocketDeps {
   drawService: DrawService;
   sceneAnnotationService?: SceneAnnotationService;
   rooms: RoomRepository;
+  roomService: RoomService;
   jwtSecret: string;
   corsOrigin: string;
 }
@@ -124,7 +126,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
           // GM is the owner; Players/Observers gain access via invite tokens
           // (validated at REST /rooms/:id/join endpoints in earlier verticals).
           // For Vertical 2 we accept any authenticated user — RBAC tightening
-          // moves to Чат 7 along with full presence tracking.
+          // TODO: add full presence tracking.
           if (socket.data.roomId && socket.data.roomId !== payload.roomId) {
             await socket.leave(socket.data.roomId);
           }
@@ -145,7 +147,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
       'dice:roll',
       makeDiceRollHandler(io, socket, deps.diceService, deps.chatService, deps.rooms),
     );
-    socket.on('chat:message', makeChatMessageHandler(io, socket, deps.chatService));
+    socket.on('chat:message', makeChatMessageHandler(io, socket, deps.chatService, deps.roomService));
     socket.on('session:resync', makeSessionResyncHandler(socket, deps.resyncService));
     registerSignalingHandlers(io, socket, deps.rooms);
     registerAnnotationHandlers(socket, deps.annotationService);

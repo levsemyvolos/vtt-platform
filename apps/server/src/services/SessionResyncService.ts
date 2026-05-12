@@ -43,7 +43,9 @@ export class SessionResyncService {
       viewerRole,
       viewerId,
     );
-    const messagesPromise = this.messages.listRecent(roomId, 200);
+    // Observer-isolation (§3): Player viewers never see observer-channel rows
+    // — the repository drops them via SQL filter. GM and Observer see all rows.
+    const messagesPromise = this.messages.listRecent(roomId, 200, { viewerRole });
 
     const [scene, rawMessages] = await Promise.all([
       sceneSnapshotPromise,
