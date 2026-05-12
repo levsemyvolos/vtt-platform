@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://vtt-server.onrender.com/$1"
+      "destination": "https://obscure-vtt.up.railway.app/$1"
     },
     {
       "source": "/(.*)",
