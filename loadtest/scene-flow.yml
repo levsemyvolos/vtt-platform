@@ -1,0 +1,67 @@
+# VTT Platform — Artillery load test (§3.14 of thesis)
+#
+# Key scenario (per Process View, §2.14): Player joins room → opens
+# active scene → fetches scene snapshot → polls /health.
+#
+# Phases ramp from 10 → 100 concurrent virtual users in 10-VU steps,
+# 30 seconds at each plateau. Threshold for НФВ 2.1: p95 ≤ 500 ms on
+# REST endpoints; informal target for thesis acceptance: p95 ≤ 2 s.
+#
+# Run:
+#   pnpm exec artillery run loadtest/scene-flow.yml --output report.json
+#   pnpm exec artillery report report.json
+#
+# Target may be overridden:
+#   TARGET=http://localhost:4000 pnpm exec artillery run ...
+
+config:
+  target: "http://localhost:4000"
+  phases:
+    - name: "Ramp 10 VU"
+      duration: 30
+      arrivalRate: 10
+    - name: "Ramp 25 VU"
+      duration: 30
+      arrivalRate: 25
+    - name: "Ramp 50 VU"
+      duration: 30
+      arrivalRate: 50
+    - name: "Ramp 75 VU"
+      duration: 30
+      arrivalRate: 75
+    - name: "Sustained 100 VU"
+      duration: 60
+      arrivalRate: 100
+  ensure:
+    p95: 2000      # accept if p95 stays under 2 seconds (НФВ 2.1 acceptance)
+    maxErrorRate: 5
+
+scenarios:
+  - name: "Health probe"
+    weight: 4
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+  - name: "Auth + room listing"
+    weight: 1
+    flow:
+      # NOTE: requires seeded test user `loadtest@example.com`.
+      - post:
+          url: "/auth/login"
+          json:
+            email: "loadtest@example.com"
+            password: "LoadTest#Pass2026"
+          capture:
+            - json: "$.accessToken"
+              as: "token"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/rooms"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          expect:
+            - statusCode: 200

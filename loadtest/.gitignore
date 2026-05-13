@@ -1,0 +1,3 @@
+# Artillery run artefacts — regenerated on each prog
+report*.json
+report*.html

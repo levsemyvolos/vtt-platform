@@ -1,0 +1,56 @@
+# VTT Platform — Artillery load test against Railway PRODUCTION (§3.3 + §3.14).
+#
+# Run:
+#   pnpm exec artillery run loadtest/scene-flow-railway.yml --output loadtest/report_railway.json
+#
+# During the run, screenshot Railway Dashboard → Metrics tab to obtain
+# рис. 3.4 (CPU), 3.5 (RAM), 3.6 (HTTP latency), 3.7 (connections).
+#
+# Loadtest user MUST exist in production Supabase (seed via SQL Editor):
+#   INSERT INTO "User" (id, email, "passwordHash", "displayName", "createdAt")
+#   VALUES (gen_random_uuid(),
+#           'loadtest@example.com',
+#           '$2b$12$<hash>',
+#           'Load Test',
+#           now());
+
+config:
+  target: "https://obscure-vtt.up.railway.app"
+  phases:
+    - { name: "Ramp 10 VU",    duration: 30, arrivalRate: 10 }
+    - { name: "Ramp 25 VU",    duration: 30, arrivalRate: 25 }
+    - { name: "Ramp 50 VU",    duration: 30, arrivalRate: 50 }
+    - { name: "Ramp 75 VU",    duration: 30, arrivalRate: 75 }
+    - { name: "Sustained 100", duration: 60, arrivalRate: 100 }
+  ensure:
+    p95: 2000
+    maxErrorRate: 5
+
+scenarios:
+  - name: "Health probe"
+    weight: 4
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+  - name: "Auth + room listing"
+    weight: 1
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "loadtest@example.com"
+            password: "LoadTest#Pass2026"
+          capture:
+            - json: "$.accessToken"
+              as: "token"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/rooms"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          expect:
+            - statusCode: 200
