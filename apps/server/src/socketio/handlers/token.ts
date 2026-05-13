@@ -88,14 +88,16 @@ export function makeTokenDragPreviewHandler(
 ) {
   return async (payload: TokenDragPreviewPayload): Promise<void> => {
     if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
-
-    if (socket.data.role !== 'GM') {
-      // Player: verify they own this token before forwarding
-      const token = await sceneService.findTokenById(payload.tokenId);
-      if (!token || token.sceneId !== payload.sceneId) return;
-      if (token.assignedUserId !== socket.data.userId) return;
+    try {
+      if (socket.data.role !== 'GM') {
+        // Player: verify they own this token before forwarding
+        const token = await sceneService.findTokenById(payload.tokenId);
+        if (!token || token.sceneId !== payload.sceneId) return;
+        if (token.assignedUserId !== socket.data.userId) return;
+      }
+      socket.broadcast.to(payload.roomId).emit('token:drag-preview', payload);
+    } catch (err) {
+      console.error('[Socket] token:drag-preview error:', err);
     }
-
-    socket.broadcast.to(payload.roomId).emit('token:drag-preview', payload);
   };
 }

@@ -94,12 +94,13 @@ roomsRouter.get('/', jwtAuth, requireRole('GM', 'Player'), async (req: Request, 
     const order: 'asc' | 'desc' = rawOrder === 'asc' ? 'asc' : 'desc';
 
     const rooms = await roomService.listByUserAndRole(req.user!.id, filter, sort, order);
-    const dtos = await Promise.all(
-      rooms.map(async (room) => {
-        const members = await roomService.getMembersProjection(room.id);
-        return toRoomDTO(room, members);
-      }),
-    );
+    // Sequential to cap concurrent DB connections: Promise.all here would open
+    // N×2 queries simultaneously and exhaust PgBouncer's session pool.
+    const dtos = [];
+    for (const room of rooms) {
+      const members = await roomService.getMembersProjection(room.id);
+      dtos.push(toRoomDTO(room, members));
+    }
     res.json(dtos);
   } catch (err) {
     handleError(err, res);

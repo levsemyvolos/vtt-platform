@@ -1,7 +1,6 @@
 import type { SignalingPayload } from '@vtt/shared';
 import type { TypedSocket, TypedServer } from '../types.js';
 import { userRoom } from '../types.js';
-import type { RoomRepository } from '../../repositories/RoomRepository.js';
 
 type SignalingEvent = 'signal:offer' | 'signal:answer' | 'signal:ice';
 
@@ -20,6 +19,8 @@ type SignalingEvent = 'signal:offer' | 'signal:answer' | 'signal:ice';
  *   2. Sender cannot signal themselves — guards against echo loops.
  *   3. Target user must be a member of the same room — prevents cross-room
  *      signaling injection where a peer in Room A signals a user in Room B.
+ *      Checked via in-memory Socket.io room membership (no DB query) to avoid
+ *      connection-pool exhaustion under ICE-candidate bursts.
  *   4. The SDP / ICE blob is opaque (`unknown`) and forwarded as-is.
  *
  * SFU / mesh ≥ 6 participants is out of scope for vertical 4 (see §2.13.4
@@ -29,17 +30,22 @@ type SignalingEvent = 'signal:offer' | 'signal:answer' | 'signal:ice';
 export function registerSignalingHandlers(
   io: TypedServer,
   socket: TypedSocket,
-  rooms: RoomRepository,
 ): void {
   const forward = (event: SignalingEvent) =>
-    async (payload: SignalingPayload): Promise<void> => {
+    (payload: SignalingPayload): void => {
       const senderId = socket.data.userId;
       if (!senderId) return;
       if (!socket.data.roomId || socket.data.roomId !== payload.roomId) return;
       if (payload.toUserId === senderId) return;
 
-      // Prevent cross-room signaling: verify target belongs to the same room.
-      const targetInRoom = await rooms.isMember(payload.roomId, payload.toUserId);
+      // Prevent cross-room signaling: verify target is currently connected to
+      // the same Socket.io room. Avoids a DB round-trip on every ICE candidate
+      // (ICE bursts can exceed 20 events/sec per peer pair, which exhausts the
+      // PgBouncer session-mode pool of 15 connections).
+      const targetSockets = io.sockets.adapter.rooms.get(userRoom(payload.toUserId));
+      const roomSockets = io.sockets.adapter.rooms.get(payload.roomId);
+      if (!targetSockets || !roomSockets) return;
+      const targetInRoom = [...targetSockets].some(sid => roomSockets.has(sid));
       if (!targetInRoom) return;
 
       // Authoritative sender identity — overrides anything the client put in.

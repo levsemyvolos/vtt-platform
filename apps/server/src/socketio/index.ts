@@ -149,7 +149,7 @@ export function buildSocketIo(httpServer: HttpServer, deps: SocketDeps): TypedSe
     );
     socket.on('chat:message', makeChatMessageHandler(io, socket, deps.chatService, deps.roomService));
     socket.on('session:resync', makeSessionResyncHandler(socket, deps.resyncService));
-    registerSignalingHandlers(io, socket, deps.rooms);
+    registerSignalingHandlers(io, socket);
     registerAnnotationHandlers(socket, deps.annotationService);
     registerDrawHandlers(io, socket, deps.drawService, deps.sceneAnnotationService, deps.sceneService);
     registerModerationHandlers(io, socket);
